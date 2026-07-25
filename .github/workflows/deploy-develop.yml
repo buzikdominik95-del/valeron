@@ -1,49 +1,46 @@
-name: Test Code (Develop Branch)
+name: Deploy to Dev Server (Develop Branch)
 
 on:
   push:
     branches:
       - develop
-  pull_request:
-    branches:
-      - main
 
 jobs:
-  test:
-    name: Run Tests and Checks
+  deploy-dev:
+    name: Deploy to dev.it-velora.com
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - name: Deploy to Dev Server
+        uses: appleboy/ssh-action@v1.0.3
         with:
-          php-version: '8.4'
-          extensions: pdo, pdo_pgsql, gd, zip, intl, bcmath, opcache
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Backend Dependencies
-        working-directory: ./backend
-        run: composer install --prefer-dist --no-progress
-
-      - name: Install Frontend Dependencies
-        working-directory: ./frontend
-        run: npm ci
-
-      - name: Build Frontend
-        working-directory: ./frontend
-        run: npm run build
-
-      - name: Run Backend Tests
-        working-directory: ./backend
-        run: php artisan test
-        continue-on-error: true
-
-      - name: Check for Syntax Errors
-        run: echo "✅ All checks passed! Ready for production."
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SERVER_SSH_KEY }}
+          script: |
+            cd /var/www/calipso-v2-dev
+            
+            # Pull latest code from develop branch
+            git pull origin develop
+            
+            # Install backend dependencies
+            docker exec -u root calipso_app_dev composer install --no-dev --optimize-autoloader
+            
+            # Run migrations
+            docker exec calipso_app_dev php artisan migrate --force
+            
+            # Clear and cache config
+            docker exec calipso_app_dev php artisan config:cache
+            docker exec calipso_app_dev php artisan route:cache
+            docker exec calipso_app_dev php artisan view:cache
+            
+            # Build frontend
+            cd frontend
+            npm install --legacy-peer-deps
+            npm run build
+            
+            # Restart services
+            cd ..
+            docker-compose -f docker-compose-dev.yml restart app_dev queue_dev reverb_dev
+            
+            echo "✅ Dev deployment complete! Check https://dev.it-velora.com"

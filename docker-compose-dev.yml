@@ -1,0 +1,97 @@
+version: '3.9'
+
+networks:
+  calipso_dev_network:
+    driver: bridge
+
+volumes:
+  postgres_dev_data:
+  redis_dev_data:
+
+services:
+  postgres_dev:
+    image: postgres:16-alpine
+    container_name: calipso_postgres_dev
+    environment:
+      POSTGRES_USER: calipso_user
+      POSTGRES_PASSWORD: calipso_secret_dev
+      POSTGRES_DB: calipso_dev
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    networks:
+      - calipso_dev_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U calipso_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis_dev:
+    image: redis:7-alpine
+    container_name: calipso_redis_dev
+    command: redis-server
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - calipso_dev_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  app_dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.php
+    container_name: calipso_app_dev
+    working_dir: /var/www/backend
+    volumes:
+      - ./backend:/var/www/backend
+    env_file: ./backend/.env
+    ports:
+      - "8081:9000"
+    depends_on:
+      postgres_dev:
+        condition: service_healthy
+      redis_dev:
+        condition: service_healthy
+    networks:
+      - calipso_dev_network
+    restart: unless-stopped
+
+  queue_dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.php
+    container_name: calipso_queue_dev
+    working_dir: /var/www/backend
+    volumes:
+      - ./backend:/var/www/backend
+    env_file: ./backend/.env
+    command: php artisan queue:work --tries=3 --timeout=90
+    depends_on:
+      - app_dev
+    networks:
+      - calipso_dev_network
+    restart: unless-stopped
+
+  reverb_dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.php
+    container_name: calipso_reverb_dev
+    working_dir: /var/www/backend
+    volumes:
+      - ./backend:/var/www/backend
+    env_file: ./backend/.env
+    ports:
+      - "8082:8080"
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    depends_on:
+      - app_dev
+    networks:
+      - calipso_dev_network
+    restart: unless-stopped
