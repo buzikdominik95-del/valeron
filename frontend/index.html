@@ -4,51 +4,9 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hello World - Velora CRM</title>
+    <title>Velora CRM</title>
   </head>
   <body>
-    <h1 style="text-align: center; margin-top: 50px; font-family: Arial;">Velora CRM 🚀</h1>
-    
-    <!-- Прогресс бар -->
-    <div style="max-width: 600px; margin: 30px auto; padding: 0 20px;">
-      <div style="background: #e0e0e0; border-radius: 10px; overflow: hidden; height: 30px;">
-        <div id="progressBar" style="
-          width: 0%;
-          height: 100%;
-          background: linear-gradient(90deg, #4CAF50, #45a049);
-          transition: width 0.3s ease;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-family: Arial;
-          font-weight: bold;
-        ">
-          <span id="progressText">0%</span>
-        </div>
-      </div>
-      <p style="text-align: center; margin-top: 10px; font-family: Arial; color: #666;">
-        Загрузка системы...
-      </p>
-    </div>
-
-    <script>
-      // Анимация прогресс бара
-      let progress = 0;
-      const progressBar = document.getElementById('progressBar');
-      const progressText = document.getElementById('progressText');
-      
-      const interval = setInterval(() => {
-        progress += Math.random() * 15;
-        if (progress >= 100) {
-          progress = 100;
-          clearInterval(interval);
-        }
-        progressBar.style.width = progress + '%';
-        progressText.textContent = Math.round(progress) + '%';
-      }, 200);
-    </script>
-    
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
   </body>
