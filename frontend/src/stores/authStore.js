@@ -21,7 +21,7 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = data.user
       return data.user
     } catch (err) {
-      error.value = err.response?.data?.message ; 'Login failed'
+      error.value = err.response?.data?.message || 'Login failed'
       throw err
     }
   }
@@ -37,7 +37,7 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = data.user
       return data.user
     } catch (err) {
-      error.value = err.response?.data?.message ; 'Registration failed'
+      error.value = err.response?.data?.message || 'Registration failed'
       throw err
     }
   }
@@ -60,7 +60,7 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = data
       return data
     } catch (err) {
-      error.value = err.response?.data?.message ; 'Update failed'
+      error.value = err.response?.data?.message || 'Update failed'
       throw err
     }
   }
