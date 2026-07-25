@@ -1,0 +1,140 @@
+version: '3.9'
+
+networks:
+  calipso_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: calipso_postgres
+    environment:
+      POSTGRES_USER: calipso_user
+      POSTGRES_PASSWORD: calipso_secret
+      POSTGRES_DB: calipso_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - calipso_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U calipso_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: calipso_redis
+    command: redis-server
+    volumes:
+      - redis_data:/data
+    networks:
+      - calipso_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:latest
+    container_name: calipso_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend:/var/www/frontend:ro
+      - ./backend/public:/var/www/backend/public:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - app
+    networks:
+      - calipso_network
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.php
+    container_name: calipso_app
+    working_dir: /var/www/backend
+    volumes:
+      - ./backend:/var/www/backend
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - calipso_network
+    restart: unless-stopped
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile.php
+    container_name: calipso_queue
+    working_dir: /var/www/backend
+    volumes:
+      - ./backend:/var/www/backend
+    env_file: .env
+    command: php artisan queue:work --tries=3 --timeout=90
+    depends_on:
+      - app
+    networks:
+      - calipso_network
+    restart: unless-stopped
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.php
+    container_name: calipso_scheduler
+    working_dir: /var/www/backend
+    volumes:
+      - ./backend:/var/www/backend
+    env_file: .env
+    command: sh -c "while true; do php artisan schedule:run >> /dev/null 2>&1; sleep 60; done"
+    depends_on:
+      - app
+    networks:
+      - calipso_network
+    restart: unless-stopped
+
+  reverb:
+    build:
+      context: .
+      dockerfile: Dockerfile.php
+    container_name: calipso_reverb
+    working_dir: /var/www/backend
+    volumes:
+      - ./backend:/var/www/backend
+    env_file: .env
+    ports:
+      - "8080:8080"
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    depends_on:
+      - app
+    networks:
+      - calipso_network
+    restart: unless-stopped
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: calipso_uptime_kuma
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./uptime-kuma:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - calipso_network
+    restart: unless-stopped

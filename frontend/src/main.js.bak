@@ -1,0 +1,39 @@
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import * as Sentry from '@sentry/vue'
+import App from './App.vue'
+import router from './router'
+import './style.css'
+
+const app = createApp(App)
+
+// 🔥 SENTRY MONITORING - отслеживание ошибок в production
+Sentry.init({
+  app,
+  dsn: import.meta.env.VITE_SENTRY_DSN || '',
+  integrations: [
+    Sentry.browserTracingIntegration({ router }),
+    Sentry.replayIntegration({
+      maskAllText: false,
+      blockAllMedia: false,
+    }),
+  ],
+  // Performance Monitoring
+  tracesSampleRate: 1.0, // 100% транзакций (в production поставь 0.1)
+  tracePropagationTargets: ['localhost', /^\\/api/],
+  // Session Replay
+  replaysSessionSampleRate: 0.1, // 10% обычных сессий
+  replaysOnErrorSampleRate: 1.0, // 100% сессий с ошибками
+  environment: import.meta.env.MODE || 'development',
+})
+
+// 🔥 ОБРАБОТКА ОШИБОК - локальный fallback если Sentry не настроен
+app.config.errorHandler = (err, instance, info) => {
+  console.error('❌ Vue Error:', err)
+  console.error('📍 Component:', instance)
+  console.error('ℹ️ Info:', info)
+  
+  // В development показываем красивый экран ошибки
+  if (import.meta.env.DEV) {
+    document.body.innerHTML = \
+      <div style=\ padding: 40px

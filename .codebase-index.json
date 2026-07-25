@@ -1,0 +1,5 @@
+level=info msg=mem.init budget_mb=11231 total_ram_mb=32090
+level=info msg=server.start version=0.9.0
+level=info msg=watcher.start interval_ms=multi-sec
+level=info msg=server.shutdown
+level=info msg=watcher.stop

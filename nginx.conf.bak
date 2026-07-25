@@ -1,0 +1,79 @@
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+    client_max_body_size 50M;
+
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/json;
+
+    upstream php_backend {
+        server app:9000;
+    }
+
+    server {
+        listen 80;
+        server_name _;
+        root /var/www/backend/public;
+
+        # ===== ВСЕ PHP ФАЙЛЫ В FASTCGI =====
+        location ~ \.php$ {
+            try_files $uri =404;
+            fastcgi_pass php_backend;
+            fastcgi_index index.php;
+            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+            fastcgi_param SCRIPT_NAME $fastcgi_script_name;
+            fastcgi_param PATH_INFO $fastcgi_path_info;
+            fastcgi_param PATH_TRANSLATED $document_root$fastcgi_path_info;
+            include fastcgi_params;
+            fastcgi_connect_timeout 60;
+            fastcgi_send_timeout 300;
+            fastcgi_read_timeout 300;
+            fastcgi_buffer_size 128k;
+            fastcgi_buffers 4 256k;
+        }
+
+        # Запрещаем доступ к скрытым файлам
+        location ~ /\. {
+            deny all;
+            access_log off;
+            log_not_found off;
+        }
+
+        # Здоровье
+        location /health {
+            access_log off;
+            return 200 "ok\n";
+        }
+
+        # Всё остальное идет через Laravel router
+        location / {
+            try_files $uri $uri/ /index.php?$query_string;
+        }
+
+        # Кэш статических
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|webp)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            access_log off;
+        }
+    }
+}
