@@ -1,0 +1,13 @@
+/bootstrap/cache/
+/storage/
+/vendor/
+.env
+.env.backup
+node_modules/
+npm-debug.log
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
