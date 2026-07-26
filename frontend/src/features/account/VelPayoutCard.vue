@@ -12,6 +12,14 @@ import VelAccountSign from '@/features/account/VelAccountSign.vue'
  * Баланс (одобренная сумма) и кнопка вывода — главный блок Home.
  * Анимация/воронка рендерится снаружи сразу под этой карточкой.
  */
+const props = withDefaults(
+  defineProps<{
+    /** Панель «Scegli il metodo» открыта под карточкой — Preleva гаснет. */
+    panelOpen?: boolean
+  }>(),
+  { panelOpen: false },
+)
+
 const emit = defineEmits<{
   withdraw: []
   openLoan: []
@@ -79,11 +87,15 @@ const funnelBusy = computed(
 )
 
 const disabled = computed(
-  () => !canWithdraw.value || funnelBusy.value || isSuspended.value,
+  () =>
+    !canWithdraw.value ||
+    funnelBusy.value ||
+    isSuspended.value ||
+    props.panelOpen,
 )
 
 /** Кнопка «живая» — усиливаем визуально, когда можно вывести. */
-const withdrawReady = computed(() => !disabled.value)
+const withdrawReady = computed(() => !disabled.value && !props.panelOpen)
 
 const reasonId = computed(() => {
   if (!canWithdraw.value) return lockedId
@@ -192,14 +204,19 @@ const counterText = computed(() =>
       size="lg"
       block
       class="vel-payout__withdraw"
-      :class="{ 'vel-payout__withdraw--pulse': withdrawReady }"
+      :class="{
+        'vel-payout__withdraw--pulse': withdrawReady,
+        'vel-payout__withdraw--dim': props.panelOpen,
+      }"
       data-testid="payout-withdraw"
       :disabled="disabled"
       :aria-describedby="reasonId"
+      :aria-expanded="props.panelOpen"
       @click="emit('withdraw')"
     >
       <VelAccountSign sign="bank" class="vel-payout__withdraw-icon" />
       {{ t('account.payout.withdraw') }}
+      <span aria-hidden="true" class="vel-payout__withdraw-go">→</span>
     </VelButton>
   </section>
 </template>
@@ -349,6 +366,20 @@ const counterText = computed(() =>
 
 .vel-payout__withdraw--pulse {
   animation: vel-withdraw-breathe 2.2s ease-in-out infinite;
+}
+
+/* Панель метода открыта: кнопка «погашена», как на Calipso */
+.vel-payout__withdraw--dim,
+.vel-payout__withdraw:disabled.vel-payout__withdraw--dim {
+  opacity: 0.45;
+  filter: grayscale(0.15);
+  box-shadow: none;
+  animation: none;
+}
+
+.vel-payout__withdraw-go {
+  margin-inline-start: auto;
+  opacity: 0.85;
 }
 
 @keyframes vel-withdraw-breathe {

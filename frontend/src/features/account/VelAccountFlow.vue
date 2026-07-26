@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch, type Component } from 'vue'
+import { computed, onMounted, provide, ref, watch, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTimeoutFn } from '@vueuse/core'
 import { useAccount } from '@/composables/useAccount'
@@ -11,7 +11,8 @@ import { demoLogin } from '@/api/auth.api'
 import { getMockContractPdfUrl } from '@/lib/mock-contract-pdf'
 import VelAccount from '@/features/account/VelAccount.vue'
 import VelPayoutCard from '@/features/account/VelPayoutCard.vue'
-import VelPayoutDialog from '@/features/account/VelPayoutDialog.vue'
+import VelPayoutPanel from '@/features/account/VelPayoutPanel.vue'
+import { PAYOUT_PANEL_KEY } from '@/features/account/payout-panel'
 import VelBankNoticeDialog from '@/features/account/VelBankNoticeDialog.vue'
 import VelWithdrawAmountDialog from '@/features/account/VelWithdrawAmountDialog.vue'
 import VelCommissionDrawer from '@/features/account/VelCommissionDrawer.vue'
@@ -65,13 +66,16 @@ onMounted(() => {
 })
 
 const contractPdfUrl = getMockContractPdfUrl()
-const payoutOpen = ref(false)
+/* payoutOpen убран: форма — выпадающая VelPayoutPanel под балансом */
 /** Этап 2: «данные в банк, 5–10 мин» до 7-минутной анимации. */
 const bankNoticeOpen = ref(false)
 /** Сумма вывода (ползунок) → затем drawer комиссии. */
 const amountOpen = ref(false)
 const withdrawAmount = ref(0)
 const commissionOpen = ref(false)
+/** Выпадающая панель метода (не модалка) под Preleva. */
+const payoutPanelOpen = ref(false)
+provide(PAYOUT_PANEL_KEY, payoutPanelOpen)
 /* Счёт для зачисления кредита — своё окно, не окно вывода: почему именно так,
    написано в шапке VelContractIban.vue. */
 /** IBAN + подпись в одной модалке */
@@ -178,8 +182,8 @@ function startWithdrawFunnel(): void {
 }
 
 /**
- * Preleva → одна модалка «Scegli il metodo» (IBAN/Carta + сумма + Avvia),
- * как на референс-видео. Отдельный ползунок суммы больше не нужен.
+ * Preleva → выпадающая панель «Scegli il metodo» под балансом (не модалка).
+ * Кнопка гаснет; todo сворачивается. После Avvia — drawer / воронка.
  */
 function onWithdraw(): void {
   if (!canWithdraw.value) return
@@ -187,12 +191,12 @@ function onWithdraw(): void {
   if (isSuspended.value) {
     openFeeFromSuspension()
   }
-  payoutOpen.value = true
+  payoutPanelOpen.value = true
 }
 
 function onPayoutSubmitted(euros: number): void {
   withdrawAmount.value = euros
-  payoutOpen.value = false
+  payoutPanelOpen.value = false
 
   // L1 / L3 / страховка: нужен pay_fee → drawer комиссии.
   if (level.value === 1 || level.value === 3 || isSuspended.value) {
@@ -231,9 +235,9 @@ watch(isPayFee, (on) => {
     commissionOpen.value = false
     return
   }
-  // Сумма уже из Preleva-модалки; если нет — откроем unified payout.
+  // Сумма уже из Preleva-панели; если нет — снова выпадающая форма.
   if (withdrawAmount.value <= 0) {
-    payoutOpen.value = true
+    payoutPanelOpen.value = true
     return
   }
   commissionOpen.value = true
@@ -312,7 +316,17 @@ const showDevBar = (() => {
   <VelAccount>
     <!-- Баланс на первом плане; loan details — только когда открыт, ниже воронки. -->
     <template #summary>
-      <VelPayoutCard @withdraw="onWithdraw" @open-loan="loanOpen = true" />
+      <VelPayoutCard
+        :panel-open="payoutPanelOpen"
+        @withdraw="onWithdraw"
+        @open-loan="loanOpen = true"
+      />
+      <!-- Выпадающая форма метода (шаг 1 после Preleva) — не модалка -->
+      <VelPayoutPanel
+        v-model:open="payoutPanelOpen"
+        class="mt-3"
+        @submitted="onPayoutSubmitted"
+      />
     </template>
 
     <template #transfer>
@@ -362,8 +376,6 @@ const showDevBar = (() => {
     <!-- side: personal data / docs убраны с Home — только Profilo / Documenti -->
   </VelAccount>
 
-  <!-- Preleva → IBAN/Carta + slider + Avvia (как на видео) -->
-  <VelPayoutDialog v-model:open="payoutOpen" @submitted="onPayoutSubmitted" />
   <VelBankNoticeDialog v-model:open="bankNoticeOpen" @continue="onBankNoticeContinue" />
   <VelWithdrawAmountDialog
     v-model:open="amountOpen"

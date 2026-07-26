@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CABINET_HEADING_ID } from '@/composables/useCabinetTab'
 import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
+import { PAYOUT_PANEL_KEY } from '@/features/account/payout-panel'
 import VelStepTracker from '@/features/account/VelStepTracker.vue'
 
 /**
@@ -26,6 +27,9 @@ const {
   isPolicyBuild,
 } = useCommission()
 
+/** Панель Preleva открыта — todo прячется, форма выпадает под балансом. */
+const payoutPanelOpen = inject(PAYOUT_PANEL_KEY, ref(false))
+
 /** Воронка «забрала» место todo-листа. */
 const transferTakesOver = computed(
   () =>
@@ -36,8 +40,10 @@ const transferTakesOver = computed(
     isPolicyBuild.value,
 )
 
-/** Todo только L1–L2, пока нет анимации/обработки. */
-const showTracker = computed(() => level.value <= 2 && !transferTakesOver.value)
+/** Todo только L1–L2, пока нет анимации и панели метода. */
+const showTracker = computed(
+  () => level.value <= 2 && !transferTakesOver.value && !payoutPanelOpen.value,
+)
 
 const stageKey = computed(() => {
   if (showTracker.value) return 'tracker'
