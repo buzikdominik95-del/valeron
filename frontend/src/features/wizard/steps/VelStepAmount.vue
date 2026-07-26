@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, useId, watch } from 'vue'
+import { computed, ref, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { cn } from '@/lib/cn'
 import { useCreditSimulator } from '@/composables/useCreditSimulator'
 import { useWizard } from '@/composables/useWizard'
+import { useStaggerReveal } from '@/composables/useStaggerReveal'
 import VelButton from '@/components/ui/VelButton.vue'
 
 /**
@@ -22,6 +23,8 @@ const formId = `vel-amount-form-${uid}`
 const inputId = `vel-amount-${uid}`
 const rangeId = `${inputId}-range`
 const hintId = `${inputId}-hint`
+const formRoot = useTemplateRef<HTMLElement>('formRoot')
+useStaggerReveal(formRoot, { y: 18, stagger: 0.09, duration: 0.44, delay: 0.05 })
 
 const digits = ref(String(amount.value))
 
@@ -118,15 +121,20 @@ const inputClass = computed(() =>
 </script>
 
 <template>
-  <form :id="formId" class="flex flex-col gap-6" @submit.prevent="onSubmit">
-    <div class="flex flex-col gap-3">
+  <form
+    :id="formId"
+    ref="formRoot"
+    class="flex flex-col gap-6"
+    @submit.prevent="onSubmit"
+  >
+    <div data-reveal class="flex flex-col gap-3">
       <!-- Надзаголовок он же подпись поля: связка через for даёт вводу имя,
            не дублируя текст в aria-label. -->
       <label :for="inputId" class="vel-label">{{ t('wizard.amount.lead') }}</label>
       <h1 class="vel-amount__title text-3xl sm:text-4xl">{{ t('wizard.amount.title') }}</h1>
     </div>
 
-    <div class="flex flex-col gap-2">
+    <div data-reveal class="flex flex-col gap-2">
       <div class="vel-amount__box">
         <input
           :id="inputId"
@@ -151,9 +159,18 @@ const inputClass = computed(() =>
       </p>
     </div>
 
+    <!--
+      Ширину не режем: подсказка обязана совпадать по краям с полем ввода над
+      ней. Здесь стоял .vel-measure (потолок 52ch) — он держит длинную строку в
+      читаемой мере, но эта плашка не абзац текста, а рамка под полем, и
+      обрезанная по 52ch она заканчивалась заметно левее поля. Две рамки одна
+      под другой с разными правыми краями читаются как съехавшая вёрстка.
+      Строка внутри короткая, и без потолка мера не страдает.
+    -->
     <p
       :id="hintId"
-      class="vel-measure rounded-control border border-line bg-surface px-3.5 py-2.5 text-xs text-muted"
+      data-reveal
+      class="rounded-control border border-line bg-surface px-3.5 py-2.5 text-xs text-muted"
     >
       {{ t('wizard.amount.hint') }}
     </p>

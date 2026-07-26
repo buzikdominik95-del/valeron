@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, useId, watch } from 'vue'
+import { computed, useId, useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useWizard } from '@/composables/useWizard'
+import { useStaggerReveal } from '@/composables/useStaggerReveal'
+import { useAutoAnimate } from '@/composables/useAutoAnimate'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import VelField from '@/components/ui/VelField.vue'
 import VelInput from '@/components/ui/VelInput.vue'
@@ -16,6 +18,10 @@ import type { VelSelectOption } from '@/types/velora'
  * размонтирует форму, и с локальным состоянием всё введённое стиралось бы.
  * Отправку пока заменяет переход дальше — вызов API встанет в onSubmit
  * без правки разметки.
+ *
+ * Появление: заголовок и поля выезжают очередью (useStaggerReveal).
+ * Номер документа — отдельный «новый» инпут: в DOM только после выбора
+ * типа, и контейнер плавно раздвигает соседей (useAutoAnimate).
  */
 const { t } = useI18n()
 const { next } = useWizard()
@@ -55,6 +61,12 @@ if (restoredDocType !== docType.value) {
 }
 
 const formId = `vel-identity-form-${useId()}`
+const formRoot = useTemplateRef<HTMLElement>('formRoot')
+const fieldsRoot = useTemplateRef<HTMLElement>('fieldsRoot')
+
+useStaggerReveal(formRoot, { y: 18, stagger: 0.085, duration: 0.44, delay: 0.06 })
+/* childList: номер документа появляется/исчезает — соседи плавно разъезжаются */
+useAutoAnimate(fieldsRoot, { duration: 280 })
 
 const docTypeOptions = computed<VelSelectOption[]>(() =>
   DOC_TYPES.map((value) => ({
@@ -82,46 +94,57 @@ function onSubmit(): void {
 </script>
 
 <template>
-  <form :id="formId" class="flex flex-col gap-6" @submit.prevent="onSubmit">
-    <div class="flex flex-col gap-3">
+  <form
+    :id="formId"
+    ref="formRoot"
+    class="flex flex-col gap-6"
+    @submit.prevent="onSubmit"
+  >
+    <div data-reveal class="flex flex-col gap-3">
       <p class="vel-label">{{ t('wizard.identity.lead') }}</p>
       <h1 class="vel-identity__title text-3xl sm:text-4xl">{{ t('wizard.identity.title') }}</h1>
     </div>
 
-    <div class="grid gap-5 sm:grid-cols-2">
-      <VelField :label="t('wizard.identity.surname')">
-        <VelInput v-model="surname" autocomplete="family-name" spellcheck="false" />
-      </VelField>
+    <div ref="fieldsRoot" class="flex flex-col gap-5">
+      <div data-reveal class="grid gap-5 sm:grid-cols-2">
+        <VelField :label="t('wizard.identity.surname')">
+          <VelInput v-model="surname" autocomplete="family-name" spellcheck="false" />
+        </VelField>
 
-      <VelField :label="t('wizard.identity.name')">
-        <VelInput v-model="givenName" autocomplete="given-name" spellcheck="false" />
-      </VelField>
+        <VelField :label="t('wizard.identity.name')">
+          <VelInput v-model="givenName" autocomplete="given-name" spellcheck="false" />
+        </VelField>
+      </div>
+
+      <div data-reveal>
+        <VelField :label="t('wizard.identity.docType')">
+          <!-- Заглушка своим ключом, а не подписью поля: до выбора подпись и
+               закрытый селект стоят друг под другом в 41 пикселе, и один и тот же
+               текст дважды читался как задвоенный узел, а не как поле. Пустой
+               вариант при этом остаётся: без него селект молча предвыбрал бы
+               первый документ. -->
+          <VelSelect
+            v-model="docType"
+            :options="docTypeOptions"
+            :placeholder="t('wizard.identity.docTypePlaceholder')"
+          />
+        </VelField>
+      </div>
+
+      <!-- Новый инпут: появляется только после выбора типа документа -->
+      <div v-if="hasDocType" key="doc-number" data-reveal class="vel-identity__doc-num">
+        <VelField :label="t('wizard.identity.docNumber')">
+          <VelInput
+            v-model="docNumber"
+            :placeholder="t('wizard.identity.docNumberPlaceholder')"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </VelField>
+      </div>
     </div>
 
-    <VelField :label="t('wizard.identity.docType')">
-      <!-- Заглушка своим ключом, а не подписью поля: до выбора подпись и
-           закрытый селект стоят друг под другом в 41 пикселе, и один и тот же
-           текст дважды читался как задвоенный узел, а не как поле. Пустой
-           вариант при этом остаётся: без него селект молча предвыбрал бы
-           первый документ. -->
-      <VelSelect
-        v-model="docType"
-        :options="docTypeOptions"
-        :placeholder="t('wizard.identity.docTypePlaceholder')"
-      />
-    </VelField>
-
-    <VelField :label="t('wizard.identity.docNumber')">
-      <VelInput
-        v-model="docNumber"
-        :disabled="!hasDocType"
-        :placeholder="t('wizard.identity.docNumberPlaceholder')"
-        autocomplete="off"
-        spellcheck="false"
-      />
-    </VelField>
-
-    <p class="vel-measure text-xs text-faint">{{ t('wizard.identity.privacy') }}</p>
+    <p data-reveal class="vel-measure text-xs text-faint">{{ t('wizard.identity.privacy') }}</p>
   </form>
 
   <!-- Кнопка живёт в панели навигации оболочки, а форма — в области содержимого,
@@ -139,5 +162,29 @@ function onSubmit(): void {
 .vel-identity__title {
   max-width: 18ch;
   white-space: pre-line;
+}
+
+/* Акцент на «новом» поле: мягкая подсветка края, пока пользователь его видит. */
+.vel-identity__doc-num {
+  border-radius: var(--radius-control);
+  animation: vel-identity-pop 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes vel-identity-pop {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-identity__doc-num {
+    animation: none;
+  }
 }
 </style>

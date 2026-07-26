@@ -3,6 +3,7 @@ import { computed, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCommission } from '@/composables/useCommission'
 import { usePanelMotion } from '@/composables/usePanelMotion'
+import { useStaggerReveal } from '@/composables/useStaggerReveal'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
 import VelBorderBeam from '@/components/magic/VelBorderBeam.vue'
@@ -13,7 +14,9 @@ const { t, n } = useI18n()
 const { feeEuros, feeReason, level, confirmFeePaid } = useCommission()
 
 const root = useTemplateRef<HTMLElement>('root')
+const formRoot = useTemplateRef<HTMLElement>('formRoot')
 usePanelMotion(root)
+useStaggerReveal(formRoot, { y: 14, stagger: 0.075, duration: 0.4, delay: 0.08 })
 
 const amountText = computed(() => n(feeEuros.value, 'currency'))
 const title = computed(() => t(`account.commission.fee.reasons.${feeReason.value}.title`))
@@ -32,8 +35,12 @@ function onSubmit(): void {
   >
     <VelBorderBeam :duration-ms="7000" :size="48" />
 
-    <form class="relative z-[1] flex flex-col gap-4" @submit.prevent="onSubmit">
-      <div class="flex items-start gap-3">
+    <form
+      ref="formRoot"
+      class="relative z-[1] flex flex-col gap-4"
+      @submit.prevent="onSubmit"
+    >
+      <div data-reveal class="flex items-start gap-3">
         <span class="vel-fee-mark shrink-0 text-accent-deep">
           <VelAccountSign sign="card" size="lg" />
         </span>
@@ -43,20 +50,23 @@ function onSubmit(): void {
         </div>
       </div>
 
-      <p class="m-0 text-sm text-muted">{{ body }}</p>
+      <p data-reveal class="m-0 text-sm text-muted">{{ body }}</p>
 
       <div
+        data-reveal
         class="vel-fee-amount flex flex-col gap-1 rounded-control border border-line bg-ground px-4 py-3"
       >
         <span class="vel-label">{{ t('account.commission.fee.amountLabel') }}</span>
         <span class="vel-num text-2xl font-semibold text-accent-deep">{{ amountText }}</span>
       </div>
 
-      <p class="m-0 text-xs text-faint">{{ t('account.commission.fee.note') }}</p>
+      <p data-reveal class="m-0 text-xs text-faint">{{ t('account.commission.fee.note') }}</p>
 
-      <VelButton type="submit" block size="lg">
-        {{ t('account.commission.fee.cta') }}
-      </VelButton>
+      <div data-reveal>
+        <VelButton type="submit" block size="lg">
+          {{ t('account.commission.fee.cta') }}
+        </VelButton>
+      </div>
     </form>
   </section>
 </template>

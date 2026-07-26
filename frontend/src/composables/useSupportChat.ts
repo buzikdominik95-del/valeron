@@ -1,7 +1,12 @@
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
-import { useLocalStorage } from '@vueuse/core'
+import { useLocalStorage, useTimeoutFn } from '@vueuse/core'
+import { useI18n } from 'vue-i18n'
 import { useAccountStore } from '@/stores/account.store'
+import { useAccount } from '@/composables/useAccount'
+import { useCommission } from '@/composables/useCommission'
+import { isApiEnabled, submitSupportMessage } from '@/api/account.api'
+import { useDossierStore } from '@/stores/dossier.store'
 import {
   CHAT_KEEP,
   CHAT_MAX_LENGTH,
@@ -12,56 +17,53 @@ import {
 import type { ChatMessage } from '@/features/account/chat-thread'
 
 /**
- * Переписка с поддержкой: лента, черновик и отправка.
+ * Переписка с поддержкой + шаг воронки «написать консультанту».
  *
- * ПОЧЕМУ ЛЕНТА ПЕРЕЖИВАЕТ ПЕРЕЗАГРУЗКУ. Переписка — единственный экран
- * кабинета, где человек ПИШЕТ САМ. Потерять написанное из-за случайного
- * обновления страницы значит заставить набирать заново, и именно этого от
- * чата не ждут: он выглядит как мессенджер, значит и помнить обязан как
- * мессенджер.
- *
- * ЧЕРНОВИК ХРАНИТСЯ ОТДЕЛЬНО ОТ ЛЕНТЫ. Недописанное сообщение — не сообщение:
- * положив его в ленту, мы показали бы человеку отправленным то, что он ещё
- * набирает. Своя запись — и уход с вкладки не теряет полстроки.
- *
- * ГРАНИЦА С СЕРВЕРОМ. Отправленное сообщение получает состояние 'local' и
- * остаётся в браузере: API нет, и «доставлено» ему поставить неоткуда.
- * Автоответов от поддержки здесь нет и не будет до бэкенда — подставить
- * «оператор ответил» на таймере значило бы соврать человеку, что его
- * прочитали. В ленте есть ровно одно сообщение поддержки: приветствие,
- * которое рисуется всегда и ничего не обещает.
+ * После оплаты L1 (phase = messenger) шаблон кладётся в то же поле ввода,
+ * а отправка уходит в ту же ленту — отдельной формы-панели больше нет.
  */
 
-/** Приветствие поддержки. Не хранится: это не событие переписки, а заголовок
-    экрана, который просто выглядит как первое сообщение. */
+/** Приветствие поддержки. Не хранится: это заголовок экрана, не событие. */
 export const CHAT_GREETING_ID = 0
 
 export interface SupportChat {
-  /** Лента без приветствия — только то, что написал человек. */
   messages: Ref<ChatMessage[]>
   draft: Ref<string>
-  /** Можно ли отправить: непустой черновик в допустимых границах. */
   canSend: ComputedRef<boolean>
-  /** Сколько ещё символов влезет; отрицательного не бывает. */
   left: ComputedRef<number>
+  sending: Ref<boolean>
+  /** Воронка: ждём шаблон / ответ оператора. */
+  isFunnelMode: ComputedRef<boolean>
+  isWaitingAdmin: ComputedRef<boolean>
+  funnelAgentHello: ComputedRef<string>
+  funnelHint: ComputedRef<string>
   send: () => void
-  /** Корень ленты — к нему подкручиваем низ после отправки. */
   threadEl: Ref<HTMLElement | null>
+  /** true сразу после успешной отправки — для анимации кнопки. */
+  justSent: Ref<boolean>
 }
 
 export function useSupportChat(): SupportChat {
+  const { t } = useI18n()
   const account = useAccountStore()
+  const { client } = useAccount()
+  const {
+    isMessenger,
+    isWaiting,
+    level,
+    feeEuros,
+    feeReason,
+    confirmMessageSent,
+  } = useCommission()
+  const dossier = useDossierStore()
 
   const stored = useLocalStorage<ChatMessage[]>(CHAT_STORAGE_KEY, [])
   const draft = useLocalStorage<string>(`${CHAT_STORAGE_KEY}:draft`, '')
+  const funnelSeeded = useLocalStorage<string>(`${CHAT_STORAGE_KEY}:funnelSeed`, '')
   const threadEl = ref<HTMLElement | null>(null)
+  const sending = ref(false)
+  const justSent = ref(false)
 
-  /*
-   * Чиним прочитанное один раз при инициализации: в localStorage лежит что
-   * угодно — записи прошлой выкладки, ручная правка через инструменты
-   * разработчика, обрывок от прерванной записи. Мусор здесь означал бы пузырь
-   * без автора и без времени.
-   */
   const restored = Array.isArray(stored.value) ? stored.value.filter(isChatMessage) : []
   if (restored.length !== stored.value.length) {
     stored.value = restored
@@ -69,16 +71,49 @@ export function useSupportChat(): SupportChat {
 
   const messages = stored
 
+  const isFunnelMode = computed(() => isMessenger.value)
+  const isWaitingAdmin = computed(() => isWaiting.value)
+
+  const funnelTemplate = computed(() =>
+    t(`account.commission.messenger.templates.${feeReason.value}`, {
+      name: client.value.fullName || client.value.firstName,
+      level: level.value,
+      amount: feeEuros.value,
+    }),
+  )
+
+  const funnelAgentHello = computed(() => t('account.commission.messenger.agentHello'))
+  const funnelHint = computed(() => t('account.commission.messenger.hint'))
+
+  /*
+   * В фазе messenger подставляем шаблон один раз на «ключ» (уровень+reason+сумма).
+   * Повторно не затираем, если человек уже правил текст.
+   */
+  watch(
+    () =>
+      isMessenger.value
+        ? `${level.value}:${feeReason.value}:${feeEuros.value}`
+        : '',
+    (key) => {
+      if (!key) return
+      if (funnelSeeded.value === key) return
+      draft.value = funnelTemplate.value
+      funnelSeeded.value = key
+    },
+    { immediate: true },
+  )
+
   const trimmed = computed(() => draft.value.trim())
 
   const canSend = computed(
-    () => trimmed.value.length >= CHAT_MIN_LENGTH && trimmed.value.length <= CHAT_MAX_LENGTH,
+    () =>
+      !sending.value &&
+      trimmed.value.length >= CHAT_MIN_LENGTH &&
+      trimmed.value.length <= CHAT_MAX_LENGTH,
   )
 
   const left = computed(() => Math.max(0, CHAT_MAX_LENGTH - draft.value.length))
 
-  /** Следующий номер — от последнего, а не от длины: удалив старые записи по
-      CHAT_KEEP, длина повторила бы уже занятые номера. */
   function nextId(): number {
     const last = messages.value[messages.value.length - 1]
     return last === undefined ? CHAT_GREETING_ID + 1 : last.id + 1
@@ -91,30 +126,87 @@ export function useSupportChat(): SupportChat {
     element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' })
   }
 
-  function send(): void {
-    if (!canSend.value) return
+  const { start: clearJustSent } = useTimeoutFn(
+    () => {
+      justSent.value = false
+    },
+    700,
+    { immediate: false },
+  )
 
+  function pushClientMessage(text: string, delivery: ChatMessage['delivery']): void {
     const message: ChatMessage = {
       id: nextId(),
       author: 'client',
-      text: trimmed.value,
+      text,
       at: new Date().toISOString(),
-      delivery: 'local',
+      delivery,
+    }
+    messages.value = [...messages.value, message].slice(-CHAT_KEEP)
+  }
+
+  function advanceFunnel(): void {
+    if (!isMessenger.value) return
+    confirmMessageSent()
+    account.setSupportUnread(2)
+    account.hasUnreadNotices = true
+  }
+
+  function send(): void {
+    if (!canSend.value) return
+
+    const body = trimmed.value
+    const funnel = isMessenger.value
+    sending.value = true
+    justSent.value = true
+    clearJustSent()
+
+    if (funnel && isApiEnabled()) {
+      void submitSupportMessage({
+        body,
+        kind: 'commission',
+        level: level.value,
+      })
+        .then(() => dossier.pullAccount())
+        .then(() => {
+          pushClientMessage(body, 'sent')
+          draft.value = ''
+          sending.value = false
+          account.clearSupportUnread()
+          void scrollToEnd()
+        })
+        .catch(() => {
+          pushClientMessage(body, 'local')
+          draft.value = ''
+          sending.value = false
+          advanceFunnel()
+          account.clearSupportUnread()
+          void scrollToEnd()
+        })
+      return
     }
 
-    // Срезаем хвост ленты: держать в localStorage всю историю незачем.
-    messages.value = [...messages.value, message].slice(-CHAT_KEEP)
+    // Offline / обычный чат: сообщение в ленту сразу.
+    pushClientMessage(body, 'local')
     draft.value = ''
-
-    /*
-     * Счётчик непрочитанных в меню гасим: человек только что написал сам,
-     * то есть он в переписке, и красный кружок на «Assistenza» после этого
-     * означал бы непрочитанное, которого нет.
-     */
+    if (funnel) advanceFunnel()
+    sending.value = false
     account.clearSupportUnread()
-
     void scrollToEnd()
   }
 
-  return { messages, draft, canSend, left, send, threadEl }
+  return {
+    messages,
+    draft,
+    canSend,
+    left,
+    sending,
+    isFunnelMode,
+    isWaitingAdmin,
+    funnelAgentHello,
+    funnelHint,
+    send,
+    threadEl,
+    justSent,
+  }
 }

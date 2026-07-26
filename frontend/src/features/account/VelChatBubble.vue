@@ -83,51 +83,51 @@ const stampLabel = computed(() => (props.at === '' ? '' : d(new Date(props.at), 
 }
 
 /*
-  ПОЯВЛЕНИЕ ПУЗЫРЯ — порт Magic UI Animated List. Там это motion-пружина
-  (stiffness 350, damping 40) с originY: 0, то есть рост от своего верхнего
-  края, а не из центра.
-
-  ПРУЖИНУ ПЕРЕСЧИТАЛ, А НЕ СКОПИРОВАЛ НА ГЛАЗ. При stiffness 350 и damping 40
-  собственная частота ω₀ = √350 ≈ 18.7 рад/с, коэффициент затухания
-  ζ = 40 / (2√350) ≈ 1.07 — то есть пружина ПЕРЕзатухшая: она приходит к
-  единице без отскока и успокаивается примерно за 380 мс. Значит верный
-  перевод — плавное замедление, а не bounce: подпрыгивающие пузыри в
-  переписке выглядят игрушечно, и это не вкусовщина, а то, что даёт исходная
-  формула.
-
-  Появление на CSS, а не на GSAP: движение однократное, на монтировании узла,
-  и таймлайн под него держать не за чем.
+  Появление пузыря: свои — с права (как ушли из поля ввода),
+  чужие — слева. CSS, не GSAP: однократный mount, без таймлайна.
 */
 .vel-bubble {
-  animation: vel-bubble-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.vel-bubble--own {
-  transform-origin: top right;
-}
-
-.vel-bubble--other {
-  transform-origin: top left;
-}
-
-@keyframes vel-bubble-in {
-  from {
-    opacity: 0;
-    transform: scale(0.9) translateY(0.4rem);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+  animation: vel-bubble-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .vel-bubble--own {
   justify-content: flex-end;
+  transform-origin: bottom right;
+  animation-name: vel-bubble-own-in;
 }
 
 .vel-bubble--other {
   justify-content: flex-start;
+  transform-origin: bottom left;
+  animation-name: vel-bubble-other-in;
+}
+
+@keyframes vel-bubble-own-in {
+  from {
+    opacity: 0;
+    transform: scale(0.88) translate(0.85rem, 0.55rem);
+  }
+
+  60% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translate(0, 0);
+  }
+}
+
+@keyframes vel-bubble-other-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translate(-0.55rem, 0.4rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translate(0, 0);
+  }
 }
 
 .vel-bubble__body {
@@ -191,14 +191,27 @@ const stampLabel = computed(() => (props.at === '' ? '' : d(new Date(props.at), 
   font-weight: 600;
 }
 
-/* Своим пузырям — лёгкая тень: на светлом фоне ленты она отделяет их от
-   поверхности, не добавляя ни рамки, ни второго цвета. */
+/* Тень + короткий glow на появлении: отделяет свои пузыри от фона. */
 .vel-bubble--own .vel-bubble__body {
   box-shadow: 0 2px 10px color-mix(in oklab, var(--color-accent-deep) 22%, transparent);
+  animation: vel-bubble-glow 0.7s ease-out both;
+}
+
+@keyframes vel-bubble-glow {
+  from {
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-accent) 40%, transparent),
+      0 2px 10px color-mix(in oklab, var(--color-accent-deep) 22%, transparent);
+  }
+
+  to {
+    box-shadow: 0 2px 10px color-mix(in oklab, var(--color-accent-deep) 22%, transparent);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vel-bubble {
+  .vel-bubble,
+  .vel-bubble--own .vel-bubble__body {
     animation: none;
   }
 }
