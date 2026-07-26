@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useMediaQuery } from '@vueuse/core'
 import VelReveal from '@/components/ui/VelReveal.vue'
 import VelStage from '@/components/ui/VelStage.vue'
 import VelSplitHeading from '@/components/ui/VelSplitHeading.vue'
@@ -12,18 +13,6 @@ import expertPhoto from '@/img/consulente-tablet.webp'
 
 const { t } = useI18n()
 
-/**
- * Снимок к каждой карточке. Импортом, а не строкой пути: сборщик подставит
- * хеш имени и сам уронит сборку, если файл переименуют или потеряют, — строка
- * же тихо превратилась бы в битую картинку на витрине.
- *
- * garanzia-approvata стоит у «Credito preferenziale» ПО ПРЯМОЙ ПРОСЬБЕ, и это
- * тот же кадр, что в крупной врезке шапки секции двумя блоками выше. То есть
- * на одном экране он виден дважды. Выбор сделан осознанно и менять его молча
- * не надо; если дубль однажды начнёт мешать, чинится он не здесь, а в шапке:
- * врезке отдаётся любой свободный кадр (например consulente-scrivania,
- * который эта перестановка как раз освободила).
- */
 const PROGRAM_PHOTOS: Record<string, string> = {
   grants: officePhoto,
   rate: guaranteePhoto,
@@ -31,8 +20,6 @@ const PROGRAM_PHOTOS: Record<string, string> = {
   patents: expertPhoto,
 }
 
-/** Порядок карточек держим здесь, а не в локали: tm() отдаёт нетипизированный
-    результат и не проходит vue-tsc в strict-режиме. */
 const PROGRAM_KEYS = ['grants', 'rate', 'guarantor', 'patents'] as const
 
 const programs = computed(() =>
@@ -43,116 +30,217 @@ const programs = computed(() =>
     photo: PROGRAM_PHOTOS[key] ?? '',
   })),
 )
+
+/** Mobile carousel (< sm); desktop stays grid. */
+const isMobile = useMediaQuery('(max-width: 639px)')
+const track = useTemplateRef<HTMLElement>('track')
+const active = ref(0)
+
+function updateActive(): void {
+  const el = track.value
+  if (!el || !isMobile.value) return
+  const cards = el.querySelectorAll<HTMLElement>('.vel-programs__card')
+  if (cards.length === 0) return
+
+  const mid = el.scrollLeft + el.clientWidth / 2
+  let best = 0
+  let bestDist = Infinity
+  cards.forEach((card, i) => {
+    const c = card.offsetLeft + card.offsetWidth / 2
+    const d = Math.abs(c - mid)
+    if (d < bestDist) {
+      bestDist = d
+      best = i
+    }
+  })
+  active.value = best
+}
+
+function goTo(index: number): void {
+  const el = track.value
+  if (!el) return
+  const cards = el.querySelectorAll<HTMLElement>('.vel-programs__card')
+  const card = cards[index]
+  if (!card) return
+  const left = card.offsetLeft - (el.clientWidth - card.offsetWidth) / 2
+  el.scrollTo({ left: Math.max(0, left), behavior: 'smooth' })
+  active.value = index
+}
+
+onMounted(() => {
+  const el = track.value
+  if (!el) return
+  el.addEventListener('scroll', updateActive, { passive: true })
+  updateActive()
+})
+
+onUnmounted(() => {
+  track.value?.removeEventListener('scroll', updateActive)
+})
 </script>
 
 <template>
-  <!-- Сцена секции: заголовок, снимок и четыре карточки — одна пачка,
-       выезжают лесенкой в порядке чтения. См. VelStage. -->
   <VelStage class="border-b border-line">
-    <!-- gap-10 вместо gap-9: 36px не лежат на шаге ритма, см. main.css -->
     <div class="vel-section mx-auto flex w-full max-w-6xl flex-col gap-10 px-5 lg:gap-12">
-      <!-- Снимок из шапки убран по просьбе заказчика, вместе с ним ушла и сетка
-           в две колонки: без правой ячейки она оставляла бы справа пустое поле
-           в 24rem. Сам кадр никуда не делся — он теперь на второй карточке.
-           Надзаголовок и заголовок разведены по разным анимациям намеренно:
-           заголовок выходит словами лесенкой и ведёт себя сам, а обёртка
-           появления вокруг него дала бы вторую прозрачность поверх первой —
-           две анимации на одни пиксели перемножаются. Подробности в шапке
-           VelSplitHeading. -->
       <div class="flex flex-col gap-3">
         <VelReveal as="p" class="vel-label">{{ t('programs.label') }}</VelReveal>
-
         <VelSplitHeading
           :lines="[{ text: t('programs.title') }]"
           class="max-w-3xl text-3xl sm:text-4xl"
         />
       </div>
 
-      <!-- role="list" возвращает семантику списка в Safari: preflight снимает
-           маркеры, а вместе с ними VoiceOver теряет и роль.
-           .vel-depth даёт перспективу для наклона карточек: без неё поворот
-           вокруг горизонтальной оси свёлся бы к вертикальному сжатию -->
       <!--
-        Desktop: grid 2/4.
-        Mobile: горизонтальный «слайдер» (snap) — как на референсе Calipso.
+        Mobile: карусель Calipso-style (peek next card + dots).
+        sm+: сетка 2 / 4, без точек.
       -->
-      <ul
-        role="list"
-        class="vel-depth vel-programs-track flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 sm:snap-none lg:grid-cols-4"
-      >
-        <!-- as="li": обёртка обязана остаться прямым ребёнком <ul>,
-             иначе рушатся и разметка списка, и ячейки grid.
-             Поэтому <li> остаётся здесь, а VelProgramCard отдаёт только
-             содержимое ячейки — подробности в шапке того файла.
-             tilt: карточка выходит из глубины, а не просто всплывает —
-             шесть градусов наклона выпрямляются вместе с подъёмом -->
-        <!--
-          overflow-hidden и снятый p-6 — из-за снимка в карточке. Он идёт от
-          края до края ячейки, поэтому общее поле уехало внутрь, на колонку с
-          текстом (см. VelProgramCard), а обрезка прижимает верхние углы
-          картинки к скруглению рамки: без неё прямой угол снимка торчал бы
-          из скруглённого угла ячейки.
-        -->
-        <VelReveal
-          v-for="program in programs"
-          :key="program.key"
-          as="li"
-          tilt
-          class="vel-programs__card flex flex-col overflow-hidden rounded-panel border border-line bg-surface"
+      <div class="vel-programs">
+        <ul
+          ref="track"
+          role="list"
+          class="vel-depth vel-programs__track"
+          :aria-roledescription="isMobile ? 'carousel' : undefined"
         >
-          <VelProgramCard
-            :title="program.title"
-            :text="program.text"
-            :photo="program.photo"
+          <VelReveal
+            v-for="(program, index) in programs"
+            :key="program.key"
+            as="li"
+            tilt
+            class="vel-programs__card flex flex-col overflow-hidden rounded-panel border border-line bg-surface"
+            :aria-current="isMobile && index === active ? 'true' : undefined"
+          >
+            <VelProgramCard
+              :title="program.title"
+              :text="program.text"
+              :photo="program.photo"
+            />
+          </VelReveal>
+        </ul>
+
+        <!-- Точки-слайдер: только mobile, в стиле сайта -->
+        <div
+          v-if="isMobile"
+          class="vel-programs__dots"
+          role="tablist"
+          :aria-label="t('programs.label')"
+        >
+          <button
+            v-for="(program, index) in programs"
+            :key="program.key"
+            type="button"
+            role="tab"
+            class="vel-programs__dot"
+            :class="{ 'vel-programs__dot--on': index === active }"
+            :aria-selected="index === active"
+            :aria-label="program.title"
+            @click="goTo(index)"
           />
-        </VelReveal>
-      </ul>
+        </div>
+      </div>
     </div>
   </VelStage>
 </template>
 
 <style scoped>
-/* Mobile slider: карточка ~85% ширины, snap-center */
-.vel-programs-track {
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  margin-inline: -1.25rem;
-  padding-inline: 1.25rem;
+.vel-programs {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  min-inline-size: 0;
 }
 
-@media (max-width: 639px) {
-  .vel-programs__card {
-    flex: 0 0 min(85vw, 20rem);
-    scroll-snap-align: center;
-  }
+/* ── Desktop / tablet: grid ── */
+.vel-programs__track {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 @media (min-width: 640px) {
-  .vel-programs-track {
-    margin-inline: 0;
-    padding-inline: 0;
+  .vel-programs__track {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-/*
-  ОТКЛИК КАРТОЧКИ НА НАВЕДЕНИЕ.
+@media (min-width: 1024px) {
+  .vel-programs__track {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
 
-  TRANSFORM У САМОЙ КАРТОЧКИ НЕ ТРОГАЕМ, и это главное ограничение здесь.
-  Ячейкой заведует VelReveal: появление с наклоном он делает через GSAP, а тот
-  пишет transform ИНЛАЙНОМ. Инлайновое свойство сильнее любого правила из
-  таблицы, поэтому «приподнять карточку» на hover просто не сработало бы после
-  того, как отыграет появление, — и сломалось бы молча, без ошибки в консоли.
+/* ── Mobile carousel ── */
+@media (max-width: 639px) {
+  .vel-programs__track {
+    display: flex;
+    gap: 0.85rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 1.25rem;
+    -webkit-overflow-scrolling: touch;
+    /* прячем scrollbar — навигация через точки */
+    scrollbar-width: none;
+    margin-inline: -1.25rem;
+    padding-inline: 1.25rem;
+    padding-block-end: 0.25rem;
+  }
 
-  Поэтому подъём показан тем, чего GSAP не касается: рамка набирает акцент,
-  под карточкой появляется тень, а снимок внутри чуть наезжает. Снимок — не
-  ячейка, его transform свободен.
+  .vel-programs__track::-webkit-scrollbar {
+    display: none;
+  }
 
-  Тень и рамка меняются вместе: одна рамка читается как выделение, одна тень —
-  как отрыв от страницы; вдвоём получается «карточка подалась навстречу».
+  .vel-programs__card {
+    flex: 0 0 min(82vw, 19.5rem);
+    scroll-snap-align: center;
+    /* лёгкая «карточка в ряду» */
+    box-shadow: 0 0.5rem 1.35rem color-mix(in oklab, var(--color-fg) 7%, transparent);
+  }
+}
 
-  @media (hover: hover) обязателен: на тач-экране :hover прилипает после тапа,
-  и карточка осталась бы подсвеченной до перезагрузки страницы.
-*/
+/* ── Dots (Calipso-style, Velora tokens) ── */
+.vel-programs__dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding-block: 0.15rem 0.35rem;
+}
+
+.vel-programs__dot {
+  flex: 0 0 auto;
+  width: 0.45rem;
+  height: 0.45rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-round);
+  background: color-mix(in oklab, var(--color-fg) 16%, transparent);
+  cursor: pointer;
+  transition:
+    width 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 220ms ease,
+    transform 180ms ease;
+  /* touch target ≥ 44px через padding hit-area */
+  box-shadow: 0 0 0 0.55rem transparent;
+}
+
+.vel-programs__dot:hover {
+  background: color-mix(in oklab, var(--color-accent) 45%, var(--color-fg));
+}
+
+.vel-programs__dot:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}
+
+/* активная — «пилюля» акцента */
+.vel-programs__dot--on {
+  width: 1.15rem;
+  background: var(--color-accent-deep);
+  transform: scale(1.02);
+}
+
 @media (hover: hover) {
   .vel-programs__card {
     transition:
@@ -165,17 +253,16 @@ const programs = computed(() =>
     box-shadow: 0 0.75rem 1.75rem color-mix(in oklab, var(--color-fg) 12%, transparent);
   }
 
-  /* :deep обязателен: снимок живёт в разметке VelProgramCard, и без него
-     правило получило бы атрибут области видимости этой секции, которого на
-     чужом узле нет. */
   .vel-programs__card:hover :deep(.vel-program__photo) {
     transform: scale(1.045);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* Наезд снимка снимаем, рамку и тень оставляем: это смена состояния, а не
-     движение, и от неё не укачивает. */
+  .vel-programs__dot {
+    transition: none;
+  }
+
   .vel-programs__card:hover :deep(.vel-program__photo) {
     transform: none;
   }
