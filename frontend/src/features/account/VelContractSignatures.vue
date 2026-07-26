@@ -1,31 +1,56 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ContractSignedAt } from '@/features/account/contract-data'
 
 /**
- * Низ листа договора: два места под подписи и плашка успеха после подписания.
- * Росчерк заёмщика (signatureSrc) рисуется сразу после модалки IBAN+firma.
+ * Низ листа договора:
+ *  · слева Prestatore — печать + подпись с старого прода (pechat / podpisb);
+ *  · справа Prenditore — автоподпись клиента (dataURL из модалки / ФИО).
  */
 interface Props {
   signed: boolean
   signedAt: ContractSignedAt | null
-  /** dataURL PNG подписи; пусто — только линия. */
+  /** dataURL PNG подписи заёмщика; пусто — только линия. */
   signatureSrc?: string
 }
 
-defineProps<Props>()
-
+const props = defineProps<Props>()
 const { t } = useI18n()
+
+const base = import.meta.env.BASE_URL
+const lenderStamp = computed(() => `${base}cpi/lender-stamp.webp`)
+const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
 </script>
 
 <template>
   <div class="vel-csign">
     <div class="vel-csign__pair">
+      <!-- Firma del Prestatore: печать + подпись компании -->
       <div class="vel-csign__slot">
-        <span class="vel-csign__line" aria-hidden="true"></span>
+        <div class="vel-csign__lender" :class="{ 'vel-csign__lender--on': signed }">
+          <template v-if="signed">
+            <img
+              class="vel-csign__stamp"
+              :src="lenderStamp"
+              alt=""
+              width="120"
+              height="120"
+            />
+            <img
+              class="vel-csign__lender-sig"
+              :src="lenderSignature"
+              alt=""
+              width="200"
+              height="72"
+            />
+          </template>
+          <span v-else class="vel-csign__line" aria-hidden="true" />
+        </div>
         <p class="vel-csign__label">{{ t('contract.sheet.signatures.lender') }}</p>
       </div>
 
+      <!-- Firma del Prenditore: автоподпись клиента -->
       <div class="vel-csign__slot">
         <div class="vel-csign__ink">
           <img
@@ -36,7 +61,7 @@ const { t } = useI18n()
             width="240"
             height="72"
           />
-          <span v-else class="vel-csign__line" aria-hidden="true"></span>
+          <span v-else class="vel-csign__line" aria-hidden="true" />
         </div>
         <p class="vel-csign__label">{{ t('contract.sheet.signatures.borrower') }}</p>
       </div>
@@ -67,11 +92,6 @@ const { t } = useI18n()
   min-inline-size: 0;
 }
 
-/*
-  Два места под подписи. minmax(0, 1fr) — ноль в минимуме обязателен: без него
-  доля не может стать уже своего содержимого, и длинная подпись «Firma del
-  Prenditore» распёрла бы ряд наружу вместе со всем листом.
-*/
 .vel-csign__pair {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
@@ -86,11 +106,47 @@ const { t } = useI18n()
   min-inline-size: 0;
 }
 
-/* Место под росчерк: пустая полоса над линией — то, что на бумаге. */
 .vel-csign__line {
   display: block;
   block-size: 2.25rem;
   border-block-end: 1px solid var(--color-fg);
+}
+
+.vel-csign__lender {
+  position: relative;
+  display: flex;
+  min-block-size: 5.5rem;
+  align-items: flex-end;
+  justify-content: flex-start;
+}
+
+.vel-csign__lender--on {
+  min-block-size: 6.5rem;
+}
+
+.vel-csign__stamp {
+  position: absolute;
+  left: 0;
+  bottom: 0.35rem;
+  z-index: 1;
+  width: 5.25rem;
+  height: 5.25rem;
+  object-fit: contain;
+  opacity: 0.92;
+  pointer-events: none;
+  animation: vel-csign-pop 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.vel-csign__lender-sig {
+  position: relative;
+  z-index: 2;
+  display: block;
+  max-inline-size: min(100%, 11rem);
+  max-block-size: 3.75rem;
+  margin-inline-start: 1.75rem;
+  object-fit: contain;
+  object-position: left bottom;
+  animation: vel-csign-pop 0.45s 0.08s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .vel-csign__ink {
@@ -121,7 +177,9 @@ const { t } = useI18n()
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vel-csign__png {
+  .vel-csign__png,
+  .vel-csign__stamp,
+  .vel-csign__lender-sig {
     animation: none;
   }
 }
@@ -139,8 +197,6 @@ const { t } = useI18n()
   gap: 0.75rem;
   margin: 0;
   padding: 0.75rem 0.9rem;
-  /* Светло-зелёная плашка с тонкой рамкой: цвет собран из токена успеха,
-     новых цветов в системе не заводим. */
   border: 1px solid color-mix(in oklab, var(--color-success) 40%, transparent);
   border-radius: var(--radius-control);
   background-color: color-mix(in oklab, var(--color-success) 9%, var(--color-surface));
@@ -154,9 +210,6 @@ const { t } = useI18n()
   justify-content: center;
   inline-size: 1.75rem;
   block-size: 1.75rem;
-  /* Круглое здесь оправдано формой знака: галочка в круге отличается от
-     квадратных плиток кабинета не только цветом — это работает и там,
-     где зелёный от синего не отличают. */
   border-radius: var(--radius-round);
   background-color: var(--color-success);
   color: var(--color-accent-ink);
@@ -205,8 +258,6 @@ const { t } = useI18n()
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* Сброс в main.css правит только длительность: плашка всё равно «выезжала»
-     бы, просто мгновенно. Снимаем анимацию целиком. */
   .vel-csign__done {
     animation: none;
   }

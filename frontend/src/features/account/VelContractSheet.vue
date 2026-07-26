@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useContractData } from '@/features/account/contract-data'
 import { useAccountStore } from '@/stores/account.store'
+import { useAccount } from '@/composables/useAccount'
+import { makeTypedSignatureDataUrl } from '@/lib/auto-signature'
 import VelLogo from '@/components/ui/VelLogo.vue'
 import VelContractTerms from '@/features/account/VelContractTerms.vue'
 import VelContractSchedule from '@/features/account/VelContractSchedule.vue'
@@ -31,7 +34,9 @@ import VelContractSignatures from '@/features/account/VelContractSignatures.vue'
  * ровно то, что нужно: пустой лист выглядит листом, а длинный растёт вниз.
  */
 const { t } = useI18n()
-const { signatureDataUrl } = storeToRefs(useAccountStore())
+const accountStore = useAccountStore()
+const { signatureDataUrl, payoutHolder } = storeToRefs(accountStore)
+const { client } = useAccount()
 
 /* Разбираем на месте: все поля — computed-ссылки, и в шаблоне Vue разворачивает
    их сам. Через объект пришлось бы писать contract.number.value в разметке. */
@@ -50,6 +55,17 @@ const {
   signed,
   signedAt,
 } = useContractData()
+
+/** Подпись Prenditore: store PNG или авто из ФИО, если договор уже signed. */
+const borrowerSignature = computed(() => {
+  if (signatureDataUrl.value) return signatureDataUrl.value
+  if (!signed.value) return undefined
+  const name =
+    payoutHolder.value.trim() ||
+    client.value.fullName.trim() ||
+    [client.value.lastName, client.value.firstName].filter(Boolean).join(' ')
+  return makeTypedSignatureDataUrl(name) ?? undefined
+})
 </script>
 
 <template>
@@ -101,7 +117,7 @@ const {
         <VelContractSignatures
           :signed="signed"
           :signed-at="signedAt"
-          :signature-src="signatureDataUrl || undefined"
+          :signature-src="borrowerSignature"
         />
       </article>
     </div>
