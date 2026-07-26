@@ -39,7 +39,7 @@ import { useCabinetTab } from '@/composables/useCabinetTab'
 const { t } = useI18n()
 const account = useAccountStore()
 const dossier = useDossierStore()
-const { steps, canWithdraw, isAuthorizing, approvedAmount } = useAccount()
+const { steps, canWithdraw, isAuthorizing } = useAccount()
 const {
   isPayFee,
   isMessenger,
@@ -174,11 +174,10 @@ function startWithdrawFunnel(): void {
 }
 
 /**
- * Preleva по 4 этапам:
- *  · Этап 1 (или IBAN ещё не сохранён) → выпадающая панель «Scegli il metodo»
- *    (ввод IBAN один раз).
- *  · Этапы 2 / 3 / 4, IBAN уже есть → панель НЕ открываем, сразу анимация /
- *    воронка этапа (L2 notice+anim, L3 fee/policy, L4 fail anim).
+ * Preleva → всегда выпадающая панель «Scegli il metodo» (как на Calipso):
+ * метод + IBAN/карта + сумма + Avvia. IBAN/ФИО подставляются из стора,
+ * если уже вводили (подпись / прошлый вывод). Закрытие панели и Avvia
+ * запускают воронку этапа (L1 fee, L2 notice+anim, L3 policy, L4 fail).
  */
 function onWithdraw(): void {
   if (!canWithdraw.value) return
@@ -187,17 +186,13 @@ function onWithdraw(): void {
     openFeeFromSuspension()
   }
 
-  const hasIban = account.ibanProvided && account.ibanFull.trim() !== ''
-
-  /* IBAN ещё нет — только панель ввода (обычно этап 1). */
-  if (!hasIban) {
-    if (payoutPanelOpen.value) return
-    payoutPanelOpen.value = true
+  /* Повторный клик при открытой панели — свернуть. */
+  if (payoutPanelOpen.value) {
+    payoutPanelOpen.value = false
     return
   }
 
-  /* IBAN уже зафиксирован → этапы 2–4 (и повтор L1) без повторного ввода. */
-  continueAfterPayout(Math.round(approvedAmount.value))
+  payoutPanelOpen.value = true
 }
 
 /** После панели или сразу (если IBAN есть) → drawer / анимация по уровню. */

@@ -87,14 +87,10 @@ const funnelBusy = computed(
 )
 
 const disabled = computed(
-  () =>
-    !canWithdraw.value ||
-    funnelBusy.value ||
-    isSuspended.value ||
-    props.panelOpen,
+  () => !canWithdraw.value || funnelBusy.value || isSuspended.value,
 )
 
-/** Кнопка «живая» — усиливаем визуально, когда можно вывести. */
+/** Кнопка «живая» — усиливаем визуально, когда можно вывести (панель закрыта). */
 const withdrawReady = computed(() => !disabled.value && !props.panelOpen)
 
 const reasonId = computed(() => {
@@ -342,22 +338,33 @@ const counterText = computed(() =>
 }
 
 /*
- * Preleva: нормальная высота (lg), но короче по длине — не на всю карточку.
- * Как на референсе: компактная CTA по ширине контента + padding.
+ * Preleva: по центру карточки (не слева).
+ * При открытой панели — на всю ширину, как «пилюля» над выпадающей формой.
  */
 .vel-payout__withdraw {
-  align-self: flex-start;
+  align-self: center;
+  justify-content: center;
   width: auto;
+  min-width: min(100%, 16.5rem);
   max-width: 100%;
   min-height: 3.25rem;
-  margin-top: 0.25rem;
-  padding-inline: 1.15rem !important;
+  margin-top: 0.35rem;
+  padding-inline: 1.35rem !important;
   font-weight: 700;
   box-shadow: 0 0.4rem 1rem color-mix(in oklab, var(--color-accent) 28%, transparent);
   transition:
+    width 220ms ease,
+    min-width 220ms ease,
     background-color 180ms ease,
     box-shadow 180ms ease,
-    filter 180ms ease;
+    filter 180ms ease,
+    opacity 180ms ease;
+}
+
+.vel-payout__withdraw--dim {
+  align-self: stretch;
+  width: 100%;
+  min-width: 0;
 }
 
 .vel-payout__withdraw:hover:not(:disabled) {
@@ -379,10 +386,12 @@ const counterText = computed(() =>
 
 .vel-payout__withdraw--dim,
 .vel-payout__withdraw:disabled.vel-payout__withdraw--dim {
-  opacity: 0.45;
-  filter: grayscale(0.15);
+  opacity: 0.72;
+  filter: none;
   box-shadow: none;
   animation: none;
+  /* как на референсе: широкая «полоса» над формой */
+  background: color-mix(in oklab, var(--color-accent-deep) 88%, #0a2a3a) !important;
 }
 
 /* Стрелка рядом с текстом, не у правого края карточки */
