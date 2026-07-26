@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
+import { formatIbanGroups, maskIban } from '@/lib/iban'
 
 /**
  * Шаги пути клиента в личном кабинете. Порядок задаёт и нумерацию в трекере,
@@ -98,6 +99,18 @@ export const useAccountStore = defineStore('account', () => {
    * пустая линия, а не выдуманный номер.
    */
   const ibanMasked = useLocalStorage<string>('velora:account:ibanMasked', '')
+
+  /**
+   * Полный IBAN (группы по 4) — для автозаполнения Preleva / модалки.
+   * Маска ibanMasked остаётся для листа договора; полный номер нужен, чтобы
+   * не заставлять человека вводить счёт повторно.
+   */
+  const ibanFull = useLocalStorage<string>('velora:account:ibanFull', '')
+
+  /**
+   * Intestatario, если правили в Preleva; иначе подставляем client.fullName.
+   */
+  const payoutHolder = useLocalStorage<string>('velora:account:payoutHolder', '')
 
   /**
    * Когда подписан договор — ISO-8601. Нужен блоку успеха под подписями:
@@ -257,13 +270,25 @@ export const useAccountStore = defineStore('account', () => {
   }
 
   /**
-   * Счёт для зачисления принят. Маску считает вызывающий (у него на руках
-   * набранное значение), стор только хранит: считать маску здесь значило бы
-   * протащить полный номер ещё и через стор.
+   * Сохраняет полный IBAN + маску для договора.
+   * raw — то, что человек набрал (с пробелами или без).
    */
+  function setIbanFromRaw(raw: string): void {
+    const formatted = formatIbanGroups(raw)
+    if (formatted.replace(/\s/g, '') === '') return
+    ibanProvided.value = true
+    ibanFull.value = formatted
+    ibanMasked.value = maskIban(raw)
+  }
+
+  /** @deprecated предпочитайте setIbanFromRaw; оставлено для старых вызовов. */
   function setIbanMasked(masked: string): void {
     ibanProvided.value = true
     ibanMasked.value = masked
+  }
+
+  function setPayoutHolder(name: string): void {
+    payoutHolder.value = name.trim()
   }
 
   function reset(): void {
@@ -272,6 +297,8 @@ export const useAccountStore = defineStore('account', () => {
     documentsUploaded.value = false
     ibanProvided.value = false
     ibanMasked.value = ''
+    ibanFull.value = ''
+    payoutHolder.value = ''
     contractSigned.value = false
     contractSignedAt.value = ''
     signatureDataUrl.value = ''
@@ -290,6 +317,8 @@ export const useAccountStore = defineStore('account', () => {
     documentsUploaded,
     ibanProvided,
     ibanMasked,
+    ibanFull,
+    payoutHolder,
     contractSigned,
     contractSignedAt,
     signatureDataUrl,
@@ -302,7 +331,9 @@ export const useAccountStore = defineStore('account', () => {
     advanceTo,
     markEmailVerified,
     markContractSigned,
+    setIbanFromRaw,
     setIbanMasked,
+    setPayoutHolder,
     bumpSupportUnread,
     clearSupportUnread,
     setSupportUnread,

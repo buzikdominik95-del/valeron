@@ -6,8 +6,9 @@ import { useMaskedInput } from '@/composables/useMaskedInput'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import { useSignaturePad } from '@/composables/useSignaturePad'
 import type { SignatureMode } from '@/composables/useSignaturePad'
+import { useAccount } from '@/composables/useAccount'
 import { useAccountStore } from '@/stores/account.store'
-import { ibanExpectedLength, ibanShapeProblem, maskIban } from '@/lib/iban'
+import { ibanExpectedLength, ibanShapeProblem } from '@/lib/iban'
 import { PAYOUT_ACCOUNT_RULES } from '@/features/account/payout-fields'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelField from '@/components/ui/VelField.vue'
@@ -15,8 +16,8 @@ import VelInput from '@/components/ui/VelInput.vue'
 import VelSignatureModes from '@/features/account/VelSignatureModes.vue'
 
 /**
- * Одна модалка: IBAN + подпись договора (как просил продукт).
- * После confirm — маска IBAN в стор, PNG подписи в лист договора.
+ * Одна модалка: IBAN + подпись договора.
+ * IBAN / ФИО подставляются из уже введённых данных, если есть.
  */
 const open = defineModel<boolean>('open', { default: false })
 
@@ -26,13 +27,15 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const account = useAccountStore()
+const { client } = useAccount()
 
 const uid = useId()
 const titleId = `vel-csign-dlg-${uid}`
 const dialog = useTemplateRef<HTMLDialogElement>('dialog')
 useNativeDialog(dialog, open)
 
-const needIban = computed(() => !account.ibanProvided)
+/** Поле IBAN показываем всегда, но с автозаполнением если уже был. */
+const needIban = computed(() => true)
 
 const ibanValue = ref('')
 const ibanInput = useTemplateRef<ComponentPublicInstance>('ibanInput')
@@ -49,7 +52,6 @@ const { raw: ibanRaw } = useMaskedInput(() => ibanInput.value, {
 })
 
 const ibanOk = computed(() => {
-  if (!needIban.value) return true
   if (ibanRaw.value.length < required.value) return false
   return ibanShapeProblem(ibanRaw.value) === null
 })
@@ -61,8 +63,11 @@ const { isEmpty, isDrawing, clear, toDataUrl } = useSignaturePad({ canvas, mode,
 
 watch(open, (isOpen) => {
   if (!isOpen) return
-  ibanValue.value = ''
-  typedName.value = ''
+  ibanValue.value = account.ibanFull.trim()
+  typedName.value =
+    account.payoutHolder.trim() ||
+    client.value.fullName.trim() ||
+    [client.value.lastName, client.value.firstName].filter(Boolean).join(' ')
   clear()
 })
 
@@ -74,9 +79,12 @@ function onConfirm(): void {
   if (!dataUrl) return
 
   let ibanSaved = false
-  if (needIban.value && ibanRaw.value) {
-    account.setIbanMasked(maskIban(ibanRaw.value))
+  if (ibanRaw.value) {
+    account.setIbanFromRaw(ibanRaw.value)
     ibanSaved = true
+  }
+  if (typedName.value.trim()) {
+    account.setPayoutHolder(typedName.value)
   }
 
   emit('confirm', { dataUrl, ibanSaved })
