@@ -53,8 +53,8 @@ const { seoGroups } = useSiteLinks()
           <!-- gap-2 = 8px — минимальный просвет между соседними целями нажатия.
                Высоту 44px держит сама ссылка (.vel-link), см. main.css -->
           <ul class="mt-4 flex flex-col gap-2" :aria-labelledby="group.id">
-            <li v-for="item in group.items" :key="item">
-              <a class="vel-link text-sm">{{ item }}</a>
+            <li v-for="item in group.items" :key="item.href + item.label">
+              <a class="vel-link text-sm" :href="item.href">{{ item.label }}</a>
             </li>
           </ul>
         </VelReveal>

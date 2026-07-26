@@ -258,6 +258,8 @@ export default {
          «загружено» фронт не вправе. */
       notSent: 'I file restano nel tuo browser: partono insieme alla richiesta.',
       checkingHint: 'Stiamo controllando le foto del documento: ci vogliono pochi secondi.',
+      lockedAfterVerify:
+        'Documenti verificati e accettati. Non è più possibile caricarli di nuovo.',
       done: {
         title: 'Documento verificato',
         body: 'Le foto sono leggibili e i dati corrispondono alla tua pratica.',
@@ -1039,6 +1041,7 @@ export default {
       limits: 'Изображения или PDF · не больше {size} МБ на файл',
       notSent: 'Файлы остаются в браузере: они уйдут вместе с заявкой.',
       checkingHint: 'Проверяем снимки документа: это занимает несколько секунд.',
+      lockedAfterVerify: 'Документы проверены и приняты. Повторная загрузка недоступна.',
       done: {
         title: 'Документ проверен',
         body: 'Снимки читаются, данные совпадают с вашей заявкой.',

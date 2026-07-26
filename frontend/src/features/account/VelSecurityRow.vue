@@ -55,7 +55,11 @@ defineProps<Props>()
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 0.875rem;
-  padding-block: 1rem;
+  margin-block: 0.65rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: color-mix(in oklab, var(--color-ground) 65%, var(--color-surface));
 }
 
 /*
@@ -65,6 +69,7 @@ defineProps<Props>()
   области видимости у них общий.
 */
 .vel-security-row + .vel-security-row {
+  /* Карточки отделены margin, без второй черты */
   border-block-start: 1px solid var(--color-line);
 }
 

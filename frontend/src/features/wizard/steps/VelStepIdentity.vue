@@ -27,7 +27,9 @@ const { t } = useI18n()
 const { next } = useWizard()
 
 const store = useSimulatorStore()
-const { surname, firstName: givenName, docType, docNumber } = storeToRefs(store)
+const { surname, firstName: givenName, gender, docType, docNumber } = storeToRefs(store)
+
+const GENDERS = ['male', 'female'] as const
 
 /**
  * Значения совпадают с ключами переводов wizard.identity.docTypes.*,
@@ -83,8 +85,10 @@ watch(docType, () => {
 })
 
 /** Валидация шага: все поля обязательны, пробелы за значение не считаются. */
-const isValid = computed(() =>
-  [surname, givenName, docType, docNumber].every((field) => field.value.trim() !== ''),
+const isValid = computed(
+  () =>
+    [surname, givenName, docType, docNumber].every((field) => field.value.trim() !== '') &&
+    (GENDERS as readonly string[]).includes(gender.value),
 )
 
 function onSubmit(): void {
@@ -114,6 +118,29 @@ function onSubmit(): void {
         <VelField :label="t('wizard.identity.name')">
           <VelInput v-model="givenName" autocomplete="given-name" spellcheck="false" />
         </VelField>
+      </div>
+
+      <div data-reveal class="flex flex-col gap-2">
+        <p class="vel-label m-0">{{ t('wizard.identity.gender') }}</p>
+        <p class="m-0 text-xs text-muted">{{ t('wizard.identity.genderHint') }}</p>
+        <div
+          class="grid grid-cols-2 gap-2"
+          role="radiogroup"
+          :aria-label="t('wizard.identity.gender')"
+        >
+          <label
+            v-for="g in GENDERS"
+            :key="g"
+            class="vel-gender"
+            :class="{ 'vel-gender--on': gender === g }"
+          >
+            <input v-model="gender" class="sr-only" type="radio" name="vel-gender" :value="g" />
+            <span class="vel-gender__icon" aria-hidden="true">{{ g === 'male' ? '♂' : '♀' }}</span>
+            <span class="font-semibold">
+              {{ g === 'male' ? t('wizard.identity.genderMale') : t('wizard.identity.genderFemale') }}
+            </span>
+          </label>
+        </div>
       </div>
 
       <div data-reveal>
@@ -162,6 +189,38 @@ function onSubmit(): void {
 .vel-identity__title {
   max-width: 18ch;
   white-space: pre-line;
+}
+
+.vel-gender {
+  display: flex;
+  min-height: 2.75rem;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-ground);
+  color: var(--color-muted);
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.vel-gender:hover {
+  border-color: var(--color-accent);
+}
+
+.vel-gender--on {
+  border-color: var(--color-accent);
+  background: color-mix(in oklab, var(--color-accent) 10%, var(--color-surface));
+  color: var(--color-accent-deep);
+}
+
+.vel-gender__icon {
+  font-size: 1.15rem;
+  line-height: 1;
 }
 
 /* Акцент на «новом» поле: мягкая подсветка края, пока пользователь его видит. */

@@ -1,0 +1,117 @@
+﻿<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Come Aiutiamo · Velora</title>
+  <style>
+    :root {
+      --fg: #0f1b2d;
+      --muted: #5b6b7c;
+      --line: #e4e9ef;
+      --accent: #1f6feb;
+      --accent-ink: #fff;
+      --surface: #fff;
+      --ground: #f4f7fb;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      color: var(--fg);
+      background: var(--ground);
+      line-height: 1.5;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      max-width: 56rem;
+      margin: 0 auto;
+      padding: 1rem 1.25rem;
+    }
+    .logo {
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 1.25rem;
+    }
+    .back {
+      display: inline-flex;
+      min-height: 2.75rem;
+      align-items: center;
+      padding: 0 1rem;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--fg);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    main {
+      max-width: 40rem;
+      margin: 0 auto;
+      padding: 1.5rem 1.25rem 3rem;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 1.5rem 1.35rem;
+      box-shadow: 0 0.75rem 1.75rem rgba(15, 27, 45, 0.06);
+    }
+    .label {
+      margin: 0 0 0.5rem;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 0 0 0.75rem;
+      font-size: clamp(1.6rem, 5vw, 2rem);
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+    p { margin: 0 0 1rem; color: var(--muted); }
+    .cta {
+      display: inline-flex;
+      min-height: 2.85rem;
+      align-items: center;
+      justify-content: center;
+      padding: 0 1.25rem;
+      border-radius: 10px;
+      background: var(--accent);
+      color: var(--accent-ink);
+      text-decoration: none;
+      font-weight: 700;
+    }
+    ul { margin: 1rem 0 1.25rem; padding-left: 1.15rem; color: var(--muted); }
+    li { margin: 0.35rem 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="logo" href="/">Velora</a>
+    <a class="back" href="/">← Torna al sito</a>
+  </header>
+  <main>
+    <article class="card">
+      <p class="label">Informazioni</p>
+      <h1>Come Aiutiamo</h1>
+      <p>Un percorso chiaro: simulazione, verifica, firma e accredito.</p>
+      <ul>
+        <li>Trasparenza sulle condizioni e sul TAN 3,8%.</li>
+        <li>Pratica digitale: simulazione, documenti e firma online.</li>
+        <li>Assistenza dedicata in italiano.</li>
+      </ul>
+      <a class="cta" href="/#simulator">Simula il credito →</a>
+    </article>
+  </main>
+</body>
+</html>

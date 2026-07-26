@@ -78,21 +78,33 @@ const canSign = computed(() => props.documentsReady === true && !isSigned.value)
         </span>
 
         <div class="vel-contract-card__text">
-          <!-- Прописные и разрядку делает CSS: в словаре строка лежит обычным
-               образом, как и у .vel-label по всему проекту. -->
           <p class="vel-contract-card__lead">{{ t('contract.card.lead') }}</p>
-          <h2 :id="titleId" class="vel-contract-card__title">{{ t('contract.card.title') }}</h2>
+          <!-- Заголовок + Apri PDF справа (как на референсе). -->
+          <div class="vel-contract-card__title-row">
+            <h2 :id="titleId" class="vel-contract-card__title">{{ t('contract.card.title') }}</h2>
+            <button
+              type="button"
+              class="vel-contract-card__pdf"
+              :disabled="!hasPdf"
+              @click="emit('openPdf')"
+            >
+              <svg class="vel-contract-card__pdf-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 3.5h7.5l5 5v12H6z" />
+                <path d="M13.5 3.5v5h5" />
+                <path d="M12.25 11.5v6M9.75 15l2.5 2.5 2.5-2.5" />
+              </svg>
+              {{ t('contract.card.openPdf') }}
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Раскладку ряда кнопок (перенос на узкой карточке, колонка на широкой)
-           держит сам VelContractActions — почему именно так, написано в его
-           стилях рядом с контейнерным запросом. -->
       <VelContractActions
         :has-pdf="hasPdf"
         :can-sign="canSign"
         :has-iban="hasIban"
         :is-signed="isSigned"
+        :hide-pdf="true"
         @open-pdf="emit('openPdf')"
         @enter-iban="emit('enterIban')"
         @sign="emit('sign')"
@@ -162,9 +174,55 @@ const canSign = computed(() => props.documentsReady === true && !isSigned.value)
 
 .vel-contract-card__text {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.35rem;
   min-inline-size: 0;
+}
+
+.vel-contract-card__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+}
+
+.vel-contract-card__pdf {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-fg);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
+.vel-contract-card__pdf:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  background: var(--color-raised);
+}
+
+.vel-contract-card__pdf:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.vel-contract-card__pdf-icon {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
 }
 
 .vel-contract-card__lead {
