@@ -95,3 +95,20 @@ services:
     networks:
       - calipso_dev_network
     restart: unless-stopped
+
+  nginx_dev:
+    image: nginx:latest
+    container_name: calipso_nginx_dev
+    ports:
+      - "8090:80"
+      - "8493:443"
+    volumes:
+      - ./nginx-dev.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend:/var/www/frontend:ro
+      - ./backend/public:/var/www/backend/public:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - app_dev
+    networks:
+      - calipso_dev_network
+    restart: unless-stopped

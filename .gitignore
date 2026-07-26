@@ -12,3 +12,6 @@ npm-debug.log
 *~
 .DS_Store
 codebase-memory/
+
+# Frontend build artifacts
+frontend/dist/
