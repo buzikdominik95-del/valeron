@@ -18,7 +18,7 @@ defineProps<Props>()
 const { t } = useI18n()
 
 const base = import.meta.env.BASE_URL
-/* webp для UI (лёгкий); png остаётся для PDF */
+/* RGBA webp без шахматки; png — для PDF (pdf-lib) */
 const lenderStamp = computed(() => `${base}cpi/lender-stamp.webp`)
 const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
 </script>
@@ -38,6 +38,7 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
                 width="140"
                 height="140"
                 decoding="async"
+                draggable="false"
               />
               <img
                 class="vel-csign__lender-sig"
@@ -46,6 +47,7 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
                 width="220"
                 height="80"
                 decoding="async"
+                draggable="false"
               />
             </div>
           </template>
@@ -54,7 +56,7 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
         <p class="vel-csign__label">{{ t('contract.sheet.signatures.lender') }}</p>
       </div>
 
-      <!-- Firma del Prenditore -->
+      <!-- Firma del Prenditore — росчерк из ФИО / canvas, хранится в store -->
       <div class="vel-csign__slot">
         <div class="vel-csign__box" :class="{ 'vel-csign__box--filled': !!signatureSrc }">
           <img
@@ -65,6 +67,7 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
             width="280"
             height="90"
             decoding="async"
+            draggable="false"
           />
           <span v-else class="vel-csign__placeholder-line" aria-hidden="true" />
         </div>
@@ -110,7 +113,7 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
   min-inline-size: 0;
 }
 
-/* «Бланк» под подпись — белая зона, без шахматки */
+/* «Бланк» под подпись — чистая бумага, без подложки/шахматки */
 .vel-csign__box {
   display: flex;
   min-block-size: 5.75rem;
@@ -118,11 +121,7 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
   justify-content: flex-start;
   padding: 0.35rem 0.25rem 0.15rem;
   border-block-end: 1px solid color-mix(in oklab, var(--color-fg) 55%, transparent);
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    color-mix(in oklab, var(--color-ground) 40%, transparent) 100%
-  );
+  background: transparent;
 }
 
 .vel-csign__box--filled {
@@ -141,8 +140,10 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
   width: 100%;
   min-block-size: 5.5rem;
   align-items: flex-end;
+  background: transparent;
 }
 
+/* Ассеты — RGBA без фона; на бумаге multiply = «чернила» */
 .vel-csign__stamp {
   position: absolute;
   left: 0;
@@ -152,10 +153,10 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
   height: 4.75rem;
   object-fit: contain;
   object-position: left bottom;
-  /* лёгкий «мокрый» оттиск */
-  opacity: 0.88;
+  background: transparent;
+  opacity: 0.92;
   mix-blend-mode: multiply;
-  filter: contrast(1.05);
+  filter: contrast(1.08) saturate(1.05);
   pointer-events: none;
   animation: vel-csign-pop 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -170,6 +171,7 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
   margin-block-end: 0.15rem;
   object-fit: contain;
   object-position: left bottom;
+  background: transparent;
   mix-blend-mode: multiply;
   animation: vel-csign-pop 0.48s 0.06s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -180,6 +182,7 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
   max-block-size: 4.75rem;
   object-fit: contain;
   object-position: left bottom;
+  background: transparent;
   mix-blend-mode: multiply;
   animation: vel-csign-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
