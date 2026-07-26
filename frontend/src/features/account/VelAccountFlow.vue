@@ -20,8 +20,8 @@ import VelPolicyCard from '@/features/account/VelPolicyCard.vue'
 import VelDocumentUpload from '@/features/account/VelDocumentUpload.vue'
 import VelContractCard from '@/features/account/VelContractCard.vue'
 import VelContractSheet from '@/features/account/VelContractSheet.vue'
-import VelContractIban from '@/features/account/VelContractIban.vue'
-import VelSignaturePad from '@/features/account/VelSignaturePad.vue'
+import VelContractSignDialog from '@/features/account/VelContractSignDialog.vue'
+import VelCoachGuide from '@/features/account/VelCoachGuide.vue'
 import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
 import VelPayoutFailed from '@/features/account/VelPayoutFailed.vue'
@@ -74,8 +74,8 @@ const withdrawAmount = ref(0)
 const commissionOpen = ref(false)
 /* Счёт для зачисления кредита — своё окно, не окно вывода: почему именно так,
    написано в шапке VelContractIban.vue. */
-const ibanOpen = ref(false)
-const signatureOpen = ref(false)
+/** IBAN + подпись в одной модалке */
+const contractSignOpen = ref(false)
 const loanOpen = ref(false)
 const chosenFiles = ref<File[]>([])
 /** Короткий toast «messaggio inviato» / «documenti pronti». */
@@ -144,12 +144,19 @@ watch(
   },
 )
 
-function onSigned(): void {
-  /* Флаг и время подписи ставятся одним вызовом — иначе договор однажды
-     окажется подписанным без даты подписи (см. account.store). */
-  account.markContractSigned()
+function onContractSignConfirm(payload: { dataUrl: string; ibanSaved: boolean }): void {
+  /* Подпись сразу в стор → лист договора рисует PNG. */
+  account.markContractSigned(new Date(), payload.dataUrl)
   account.markDone('signature')
-  showToast(t('account.contract.toastSigned'))
+  showToast(
+    payload.ibanSaved
+      ? t('account.contract.toastSigned')
+      : t('account.contract.toastSigned'),
+  )
+}
+
+function openContractSign(): void {
+  contractSignOpen.value = true
 }
 
 function onPolicyReview(): void {
@@ -157,7 +164,7 @@ function onPolicyReview(): void {
 }
 
 /**
- * Старт воронки после IBAN / суммы.
+ * Старт воронки после суммы.
  * L2 ready → банк-уведомление → анимация.
  * L1 / fee → beginWithdraw → pay_fee → drawer комиссии.
  * L4 → анимация отказа.
@@ -170,35 +177,31 @@ function startWithdrawFunnel(): void {
   beginWithdraw()
 }
 
+/**
+ * Preleva → одна модалка «Scegli il metodo» (IBAN/Carta + сумма + Avvia),
+ * как на референс-видео. Отдельный ползунок суммы больше не нужен.
+ */
 function onWithdraw(): void {
   if (!canWithdraw.value) return
   if (!isReady.value && !isSuspended.value) return
-  if (!account.ibanProvided) {
-    payoutOpen.value = true
-    return
-  }
-  // С suspended — сразу к сумме/комиссии (страховка).
   if (isSuspended.value) {
     openFeeFromSuspension()
-    amountOpen.value = true
-    return
   }
-  // L1 и любой «fee»-путь: сначала ползунок суммы, потом комиссия.
-  if (level.value === 1 || level.value === 3) {
-    amountOpen.value = true
-    return
-  }
-  startWithdrawFunnel()
+  payoutOpen.value = true
 }
 
-function onPayoutSubmitted(): void {
-  account.ibanProvided = true
+function onPayoutSubmitted(euros: number): void {
+  withdrawAmount.value = euros
   payoutOpen.value = false
-  // После IBAN — выбор суммы, затем комиссия (L1) или воронка (L2/L4).
-  if (level.value === 1 || level.value === 3) {
-    amountOpen.value = true
+
+  // L1 / L3 / страховка: нужен pay_fee → drawer комиссии.
+  if (level.value === 1 || level.value === 3 || isSuspended.value) {
+    if (!isPayFee.value) beginWithdraw()
+    commissionOpen.value = true
     return
   }
+
+  // L2 / L4: банк-уведомление или анимация.
   startWithdrawFunnel()
 }
 
@@ -228,9 +231,9 @@ watch(isPayFee, (on) => {
     commissionOpen.value = false
     return
   }
-  // Если сумма ещё не выбрана — сначала ползунок.
+  // Сумма уже из Preleva-модалки; если нет — откроем unified payout.
   if (withdrawAmount.value <= 0) {
-    amountOpen.value = true
+    payoutOpen.value = true
     return
   }
   commissionOpen.value = true
@@ -346,9 +349,9 @@ const showDevBar = (() => {
           :documents-ready="documentsReady"
           :iban-provided="account.ibanProvided"
           :signed="account.contractSigned"
-          @sign="signatureOpen = true"
+          @sign="openContractSign"
           @open-pdf="onOpenPdf"
-          @enter-iban="ibanOpen = true"
+          @enter-iban="openContractSign"
         />
         <div class="mt-4 border-t border-line pt-4">
           <VelContractSheet />
@@ -359,6 +362,7 @@ const showDevBar = (() => {
     <!-- side: personal data / docs убраны с Home — только Profilo / Documenti -->
   </VelAccount>
 
+  <!-- Preleva → IBAN/Carta + slider + Avvia (как на видео) -->
   <VelPayoutDialog v-model:open="payoutOpen" @submitted="onPayoutSubmitted" />
   <VelBankNoticeDialog v-model:open="bankNoticeOpen" @continue="onBankNoticeContinue" />
   <VelWithdrawAmountDialog
@@ -370,8 +374,10 @@ const showDevBar = (() => {
     v-model:open="commissionOpen"
     @confirmed="onCommissionConfirmed"
   />
-  <VelContractIban v-model:open="ibanOpen" @saved="showToast(t('contract.card.ibanDone'))" />
-  <VelSignaturePad v-model:open="signatureOpen" @confirm="onSigned" />
+  <!-- IBAN + firma in una modale -->
+  <VelContractSignDialog v-model:open="contractSignOpen" @confirm="onContractSignConfirm" />
+
+  <VelCoachGuide />
 
   <!-- Полноэкранный финал перевода: сам уходит по таймеру, закрывается по Esc -->
   <VelTransferSuccess v-model:open="successOpen" />

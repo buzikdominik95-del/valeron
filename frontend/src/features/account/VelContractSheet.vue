@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useContractData } from '@/features/account/contract-data'
+import { useAccountStore } from '@/stores/account.store'
 import VelLogo from '@/components/ui/VelLogo.vue'
 import VelContractTerms from '@/features/account/VelContractTerms.vue'
 import VelContractSchedule from '@/features/account/VelContractSchedule.vue'
@@ -29,6 +31,7 @@ import VelContractSignatures from '@/features/account/VelContractSignatures.vue'
  * ровно то, что нужно: пустой лист выглядит листом, а длинный растёт вниз.
  */
 const { t } = useI18n()
+const { signatureDataUrl } = storeToRefs(useAccountStore())
 
 /* Разбираем на месте: все поля — computed-ссылки, и в шаблоне Vue разворачивает
    их сам. Через объект пришлось бы писать contract.number.value в разметке. */
@@ -95,7 +98,11 @@ const {
 
         <VelContractClauses :months="months" />
 
-        <VelContractSignatures :signed="signed" :signed-at="signedAt" />
+        <VelContractSignatures
+          :signed="signed"
+          :signed-at="signedAt"
+          :signature-src="signatureDataUrl || undefined"
+        />
       </article>
     </div>
   </section>
