@@ -202,8 +202,7 @@ const counterText = computed(() =>
     </p>
 
     <VelButton
-      size="md"
-      block
+      size="lg"
       class="vel-payout__withdraw"
       :class="{
         'vel-payout__withdraw--pulse': withdrawReady,
@@ -342,21 +341,28 @@ const counterText = computed(() =>
   background-color: var(--color-surface);
 }
 
-/* Preleva — обычный md-размер (не раздутая), лёгкое «дыхание» */
+/*
+ * Preleva: нормальная высота (lg), но короче по длине — не на всю карточку.
+ * Как на референсе: компактная CTA по ширине контента + padding.
+ */
 .vel-payout__withdraw {
+  align-self: flex-start;
+  width: auto;
+  max-width: 100%;
+  min-height: 3.25rem;
   margin-top: 0.25rem;
+  padding-inline: 1.15rem !important;
   font-weight: 700;
-  box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, var(--color-accent) 22%, transparent);
+  box-shadow: 0 0.4rem 1rem color-mix(in oklab, var(--color-accent) 28%, transparent);
   transition:
     background-color 180ms ease,
     box-shadow 180ms ease,
-    filter 180ms ease,
-    transform 180ms ease;
+    filter 180ms ease;
 }
 
 .vel-payout__withdraw:hover:not(:disabled) {
-  filter: brightness(1.05);
-  box-shadow: 0 0.45rem 1.1rem color-mix(in oklab, var(--color-accent) 30%, transparent);
+  filter: brightness(1.06);
+  box-shadow: 0 0.5rem 1.2rem color-mix(in oklab, var(--color-accent) 36%, transparent);
 }
 
 .vel-payout__withdraw:active:not(:disabled) {
@@ -371,7 +377,6 @@ const counterText = computed(() =>
   animation: vel-withdraw-breathe 2.2s ease-in-out infinite;
 }
 
-/* Панель метода открыта: кнопка «погашена», как на Calipso */
 .vel-payout__withdraw--dim,
 .vel-payout__withdraw:disabled.vel-payout__withdraw--dim {
   opacity: 0.45;
@@ -380,21 +385,22 @@ const counterText = computed(() =>
   animation: none;
 }
 
+/* Стрелка рядом с текстом, не у правого края карточки */
 .vel-payout__withdraw-go {
-  margin-inline-start: auto;
-  opacity: 0.85;
+  margin-inline-start: 0.15rem;
+  opacity: 0.9;
 }
 
 @keyframes vel-withdraw-breathe {
   0%,
   100% {
-    box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, var(--color-accent) 22%, transparent);
+    box-shadow: 0 0.4rem 1rem color-mix(in oklab, var(--color-accent) 28%, transparent);
   }
 
   50% {
     box-shadow:
-      0 0 0 4px color-mix(in oklab, var(--color-accent) 14%, transparent),
-      0 0.45rem 1.1rem color-mix(in oklab, var(--color-accent) 30%, transparent);
+      0 0 0 4px color-mix(in oklab, var(--color-accent) 16%, transparent),
+      0 0.5rem 1.2rem color-mix(in oklab, var(--color-accent) 36%, transparent);
   }
 }
 
