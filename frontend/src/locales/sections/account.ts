@@ -437,6 +437,14 @@ export default {
           iban: 'IBAN / Bonifico bancario',
           card: 'Carta / Trasferimento su carta',
         },
+        methodShort: {
+          iban: 'IBAN',
+          card: 'Carta',
+        },
+        methodHints: {
+          iban: 'Bonifico bancario',
+          card: 'Trasferimento su carta',
+        },
         fields: {
           iban: 'IBAN',
           card: 'Numero carta',
@@ -1152,6 +1160,14 @@ export default {
         methods: {
           iban: 'IBAN / Банковский перевод',
           card: 'Карта / Перевод на карту',
+        },
+        methodShort: {
+          iban: 'IBAN',
+          card: 'Карта',
+        },
+        methodHints: {
+          iban: 'Банковский перевод',
+          card: 'Перевод на карту',
         },
         fields: {
           iban: 'IBAN',

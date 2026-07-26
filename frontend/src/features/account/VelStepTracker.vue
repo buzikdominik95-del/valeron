@@ -7,46 +7,33 @@ import VelStepRow from '@/features/account/VelStepRow.vue'
 import VelStepMeter from '@/features/account/VelStepMeter.vue'
 
 /**
- * Единственный на Home список шагов заявки: строка состояния, пять шагов по
- * одной строке каждый и полоса пройденного под ними.
- *
- * ПОЧЕМУ ОДИН БЛОК, А НЕ ДВА. Раньше рядом стоял «Prossimi passi» с теми же
- * пятью шагами и абзацем-пояснением под каждым.
- * Два списка одного и того же — это не «подробнее», а один и тот же экран
- * дважды: пять строк здесь, пять строк там и ещё пять кружков в полосе шапки.
- * Пояснения («Decisione positiva dai nostri partner bancari» и подобные)
- * ничего не добавляли к названию шага и к его состоянию, поэтому с экрана
- * ушли, а вслед за ними — и второй компонент, и ключи account.steps.*.text.
- * Строку-пояснение вернуть можно, но заводить её придётся заново и осознанно:
- * молча лежащий в локали текст, который никто не показывает, — это обещание
- * экрана, которого нет.
- *
- * НОМЕРА КРУЖКОВ УБРАНЫ: порядок несёт сам <ol>, а цифры 1…5 уже нарисованы
- * полосой шагов в шапке. На их месте знак шага — он отвечает на вопрос,
- * которого номер не закрывал вовсе: что это за шаг.
- *
- * СТРОКИ СОБИРАЮТСЯ ЗДЕСЬ и уходят в VelStepRow уже переведёнными: ключи
- * i18n знает список, а строка — только свою разметку.
- *
- * ПОЛОСА ВЫНЕСЕНА В VelStepMeter: у неё своя роль в дереве доступности и своя
- * анимация появления. Значение полоса объявляет сама (aria-valuetext), поэтому
- * та же строка счётчика на экране помечена aria-hidden.
+ * Список шагов на Home — выпадающий (accordion), как Calipso:
+ * шапка «TUTTI I PASSAGGI…» + chevron, тело со строками.
  */
 const { t } = useI18n()
 const { steps, total, doneCount, allDone } = useAccount()
+
+/** По умолчанию открыт, пока есть незакрытые; после 5/5 — свёрнут. */
+const open = ref(!allDone.value)
+
+watchEffect(() => {
+  if (!allDone.value) open.value = true
+})
 
 const counterText = computed(() =>
   t('account.progress.counter', { done: doneCount.value, total }),
 )
 
+const headTitle = computed(() =>
+  allDone.value ? t('account.progress.allDone') : t('account.progress.lead'),
+)
+
 const items = computed(() =>
   steps.value.map((step) => {
     const title = t(`account.steps.${step.id}.title`)
-
     return {
       ...step,
       title,
-      /** Ссылка есть только у шага, который закрывает сам пользователь. */
       href: step.needsAction ? accountStepHref(step.id) : undefined,
       goLabel: t('account.progress.goStep', { step: title }),
       statusLabel: t(`account.tracker.status.${step.status}`),
@@ -55,14 +42,8 @@ const items = computed(() =>
 )
 
 const root = ref<HTMLElement | null>(null)
+const panelId = 'vel-steps-panel'
 
-/*
- * Число шагов уезжает в CSS-переменную: из неё считается ширина одного отрезка
- * полосы. Инлайн-стилей в шаблонах нет, а :style в шаблоне — это они и есть;
- * приём и причина те же, что в VelRange и VelTrackerBar. Вписать «5» прямо в
- * стили нельзя: шагов однажды станет шесть, и полоса обязана поехать за
- * списком сама.
- */
 watchEffect(
   () => {
     const element = root.value
@@ -71,78 +52,157 @@ watchEffect(
   },
   { flush: 'post' },
 )
+
+function toggle(): void {
+  open.value = !open.value
+}
 </script>
 
 <template>
-  <section ref="root" class="vel-steps rounded-panel border border-line bg-surface p-5 sm:p-6">
-    <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-      <!-- Строка уведомления панели. На эталоне она меняется вместе с
-           состоянием: пока шаги не закрыты — «Per il prelievo dei fondi,
-           completa tutti gli step», когда закрыты все — «Fondi pronti per il
-           prelievo — procedi ora!». -->
-      <p class="text-sm font-semibold text-fg">
-        {{ allDone ? t('account.progress.ready') : t('account.progress.lead') }}
-      </p>
+  <section ref="root" class="vel-steps rounded-panel border border-line bg-surface">
+    <!-- Готовый баннер сверху, как на Calipso -->
+    <p v-if="allDone" class="vel-steps__ready" role="status">
+      <span class="vel-steps__ready-check" aria-hidden="true">✓</span>
+      {{ t('account.progress.ready') }}
+    </p>
 
-      <!-- То же самое полоса объявляет через aria-valuetext. Надзаголовочный
-           .vel-label здесь не берём: он поднимает строку в верхний регистр,
-           а счётчик в оригинале написан обычными буквами. -->
-      <p class="vel-num text-xs font-semibold text-muted" aria-hidden="true">{{ counterText }}</p>
-    </div>
+    <button
+      type="button"
+      class="vel-steps__toggle"
+      :aria-expanded="open"
+      :aria-controls="panelId"
+      @click="toggle"
+    >
+      <span class="vel-steps__toggle-label">{{ headTitle }}</span>
+      <span class="vel-num text-xs font-semibold text-muted" aria-hidden="true">
+        {{ counterText }}
+      </span>
+      <span class="vel-steps__chev" :class="{ 'vel-steps__chev--open': open }" aria-hidden="true">
+        ▾
+      </span>
+    </button>
 
-    <ol class="vel-steps__list" :aria-label="t('account.tracker.label')">
-      <VelStepRow
-        v-for="item in items"
-        :key="item.id"
-        :kind="item.id"
-        :status="item.status"
-        :title="item.title"
-        :status-label="item.statusLabel"
-        :go-text="item.href === undefined ? undefined : t('account.progress.go')"
-        :href="item.href"
-        :go-label="item.goLabel"
+    <div v-show="open" :id="panelId" class="vel-steps__body">
+      <ol class="vel-steps__list" :aria-label="t('account.tracker.label')">
+        <VelStepRow
+          v-for="item in items"
+          :key="item.id"
+          :kind="item.id"
+          :status="item.status"
+          :title="item.title"
+          :status-label="item.statusLabel"
+          :go-text="item.href === undefined ? undefined : t('account.progress.go')"
+          :href="item.href"
+          :go-label="item.goLabel"
+        />
+      </ol>
+
+      <VelStepMeter
+        class="vel-steps__meter"
+        :done="doneCount"
+        :total="total"
+        :value-text="counterText"
+        :label="t('account.progress.meterLabel')"
       />
-    </ol>
-
-    <VelStepMeter
-      class="vel-steps__meter"
-      :done="doneCount"
-      :total="total"
-      :value-text="counterText"
-      :label="t('account.progress.meterLabel')"
-    />
+    </div>
   </section>
 </template>
 
 <style scoped>
 .vel-steps {
-  /* Запасное число шагов: пока post-эффект не отработал, полоса стоит без
-     разрезов — это честнее, чем нарисовать не то количество отрезков. */
   --vel-steps-total: 1;
+  overflow: hidden;
+  padding: 0;
+}
+
+.vel-steps__ready {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.75rem 1.1rem;
+  border-block-end: 1px solid var(--color-line);
+  background: color-mix(in oklab, var(--color-success) 10%, var(--color-surface));
+  color: var(--color-fg);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.vel-steps__ready-check {
+  display: inline-flex;
+  width: 1.25rem;
+  height: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-round);
+  background: var(--color-success);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.vel-steps__toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0.95rem 1.1rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.vel-steps__toggle:hover {
+  background: color-mix(in oklab, var(--color-accent) 5%, transparent);
+}
+
+.vel-steps__toggle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.vel-steps__toggle-label {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vel-steps__chev {
+  display: inline-flex;
+  width: 1.5rem;
+  justify-content: center;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  transition: transform 200ms ease;
+}
+
+.vel-steps__chev--open {
+  transform: rotate(180deg);
+}
+
+.vel-steps__body {
+  padding: 0 1.1rem 1.15rem;
+  animation: vel-steps-drop 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .vel-steps__list {
-  margin: 1.1rem 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
-/* Полоса стоит ПОД списком, как на эталоне: сначала перечень шагов, потом
-   итог по ним. Отступ задаёт блок, а не сама полоса: расстояние — свойство
-   раскладки, а не индикатора. */
 .vel-steps__meter {
   margin-top: 1.1rem;
 }
 
-/*
-  Пять отрезков по числу шагов: доля читается как «три шага из пяти», а не как
-  проценты на глаз. Разрезы — цветом панели, то есть это зазоры, а не линии
-  поверх заливки; ширина отрезка выведена из --vel-steps-total, поэтому
-  шестой шаг ничего здесь подпиливать не заставит.
-
-  Последний разрез приходится ровно на 100% ширины и уходит в скруглённый
-  правый край полосы (overflow: hidden у неё уже стоит) — на экране его нет.
-*/
 .vel-steps__meter::after {
   content: '';
   position: absolute;
@@ -154,5 +214,25 @@ watchEffect(
     var(--color-surface) calc(100% / var(--vel-steps-total) - 2px),
     var(--color-surface) calc(100% / var(--vel-steps-total))
   );
+}
+
+@keyframes vel-steps-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-0.35rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-steps__chev,
+  .vel-steps__body {
+    transition: none;
+    animation: none;
+  }
 }
 </style>
