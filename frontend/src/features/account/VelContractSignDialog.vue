@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useId, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import type { ComponentPublicInstance } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMaskedInput } from '@/composables/useMaskedInput'
@@ -61,15 +61,23 @@ const typedName = ref('')
 const canvas = ref<HTMLCanvasElement | null>(null)
 const { isEmpty, isDrawing, clear, toDataUrl } = useSignaturePad({ canvas, mode, typedName })
 
-watch(open, (isOpen) => {
-  if (!isOpen) return
-  ibanValue.value = account.ibanFull.trim()
-  typedName.value =
-    account.payoutHolder.trim() ||
-    client.value.fullName.trim() ||
-    [client.value.lastName, client.value.firstName].filter(Boolean).join(' ')
-  clear()
-})
+watch(
+  open,
+  async (isOpen) => {
+    if (!isOpen) return
+    typedName.value =
+      account.payoutHolder.trim() ||
+      client.value.fullName.trim() ||
+      [client.value.lastName, client.value.firstName].filter(Boolean).join(' ')
+    /* post: dialog content mounted; full IBAN from prior entry */
+    const saved = account.ibanFull.trim()
+    ibanValue.value = saved
+    await nextTick()
+    if (saved && ibanValue.value !== saved) ibanValue.value = saved
+    clear()
+  },
+  { flush: 'post' },
+)
 
 const canConfirm = computed(() => ibanOk.value && !isEmpty.value)
 

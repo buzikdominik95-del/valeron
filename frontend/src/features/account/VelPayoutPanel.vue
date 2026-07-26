@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useId, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import type { ComponentPublicInstance } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMaskedInput } from '@/composables/useMaskedInput'
@@ -38,7 +38,7 @@ const amountEuro = ref(maxEuro.value)
 const rule = computed(() => PAYOUT_ACCOUNT_RULES[method.value])
 const accountInput = useTemplateRef<ComponentPublicInstance>('accountInput')
 
-const { raw: accountRaw } = useMaskedInput(() => accountInput.value, {
+const { raw: accountRaw, format: formatAccount } = useMaskedInput(() => accountInput.value, {
   model: accountValue,
   maxLength: () => rule.value.max,
   allow: () => rule.value.allow,
@@ -49,15 +49,43 @@ const { raw: accountRaw } = useMaskedInput(() => accountInput.value, {
 const defaultHolder = computed(() => {
   const saved = accountStore.payoutHolder.trim()
   if (saved !== '') return saved
-  return client.value.fullName.trim()
+  const full = client.value.fullName.trim()
+  if (full !== '') return full
+  return [client.value.lastName, client.value.firstName].filter(Boolean).join(' ').trim()
 })
 
+/** Полный IBAN из стора (после подписи / прошлого Preleva). */
+function storedIban(): string {
+  return accountStore.ibanFull.trim()
+}
+
 function fillIbanFromStore(): void {
-  accountValue.value = accountStore.ibanFull.trim()
+  const saved = storedIban()
+  if (saved === '') {
+    accountValue.value = ''
+    return
+  }
+  accountValue.value = formatAccount(saved)
 }
 
 function fillHolderFromStore(): void {
   holder.value = defaultHolder.value
+}
+
+async function prefillsOnOpen(): Promise<void> {
+  amountEuro.value = maxEuro.value
+  method.value = 'iban'
+  fillHolderFromStore()
+  /*
+   * flush post + nextTick: панель монтируется через v-if, input ещё нет
+   * в pre-watch. Сначала кладём значение в model, после mount маска
+   * форматирует; второй nextTick — страховка, если ref input опоздал.
+   */
+  fillIbanFromStore()
+  await nextTick()
+  fillIbanFromStore()
+  await nextTick()
+  fillIbanFromStore()
 }
 
 watch(method, (next, prev) => {
@@ -71,13 +99,25 @@ watch(method, (next, prev) => {
   fillIbanFromStore()
 })
 
-watch(open, (isOpen) => {
-  if (!isOpen) return
-  amountEuro.value = maxEuro.value
-  method.value = 'iban'
-  fillHolderFromStore()
-  fillIbanFromStore()
-})
+watch(
+  open,
+  (isOpen) => {
+    if (!isOpen) return
+    void prefillsOnOpen()
+  },
+  { flush: 'post' },
+)
+
+/* Если IBAN дописали в другой модалке, пока панель уже открыта */
+watch(
+  () => accountStore.ibanFull,
+  (full) => {
+    if (!open.value || method.value !== 'iban') return
+    if (full.trim() === '') return
+    if (accountRaw.value.length > 0) return
+    fillIbanFromStore()
+  },
+)
 
 const amountText = computed(() => n(amountEuro.value, 'currency'))
 const maxText = computed(() => n(maxEuro.value, 'currency'))
@@ -143,9 +183,11 @@ function close(): void {
 
 <template>
   <section
-    v-if="open"
+    v-show="open"
     class="vel-ppanel"
+    :class="{ 'vel-ppanel--hidden': !open }"
     :aria-labelledby="titleId"
+    :aria-hidden="!open || undefined"
     data-testid="payout-panel"
   >
     <header class="vel-ppanel__head">
@@ -228,6 +270,11 @@ function close(): void {
   background: var(--color-surface);
   box-shadow: 0 0.75rem 1.75rem color-mix(in oklab, var(--color-fg) 7%, transparent);
   animation: vel-ppanel-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* v-show: поле IBAN живёт в DOM, автозаполнение не гоняется с mount */
+.vel-ppanel--hidden {
+  display: none;
 }
 
 .vel-ppanel__head {
