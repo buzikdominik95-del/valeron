@@ -165,7 +165,11 @@ watch(tab, async (next) => {
               <template #contract><slot name="signature" /></template>
             </VelCabinetDocuments>
 
-            <VelCabinetSupport v-else />
+            <VelCabinetSupport v-else>
+              <template #before>
+                <slot name="support" />
+              </template>
+            </VelCabinetSupport>
           </VelStageSwitch>
         </main>
       </div>

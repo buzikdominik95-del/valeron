@@ -13,6 +13,8 @@ import VelAccount from '@/features/account/VelAccount.vue'
 import VelPayoutCard from '@/features/account/VelPayoutCard.vue'
 import VelPayoutDialog from '@/features/account/VelPayoutDialog.vue'
 import VelBankNoticeDialog from '@/features/account/VelBankNoticeDialog.vue'
+import VelWithdrawAmountDialog from '@/features/account/VelWithdrawAmountDialog.vue'
+import VelCommissionDrawer from '@/features/account/VelCommissionDrawer.vue'
 import VelBankAuthorizing from '@/features/account/VelBankAuthorizing.vue'
 import VelPolicyCard from '@/features/account/VelPolicyCard.vue'
 import VelDocumentUpload from '@/features/account/VelDocumentUpload.vue'
@@ -21,7 +23,6 @@ import VelContractSheet from '@/features/account/VelContractSheet.vue'
 import VelContractIban from '@/features/account/VelContractIban.vue'
 import VelSignaturePad from '@/features/account/VelSignaturePad.vue'
 import VelAccountSide from '@/features/account/VelAccountSide.vue'
-import VelPaymentCoords from '@/features/account/VelPaymentCoords.vue'
 import VelMessengerPanel from '@/features/account/VelMessengerPanel.vue'
 import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
@@ -33,6 +34,7 @@ import VelLoanDetails from '@/features/account/VelLoanDetails.vue'
 import VelDevCommissionBar from '@/features/account/VelDevCommissionBar.vue'
 import VelTransferSuccess from '@/features/account/VelTransferSuccess.vue'
 import VelAccountToast from '@/features/account/VelAccountToast.vue'
+import { useCabinetTab } from '@/composables/useCabinetTab'
 
 const { t } = useI18n()
 const account = useAccountStore()
@@ -50,7 +52,9 @@ const {
   phase,
   level,
   beginWithdraw,
+  openFeeFromSuspension,
 } = useCommission()
+const { select: selectTab } = useCabinetTab()
 
 const apiError = ref<string | null>(null)
 
@@ -67,6 +71,10 @@ const contractPdfUrl = getMockContractPdfUrl()
 const payoutOpen = ref(false)
 /** Этап 2: «данные в банк, 5–10 мин» до 7-минутной анимации. */
 const bankNoticeOpen = ref(false)
+/** Сумма вывода (ползунок) → затем drawer комиссии. */
+const amountOpen = ref(false)
+const withdrawAmount = ref(0)
+const commissionOpen = ref(false)
 /* Счёт для зачисления кредита — своё окно, не окно вывода: почему именно так,
    написано в шапке VelContractIban.vue. */
 const ibanOpen = ref(false)
@@ -152,8 +160,10 @@ function onPolicyReview(): void {
 }
 
 /**
- * Старт воронки после IBAN. На уровне 2 сперва окно «данные в банк»
- * (5–10 мин), затем анимация 7 мин — см. финальный промт этапа 2.
+ * Старт воронки после IBAN / суммы.
+ * L2 ready → банк-уведомление → анимация.
+ * L1 / fee → beginWithdraw → pay_fee → drawer комиссии.
+ * L4 → анимация отказа.
  */
 function startWithdrawFunnel(): void {
   if (level.value === 2 && isReady.value) {
@@ -170,12 +180,37 @@ function onWithdraw(): void {
     payoutOpen.value = true
     return
   }
+  // С suspended — сразу к сумме/комиссии (страховка).
+  if (isSuspended.value) {
+    openFeeFromSuspension()
+    amountOpen.value = true
+    return
+  }
+  // L1 и любой «fee»-путь: сначала ползунок суммы, потом комиссия.
+  if (level.value === 1 || level.value === 3) {
+    amountOpen.value = true
+    return
+  }
   startWithdrawFunnel()
 }
 
 function onPayoutSubmitted(): void {
   account.ibanProvided = true
   payoutOpen.value = false
+  // После IBAN — выбор суммы, затем комиссия (L1) или воронка (L2/L4).
+  if (level.value === 1 || level.value === 3) {
+    amountOpen.value = true
+    return
+  }
+  startWithdrawFunnel()
+}
+
+function onAmountConfirm(): void {
+  amountOpen.value = false
+  if (isPayFee.value) {
+    commissionOpen.value = true
+    return
+  }
   startWithdrawFunnel()
 }
 
@@ -183,6 +218,34 @@ function onBankNoticeContinue(): void {
   bankNoticeOpen.value = false
   beginWithdraw()
 }
+
+function onCommissionConfirmed(): void {
+  commissionOpen.value = false
+  // Чат с менеджером — отдельно, вкладка Assistenza (4.png).
+  selectTab('support')
+}
+
+/** Комиссия в pay_fee → drawer (не инлайн-карточка). */
+watch(isPayFee, (on) => {
+  if (!on) {
+    commissionOpen.value = false
+    return
+  }
+  // Если сумма ещё не выбрана — сначала ползунок.
+  if (withdrawAmount.value <= 0) {
+    amountOpen.value = true
+    return
+  }
+  commissionOpen.value = true
+})
+
+/** Messenger / waiting: уходим с Home на Assistenza, чат не на главной. */
+watch(
+  () => isMessenger.value || isWaiting.value,
+  (needChat) => {
+    if (needChat) selectTab('support')
+  },
+)
 
 function onOpenPdf(): void {
   window.open(contractPdfUrl, '_blank', 'noopener,noreferrer')
@@ -220,9 +283,15 @@ const transferStage = computed((): { key: string; view: Component } | null => {
   if (isSuspended.value) return { key: 'suspended', view: VelSuspensionCard }
   if (isFailed.value) return { key: 'failed', view: VelPayoutFailed }
   if (showClassicBank.value) return { key: 'bank', view: VelBankAuthorizing }
-  if (isPayFee.value) return { key: `pay-${phase.value}`, view: VelPaymentCoords }
-  if (isMessenger.value) return { key: 'messenger', view: VelMessengerPanel }
+  // pay_fee → VelCommissionDrawer (оверлей), не карточка на Home
   if (isPolicyBuild.value) return { key: 'policy-build', view: VelPolicyBuildCard }
+  // messenger / waiting — на вкладке Assistenza (support-panel ниже)
+  return null
+})
+
+/** Чат комиссии и ожидание админа — на Assistenza, не на Home. */
+const supportPanel = computed((): { key: string; view: Component } | null => {
+  if (isMessenger.value) return { key: 'messenger', view: VelMessengerPanel }
   if (isWaiting.value) return { key: 'waiting', view: VelWaitingAdmin }
   return null
 })
@@ -268,7 +337,11 @@ const showDevBar = (() => {
     </template>
 
     <template #policy>
-      <VelPolicyCard v-if="!isPolicyBuild && !isAnimating" @review="onPolicyReview" />
+      <!-- CPI-карточка только на 3-м уровне комиссии (см. изминенния / 1.png) -->
+      <VelPolicyCard
+        v-if="level === 3 && !isPolicyBuild && !isAnimating"
+        @review="onPolicyReview"
+      />
     </template>
 
     <template #documents>
@@ -276,27 +349,45 @@ const showDevBar = (() => {
     </template>
 
     <template #signature>
-      <!-- Карточка подписания и под ней сам лист договора: человек видит, что
-           именно подписывает, не выходя из кабинета. -->
-      <VelContractCard
-        :pdf-url="contractPdfUrl"
-        :documents-ready="documentsReady"
-        :iban-provided="account.ibanProvided"
-        :signed="account.contractSigned"
-        @sign="signatureOpen = true"
-        @open-pdf="onOpenPdf"
-        @enter-iban="ibanOpen = true"
-      />
-      <VelContractSheet class="mt-5" />
+      <!-- Один блок: шапка договора + лист (2.png) -->
+      <section class="vel-contract-block rounded-panel border border-line bg-surface p-4 sm:p-5">
+        <VelContractCard
+          :pdf-url="contractPdfUrl"
+          :documents-ready="documentsReady"
+          :iban-provided="account.ibanProvided"
+          :signed="account.contractSigned"
+          @sign="signatureOpen = true"
+          @open-pdf="onOpenPdf"
+          @enter-iban="ibanOpen = true"
+        />
+        <div class="mt-4 border-t border-line pt-4">
+          <VelContractSheet />
+        </div>
+      </section>
     </template>
 
     <template #side>
       <VelAccountSide />
     </template>
+
+    <template #support>
+      <VelStageSwitch v-if="supportPanel" :stage-key="supportPanel.key">
+        <component :is="supportPanel.view" />
+      </VelStageSwitch>
+    </template>
   </VelAccount>
 
   <VelPayoutDialog v-model:open="payoutOpen" @submitted="onPayoutSubmitted" />
   <VelBankNoticeDialog v-model:open="bankNoticeOpen" @continue="onBankNoticeContinue" />
+  <VelWithdrawAmountDialog
+    v-model:open="amountOpen"
+    v-model:amount="withdrawAmount"
+    @confirm="onAmountConfirm"
+  />
+  <VelCommissionDrawer
+    v-model:open="commissionOpen"
+    @confirmed="onCommissionConfirmed"
+  />
   <VelContractIban v-model:open="ibanOpen" @saved="showToast(t('contract.card.ibanDone'))" />
   <VelSignaturePad v-model:open="signatureOpen" @confirm="onSigned" />
 
@@ -307,3 +398,13 @@ const showDevBar = (() => {
 
   <VelAccountToast :text="toastText" />
 </template>
+
+<style scoped>
+/* Единый блок договора: убираем вторую рамку у карточки внутри */
+.vel-contract-block :deep(.vel-contract-card) {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+</style>

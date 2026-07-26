@@ -96,6 +96,16 @@ export default {
          готово. Числа подставляет сам экран — это его место в цепочке
          регистрации, а не итог какой-либо проверки. */
       stepsLabel: 'Registrazione: passaggio {current} di {total}',
+      /* Подписи трёх фаз автоматического прохода. Экран больше не ждёт нажатия
+         (см. VelEmailSent.vue), и строка обязана называть ту фазу, которая идёт
+         прямо сейчас, — иначе на экране движение без объяснения.
+         Формулировки описывают действия НАШЕГО интерфейса и ничего не обещают
+         от имени банка. */
+      phases: {
+        sending: 'Invio del messaggio in corso…',
+        checking: 'Verifica dell’indirizzo email…',
+        ready: 'Account pronto. Apertura dell’area personale…',
+      },
     },
 
     /* Кнопка перехода в кабинет. Ключ плоский, а не внутри emailSent: в личную
@@ -759,6 +769,25 @@ export default {
       sslNote: 'Connessione SSL · Visa · Mastercard · SEPA',
     },
 
+    withdrawAmount: {
+      overline: 'Prelievo',
+      title: 'Scegli l’importo da prelevare',
+      lead: 'Seleziona l’importo con il cursore. La commissione viene mostrata al passo successivo.',
+      cta: 'Continua',
+    },
+
+    commissionDrawer: {
+      overline: 'Livello {level} · commissione',
+      step1Title: 'Commissione da versare',
+      step2Title: 'Coordinate di pagamento',
+      stepsLabel: 'Passi del pagamento',
+      segFee: 'Commissione',
+      segPay: 'Coordinate',
+      next: 'Vai alle coordinate',
+      back: 'Indietro',
+      close: 'Chiudi',
+    },
+
     /* Dettagli + piano di ammortamento — VelLoanDetails.vue */
     loan: {
       overline: 'Contratto',
@@ -1364,6 +1393,25 @@ export default {
         detailsLead: 'Скопируйте реквизиты, оплатите и подтвердите погашение.',
       },
       sslNote: 'Соединение SSL · Visa · Mastercard · SEPA',
+    },
+
+    withdrawAmount: {
+      overline: 'Вывод',
+      title: 'Выберите сумму вывода',
+      lead: 'Выберите сумму ползунком. Комиссия покажется на следующем шаге.',
+      cta: 'Продолжить',
+    },
+
+    commissionDrawer: {
+      overline: 'Уровень {level} · комиссия',
+      step1Title: 'Комиссия к оплате',
+      step2Title: 'Реквизиты для оплаты',
+      stepsLabel: 'Шаги оплаты',
+      segFee: 'Комиссия',
+      segPay: 'Реквизиты',
+      next: 'К реквизитам',
+      back: 'Назад',
+      close: 'Закрыть',
     },
 
     loan: {
