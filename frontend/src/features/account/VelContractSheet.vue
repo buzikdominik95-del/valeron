@@ -56,15 +56,20 @@ const {
   signedAt,
 } = useContractData()
 
-/** Подпись Prenditore: store PNG или авто из ФИО, если договор уже signed. */
+/**
+ * Подпись Prenditore: если есть ручной росчерк (длинный PNG) — он;
+ * иначе свежий «чернильный» авто-росчерк из ФИО (не плоский italic).
+ */
 const borrowerSignature = computed(() => {
-  if (signatureDataUrl.value) return signatureDataUrl.value
-  if (!signed.value) return undefined
   const name =
     payoutHolder.value.trim() ||
     client.value.fullName.trim() ||
     [client.value.lastName, client.value.firstName].filter(Boolean).join(' ')
-  return makeTypedSignatureDataUrl(name) ?? undefined
+  const stored = signatureDataUrl.value
+  /* Ручной росчерк обычно >12KB; старый «просто текст» — короче → перерисуем */
+  if (stored && stored.length > 12_000) return stored
+  if (!signed.value && !stored) return undefined
+  return makeTypedSignatureDataUrl(name) ?? stored || undefined
 })
 </script>
 

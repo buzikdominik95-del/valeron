@@ -59,17 +59,26 @@ export function useFilledContractPdf(templateUrl: string, open: Ref<boolean>) {
         (signed.value ? makeTypedSignatureDataUrl(fullName) : null) ||
         undefined
 
-      const url = await fillContractPdfObjectUrl(templateUrl, {
-        fullName: fullName || 'Cliente',
-        email: client.value.email || sim.email || undefined,
-        amount: n(approvedAmount.value, 'currency'),
-        monthly: monthlyText.value,
-        duration: durationText.value || `${months} mesi`,
-        iban: ibanFull.value || undefined,
-        contractNumber: number.value,
-        signedAt: signedAt || undefined,
-        signatureDataUrl: sig,
-      })
+      const base = import.meta.env.BASE_URL
+      const url = await fillContractPdfObjectUrl(
+        templateUrl,
+        {
+          fullName: fullName || 'Cliente',
+          email: client.value.email || sim.email || undefined,
+          amount: n(approvedAmount.value, 'currency'),
+          monthly: monthlyText.value,
+          duration: durationText.value || `${months} mesi`,
+          iban: ibanFull.value || undefined,
+          contractNumber: number.value,
+          signedAt: signedAt || undefined,
+          signatureDataUrl: sig,
+        },
+        {
+          /* PNG: pdf-lib non supporta webp */
+          stampUrl: `${base}cpi/lender-stamp.png`,
+          lenderSigUrl: `${base}cpi/lender-signature.png`,
+        },
+      )
 
       revoke()
       filledUrl.value = url
