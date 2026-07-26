@@ -1,6 +1,7 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
 import { useTimeoutFn } from '@vueuse/core'
+import { useLocalStorage } from '@vueuse/core'
 import { wantsFastAnim } from '@/lib/fast-anim'
 import {
   DOC_KIND_SIDES,
@@ -65,31 +66,46 @@ export interface DocumentUpload {
 
 /**
  * @param files модель компонента (v-model): плоский список выбранных файлов.
- *              Приходит снаружи, потому что владеет им компонент — здесь мы
- *              только держим его в согласии с внутренним состоянием.
+ * @param options.locked если документы уже приняты (store) — сразу verified.
  */
-export function useDocumentUpload(files: Ref<File[]>): DocumentUpload {
+export function useDocumentUpload(
+  files: Ref<File[]>,
+  options: { locked?: Ref<boolean> } = {},
+): DocumentUpload {
   const kind = ref<DocKind | null>(null)
   const picked = ref<Partial<Record<DocSide, File>>>({})
   const previews = ref<Partial<Record<DocSide, string>>>({})
   const rejection = ref<DocRejection | null>(null)
-  const status = ref<DocCheckStatus>('idle')
 
-  /*
-   * Таймер проверки — из VueUse, а не голый setTimeout: useTimeoutFn снимает
-   * его сам при уходе области видимости (tryOnScopeDispose внутри), и ручного
-   * clearTimeout в onUnmounted под него больше не нужно.
-   *
-   * Длительность — ГЕТТЕРОМ, а не числом: флаг ускорения читается в момент
-   * start(), как и раньше. Числом он застыл бы на значении момента создания
-   * композабла, то есть до того, как флаг вообще могли выставить.
+  /**
+   * Факт «документы проверены» переживает вкладку: иначе после ухода с
+   * Documenti снова открывалась бы форма загрузки.
    */
+  const docsVerified = useLocalStorage<boolean>('velora:docs:verified', false)
+
+  const status = ref<DocCheckStatus>(
+    docsVerified.value || options.locked?.value === true ? 'verified' : 'idle',
+  )
+
   const { start: startVerify } = useTimeoutFn(
     () => {
       status.value = 'verified'
+      docsVerified.value = true
     },
     () => (wantsFastAnim() ? VERIFY_FAST_MS : VERIFY_MS),
     { immediate: false },
+  )
+
+  /* Store уже пометил documents uploaded — не даём снова idle. */
+  watch(
+    () => options.locked?.value === true,
+    (locked) => {
+      if (locked) {
+        status.value = 'verified'
+        docsVerified.value = true
+      }
+    },
+    { immediate: true },
   )
 
   const sides = computed<readonly DocSide[]>(() =>
@@ -136,6 +152,8 @@ export function useDocumentUpload(files: Ref<File[]>): DocumentUpload {
   }
 
   function pick(side: DocSide, file: File | null): void {
+    /* После verify загрузка закрыта — pick молча игнорируем. */
+    if (status.value !== 'idle') return
     if (file === null) return
 
     if (!isSupportedDocFile(file)) {
@@ -172,12 +190,11 @@ export function useDocumentUpload(files: Ref<File[]>): DocumentUpload {
   }
 
   /*
-   * Смена вида документа выбрасывает уже выбранные снимки. Оборот карты для
-   * паспорта бессмыслен, а оставленный в состоянии файл ушёл бы наружу
-   * незаметно: слота под него на экране больше нет, и удалить его было бы
-   * нечем.
+   * Смена вида документа выбрасывает уже выбранные снимки.
+   * После verify вид не меняем — форма скрыта.
    */
   watch(kind, () => {
+    if (status.value !== 'idle') return
     revokeAll()
     picked.value = {}
     rejection.value = null

@@ -130,24 +130,11 @@ function unlockFirmaAfterDocs(): void {
   account.advanceTo('signature')
 }
 
-watch(
-  chosenFiles,
-  (files) => {
-    if (files.length === 0) return
-    unlockFirmaAfterDocs()
-    showToast(t('account.docs.toastReady'))
-  },
-  { deep: true, flush: 'sync' },
-)
-
-watch(
-  () => chosenFiles.value.length,
-  (count, prev) => {
-    if (count > 0 && (prev === 0 || prev === undefined)) {
-      unlockFirmaAfterDocs()
-    }
-  },
-)
+/** Только после verify (не при выборе файла) — unlock firma + toast. */
+function onDocumentsVerified(): void {
+  unlockFirmaAfterDocs()
+  showToast(t('account.docs.toastReady'))
+}
 
 function onContractSignConfirm(payload: { dataUrl: string; ibanSaved: boolean }): void {
   /* Подпись сразу в стор → лист договора рисует PNG. */
@@ -363,7 +350,7 @@ const showDevBar = !(
     </template>
 
     <template #documents>
-      <VelDocumentUpload v-model="chosenFiles" />
+      <VelDocumentUpload v-model="chosenFiles" @verified="onDocumentsVerified" />
     </template>
 
     <template #signature>

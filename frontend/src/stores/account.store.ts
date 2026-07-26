@@ -303,6 +303,11 @@ export const useAccountStore = defineStore('account', () => {
     completed.value = []
     currentStep.value = ACCOUNT_STEPS[0]
     documentsUploaded.value = false
+    try {
+      localStorage.removeItem('velora:docs:verified')
+    } catch {
+      /* ignore */
+    }
     ibanProvided.value = false
     ibanMasked.value = ''
     ibanFull.value = ''
