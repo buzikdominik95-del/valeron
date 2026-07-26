@@ -5,6 +5,7 @@ import { ACCOUNT_STEPS, useAccountStore } from '@/stores/account.store'
 import type { AccountDocument, AccountStep, AccountStepStatus } from '@/stores/account.store'
 import { useDossierStore } from '@/stores/dossier.store'
 import { useSimulatorStore } from '@/stores/simulator.store'
+import { approvedFromRequested } from '@/features/wizard/offer-terms'
 import type {
   AccountPolicyStatus,
   AccountTransferStatus,
@@ -119,7 +120,7 @@ export function useAccount(): AccountApi {
 
   const { steps: routeSteps } = storeToRefs(accountStore)
   const { dossier } = storeToRefs(dossierStore)
-  const { amount, firstName, surname } = storeToRefs(useSimulatorStore())
+  const { amount, firstName, surname, email } = storeToRefs(useSimulatorStore())
 
   /**
    * Первичная заливка маршрута из ответа сервера. Пока состояние шагов лежит
@@ -153,8 +154,17 @@ export function useAccount(): AccountApi {
       firstName: first,
       lastName: last,
       fullName: [first, last].filter((part) => part !== '').join(' '),
-      // Почты мастер не спрашивает — до появления профиля она только из ответа API.
-      email: stub.email,
+      /*
+       * Почта — та, что человек ввёл при регистрации (её кладёт в стор
+       * VelWizardFlow.onRegistered). Здесь стояло stub.email, и кабинет
+       * показывал всем подряд демонстрационный marco@esempio.it из заглушки
+       * API — в том числе тому, кто минуту назад вписал свой адрес.
+       *
+       * Заглушка остаётся запасным вариантом на вход по прямой ссылке, без
+       * прохождения мастера: пустая строка на месте почты выглядела бы как
+       * потерянные данные.
+       */
+      email: email.value.trim() === '' ? stub.email : email.value.trim(),
       initial: firstLetter(first === '' ? last : first).toUpperCase(),
     }
   })
@@ -177,8 +187,19 @@ export function useAccount(): AccountApi {
   const allDone = computed(() => doneCount.value === total)
   const progress = computed(() => doneCount.value / total)
 
+  /*
+   * Одобрено меньше запрошенного на 15…20% — частичное одобрение. Считает та
+   * же функция, что и экран результата мастера (offer-terms), и это условие:
+   * своя формула здесь означала бы, что мастер обещал одну сумму, а кабинет
+   * по той же заявке показывает другую.
+   *
+   * Ветка заглушки не трогается: там сумма приходит из ответа API уже
+   * одобренной, и урезать её второй раз было бы двойным снижением.
+   */
   const approvedAmount = computed(() =>
-    hasOwnApplication.value ? amount.value : dossier.value.credit.approvedAmountCents / 100,
+    hasOwnApplication.value
+      ? approvedFromRequested(amount.value)
+      : dossier.value.credit.approvedAmountCents / 100,
   )
 
   const ratePercent = computed(() => dossier.value.credit.ratePercent)

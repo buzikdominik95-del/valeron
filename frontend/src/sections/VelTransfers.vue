@@ -42,8 +42,13 @@ const { t } = useI18n()
       </div>
 
       <VelReveal>
+        <!-- cutout: файл уже вырезан по силуэту телефона и несёт свою альфу,
+             поэтому оформление кадра снято — иначе размытая подложка VelPhoto
+             вылезала бы из-под силуэта серым ореолом. Разбор — в
+             .vel-photo--cutout у VelPhoto. -->
         <VelPhoto
           bleed="start"
+          cutout
           :src="appScreen"
           :alt="t('photo.app')"
           :width="832"

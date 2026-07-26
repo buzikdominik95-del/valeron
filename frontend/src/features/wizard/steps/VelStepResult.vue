@@ -5,7 +5,6 @@ import { useApprovalReveal } from '@/composables/useApprovalReveal'
 import { useCreditSimulator } from '@/composables/useCreditSimulator'
 import VelBadge from '@/components/ui/VelBadge.vue'
 import VelButton from '@/components/ui/VelButton.vue'
-import VelPhoto from '@/components/ui/VelPhoto.vue'
 import VelBorderBeam from '@/components/magic/VelBorderBeam.vue'
 import VelNumberTicker from '@/components/magic/VelNumberTicker.vue'
 import {
@@ -13,8 +12,8 @@ import {
   MONTHLY_FORMAT,
   TERM_MONTHS,
   annuityPayment,
+  approvedFromRequested,
 } from '@/features/wizard/offer-terms'
-import approvedPhoto from '@/img/cliente-approvata.webp'
 
 /**
  * Финальный экран мастера. Считает только показательные условия и ничего не
@@ -28,8 +27,13 @@ const { amount } = useCreditSimulator()
 /** Единственное действие экрана: куда вести дальше — решает родитель. */
 const emit = defineEmits<{ cta: [] }>()
 
-/** Снижения суммы не выдумываем: одобрено ровно столько, сколько запросили. */
-const approvedAmount = computed(() => amount.value)
+/**
+ * Одобрено меньше запрошенного на 15…20% — так работает частичное одобрение,
+ * и правило одно на весь проект (approvedFromRequested в offer-terms). Карточка
+ * кабинета считает по той же функции: разойдись они, человек увидел бы в
+ * мастере одну сумму, а в кабинете другую по одной и той же заявке.
+ */
+const approvedAmount = computed(() => approvedFromRequested(amount.value))
 
 const monthlyPayment = computed(() =>
   annuityPayment(approvedAmount.value, ANNUAL_RATE_PERCENT, TERM_MONTHS),
@@ -98,13 +102,6 @@ const tickerValue = computed(() => (amountRevealed.value ? approvedAmount.value 
 
         <p class="vel-num text-sm text-muted">{{ termsText }}</p>
 
-        <VelPhoto
-          :src="approvedPhoto"
-          :alt="t('photo.approved')"
-          :width="1248"
-          :height="832"
-          class="mt-5 w-full"
-        />
       </div>
 
       <p

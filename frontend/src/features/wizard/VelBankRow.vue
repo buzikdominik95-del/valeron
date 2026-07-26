@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useBankRowMotion } from '@/composables/useBankRowMotion'
 import { ROW_CLASS, STATUS_CLASS, STATUS_LABEL } from '@/features/wizard/bank-row-status'
+import { CHECK_AVG_MS } from '@/composables/useBankAnalysis'
 import type { BankRow } from '@/composables/useBankAnalysis'
 import VelBankMark from '@/features/wizard/VelBankMark.vue'
 
@@ -47,6 +48,23 @@ const { t } = useI18n()
 const root = ref<HTMLElement | null>(null)
 
 useBankRowMotion(root, () => props.bank.status)
+
+/*
+ * Длительность заливки приходит из useBankAnalysis, а не стоит числом в CSS.
+ * Полоса обязана добегать до края ровно тогда, когда банк становится
+ * проверенным: свои полторы секунды против семи у таймера означали бы, что
+ * полоса пять с половиной секунд стоит полной у строки «идёт проверка».
+ *
+ * Через setProperty, а не инлайновым стилем: инлайн в проекте запрещён, и это
+ * тот же приём, что в VelRange. flush: 'post' обязателен — до отрисовки узла
+ * ставить на него свойство некуда.
+ */
+watchEffect(
+  () => {
+    root.value?.style.setProperty('--vel-bank-load-ms', `${CHECK_AVG_MS}ms`)
+  },
+  { flush: 'post' },
+)
 </script>
 
 <template>
@@ -195,7 +213,9 @@ useBankRowMotion(root, () => props.bank.status)
   block-size: 2px;
   border-radius: var(--radius-round);
   background-color: var(--color-accent);
-  animation: vel-bank-load 1.5s ease-out forwards;
+  /* Длительность ставит скрипт (--vel-bank-load-ms) от таймера проверки.
+     Запасное значение — на случай, если узел отрисовался раньше эффекта. */
+  animation: vel-bank-load var(--vel-bank-load-ms, 7s) ease-out forwards;
   pointer-events: none;
 }
 
