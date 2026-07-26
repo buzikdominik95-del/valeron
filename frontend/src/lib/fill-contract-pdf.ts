@@ -1,12 +1,19 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 
 /**
- * Заполнение Calipso-2.0.pdf: аккуратное имя в поле «Cliente / Contraente»
- * (как policy-pdf.php: 60×67 mm) + опционально подпись.
- * Без «мусорного» списка полей поверх бланка.
+ * Заполнение cpi-contract.pdf (бланк Calipso/Velora).
+ *
+ * Шаблон: MediaBox ≈ 210×297 — это A4 в **миллиметрах** (1 unit = 1 mm),
+ * а не в PDF points. Старый policy-pdf.php/FPDI ставил SetXY(60, 67) в мм —
+ * те же числа сюда, без × (72/25.4).
+ *
+ * Текст: WinAnsi (Helvetica). Кириллицу транслитерируем в латиницу —
+ * никаких «???????».
  */
 
-const MM = 72 / 25.4
+/** A4 points; если страница близка к этому — координаты в pt, иначе мм. */
+const A4_PT_W = 595
+const PT_PER_MM = 72 / 25.4
 
 export interface ContractPdfFields {
   fullName: string
@@ -20,7 +27,81 @@ export interface ContractPdfFields {
   signatureDataUrl?: string
 }
 
-function toPdfText(value: string): string {
+/** Кириллица → латиница (как на старом проде: читаемое ФИО на бланке). */
+const CYR_MAP: Record<string, string> = {
+  а: 'a',
+  б: 'b',
+  в: 'v',
+  г: 'g',
+  д: 'd',
+  е: 'e',
+  ё: 'e',
+  ж: 'zh',
+  з: 'z',
+  и: 'i',
+  й: 'y',
+  к: 'k',
+  л: 'l',
+  м: 'm',
+  н: 'n',
+  о: 'o',
+  п: 'p',
+  р: 'r',
+  с: 's',
+  т: 't',
+  у: 'u',
+  ф: 'f',
+  х: 'kh',
+  ц: 'ts',
+  ч: 'ch',
+  ш: 'sh',
+  щ: 'shch',
+  ъ: '',
+  ы: 'y',
+  ь: '',
+  э: 'e',
+  ю: 'yu',
+  я: 'ya',
+  А: 'A',
+  Б: 'B',
+  В: 'V',
+  Г: 'G',
+  Д: 'D',
+  Е: 'E',
+  Ё: 'E',
+  Ж: 'Zh',
+  З: 'Z',
+  И: 'I',
+  Й: 'Y',
+  К: 'K',
+  Л: 'L',
+  М: 'M',
+  Н: 'N',
+  О: 'O',
+  П: 'P',
+  Р: 'R',
+  С: 'S',
+  Т: 'T',
+  У: 'U',
+  Ф: 'F',
+  Х: 'Kh',
+  Ц: 'Ts',
+  Ч: 'Ch',
+  Ш: 'Sh',
+  Щ: 'Shch',
+  Ъ: '',
+  Ы: 'Y',
+  Ь: '',
+  Э: 'E',
+  Ю: 'Yu',
+  Я: 'Ya',
+}
+
+/**
+ * Готовит строку для StandardFonts.Helvetica (WinAnsi).
+ * Без подстановки «?» — неподдерживаемые символы убираем/заменяем на ASCII.
+ */
+export function toPdfText(value: string): string {
   const map: Record<string, string> = {
     '€': 'EUR',
     '—': '-',
@@ -29,22 +110,53 @@ function toPdfText(value: string): string {
     '‘': "'",
     '“': '"',
     '”': '"',
+    '«': '"',
+    '»': '"',
+    '№': 'N',
+    '°': 'o',
+    '×': 'x',
+    '÷': '/',
+    '…': '...',
   }
-  let s = value
+
+  let s = value.normalize('NFC')
   for (const [from, to] of Object.entries(map)) s = s.split(from).join(to)
-  return s
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .replace(/[^\x20-\x7E]/g, '?')
+
+  /* кириллица → латиница посимвольно */
+  let out = ''
+  for (const ch of s) {
+    if (Object.prototype.hasOwnProperty.call(CYR_MAP, ch)) {
+      out += CYR_MAP[ch]
+      continue
+    }
+    out += ch
+  }
+
+  /* диакритика: è→e, à→a (итал. имена остаются читаемыми: Nicoletti → Nicoletti) */
+  out = out.normalize('NFD').replace(/\p{M}/gu, '')
+
+  /* только печатный ASCII — без «?»-заглушек */
+  return out
+    .replace(/[^\x20-\x7E]/g, '')
+    .replace(/\s+/g, ' ')
     .trim()
 }
 
-function mmX(mm: number): number {
-  return mm * MM
+/**
+ * Масштаб координат: мм (шаблон 210×297) или points (A4 595×842).
+ * width ≈ 210 → unit = mm; width ≈ 595 → unit = pt, mm умножаем на PT_PER_MM.
+ */
+function unitScale(pageWidth: number): number {
+  return pageWidth >= A4_PT_W * 0.85 ? PT_PER_MM : 1
 }
 
-function mmYFromTop(pageHeight: number, mmFromTop: number, fontSize: number): number {
-  return pageHeight - mmFromTop * MM - fontSize * 0.72
+function xMm(mm: number, scale: number): number {
+  return mm * scale
+}
+
+/** Y в PDF (снизу вверх) из мм от верхнего края. */
+function yFromTop(pageHeight: number, mmFromTop: number, scale: number, fontSize = 0): number {
+  return pageHeight - mmFromTop * scale - fontSize * 0.72
 }
 
 async function embedPngFromDataUrl(
@@ -71,10 +183,7 @@ async function embedImageUrl(
     const res = await fetch(url)
     if (!res.ok) return null
     const bytes = new Uint8Array(await res.arrayBuffer())
-    if (url.endsWith('.webp') || url.includes('webp')) {
-      /* pdf-lib does not embed webp — skip */
-      return null
-    }
+    if (url.endsWith('.webp') || url.includes('webp')) return null
     return await pdf.embedPng(bytes)
   } catch {
     return null
@@ -94,67 +203,73 @@ export async function fillContractPdf(
   const page = pdf.getPages()[0]
   if (!page) throw new Error('PDF has no pages')
 
-  const font = await pdf.embedFont(StandardFonts.Helvetica)
-  const { height } = page.getSize()
-  /* тёмно-синие «чернила» — ближе к бланку, не pure black */
+  const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold)
+  const { width, height } = page.getSize()
+  const scale = unitScale(width)
   const ink = rgb(0.08, 0.12, 0.22)
 
+  /*
+   * policy-grid.png (876×1238) → page 210×297:
+   *   Cliente / Contraente: ~ y_px 290 → 69.5 mm from top, name after label ~ x 62 mm
+   *   Firma / stamp zone:   ~ y_px 1050–1120 → 252–269 mm
+   *
+   * Как policy-pdf.php: только ФИО в поле Cliente — без мусора поверх пунктов.
+   */
   const name = toPdfText(fields.fullName)
   if (name !== '') {
-    /* policy-pdf.php: Helvetica 13 @ (60mm, 67mm) — только имя в поле Cliente */
-    const size = 12.5
+    const size = scale === 1 ? 4.2 : 12.5
     page.drawText(name, {
-      x: mmX(58),
-      y: mmYFromTop(height, 66.5, size),
+      x: xMm(62, scale),
+      y: yFromTop(height, 69.5, scale, size),
       size,
-      font,
+      font: fontBold,
       color: ink,
-      maxWidth: mmX(110),
+      maxWidth: xMm(110, scale),
     })
   }
 
-  /* Prestatore: печать + подпись компании (нижняя зона бланка) */
+  /* Prestatore: печать + подпись (правый нижний угол, как на проде) */
   if (assets?.stampUrl) {
     const stamp = await embedImageUrl(pdf, assets.stampUrl)
     if (stamp) {
-      const w = mmX(32)
+      const w = xMm(28, scale)
       const h = (stamp.height / stamp.width) * w
       page.drawImage(stamp, {
-        x: mmX(118),
-        y: mmYFromTop(height, 268, 0) - h,
-        width: w,
-        height: h,
-        opacity: 0.9,
-      })
-    }
-  }
-  if (assets?.lenderSigUrl) {
-    const sig = await embedImageUrl(pdf, assets.lenderSigUrl)
-    if (sig) {
-      const w = mmX(42)
-      const h = (sig.height / sig.width) * w
-      page.drawImage(sig, {
-        x: mmX(128),
-        y: mmYFromTop(height, 275, 0) - h,
+        x: xMm(145, scale),
+        y: yFromTop(height, 255, scale, 0) - h,
         width: w,
         height: h,
         opacity: 0.92,
       })
     }
   }
+  if (assets?.lenderSigUrl) {
+    const sig = await embedImageUrl(pdf, assets.lenderSigUrl)
+    if (sig) {
+      const w = xMm(38, scale)
+      const h = (sig.height / sig.width) * w
+      page.drawImage(sig, {
+        x: xMm(130, scale),
+        y: yFromTop(height, 268, scale, 0) - h,
+        width: w,
+        height: h,
+        opacity: 0.94,
+      })
+    }
+  }
 
-  /* Prenditore signature */
+  /* Prenditore — росчерк слева у «Firma:» */
   if (fields.signatureDataUrl) {
     const png = await embedPngFromDataUrl(pdf, fields.signatureDataUrl)
     if (png) {
-      const sigW = mmX(48)
-      const sigH = Math.min((png.height / png.width) * sigW, mmX(18))
+      const sigW = xMm(42, scale)
+      const sigH = Math.min((png.height / png.width) * sigW, xMm(16, scale))
       page.drawImage(png, {
-        x: mmX(22),
-        y: mmYFromTop(height, 275, 0) - sigH,
+        x: xMm(38, scale),
+        y: yFromTop(height, 268, scale, 0) - sigH,
         width: sigW,
         height: sigH,
-        opacity: 0.95,
+        opacity: 0.96,
       })
     }
   }

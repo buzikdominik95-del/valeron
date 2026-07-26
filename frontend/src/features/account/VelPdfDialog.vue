@@ -25,6 +25,20 @@ const titleId = `vel-pdf-dialog-title-${uid}`
 const dialog = useTemplateRef<HTMLDialogElement>('dialog')
 useNativeDialog(dialog, open)
 
+/**
+ * Встроенный viewer: ширина страницы + toolbar, чтобы бланк читался
+ * (не крошечная миниатюра с «???????»).
+ */
+function viewerSrc(url: string): string {
+  if (!url) return ''
+  if (url.startsWith('blob:')) {
+    /* blob: + hash не всегда подхватывает chrome pdf — отдаём как есть */
+    return url
+  }
+  const base = url.split('#')[0] ?? url
+  return `${base}#view=FitH&toolbar=1&navpanes=0`
+}
+
 function close(): void {
   open.value = false
 }
@@ -60,7 +74,7 @@ function close(): void {
         <iframe
           v-else-if="open && src"
           class="vel-pdf-dlg__frame"
-          :src="src"
+          :src="viewerSrc(src)"
           :title="title || t('contract.pdfDialog.title')"
         />
         <p v-else class="vel-pdf-dlg__empty">{{ t('contract.pdfDialog.empty') }}</p>
@@ -85,8 +99,9 @@ function close(): void {
 
 <style scoped>
 .vel-pdf-dlg {
-  inline-size: min(100% - 1rem, 52rem);
-  max-block-size: min(94dvh, 48rem);
+  /* шире и выше — бланк читается без лупы */
+  inline-size: min(100% - 0.75rem, 58rem);
+  max-block-size: min(96dvh, 56rem);
   overflow: hidden;
   padding: 0;
   border: 1px solid var(--color-line);
@@ -104,7 +119,7 @@ function close(): void {
   display: flex;
   flex-direction: column;
   gap: 0;
-  max-block-size: min(94dvh, 48rem);
+  max-block-size: min(96dvh, 56rem);
 }
 
 .vel-pdf-dlg__head {
@@ -142,16 +157,16 @@ function close(): void {
 
 .vel-pdf-dlg__frame-wrap {
   flex: 1 1 auto;
-  min-block-size: min(70dvh, 36rem);
-  background: var(--color-ground);
+  min-block-size: min(78dvh, 44rem);
+  background: #525659;
 }
 
 .vel-pdf-dlg__frame {
   display: block;
   width: 100%;
-  height: min(70dvh, 36rem);
+  height: min(78dvh, 44rem);
   border: 0;
-  background: #fff;
+  background: #525659;
 }
 
 .vel-pdf-dlg__empty {
