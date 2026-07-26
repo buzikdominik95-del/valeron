@@ -91,7 +91,7 @@ onUnmounted(() => {
       </div>
 
       <!--
-        Mobile: карусель Calipso-style (peek next card + dots).
+        Mobile: карусель Calipso-style (peek next card + capsule dots).
         sm+: сетка 2 / 4, без точек.
       -->
       <div class="vel-programs">
@@ -107,6 +107,7 @@ onUnmounted(() => {
             as="li"
             tilt
             class="vel-programs__card flex flex-col overflow-hidden rounded-panel border border-line bg-surface"
+            :class="{ 'vel-programs__card--active': isMobile && index === active }"
             :aria-current="isMobile && index === active ? 'true' : undefined"
           >
             <VelProgramCard
@@ -117,24 +118,30 @@ onUnmounted(() => {
           </VelReveal>
         </ul>
 
-        <!-- Точки-слайдер: только mobile, в стиле сайта -->
+        <!--
+          Капсула-индикатор (как у Calipso): тёмный активный «хвост» +
+          точки. Не нативный scrollbar. Виден только на mobile.
+        -->
         <div
-          v-if="isMobile"
-          class="vel-programs__dots"
+          class="vel-programs__pager"
           role="tablist"
           :aria-label="t('programs.label')"
         >
-          <button
-            v-for="(program, index) in programs"
-            :key="program.key"
-            type="button"
-            role="tab"
-            class="vel-programs__dot"
-            :class="{ 'vel-programs__dot--on': index === active }"
-            :aria-selected="index === active"
-            :aria-label="program.title"
-            @click="goTo(index)"
-          />
+          <div class="vel-programs__capsule" aria-hidden="false">
+            <button
+              v-for="(program, index) in programs"
+              :key="program.key"
+              type="button"
+              role="tab"
+              class="vel-programs__dot"
+              :class="{ 'vel-programs__dot--on': index === active }"
+              :aria-selected="index === active"
+              :aria-label="program.title"
+              @click="goTo(index)"
+            >
+              <span class="vel-programs__dot-core" aria-hidden="true" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -145,7 +152,7 @@ onUnmounted(() => {
 .vel-programs {
   display: flex;
   flex-direction: column;
-  gap: 1.15rem;
+  gap: 1.25rem;
   min-inline-size: 0;
 }
 
@@ -161,6 +168,11 @@ onUnmounted(() => {
 @media (min-width: 640px) {
   .vel-programs__track {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* pager только для mobile */
+  .vel-programs__pager {
+    display: none;
   }
 }
 
@@ -180,65 +192,121 @@ onUnmounted(() => {
     scroll-snap-type: x mandatory;
     scroll-padding-inline: 1.25rem;
     -webkit-overflow-scrolling: touch;
-    /* прячем scrollbar — навигация через точки */
+    overscroll-behavior-x: contain;
+    /* полностью прячем нативный scrollbar — навигация через капсулу */
     scrollbar-width: none;
+    -ms-overflow-style: none;
     margin-inline: -1.25rem;
     padding-inline: 1.25rem;
-    padding-block-end: 0.25rem;
+    padding-block-end: 0.15rem;
   }
 
   .vel-programs__track::-webkit-scrollbar {
     display: none;
+    width: 0;
+    height: 0;
+    background: transparent;
   }
 
   .vel-programs__card {
-    flex: 0 0 min(82vw, 19.5rem);
+    flex: 0 0 min(84vw, 20rem);
     scroll-snap-align: center;
-    /* лёгкая «карточка в ряду» */
-    box-shadow: 0 0.5rem 1.35rem color-mix(in oklab, var(--color-fg) 7%, transparent);
+    box-shadow: 0 0.55rem 1.5rem color-mix(in oklab, var(--color-fg) 8%, transparent);
+    transition:
+      transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 280ms ease,
+      border-color 260ms ease,
+      box-shadow 260ms ease;
+    opacity: 0.72;
+    transform: scale(0.965);
+  }
+
+  .vel-programs__card--active {
+    opacity: 1;
+    transform: scale(1);
+    border-color: color-mix(in oklab, var(--color-accent) 35%, var(--color-line));
+    box-shadow:
+      0 0.75rem 1.85rem color-mix(in oklab, var(--color-fg) 12%, transparent),
+      0 0 0 1px color-mix(in oklab, var(--color-accent) 12%, transparent);
   }
 }
 
-/* ── Dots (Calipso-style, Velora tokens) ── */
-.vel-programs__dots {
+/* ── Pager: Calipso-style capsule ── */
+.vel-programs__pager {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
-  padding-block: 0.15rem 0.35rem;
+  padding-block: 0.1rem 0.2rem;
+}
+
+.vel-programs__capsule {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--radius-round);
+  background: color-mix(in oklab, var(--color-accent-deep) 92%, #000);
+  box-shadow:
+    0 0.35rem 0.9rem color-mix(in oklab, var(--color-accent-deep) 28%, transparent),
+    inset 0 1px 0 color-mix(in oklab, #fff 10%, transparent);
 }
 
 .vel-programs__dot {
+  position: relative;
+  display: grid;
+  place-items: center;
   flex: 0 0 auto;
-  width: 0.45rem;
-  height: 0.45rem;
+  width: 0.5rem;
+  height: 0.5rem;
   padding: 0;
+  margin: 0;
   border: none;
   border-radius: var(--radius-round);
-  background: color-mix(in oklab, var(--color-fg) 16%, transparent);
+  background: transparent;
   cursor: pointer;
   transition:
-    width 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 220ms ease,
+    width 280ms cubic-bezier(0.22, 1, 0.36, 1),
     transform 180ms ease;
-  /* touch target ≥ 44px через padding hit-area */
-  box-shadow: 0 0 0 0.55rem transparent;
+  /* hit-area ≥ 44px без раздувания визуала */
+  isolation: isolate;
 }
 
-.vel-programs__dot:hover {
-  background: color-mix(in oklab, var(--color-accent) 45%, var(--color-fg));
+.vel-programs__dot::before {
+  content: '';
+  position: absolute;
+  inset: -0.55rem;
+  border-radius: var(--radius-round);
+}
+
+.vel-programs__dot-core {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-round);
+  background: color-mix(in oklab, #fff 38%, transparent);
+  transition:
+    background-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+/* активная — удлинённая «пилюля» белым/акцентом на тёмной капсуле */
+.vel-programs__dot--on {
+  width: 1.35rem;
+}
+
+.vel-programs__dot--on .vel-programs__dot-core {
+  background: #fff;
+  box-shadow: 0 0 0.45rem color-mix(in oklab, #fff 45%, transparent);
+}
+
+.vel-programs__dot:hover:not(.vel-programs__dot--on) .vel-programs__dot-core {
+  background: color-mix(in oklab, #fff 62%, transparent);
 }
 
 .vel-programs__dot:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 4px;
-}
-
-/* активная — «пилюля» акцента */
-.vel-programs__dot--on {
-  width: 1.15rem;
-  background: var(--color-accent-deep);
-  transform: scale(1.02);
 }
 
 @media (hover: hover) {
@@ -259,7 +327,9 @@ onUnmounted(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vel-programs__dot {
+  .vel-programs__dot,
+  .vel-programs__dot-core,
+  .vel-programs__card {
     transition: none;
   }
 
