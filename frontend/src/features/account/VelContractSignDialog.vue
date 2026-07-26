@@ -10,6 +10,7 @@ import { useAccount } from '@/composables/useAccount'
 import { useAccountStore } from '@/stores/account.store'
 import { ibanExpectedLength, ibanShapeProblem } from '@/lib/iban'
 import { PAYOUT_ACCOUNT_RULES } from '@/features/account/payout-fields'
+import { makeTypedSignatureDataUrl } from '@/lib/auto-signature'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelField from '@/components/ui/VelField.vue'
 import VelInput from '@/components/ui/VelInput.vue'
@@ -65,11 +66,12 @@ watch(
   open,
   async (isOpen) => {
     if (!isOpen) return
+    /* Автоподпись: режим «имя» + ФИО из профиля / prestito. */
+    mode.value = 'type'
     typedName.value =
       account.payoutHolder.trim() ||
       client.value.fullName.trim() ||
       [client.value.lastName, client.value.firstName].filter(Boolean).join(' ')
-    /* post: dialog content mounted; full IBAN from prior entry */
     const saved = account.ibanFull.trim()
     ibanValue.value = saved
     await nextTick()
@@ -79,11 +81,26 @@ watch(
   { flush: 'post' },
 )
 
-const canConfirm = computed(() => ibanOk.value && !isEmpty.value)
+/**
+ * IBAN обязателен; подпись — авто из ФИО (или росчерк, если человек рисовал).
+ */
+const canConfirm = computed(() => {
+  if (!ibanOk.value) return false
+  if (!isEmpty.value) return true
+  return typedName.value.trim() !== '' || client.value.fullName.trim() !== ''
+})
 
 function onConfirm(): void {
   if (!canConfirm.value) return
-  const dataUrl = toDataUrl()
+
+  const name =
+    typedName.value.trim() ||
+    client.value.fullName.trim() ||
+    [client.value.lastName, client.value.firstName].filter(Boolean).join(' ')
+
+  /* Сначала росчерк с планшета; если пусто — автоподпись из имени. */
+  let dataUrl = !isEmpty.value ? toDataUrl() : null
+  if (!dataUrl) dataUrl = makeTypedSignatureDataUrl(name)
   if (!dataUrl) return
 
   let ibanSaved = false
@@ -91,8 +108,8 @@ function onConfirm(): void {
     account.setIbanFromRaw(ibanRaw.value)
     ibanSaved = true
   }
-  if (typedName.value.trim()) {
-    account.setPayoutHolder(typedName.value)
+  if (name) {
+    account.setPayoutHolder(name)
   }
 
   emit('confirm', { dataUrl, ibanSaved })
