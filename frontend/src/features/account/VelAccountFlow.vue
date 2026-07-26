@@ -37,7 +37,7 @@ import { useCabinetTab } from '@/composables/useCabinetTab'
 const { t } = useI18n()
 const account = useAccountStore()
 const dossier = useDossierStore()
-const { steps, canWithdraw, isAuthorizing } = useAccount()
+const { steps, canWithdraw, isAuthorizing, approvedAmount } = useAccount()
 const {
   isPayFee,
   isMessenger,
@@ -182,8 +182,10 @@ function startWithdrawFunnel(): void {
 }
 
 /**
- * Preleva → выпадающая панель «Scegli il metodo» под балансом (не модалка).
- * Кнопка гаснет; todo сворачивается. После Avvia — drawer / воронка.
+ * Preleva:
+ *  1) IBAN ещё нет → выпадающая VelPayoutPanel под балансом (метод + IBAN + сумма).
+ *  2) После Avvia → drawer 3 шага (IBAN → комиссия → SEPA) или анимация L2/L4.
+ *  3) IBAN уже сохранён → панель не открываем, сразу drawer / воронка.
  */
 function onWithdraw(): void {
   if (!canWithdraw.value) return
@@ -191,22 +193,35 @@ function onWithdraw(): void {
   if (isSuspended.value) {
     openFeeFromSuspension()
   }
+
+  /* IBAN уже зафиксирован — без повторного выпадающего ввода. */
+  if (account.ibanProvided && account.ibanFull.trim() !== '') {
+    continueAfterPayout(Math.round(approvedAmount.value))
+    return
+  }
+
+  /* Первый раз: выпадающая панель «Scegli il metodo» под Preleva. */
   payoutPanelOpen.value = true
 }
 
-function onPayoutSubmitted(euros: number): void {
+/** После панели (или если IBAN уже был) → drawer комиссии / анимация. */
+function continueAfterPayout(euros: number): void {
   withdrawAmount.value = euros
   payoutPanelOpen.value = false
 
-  // L1 / L3 / страховка: нужен pay_fee → drawer комиссии.
+  // L1 / L3 / страховка: pay_fee → drawer (3 шага).
   if (level.value === 1 || level.value === 3 || isSuspended.value) {
     if (!isPayFee.value) beginWithdraw()
     commissionOpen.value = true
     return
   }
 
-  // L2 / L4: банк-уведомление или анимация.
+  // L2 / L4: банк-уведомление или анимация отказа.
   startWithdrawFunnel()
+}
+
+function onPayoutSubmitted(euros: number): void {
+  continueAfterPayout(euros)
 }
 
 function onAmountConfirm(): void {
