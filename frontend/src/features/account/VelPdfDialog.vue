@@ -14,8 +14,9 @@ const props = withDefaults(
   defineProps<{
     src: string
     title?: string
+    loading?: boolean
   }>(),
-  { title: '' },
+  { title: '', loading: false },
 )
 
 const { t } = useI18n()
@@ -55,8 +56,9 @@ function close(): void {
       </header>
 
       <div class="vel-pdf-dlg__frame-wrap">
+        <p v-if="loading" class="vel-pdf-dlg__empty">{{ t('contract.pdfDialog.loading') }}</p>
         <iframe
-          v-if="open && src"
+          v-else-if="open && src"
           class="vel-pdf-dlg__frame"
           :src="src"
           :title="title || t('contract.pdfDialog.title')"

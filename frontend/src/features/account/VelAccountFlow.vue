@@ -23,6 +23,7 @@ import VelContractCard from '@/features/account/VelContractCard.vue'
 import VelContractSheet from '@/features/account/VelContractSheet.vue'
 import VelContractSignDialog from '@/features/account/VelContractSignDialog.vue'
 import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
+import { useFilledContractPdf } from '@/composables/useFilledContractPdf'
 import VelCoachGuide from '@/features/account/VelCoachGuide.vue'
 import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
@@ -66,8 +67,10 @@ onMounted(() => {
     })
 })
 
-/** Contratto con vecchio prod Calipso (public/cpi/cpi-contract.pdf). */
-const contractPdfUrl = `${import.meta.env.BASE_URL}cpi/cpi-contract.pdf`
+/** Contratto template (Calipso-2.0) — данные клиента дорисует useFilledContractPdf. */
+const contractPdfTemplate = `${import.meta.env.BASE_URL}cpi/cpi-contract.pdf`
+/* hasPdf для карточки: шаблон всегда есть */
+const contractPdfUrl = contractPdfTemplate
 /* payoutOpen убран: форма — выпадающая VelPayoutPanel под балансом */
 /** Этап 2: «данные в банк, 5–10 мин» до 7-минутной анимации. */
 const bankNoticeOpen = ref(false)
@@ -259,11 +262,14 @@ watch(
   },
 )
 
-/** PDF в модалке кабинета (не новая вкладка). */
+/** PDF в модалке: шаблон + ФИО/сумма/IBAN/подпись как на старом проде. */
 const pdfOpen = ref(false)
+const {
+  displayUrl: filledPdfUrl,
+  loading: pdfFilling,
+} = useFilledContractPdf(contractPdfTemplate, pdfOpen)
 
 function onOpenPdf(): void {
-  if (!contractPdfUrl) return
   pdfOpen.value = true
 }
 
@@ -392,11 +398,12 @@ const showDevBar = !(
   <!-- IBAN + firma in una modale -->
   <VelContractSignDialog v-model:open="contractSignOpen" @confirm="onContractSignConfirm" />
 
-  <!-- Contratto PDF — panel/modal, non nuova scheda -->
+  <!-- Contratto PDF con dati cliente (overlay come policy-pdf.php) -->
   <VelPdfDialog
     v-model:open="pdfOpen"
-    :src="contractPdfUrl"
+    :src="filledPdfUrl"
     :title="t('contract.card.title')"
+    :loading="pdfFilling"
   />
 
   <VelCoachGuide />
