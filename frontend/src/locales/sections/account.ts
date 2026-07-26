@@ -196,11 +196,13 @@ export default {
       chat: {
         team: 'Assistenza Velora',
         hours: 'Lun–ven, 9:00–18:00',
+        online: 'In linea',
         greeting:
           'Buongiorno! Scriva pure la sua domanda sulla pratica: le rispondiamo nei giorni lavorativi.',
         threadLabel: 'Conversazione con l’assistenza',
         inputLabel: 'Scrivi un messaggio',
         placeholder: 'Scrivi un messaggio…',
+        funnelPlaceholder: 'Messaggio preparato per il consulente…',
         send: 'Invia',
         /* Состояние отправки словом, а не галочками: пока нет сервера,
            «доставлено» поставить неоткуда. */
@@ -950,11 +952,13 @@ export default {
       chat: {
         team: 'Поддержка Velora',
         hours: 'Пн–пт, 9:00–18:00',
+        online: 'В сети',
         greeting:
           'Здравствуйте! Напишите свой вопрос по заявке — ответим в рабочие дни.',
         threadLabel: 'Переписка с поддержкой',
         inputLabel: 'Написать сообщение',
         placeholder: 'Написать сообщение…',
+        funnelPlaceholder: 'Подготовленное сообщение консультанту…',
         send: 'Отправить',
         stateLocal: 'ожидает отправки',
         stateFailed: 'не отправлено',

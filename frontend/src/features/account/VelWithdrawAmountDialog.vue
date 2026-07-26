@@ -3,6 +3,7 @@ import { computed, ref, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import { useAccount } from '@/composables/useAccount'
+import { useStaggerReveal } from '@/composables/useStaggerReveal'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelRange from '@/components/ui/VelRange.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
@@ -10,6 +11,9 @@ import VelAccountSign from '@/features/account/VelAccountSign.vue'
 /**
  * Выбор суммы вывода (ползунок) перед комиссией.
  * После подтверждения — 2-шаговый оверлей комиссии/реквизитов.
+ *
+ * При открытии блоки формы выезжают очередью — иначе диалог «вспыхивает»
+ * одним куском поверх затемнения.
  */
 const open = defineModel<boolean>('open', { default: false })
 const amount = defineModel<number>('amount', { default: 0 })
@@ -22,7 +26,16 @@ const { approvedAmount } = useAccount()
 const uid = useId()
 const titleId = `vel-wd-amount-title-${uid}`
 const dialog = useTemplateRef<HTMLDialogElement>('dialog')
+const formRoot = useTemplateRef<HTMLElement>('formRoot')
 useNativeDialog(dialog, open)
+
+useStaggerReveal(formRoot, {
+  y: 14,
+  stagger: 0.065,
+  duration: 0.38,
+  delay: 0.04,
+  replayOn: open,
+})
 
 const minEuro = 100
 const maxEuro = computed(() => Math.max(minEuro, Math.round(approvedAmount.value)))
@@ -59,8 +72,8 @@ function onConfirm(): void {
     data-testid="withdraw-amount"
     :aria-labelledby="titleId"
   >
-    <form class="vel-wd__form" @submit.prevent="onConfirm">
-      <div class="flex items-start gap-3">
+    <form ref="formRoot" class="vel-wd__form" @submit.prevent="onConfirm">
+      <div data-reveal class="flex items-start gap-3">
         <VelAccountSign sign="bank" size="lg" class="shrink-0 text-accent-deep" />
         <div class="min-w-0">
           <p class="vel-label m-0">{{ t('account.withdrawAmount.overline') }}</p>
@@ -70,30 +83,34 @@ function onConfirm(): void {
         </div>
       </div>
 
-      <p class="m-0 text-sm text-muted">{{ t('account.withdrawAmount.lead') }}</p>
+      <p data-reveal class="m-0 text-sm text-muted">{{ t('account.withdrawAmount.lead') }}</p>
 
-      <p class="vel-num m-0 text-center text-3xl font-bold text-accent-deep">
+      <p data-reveal class="vel-num m-0 text-center text-3xl font-bold text-accent-deep">
         {{ amountText }}
       </p>
 
-      <VelRange
-        v-model="local"
-        :min="minEuro"
-        :max="maxEuro"
-        :step="100"
-        :progress="progress"
-        :label="t('account.withdrawAmount.title')"
-        :value-text="amountText"
-      />
+      <div data-reveal class="flex flex-col gap-2">
+        <VelRange
+          v-model="local"
+          :min="minEuro"
+          :max="maxEuro"
+          :step="100"
+          :progress="progress"
+          :label="t('account.withdrawAmount.title')"
+          :value-text="amountText"
+        />
 
-      <div class="vel-num flex justify-between text-xs text-muted">
-        <span>{{ minText }}</span>
-        <span>{{ maxText }}</span>
+        <div class="vel-num flex justify-between text-xs text-muted">
+          <span>{{ minText }}</span>
+          <span>{{ maxText }}</span>
+        </div>
       </div>
 
-      <VelButton type="submit" block size="lg" data-testid="withdraw-amount-confirm">
-        {{ t('account.withdrawAmount.cta') }}
-      </VelButton>
+      <div data-reveal>
+        <VelButton type="submit" block size="lg" data-testid="withdraw-amount-confirm">
+          {{ t('account.withdrawAmount.cta') }}
+        </VelButton>
+      </div>
     </form>
   </dialog>
 </template>

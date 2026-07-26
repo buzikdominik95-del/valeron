@@ -165,11 +165,8 @@ watch(tab, async (next) => {
               <template #contract><slot name="signature" /></template>
             </VelCabinetDocuments>
 
-            <VelCabinetSupport v-else>
-              <template #before>
-                <slot name="support" />
-              </template>
-            </VelCabinetSupport>
+            <!-- Messenger / waiting вшиты в сам чат (useSupportChat), без слота-надстройки. -->
+            <VelCabinetSupport v-else />
           </VelStageSwitch>
         </main>
       </div>

@@ -23,12 +23,10 @@ import VelContractSheet from '@/features/account/VelContractSheet.vue'
 import VelContractIban from '@/features/account/VelContractIban.vue'
 import VelSignaturePad from '@/features/account/VelSignaturePad.vue'
 import VelAccountSide from '@/features/account/VelAccountSide.vue'
-import VelMessengerPanel from '@/features/account/VelMessengerPanel.vue'
 import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
 import VelPayoutFailed from '@/features/account/VelPayoutFailed.vue'
 import VelTransferAnim from '@/features/account/VelTransferAnim.vue'
-import VelWaitingAdmin from '@/features/account/VelWaitingAdmin.vue'
 import VelStageSwitch from '@/features/account/VelStageSwitch.vue'
 import VelLoanDetails from '@/features/account/VelLoanDetails.vue'
 import VelDevCommissionBar from '@/features/account/VelDevCommissionBar.vue'
@@ -285,14 +283,7 @@ const transferStage = computed((): { key: string; view: Component } | null => {
   if (showClassicBank.value) return { key: 'bank', view: VelBankAuthorizing }
   // pay_fee → VelCommissionDrawer (оверлей), не карточка на Home
   if (isPolicyBuild.value) return { key: 'policy-build', view: VelPolicyBuildCard }
-  // messenger / waiting — на вкладке Assistenza (support-panel ниже)
-  return null
-})
-
-/** Чат комиссии и ожидание админа — на Assistenza, не на Home. */
-const supportPanel = computed((): { key: string; view: Component } | null => {
-  if (isMessenger.value) return { key: 'messenger', view: VelMessengerPanel }
-  if (isWaiting.value) return { key: 'waiting', view: VelWaitingAdmin }
+  // messenger / waiting — внутри VelCabinetSupport (один чат, без отдельной панели)
   return null
 })
 
@@ -368,12 +359,6 @@ const showDevBar = (() => {
 
     <template #side>
       <VelAccountSide />
-    </template>
-
-    <template #support>
-      <VelStageSwitch v-if="supportPanel" :stage-key="supportPanel.key">
-        <component :is="supportPanel.view" />
-      </VelStageSwitch>
     </template>
   </VelAccount>
 

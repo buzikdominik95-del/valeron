@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCreditSimulator } from '@/composables/useCreditSimulator'
 import { useWizard } from '@/composables/useWizard'
+import { useStaggerReveal } from '@/composables/useStaggerReveal'
 import VelOfferSummary from '@/features/wizard/VelOfferSummary.vue'
 import VelRange from '@/components/ui/VelRange.vue'
 import VelButton from '@/components/ui/VelButton.vue'
@@ -17,24 +18,26 @@ const { next } = useWizard()
 const { amount, termMonths, termProgress, monthlyPayment, termMin, termMax, termStep } =
   useCreditSimulator()
 
+const root = useTemplateRef<HTMLElement>('root')
+useStaggerReveal(root, { y: 18, stagger: 0.08, duration: 0.42, delay: 0.05 })
+
 const amountText = computed(() => n(amount.value, 'currency'))
 const monthlyText = computed(() => n(monthlyPayment.value, 'currency'))
 /**
- * Единица намеренно нейтральная («mesi» / «мес.»): при шаге 6 от 12 до 84
- * русский требовал бы «24 месяца», но «36 месяцев», и ради трёх форм
- * пришлось бы тащить правила множественного числа. Сокращение их снимает.
+ * Единица намеренно нейтральная («mesi»): она одинакова для любого числа,
+ * и шаг ползунка в один месяц не тянет за собой правила множественного числа.
  */
 const termText = computed(() => t('wizard.duration.months', { count: termMonths.value }))
 </script>
 
 <template>
-  <div class="flex flex-col items-center gap-8 text-center">
-    <div class="flex flex-col items-center gap-2">
+  <div ref="root" class="flex flex-col items-center gap-8 text-center">
+    <div data-reveal class="flex flex-col items-center gap-2">
       <p class="vel-label">{{ t('wizard.duration.lead') }}</p>
       <h1 class="text-2xl sm:text-3xl">{{ t('wizard.duration.title') }}</h1>
     </div>
 
-    <div class="flex w-full max-w-md flex-col gap-3">
+    <div data-reveal class="flex w-full max-w-md flex-col gap-3">
       <p class="flex items-baseline justify-center gap-2">
         <span class="vel-num text-5xl font-semibold text-accent">{{ termMonths }}</span>
         <span class="text-sm text-muted">{{ t('wizard.duration.unit') }}</span>
@@ -58,13 +61,15 @@ const termText = computed(() => t('wizard.duration.months', { count: termMonths.
 
     <!-- Итог держим на тёмной подложке: это единственный блок экрана,
          который обязан читаться первым, поэтому инвертирован -->
-    <VelOfferSummary
-      :amount-text="amountText"
-      :monthly-text="monthlyText"
-      :months="termMonths"
-    />
+    <div data-reveal class="w-full max-w-md">
+      <VelOfferSummary
+        :amount-text="amountText"
+        :monthly-text="monthlyText"
+        :months="termMonths"
+      />
+    </div>
 
-    <p class="vel-measure text-xs text-faint">{{ t('wizard.duration.footnote') }}</p>
+    <p data-reveal class="vel-measure text-xs text-faint">{{ t('wizard.duration.footnote') }}</p>
   </div>
 
   <Teleport to="#vel-wizard-actions" defer>
