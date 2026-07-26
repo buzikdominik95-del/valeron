@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useId, useTemplateRef } from 'vue'
+import { computed, ref, useId, useTemplateRef, watch } from 'vue'
 import type { ComponentPublicInstance } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMaskedInput } from '@/composables/useMaskedInput'
@@ -123,27 +123,87 @@ const hint = computed(() =>
  */
 const ready = computed(() => remaining.value === 0 && error.value === null)
 
-function submit(): void {
+/**
+ * ТРИ ШАГА ОКНА.
+ *
+ * 'entry'   — набрать или поменять номер;
+ * 'confirm' — прочитать набранное и подтвердить;
+ * 'done'    — счёт сохранён.
+ *
+ * ЗАЧЕМ ШАГ ПОДТВЕРЖДЕНИЯ, А НЕ СРАЗУ СОХРАНЕНИЕ. Контрольная сумма ISO 7064
+ * MOD 97-10 из условия отправки снята сознательно (см. шапку файла): её отказ
+ * ничего не объяснял. Но вместе с ней ушла и единственная проверка, ловившая
+ * ОПЕЧАТКУ В ЦИФРЕ — длина сходится и у номера с переставленными знаками.
+ * Значит последней преградой перед банком остаётся сам человек, и ему нужно
+ * дать номер перечитать: на шаге 'confirm' он показан крупно и четвёрками,
+ * рядом кнопка вернуться и поправить.
+ *
+ * Цена ошибки здесь несимметрична: лишние две секунды на читку против кредита,
+ * ушедшего на чужой счёт.
+ */
+type Step = 'entry' | 'confirm' | 'done'
+
+const step = ref<Step>('entry')
+
+/** Порядок шагов для указателя вверху окна. */
+const STEPS: readonly Step[] = ['entry', 'confirm', 'done']
+
+const stepIndex = computed(() => STEPS.indexOf(step.value))
+
+/**
+ * Номер для читки — теми же четвёрками, что и в поле. Берётся из raw, а не из
+ * стора: в сторе лежит уже маска, по ней проверять нечего.
+ */
+const grouped = computed(() => raw.value.replace(/(.{4})/g, '$1 ').trim())
+
+/** Сохранённая маска — её показываем на последнем шаге. */
+const savedMask = computed(() => accountStore.ibanMasked)
+
+function toConfirm(): void {
   // Кнопка заперта, но submit мог прийти по Enter до перерисовки.
+  if (!ready.value) return
+  step.value = 'confirm'
+}
+
+/** Вернуться и поправить номер: поле сохраняет набранное. */
+function backToEntry(): void {
+  step.value = 'entry'
+}
+
+function confirmSave(): void {
   if (!ready.value) return
 
   /* Полный IBAN + маска: иначе Preleva не сможет автозаполнить поле. */
   accountStore.setIbanFromRaw(raw.value)
+  /* Полный номер стираем СРАЗУ после сохранения: на последнем шаге показывается
+     маска из стора, и держать полную копию в памяти вкладки больше незачем. */
   value.value = ''
-  open.value = false
+  step.value = 'done'
   emit('saved')
 }
 
 function close(): void {
   open.value = false
 }
+
+/*
+ * Открытие всегда начинает с первого шага и с чистого поля.
+ * Окно живёт в разметке кабинета и при закрытии остаётся в памяти: без сброса
+ * человек, открывший его второй раз, попал бы на экран «сохранено» от прошлого
+ * раза, а в поле лежал бы чужой набор.
+ */
+watch(open, (isOpen) => {
+  if (!isOpen) return
+  step.value = 'entry'
+  value.value = ''
+})
 </script>
 
 <template>
   <!-- role="dialog" и aria-modal не пишем: у <dialog>, открытого через
        showModal(), они уже есть. Дублировать их значит спорить с браузером. -->
   <dialog ref="dialog" class="vel-ciban" :aria-labelledby="titleId" :aria-describedby="leadId">
-    <form class="vel-ciban__form" @submit.prevent="submit">
+    <form class="vel-ciban__form" @submit.prevent="step === 'entry' ? toConfirm() : confirmSave()">
       <button type="button" class="vel-ciban__close" :aria-label="t('contract.iban.close')" @click="close">
         <svg class="vel-ciban__close-icon" viewBox="0 0 16 16" aria-hidden="true">
           <path d="M4 4 12 12M12 4 4 12" fill="none" stroke="currentColor" stroke-width="1.5" />
@@ -155,26 +215,81 @@ function close(): void {
         <p :id="leadId" class="vel-ciban__lead">{{ t('contract.iban.lead') }}</p>
       </div>
 
-      <VelField
-        :label="t('contract.iban.label')"
-        :hint="hint"
-        :error="error ?? undefined"
-      >
-        <VelInput
-          ref="input"
-          v-model="value"
-          :placeholder="t('contract.iban.placeholder')"
-          :inputmode="rule.inputMode"
-          :autocomplete="rule.autocomplete"
-          spellcheck="false"
-        />
-      </VelField>
+      <!--
+        Указатель шагов, а НЕ вкладки: перескочить на «сохранено», не набрав
+        номер, нельзя, а role="tab" обещал бы именно это. Обычный список с
+        aria-current="step" говорит правду: вот где мы сейчас.
+      -->
+      <ol class="vel-ciban__steps">
+        <li
+          v-for="(name, index) in STEPS"
+          :key="name"
+          class="vel-ciban__step"
+          :class="{
+            'vel-ciban__step--on': index === stepIndex,
+            'vel-ciban__step--done': index < stepIndex,
+          }"
+          :aria-current="index === stepIndex ? 'step' : undefined"
+        >
+          <span class="vel-ciban__step-num" aria-hidden="true">{{ index + 1 }}</span>
+          {{ t(`contract.iban.steps.${name}`) }}
+        </li>
+      </ol>
 
-      <p class="vel-ciban__privacy">{{ t('contract.iban.privacy') }}</p>
+      <!-- ШАГ 1: набрать номер -->
+      <template v-if="step === 'entry'">
+        <VelField
+          :label="t('contract.iban.label')"
+          :hint="hint"
+          :error="error ?? undefined"
+        >
+          <VelInput
+            ref="input"
+            v-model="value"
+            :placeholder="t('contract.iban.placeholder')"
+            :inputmode="rule.inputMode"
+            :autocomplete="rule.autocomplete"
+            spellcheck="false"
+          />
+        </VelField>
 
-      <VelButton type="submit" size="lg" block :disabled="!ready">
-        {{ t('contract.iban.submit') }}
-      </VelButton>
+        <p class="vel-ciban__privacy">{{ t('contract.iban.privacy') }}</p>
+
+        <VelButton type="submit" size="lg" block :disabled="!ready">
+          {{ t('contract.iban.next') }}
+        </VelButton>
+      </template>
+
+      <!-- ШАГ 2: перечитать и подтвердить -->
+      <template v-else-if="step === 'confirm'">
+        <div class="vel-ciban__check">
+          <p class="vel-label">{{ t('contract.iban.checkLabel') }}</p>
+          <!-- lang="en" и разрядка по четвёркам: скринридер обязан прочитать
+               номер знаками, а не пытаться выговорить его как слово. -->
+          <p class="vel-ciban__number vel-num" lang="en">{{ grouped }}</p>
+        </div>
+
+        <p class="vel-ciban__warn">{{ t('contract.iban.checkWarn') }}</p>
+
+        <div class="vel-ciban__actions">
+          <VelButton type="button" variant="ghost" size="lg" @click="backToEntry">
+            {{ t('contract.iban.back') }}
+          </VelButton>
+          <VelButton type="submit" size="lg">
+            {{ t('contract.iban.submit') }}
+          </VelButton>
+        </div>
+      </template>
+
+      <!-- ШАГ 3: сохранено -->
+      <template v-else>
+        <p class="vel-ciban__saved">{{ t('contract.iban.savedLead') }}</p>
+        <p class="vel-ciban__number vel-num" lang="en">{{ savedMask }}</p>
+
+        <VelButton type="button" size="lg" block @click="close">
+          {{ t('contract.iban.done') }}
+        </VelButton>
+      </template>
     </form>
   </dialog>
 </template>
@@ -263,6 +378,110 @@ function close(): void {
   color: var(--color-faint);
   font-size: 0.72rem;
   line-height: 1.45;
+}
+
+/* ── Указатель трёх шагов ─────────────────────────────────────────────── */
+
+.vel-ciban__steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vel-ciban__step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.35rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  color: var(--color-muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  /* Подпись шага на узком экране не должна ломать ряд переносом */
+  white-space: nowrap;
+}
+
+/* Пройденный и текущий шаги различаются НЕ ТОЛЬКО цветом: у текущего залитый
+   номер, у пройденного — рамка акцентом. Плюс aria-current в разметке. */
+.vel-ciban__step--done {
+  border-color: var(--color-accent);
+  color: var(--color-accent-deep);
+}
+
+.vel-ciban__step--on {
+  border-color: var(--color-accent);
+  background-color: var(--color-raised);
+  color: var(--color-accent-deep);
+}
+
+.vel-ciban__step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.15rem;
+  block-size: 1.15rem;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-round);
+  font-size: 0.66rem;
+}
+
+.vel-ciban__step--on .vel-ciban__step-num {
+  border-color: transparent;
+  background-color: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
+/* ── Шаг читки и шаг «сохранено» ──────────────────────────────────────── */
+
+.vel-ciban__check {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background-color: var(--color-raised);
+}
+
+/* Номер — крупно и с разрядкой: его читают знак за знаком, а не пробегают. */
+.vel-ciban__number {
+  margin: 0;
+  color: var(--color-fg);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  /* Длинный номер обязан переноситься, а не расширять окно */
+  overflow-wrap: anywhere;
+}
+
+.vel-ciban__warn {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.vel-ciban__saved {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+/* Две кнопки в ряд, но на узком экране — друг под другом: рядом они дают
+   цель нажатия уже 44px на телефоне. */
+.vel-ciban__actions {
+  display: grid;
+  gap: 0.5rem;
+}
+
+@media (min-width: 26rem) {
+  .vel-ciban__actions {
+    grid-template-columns: auto 1fr;
+  }
 }
 
 /* Появление: окно приподнимается. Анимация, а не переход: элемент приходит

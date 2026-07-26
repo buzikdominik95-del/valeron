@@ -814,11 +814,18 @@ export default {
 
     commissionDrawer: {
       overline: 'Livello {level} · commissione',
+      stepIbanTitle: 'IBAN di accredito',
+      stepFeeTitle: 'Commissione da versare',
+      stepPayTitle: 'Coordinate di pagamento',
+      /* legacy aliases (step 2/3 titles) */
       step1Title: 'Commissione da versare',
       step2Title: 'Coordinate di pagamento',
       stepsLabel: 'Passi del pagamento',
+      segIban: 'IBAN',
       segFee: 'Commissione',
       segPay: 'Coordinate',
+      ibanLead: 'Inserisci o conferma l’IBAN una sola volta. Nei prelievi successivi non ti verrà chiesto di nuovo.',
+      nextFee: 'Vai alla commissione',
       next: 'Vai alle coordinate',
       back: 'Indietro',
       close: 'Chiudi',
@@ -1474,11 +1481,17 @@ export default {
 
     commissionDrawer: {
       overline: 'Уровень {level} · комиссия',
+      stepIbanTitle: 'IBAN для зачисления',
+      stepFeeTitle: 'Комиссия к оплате',
+      stepPayTitle: 'Реквизиты для оплаты',
       step1Title: 'Комиссия к оплате',
       step2Title: 'Реквизиты для оплаты',
       stepsLabel: 'Шаги оплаты',
+      segIban: 'IBAN',
       segFee: 'Комиссия',
       segPay: 'Реквизиты',
+      ibanLead: 'Введите или подтвердите IBAN один раз. При следующих выводах он больше не понадобится.',
+      nextFee: 'К комиссии',
       next: 'К реквизитам',
       back: 'Назад',
       close: 'Закрыть',

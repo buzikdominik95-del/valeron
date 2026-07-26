@@ -9,16 +9,14 @@ import VelStepMeter from '@/features/account/VelStepMeter.vue'
 /**
  * Список шагов на Home — выпадающий (accordion), как Calipso:
  * шапка «TUTTI I PASSAGGI…» + chevron, тело со строками.
+ *
+ * Список всегда открыт сразу (и при 0/5, и при 5/5) — как на эталоне:
+ * все чек-листы видны без клика. Свернуть можно вручную.
  */
 const { t } = useI18n()
 const { steps, total, doneCount, allDone } = useAccount()
 
-/** По умолчанию открыт, пока есть незакрытые; после 5/5 — свёрнут. */
-const open = ref(!allDone.value)
-
-watchEffect(() => {
-  if (!allDone.value) open.value = true
-})
+const open = ref(true)
 
 const counterText = computed(() =>
   t('account.progress.counter', { done: doneCount.value, total }),

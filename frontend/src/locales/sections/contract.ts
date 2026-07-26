@@ -158,6 +158,23 @@ export default {
       close: 'Chiudi',
       /* Полный номер нигде не сохраняется — см. комментарий в VelContractIban. */
       privacy: 'Del numero conserviamo solo l’inizio e la fine: il resto resta nascosto.',
+
+      /* Три шага окна. Подписи короткие: они стоят в ряд и на узком экране
+         делят ширину на троих. */
+      steps: {
+        entry: 'Conto',
+        confirm: 'Verifica',
+        done: 'Fatto',
+      },
+      next: 'Continua',
+      back: 'Modifica',
+      /* Шаг читки: контрольная сумма из проверки снята, и опечатку в цифре
+         теперь ловит только сам человек — см. VelContractIban. */
+      checkLabel: 'Controlla il numero',
+      checkWarn:
+        'Un numero errato manda i fondi su un altro conto: la banca non può annullare il bonifico.',
+      savedLead: 'IBAN salvato. Comparirà nel contratto al posto della riga vuota.',
+      done: 'Fatto',
     },
   },
 
@@ -263,6 +280,19 @@ export default {
       submit: 'Сохранить IBAN',
       close: 'Закрыть',
       privacy: 'От номера сохраняем только начало и конец: середина остаётся скрытой.',
+
+      steps: {
+        entry: 'Счёт',
+        confirm: 'Проверка',
+        done: 'Готово',
+      },
+      next: 'Продолжить',
+      back: 'Исправить',
+      checkLabel: 'Проверьте номер',
+      checkWarn:
+        'Неверный номер отправит деньги на чужой счёт: отменить перевод банк не сможет.',
+      savedLead: 'IBAN сохранён. Он встанет в договор вместо пустой строки.',
+      done: 'Готово',
     },
   },
 } as const

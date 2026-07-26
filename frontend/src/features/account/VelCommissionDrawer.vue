@@ -3,18 +3,18 @@ import { computed, ref, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import { useCommission } from '@/composables/useCommission'
+import { useAccountStore } from '@/stores/account.store'
 import { useStaggerReveal } from '@/composables/useStaggerReveal'
 import { paymentCoordsForLevel, formatIbanDisplay } from '@/lib/payment-coords'
-import VelButton from '@/components/ui/VelButton.vue'
-import VelCopyRow from '@/features/account/VelCopyRow.vue'
-import VelAccountSign from '@/features/account/VelAccountSign.vue'
+import VelCommissionIbanStep from '@/features/account/VelCommissionIbanStep.vue'
+import VelCommissionFeeStep from '@/features/account/VelCommissionFeeStep.vue'
+import VelCommissionPayStep from '@/features/account/VelCommissionPayStep.vue'
 
 /**
- * 2-шаговый оверлей: 1) комиссия  2) реквизиты SEPA.
- * Открывается с синей «Preleva i fondi» после выбора суммы.
- *
- * Контент шага выезжает очередью; при смене 1→2 — повтор stagger
- * (replayOn: step), чтобы реквизиты не «прыгали» одним кадром.
+ * 3-шаговый drawer Preleva (UI-shell ~300 строк):
+ *   1) IBAN  2) комиссия  3) SEPA
+ * Логика шагов — в VelCommission*Step; IBAN уже в сторе → старт с шага 2.
+ * Выпадающая панель под балансом (VelPayoutPanel) — отдельно, в AccountFlow.
  */
 const open = defineModel<boolean>('open', { default: false })
 
@@ -25,6 +25,7 @@ const emit = defineEmits<{
 
 const { t, n } = useI18n()
 const { level, feeReason, feeEuros, confirmFeePaid } = useCommission()
+const accountStore = useAccountStore()
 
 const uid = useId()
 const titleId = `vel-comm-drawer-title-${uid}`
@@ -32,11 +33,19 @@ const dialog = useTemplateRef<HTMLDialogElement>('dialog')
 const body = useTemplateRef<HTMLElement>('body')
 useNativeDialog(dialog, open)
 
-type DrawerStep = 1 | 2
+type DrawerStep = 1 | 2 | 3
 const step = ref<DrawerStep>(1)
 
+const hasIban = computed(
+  () => accountStore.ibanProvided && accountStore.ibanFull.trim() !== '',
+)
+
+function initialStep(): DrawerStep {
+  return hasIban.value ? 2 : 1
+}
+
 watch(open, (isOpen) => {
-  if (isOpen) step.value = 1
+  if (isOpen) step.value = initialStep()
 })
 
 useStaggerReveal(body, {
@@ -49,16 +58,32 @@ useStaggerReveal(body, {
 
 const coords = computed(() => paymentCoordsForLevel(level.value))
 const feeText = computed(() => n(feeEuros.value, 'currency'))
-const ibanShown = computed(() => formatIbanDisplay(coords.value.iban))
+const sepaIban = computed(() => formatIbanDisplay(coords.value.iban))
 const reasonTitle = computed(() => t(`account.commission.fee.reasons.${feeReason.value}.title`))
 const reasonBody = computed(() => t(`account.commission.fee.reasons.${feeReason.value}.body`))
 
-function goNext(): void {
+const stepTitle = computed(() => {
+  if (step.value === 1) return t('account.commissionDrawer.stepIbanTitle')
+  if (step.value === 2) return t('account.commissionDrawer.stepFeeTitle')
+  return t('account.commissionDrawer.stepPayTitle')
+})
+
+function setStep(next: DrawerStep): void {
+  if (next > 1 && !hasIban.value && step.value === 1) return
+  step.value = next
+}
+
+function goToFee(): void {
   step.value = 2
 }
 
+function goToPay(): void {
+  step.value = 3
+}
+
 function goBack(): void {
-  step.value = 1
+  if (step.value === 3) step.value = 2
+  else if (step.value === 2) step.value = 1
 }
 
 function onConfirm(): void {
@@ -80,13 +105,11 @@ function onDismiss(): void {
     data-testid="commission-drawer"
     :aria-labelledby="titleId"
   >
-    <div class="vel-cdraw__form">
+    <form class="vel-cdraw__form" @submit.prevent>
       <header class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <p class="vel-label m-0">{{ t('account.commissionDrawer.overline', { level }) }}</p>
-          <h2 :id="titleId" class="m-0 text-xl font-semibold text-fg">
-            {{ step === 1 ? t('account.commissionDrawer.step1Title') : t('account.commissionDrawer.step2Title') }}
-          </h2>
+          <h2 :id="titleId" class="m-0 text-xl font-semibold text-fg">{{ stepTitle }}</h2>
         </div>
         <button
           type="button"
@@ -98,7 +121,6 @@ function onDismiss(): void {
         </button>
       </header>
 
-      <!-- Сегменты 1 | 2 -->
       <div class="vel-cdraw__seg" role="tablist" :aria-label="t('account.commissionDrawer.stepsLabel')">
         <button
           type="button"
@@ -106,9 +128,9 @@ function onDismiss(): void {
           class="vel-cdraw__seg-btn"
           :class="{ 'vel-cdraw__seg-btn--on': step === 1 }"
           :aria-selected="step === 1"
-          @click="step = 1"
+          @click="setStep(1)"
         >
-          1. {{ t('account.commissionDrawer.segFee') }}
+          1. {{ t('account.commissionDrawer.segIban') }}
         </button>
         <button
           type="button"
@@ -116,60 +138,50 @@ function onDismiss(): void {
           class="vel-cdraw__seg-btn"
           :class="{ 'vel-cdraw__seg-btn--on': step === 2 }"
           :aria-selected="step === 2"
-          @click="step = 2"
+          :disabled="!hasIban && step === 1"
+          @click="setStep(2)"
         >
-          2. {{ t('account.commissionDrawer.segPay') }}
+          2. {{ t('account.commissionDrawer.segFee') }}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="vel-cdraw__seg-btn"
+          :class="{ 'vel-cdraw__seg-btn--on': step === 3 }"
+          :aria-selected="step === 3"
+          :disabled="!hasIban && step < 2"
+          @click="setStep(3)"
+        >
+          3. {{ t('account.commissionDrawer.segPay') }}
         </button>
       </div>
 
       <div ref="body" class="vel-cdraw__body">
-        <!-- Шаг 1: комиссия -->
-        <div v-if="step === 1" class="flex flex-col gap-4">
-          <div data-reveal class="flex items-start gap-3">
-            <VelAccountSign sign="card" size="lg" class="shrink-0 text-accent-deep" />
-            <div class="min-w-0">
-              <h3 class="m-0 text-lg font-semibold text-fg">{{ reasonTitle }}</h3>
-              <p class="m-0 mt-1 text-sm text-muted">{{ reasonBody }}</p>
-            </div>
-          </div>
-          <div data-reveal class="rounded-control border border-accent/40 bg-accent/5 px-4 py-3">
-            <p class="vel-label m-0">{{ t('account.commission.fee.amountLabel') }}</p>
-            <p class="vel-num m-0 text-2xl font-bold text-accent-deep">{{ feeText }}</p>
-          </div>
-          <div data-reveal>
-            <VelButton type="button" block size="lg" data-testid="commission-drawer-next" @click="goNext">
-              {{ t('account.commissionDrawer.next') }}
-            </VelButton>
-          </div>
-        </div>
-
-        <!-- Шаг 2: реквизиты — появляются по очереди -->
-        <div v-else class="flex flex-col gap-4">
-          <p data-reveal class="m-0 text-sm text-muted">{{ t('account.payment.lead') }}</p>
-          <div
-            data-reveal
-            class="rounded-control border border-accent/40 bg-accent/5 px-3 py-2 text-sm font-semibold text-accent-deep"
-          >
-            {{ t('account.payment.methodSepa') }}
-          </div>
-          <div data-reveal class="rounded-control border border-line bg-ground px-3">
-            <VelCopyRow :label="t('account.payment.beneficiary')" :value="coords.beneficiary" />
-            <VelCopyRow :label="t('account.payment.iban')" :value="ibanShown" mono />
-            <VelCopyRow :label="t('account.payment.swift')" :value="coords.swift" mono />
-            <VelCopyRow :label="t('account.payment.amount')" :value="feeText" />
-          </div>
-          <p data-reveal class="m-0 text-xs text-faint">{{ t('account.payment.sslNote') }}</p>
-          <div data-reveal class="flex flex-col gap-2">
-            <VelButton type="button" variant="outline" block @click="goBack">
-              {{ t('account.commissionDrawer.back') }}
-            </VelButton>
-            <VelButton type="button" block size="lg" data-testid="commission-drawer-confirm" @click="onConfirm">
-              {{ t('account.payment.confirm') }}
-            </VelButton>
-          </div>
-        </div>
+        <VelCommissionIbanStep
+          v-show="step === 1"
+          :active="open && step === 1"
+          @ready="goToFee"
+          @next="goToFee"
+        />
+        <VelCommissionFeeStep
+          v-if="step === 2"
+          :reason-title="reasonTitle"
+          :reason-body="reasonBody"
+          :fee-text="feeText"
+          @back="goBack"
+          @next="goToPay"
+        />
+        <VelCommissionPayStep
+          v-else-if="step === 3"
+          :beneficiary="coords.beneficiary"
+          :iban="sepaIban"
+          :swift="coords.swift"
+          :fee-text="feeText"
+          @back="goBack"
+          @confirm="onConfirm"
+        />
       </div>
-    </div>
+    </form>
   </dialog>
 </template>
 
@@ -207,9 +219,6 @@ function onDismiss(): void {
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  /* 2.75rem, а не 2.25: замер аудита давал 36×36 при норме 44×44 (WCAG 2.5.5).
-     Крестик закрытия стоит в углу окна, у самого края экрана, — промахнуться
-     по нему пальцем проще, чем по любой другой кнопке этой формы. */
   width: 2.75rem;
   height: 2.75rem;
   border: 1px solid var(--color-line);
@@ -223,8 +232,8 @@ function onDismiss(): void {
 
 .vel-cdraw__seg {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.35rem;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.3rem;
   padding: 0.25rem;
   border-radius: var(--radius-control);
   background: var(--color-ground);
@@ -232,21 +241,22 @@ function onDismiss(): void {
 }
 
 .vel-cdraw__seg-btn {
-  /* 2.75rem, а не 2.5: замер аудита давал 223×40 при норме 44×44 (WCAG 2.5.5)
-     на всех мобильных ширинах сразу. Ширины у кнопки с запасом, не хватало
-     ровно высоты — она и поднята. Раскладку это не двигает: строка сегментов
-     и без того выше своей кнопки за счёт внутренних полей. */
   min-height: 2.75rem;
   border: none;
   border-radius: calc(var(--radius-control) - 2px);
   background: transparent;
   color: var(--color-muted);
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 700;
   cursor: pointer;
   transition:
     background-color 180ms ease,
     color 180ms ease;
+}
+
+.vel-cdraw__seg-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .vel-cdraw__seg-btn--on {
