@@ -3,6 +3,7 @@ import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
 import { useAccountStore } from '@/stores/account.store'
+import { useCommission } from '@/composables/useCommission'
 import { CABINET_HEADING_ID, useCabinetTab } from '@/composables/useCabinetTab'
 import { useShellHeadHeight } from '@/composables/useShellHeadHeight'
 import { useHeaderCondense } from '@/composables/useHeaderCondense'
@@ -45,6 +46,10 @@ const { t } = useI18n()
 const { client } = useAccount()
 const { tab } = useCabinetTab()
 const accountStore = useAccountStore()
+const { level } = useCommission()
+
+/** С L2+ верхний step-bar скрыт — у шапки нет второй строки. */
+const noTopTrack = computed(() => level.value >= 2)
 
 /**
  * Панель уведомлений открывает оболочка, а не шапка.
@@ -113,7 +118,7 @@ watch(tab, async (next) => {
 </script>
 
 <template>
-  <div ref="rootEl" class="vel-cabinet">
+  <div ref="rootEl" class="vel-cabinet" :class="{ 'vel-cabinet--no-track': noTopTrack }">
     <!-- Кабинет целиком: пока сверху лежит заставка, он выключен из работы -->
     <div
       class="vel-cabinet__frame"
@@ -205,6 +210,11 @@ watch(tab, async (next) => {
   min-block-size: 100dvh;
   flex-direction: column;
   background-color: var(--color-ground);
+}
+
+/* L2+: step-bar нет — fallback высоты шапки без полосы */
+.vel-cabinet--no-track {
+  --vel-track-h: 0px;
 }
 
 /*

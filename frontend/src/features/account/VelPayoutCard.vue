@@ -315,14 +315,32 @@ const counterText = computed(() =>
   background-color: var(--color-surface);
 }
 
-/* Крупная CTA вывода */
+/* Крупная CTA вывода — заметнее, «дыхание» + hover */
 .vel-payout__withdraw {
-  min-height: 3.5rem;
-  margin-top: 0.25rem;
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  box-shadow: 0 0.45rem 1.1rem color-mix(in oklab, var(--color-accent) 28%, transparent);
+  min-height: 3.65rem;
+  margin-top: 0.35rem;
+  font-size: 1.08rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0.5rem 1.25rem color-mix(in oklab, var(--color-accent) 32%, transparent);
+  transition:
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    filter 180ms ease,
+    transform 180ms ease;
+}
+
+.vel-payout__withdraw:hover:not(:disabled) {
+  filter: brightness(1.08) saturate(1.05);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--color-accent) 22%, transparent),
+    0 0.65rem 1.6rem color-mix(in oklab, var(--color-accent) 42%, transparent);
+  transform: translateY(-1px);
+}
+
+.vel-payout__withdraw:active:not(:disabled) {
+  transform: translateY(0);
+  filter: brightness(0.97);
 }
 
 .vel-payout__withdraw-icon {
@@ -330,25 +348,33 @@ const counterText = computed(() =>
 }
 
 .vel-payout__withdraw--pulse {
-  animation: vel-withdraw-pulse 2.4s ease-in-out infinite;
+  animation: vel-withdraw-breathe 2.2s ease-in-out infinite;
 }
 
-@keyframes vel-withdraw-pulse {
+@keyframes vel-withdraw-breathe {
   0%,
   100% {
-    box-shadow: 0 0.45rem 1.1rem color-mix(in oklab, var(--color-accent) 28%, transparent);
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-accent) 0%, transparent),
+      0 0.5rem 1.25rem color-mix(in oklab, var(--color-accent) 32%, transparent);
   }
 
   50% {
+    transform: scale(1.025);
     box-shadow:
-      0 0 0 4px color-mix(in oklab, var(--color-accent) 16%, transparent),
-      0 0.55rem 1.4rem color-mix(in oklab, var(--color-accent) 38%, transparent);
+      0 0 0 6px color-mix(in oklab, var(--color-accent) 18%, transparent),
+      0 0.7rem 1.75rem color-mix(in oklab, var(--color-accent) 48%, transparent);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .vel-payout__withdraw--pulse {
     animation: none;
+  }
+
+  .vel-payout__withdraw {
+    transition: none;
   }
 }
 </style>
