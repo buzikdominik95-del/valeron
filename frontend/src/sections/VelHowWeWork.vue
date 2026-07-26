@@ -4,9 +4,7 @@ import { useI18n } from 'vue-i18n'
 import VelReveal from '@/components/ui/VelReveal.vue'
 import VelStage from '@/components/ui/VelStage.vue'
 import VelSplitHeading from '@/components/ui/VelSplitHeading.vue'
-import VelPhoto from '@/components/ui/VelPhoto.vue'
 import VelWorkStep from '@/sections/VelWorkStep.vue'
-import advisorPhoto from '@/img/consulente-scrivania.webp'
 
 const { t } = useI18n()
 
@@ -36,21 +34,16 @@ const steps = computed(() =>
        и есть смысл раздела, поэтому лесенка здесь читается как счёт: раз, два, три -->
   <VelStage class="border-b border-line">
     <div class="vel-section mx-auto w-full max-w-6xl px-5">
-      <div class="grid items-end gap-10 lg:grid-cols-[1fr_minmax(0,22rem)] lg:gap-16">
-        <!-- Заголовок выходит словами лесенкой и ведёт себя сам, поэтому
-             обёртки появления вокруг него нет — см. шапку VelSplitHeading -->
-        <VelSplitHeading :lines="[{ text: t('howWeWork.title') }]" class="text-3xl sm:text-4xl" />
-
-        <VelReveal>
-          <VelPhoto
-            bleed="start"
-            :src="advisorPhoto"
-            :alt="t('photo.advisor')"
-            :width="1248"
-            :height="832"
-          />
-        </VelReveal>
-      </div>
+      <!-- Снимок из шапки убран по просьбе заказчика, вместе с ним ушла и сетка
+           в две колонки: заголовок занимал левую, снимок правую. Оставь сетку —
+           справа от заголовка зияла бы пустая колонка в 22rem, а items-end
+           прижимал бы его к низу несуществующего соседа.
+           Заголовок выходит словами лесенкой и ведёт себя сам, поэтому обёртки
+           появления вокруг него нет — см. шапку VelSplitHeading. -->
+      <VelSplitHeading
+        :lines="[{ text: t('howWeWork.title') }]"
+        class="max-w-3xl text-3xl sm:text-4xl"
+      />
 
       <!-- role="list" возвращает семантику списка в Safari: preflight снимает
            маркеры, а вместе с ними VoiceOver теряет и роль.

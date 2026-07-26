@@ -3,8 +3,6 @@ import { useI18n } from 'vue-i18n'
 import VelReveal from '@/components/ui/VelReveal.vue'
 import VelStage from '@/components/ui/VelStage.vue'
 import VelSplitHeading from '@/components/ui/VelSplitHeading.vue'
-import VelPhoto from '@/components/ui/VelPhoto.vue'
-import officePhoto from '@/img/ufficio-open-space.webp'
 
 /**
  * Миссия и аккредитация. Строки лежат в @/locales/sections/mission.ts
@@ -65,27 +63,9 @@ const { t } = useI18n()
       <VelReveal
         class="flex flex-col gap-4 border-t border-line pt-8 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-16"
       >
-        <!--
-          Единственный снимок на лендинге БЕЗ захода на соседнюю колонку,
-          и это не пропущенный проп.
-
-          Заход отменён замером: колонка отбита вертикальной линией и имеет
-          pl-16, поэтому −70.4px тянут снимок ровно на 5.4px ЗА линию —
-          он наползал на неё и закрывал кусок, но до текста слева всё равно
-          не доставал (между ними оставалось 58.6px). То есть заход здесь
-          ломал разделитель и ничего не давал взамен.
-
-          Мягкий край и параллакс у снимка остаются — «приклеенным» он
-          не выглядит и без заезда.
-        -->
-        <VelPhoto
-          :src="officePhoto"
-          :alt="t('photo.office')"
-          :width="1248"
-          :height="832"
-          class="mb-2"
-        />
-
+        <!-- Снимок отсюда убран по просьбе заказчика. Колонка при этом остаётся
+             и сетку не теряет: под снимком с самого начала лежал собственный
+             текст раздела — надзаголовок, заголовок и абзац про роль. -->
         <p class="vel-label">{{ t('mission.roleLabel') }}</p>
 
         <h3 class="text-xl sm:text-2xl">{{ t('mission.roleTitle') }}</h3>

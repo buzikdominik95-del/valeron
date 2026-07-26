@@ -8,7 +8,13 @@ import { useSiteLinks } from '@/composables/useSiteLinks'
 /**
  * Перелинковка на посадочные страницы. Подвал вынесен в VelFooter:
  * <footer> обязан лежать вне <main>, иначе теряет роль contentinfo.
- * Ссылки — заглушки href="#", навигации на сайте пока нет.
+ *
+ * ССЫЛКИ БЕЗ href — И ЭТО НЕ НЕДОДЕЛКА. Посадочных страниц ещё нет. Стояло
+ * href="#", и каждая такая ссылка была рабочим якорем в начало документа:
+ * нажатие увозило человека наверх страницы, ничего при этом не открыв. <a> без
+ * href по спецификации HTML — «место, где ссылка появится позже»: он не
+ * фокусируется, скринридер не объявляет его ссылкой и не обещает перехода,
+ * которого не будет. Появятся адреса — сюда вернётся href, и разметка та же.
  */
 const { t } = useI18n()
 const { seoGroups } = useSiteLinks()
@@ -48,7 +54,7 @@ const { seoGroups } = useSiteLinks()
                Высоту 44px держит сама ссылка (.vel-link), см. main.css -->
           <ul class="mt-4 flex flex-col gap-2" :aria-labelledby="group.id">
             <li v-for="item in group.items" :key="item">
-              <a href="#" class="vel-link text-sm">{{ item }}</a>
+              <a class="vel-link text-sm">{{ item }}</a>
             </li>
           </ul>
         </VelReveal>

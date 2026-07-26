@@ -5,6 +5,9 @@ import { useSiteLinks } from '@/composables/useSiteLinks'
 /**
  * Подвал сайта. Монтируется вне <main>, иначе браузер не отдаёт ему
  * роль contentinfo и он перестаёт быть ориентиром для скринридера.
+ *
+ * Ссылки без href — те же заглушки и по той же причине, что в перелинковке;
+ * разбор написан в шапке @/sections/VelSiteEnd.vue.
  */
 const { t } = useI18n()
 const { footerGroups } = useSiteLinks()
@@ -23,7 +26,7 @@ const { footerGroups } = useSiteLinks()
                здесь 52px: промахнуться пальцем по соседней строке уже нечем. -->
           <ul class="mt-4 flex flex-col gap-2" :aria-labelledby="group.id">
             <li v-for="item in group.items" :key="item">
-              <a href="#" class="vel-link text-sm">{{ item }}</a>
+              <a class="vel-link text-sm">{{ item }}</a>
             </li>
           </ul>
         </div>

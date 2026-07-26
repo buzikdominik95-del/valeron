@@ -4,9 +4,7 @@ import { useI18n } from 'vue-i18n'
 import VelReveal from '@/components/ui/VelReveal.vue'
 import VelStage from '@/components/ui/VelStage.vue'
 import VelSplitHeading from '@/components/ui/VelSplitHeading.vue'
-import VelPhoto from '@/components/ui/VelPhoto.vue'
 import VelFaqItem from '@/sections/VelFaqItem.vue'
-import expertPhoto from '@/img/consulente-tablet.webp'
 
 const { t } = useI18n()
 
@@ -43,25 +41,15 @@ const items = computed(() =>
        чтобы растянуться на секунду от первого вопроса до последнего -->
   <VelStage id="faq" class="border-b border-line">
     <div class="vel-section mx-auto w-full max-w-6xl px-5">
-      <!-- gap-10 вместо gap-9: 36px не лежат на шаге ритма, см. main.css -->
-      <div class="grid items-end gap-10 lg:grid-cols-[1fr_minmax(0,22rem)] lg:gap-16">
-        <!-- Заголовок ведёт своё появление сам (слова лесенкой), поэтому лежит
-             вне обёртки: подробности в шапке VelSplitHeading -->
-        <div class="flex max-w-3xl flex-col gap-3">
-          <VelReveal as="p" class="vel-label">{{ t('faq.label') }}</VelReveal>
+      <!-- Снимок из шапки убран по просьбе заказчика, вместе с ним ушла и сетка
+           в две колонки: без правой ячейки она оставляла бы справа пустое поле
+           в 22rem.
+           Заголовок ведёт своё появление сам (слова лесенкой), поэтому лежит
+           вне обёртки: подробности в шапке VelSplitHeading. -->
+      <div class="flex max-w-3xl flex-col gap-3">
+        <VelReveal as="p" class="vel-label">{{ t('faq.label') }}</VelReveal>
 
-          <VelSplitHeading :lines="[{ text: t('faq.title') }]" class="text-3xl sm:text-4xl" />
-        </div>
-
-        <VelReveal>
-          <VelPhoto
-            bleed="start"
-            :src="expertPhoto"
-            :alt="t('photo.expert')"
-            :width="1248"
-            :height="832"
-          />
-        </VelReveal>
+        <VelSplitHeading :lines="[{ text: t('faq.title') }]" class="text-3xl sm:text-4xl" />
       </div>
 
       <ul class="mt-10 border-t border-line lg:mt-12">

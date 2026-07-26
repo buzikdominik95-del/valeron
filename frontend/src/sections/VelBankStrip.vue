@@ -17,6 +17,9 @@ import { BANKS } from '@/composables/useBankAnalysis'
  *
  * Заголовок берёт howWeWork.partners: строка переехала сюда из секции
  * «Как мы работаем», где была нижней подписью, и второй раз там не выводится.
+ *
+ * Лента едет; видимой кнопки «остановить» над ней больше нет — почему так и
+ * чем закрыт WCAG 2.2.2, разобрано в шапке @/components/magic/VelMarqueePause.vue.
  */
 const { t } = useI18n()
 </script>
