@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, useId, useTemplateRef } from 'vue'
+import { computed, useId, useTemplateRef, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useAutoAnimate } from '@/composables/useAutoAnimate'
 import { useDocumentUpload } from '@/composables/useDocumentUpload'
+import { useAccountStore } from '@/stores/account.store'
 import { DOC_MAX_FILE_MB, docSideKey } from '@/features/account/doc-kinds'
 import type { DocSide } from '@/features/account/doc-kinds'
 import VelButton from '@/components/ui/VelButton.vue'
@@ -13,36 +15,29 @@ import VelDocSlotRow from '@/features/account/VelDocSlotRow.vue'
 import VelDocVerified from '@/features/account/VelDocVerified.vue'
 
 /**
- * Карточка «Documenti richiesti»: выбор вида удостоверения, слоты под снимки,
- * загрузка и её проверка.
- *
- * ПОРЯДОК ЭКРАНА ЗАДАН ЗАКАЗЧИКОМ и он же держит всю логику показа. Сначала
- * человек говорит, ЧТО принесёт, и только потом появляются слоты — ровно
- * столько, сколько снимков просит выбранный вид (паспорт один, карта и права
- * два). Кнопка «Carica il documento» тоже появляется не раньше выбора вида:
- * это прямая просьба владельца продукта, и смысл в ней есть — кнопка без слотов рядом
- * читается как «отправить пустоту».
- *
- * Прежняя раскладка (три постоянных слота и общая зона перетаскивания) снята
- * целиком: она предлагала принести все три документа сразу, хотя банку нужен
- * один, и на узком экране занимала полтора экрана прокрутки.
- *
- * ЧТО ЗДЕСЬ ОСТАЛОСЬ. Только разметка и перевод состояния в текст. Выбранный
- * вид, снимки по сторонам, проверка и её таймер живут в useDocumentUpload,
- * таблица «вид → стороны» — в doc-kinds. Наружу компонент по-прежнему отдаёт
- * плоский File[] через v-model: на него смотрит VelAccountFlow, чтобы открыть
- * шаг подписи.
- *
- * ГРАНИЦА. Файлы никуда не уходят — бэкенда нет, и «Verificato» здесь означает
- * демонстрационную проверку, а не ответ банка. Об этом сказано строкой под
- * кнопкой, а не умолчанием.
+ * Documenti: idle → checking → verified.
+ * После verified форма загрузки больше не показывается (только анимация «приняты»).
  */
 const files = defineModel<File[]>({ default: () => [] })
+const emit = defineEmits<{ verified: [] }>()
 
 const { t } = useI18n()
+const account = useAccountStore()
+const { documentsUploaded } = storeToRefs(account)
+
+const docsLocked = computed(() => documentsUploaded.value === true)
 
 const { kind, sides, fileOf, previewOf, rejection, status, ready, pick, submit } =
-  useDocumentUpload(files)
+  useDocumentUpload(files, { locked: docsLocked })
+
+/* Когда проверка дошла до verified — фиксируем в store и закрываем шаг. */
+watch(status, (s) => {
+  if (s !== 'verified') return
+  if (!documentsUploaded.value) {
+    documentsUploaded.value = true
+  }
+  emit('verified')
+})
 
 const titleId = `vel-docup-${useId()}`
 
