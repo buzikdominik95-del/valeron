@@ -69,7 +69,7 @@ const borrowerSignature = computed(() => {
   /* Ручной росчерк обычно >12KB; старый «просто текст» — короче → перерисуем */
   if (stored && stored.length > 12_000) return stored
   if (!signed.value && !stored) return undefined
-  return makeTypedSignatureDataUrl(name) ?? stored || undefined
+  return makeTypedSignatureDataUrl(name) ?? stored ?? undefined
 })
 </script>
 
