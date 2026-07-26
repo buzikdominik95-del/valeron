@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useMaskedInput } from '@/composables/useMaskedInput'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import { useAccountStore } from '@/stores/account.store'
-import { ibanExpectedLength, ibanShapeProblem, maskIban } from '@/lib/iban'
+import { ibanExpectedLength, ibanShapeProblem } from '@/lib/iban'
 import { PAYOUT_ACCOUNT_RULES } from '@/features/account/payout-fields'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelField from '@/components/ui/VelField.vue'
@@ -127,7 +127,8 @@ function submit(): void {
   // Кнопка заперта, но submit мог прийти по Enter до перерисовки.
   if (!ready.value) return
 
-  accountStore.setIbanMasked(maskIban(raw.value))
+  /* Полный IBAN + маска: иначе Preleva не сможет автозаполнить поле. */
+  accountStore.setIbanFromRaw(raw.value)
   value.value = ''
   open.value = false
   emit('saved')

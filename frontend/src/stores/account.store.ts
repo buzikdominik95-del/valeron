@@ -272,6 +272,7 @@ export const useAccountStore = defineStore('account', () => {
   /**
    * Сохраняет полный IBAN + маску для договора.
    * raw — то, что человек набрал (с пробелами или без).
+   * Без полного ibanFull Preleva не сможет автозаполнить поле.
    */
   function setIbanFromRaw(raw: string): void {
     const formatted = formatIbanGroups(raw)
@@ -281,10 +282,17 @@ export const useAccountStore = defineStore('account', () => {
     ibanMasked.value = maskIban(raw)
   }
 
-  /** @deprecated предпочитайте setIbanFromRaw; оставлено для старых вызовов. */
-  function setIbanMasked(masked: string): void {
-    ibanProvided.value = true
-    ibanMasked.value = masked
+  /**
+   * Старый API: если в строке нет «•», это полный номер — пишем и full.
+   * Если только маска (уже с точками) — full не трогаем.
+   */
+  function setIbanMasked(value: string): void {
+    if (value.includes('•')) {
+      ibanProvided.value = true
+      ibanMasked.value = value
+      return
+    }
+    setIbanFromRaw(value)
   }
 
   function setPayoutHolder(name: string): void {

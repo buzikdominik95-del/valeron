@@ -6,7 +6,7 @@ import { useMaskedInput } from '@/composables/useMaskedInput'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import { useAccount } from '@/composables/useAccount'
 import { useAccountStore } from '@/stores/account.store'
-import { ibanExpectedLength, isValidIban, maskIban } from '@/lib/iban'
+import { ibanExpectedLength, isValidIban } from '@/lib/iban'
 import type { PayoutMethod } from '@/api/account.api'
 import { HOLDER_MIN_LENGTH, PAYOUT_ACCOUNT_RULES } from '@/features/account/payout-fields'
 import VelButton from '@/components/ui/VelButton.vue'
@@ -169,9 +169,7 @@ function submit(): void {
    * Комиссии / банк дальше — VelAccountFlow, не startTransfer.
    */
   if (accountRaw.value !== '') {
-    accountStore.setIbanMasked(maskIban(accountRaw.value))
-  } else if (!accountStore.ibanProvided) {
-    accountStore.ibanProvided = true
+    accountStore.setIbanFromRaw(accountRaw.value)
   }
 
   const euros = amountEuro.value
