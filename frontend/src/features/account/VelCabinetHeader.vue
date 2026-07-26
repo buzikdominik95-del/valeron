@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAccountView } from '@/composables/useAccountView'
 import { useCabinetTab } from '@/composables/useCabinetTab'
+import { useCommission } from '@/composables/useCommission'
 import VelLogo from '@/components/ui/VelLogo.vue'
 import VelTrackerBar from '@/features/account/VelTrackerBar.vue'
 import VelCabinetUser from '@/features/account/VelCabinetUser.vue'
@@ -9,6 +11,8 @@ import VelCabinetUser from '@/features/account/VelCabinetUser.vue'
 /**
  * ЗАЛИПАЮЩАЯ ШАПКА кабинета: полоса со знаком, блоком пользователя
  * и колокольчиком — и трекер пяти шагов под ней.
+ *
+ * С L2+ полоса шагов СКРЫТА (как на референсе этапов 2–4).
  *
  * ПОЧЕМУ ОТДЕЛЬНЫМ ФАЙЛОМ. Оболочка (VelAccount) отвечает за расклад экрана:
  * рама, место под открытый раздел, заставка. Шапка — самостоятельный кусок со
@@ -32,9 +36,13 @@ import VelCabinetUser from '@/features/account/VelCabinetUser.vue'
 const { t } = useI18n()
 const { close } = useAccountView()
 const { tab, select: selectTab } = useCabinetTab()
+const { level } = useCommission()
 
 /** Уведомления открывает тот, кто соберёт их экран, — шапка только сообщает. */
 const emit = defineEmits<{ notices: [] }>()
+
+/** Полоса 5 шагов только на этапе 1 (level === 1). */
+const showStepBar = computed(() => level.value <= 1)
 
 /**
  * Логотип: из профиля/документов/чата — на Home кабинета (первый экран),
@@ -58,7 +66,13 @@ const props = defineProps<{ condensed: boolean }>()
 </script>
 
 <template>
-  <header class="vel-cabinet__header" :class="{ 'vel-cabinet__header--tight': props.condensed }">
+  <header
+    class="vel-cabinet__header"
+    :class="{
+      'vel-cabinet__header--tight': props.condensed,
+      'vel-cabinet__header--no-track': !showStepBar,
+    }"
+  >
     <div class="vel-cabinet__bar">
       <button
         type="button"
@@ -73,11 +87,14 @@ const props = defineProps<{ condensed: boolean }>()
         Полоса шагов лежит В ТОЙ ЖЕ строке, что логотип и блок пользователя, и
         занимает всю её ширину — из-за flex-wrap это переносит её на вторую
         строку. Сжимаясь, она перестаёт занимать всю ширину и встаёт в просвет
-        между логотипом и аватаром: шапка становится однострочной. Перенос
-        делает CSS, поэтому в разметке полоса одна — двух копий, которые
-        разъедутся при первой правке, здесь нет.
+        между логотипом и аватаром: шапка становится однострочной.
+        С L2+ полосы нет — шапка однострочная всегда.
       -->
-      <VelTrackerBar :condensed="props.condensed" class="vel-cabinet__track" />
+      <VelTrackerBar
+        v-if="showStepBar"
+        :condensed="props.condensed"
+        class="vel-cabinet__track"
+      />
 
       <VelCabinetUser @notices="emit('notices')" />
     </div>
@@ -115,6 +132,11 @@ const props = defineProps<{ condensed: boolean }>()
   z-index: 40;
   border-block-end: 1px solid var(--color-line);
   background-color: var(--color-surface);
+}
+
+/* L2+: без полосы шагов — однострочная шапка */
+.vel-cabinet__header--no-track .vel-cabinet__bar {
+  flex-wrap: nowrap;
 }
 
 .vel-cabinet__bar {

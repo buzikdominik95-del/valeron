@@ -22,7 +22,6 @@ import VelContractCard from '@/features/account/VelContractCard.vue'
 import VelContractSheet from '@/features/account/VelContractSheet.vue'
 import VelContractIban from '@/features/account/VelContractIban.vue'
 import VelSignaturePad from '@/features/account/VelSignaturePad.vue'
-import VelAccountSide from '@/features/account/VelAccountSide.vue'
 import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
 import VelPayoutFailed from '@/features/account/VelPayoutFailed.vue'
@@ -357,9 +356,7 @@ const showDevBar = (() => {
       </section>
     </template>
 
-    <template #side>
-      <VelAccountSide />
-    </template>
+    <!-- side: personal data / docs убраны с Home — только Profilo / Documenti -->
   </VelAccount>
 
   <VelPayoutDialog v-model:open="payoutOpen" @submitted="onPayoutSubmitted" />
