@@ -41,6 +41,14 @@ export default {
       signLocked: 'Per firmare servono prima i documenti caricati.',
     },
 
+    pdfDialog: {
+      overline: 'Documento',
+      title: 'Contratto di credito',
+      close: 'Chiudi',
+      openTab: 'Apri in una nuova scheda',
+      empty: 'PDF non disponibile.',
+    },
+
     preview: {
       title: 'Anteprima del contratto',
       badge: 'Generato',
@@ -189,6 +197,14 @@ export default {
       sign: 'Подписать договор',
       signed: 'Договор подписан',
       signLocked: 'Чтобы подписать, сначала загрузите документы.',
+    },
+
+    pdfDialog: {
+      overline: 'Документ',
+      title: 'Кредитный договор',
+      close: 'Закрыть',
+      openTab: 'Открыть в новой вкладке',
+      empty: 'PDF недоступен.',
     },
 
     preview: {
