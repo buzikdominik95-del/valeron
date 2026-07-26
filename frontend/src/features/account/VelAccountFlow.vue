@@ -182,10 +182,11 @@ function startWithdrawFunnel(): void {
 }
 
 /**
- * Preleva:
- *  1) IBAN ещё нет → выпадающая VelPayoutPanel под балансом (метод + IBAN + сумма).
- *  2) После Avvia → drawer 3 шага (IBAN → комиссия → SEPA) или анимация L2/L4.
- *  3) IBAN уже сохранён → панель не открываем, сразу drawer / воронка.
+ * Preleva (как на Calipso):
+ *  1) Сначала только кнопка «Preleva i fondi».
+ *  2) Клик → под балансом выпадает «Scegli il metodo di ricezione»
+ *     (IBAN/Carta + intestatario + сумма). IBAN автозаполняется, если уже есть.
+ *  3) «Avvia il trasferimento» → drawer комиссии / анимация L2–L4.
  */
 function onWithdraw(): void {
   if (!canWithdraw.value) return
@@ -194,13 +195,8 @@ function onWithdraw(): void {
     openFeeFromSuspension()
   }
 
-  /* IBAN уже зафиксирован — без повторного выпадающего ввода. */
-  if (account.ibanProvided && account.ibanFull.trim() !== '') {
-    continueAfterPayout(Math.round(approvedAmount.value))
-    return
-  }
-
-  /* Первый раз: выпадающая панель «Scegli il metodo» под Preleva. */
+  /* Всегда панель под кнопкой — не прыгаем сразу в drawer. */
+  if (payoutPanelOpen.value) return
   payoutPanelOpen.value = true
 }
 
