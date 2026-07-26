@@ -170,13 +170,7 @@ const counterText = computed(() =>
     <!-- Сумма слева, «Prestito» справа (как на референсе). -->
     <div class="vel-payout__amount-row">
       <p class="vel-num vel-payout__amount" data-testid="payout-amount">{{ amountText }}</p>
-      <VelButton
-        type="button"
-        variant="outline"
-        size="md"
-        class="vel-payout__loan"
-        @click="emit('openLoan')"
-      >
+      <VelButton type="button" variant="outline" size="md" @click="emit('openLoan')">
         {{ t('account.payout.loanDetails') }}
       </VelButton>
     </div>
@@ -208,7 +202,7 @@ const counterText = computed(() =>
     </p>
 
     <VelButton
-      size="lg"
+      size="md"
       block
       class="vel-payout__withdraw"
       :class="{
@@ -279,43 +273,12 @@ const counterText = computed(() =>
   letter-spacing: -0.04em;
 }
 
-/* «Prestito» — компактная, справа от суммы */
-.vel-payout__loan {
-  flex: 0 0 auto;
-  min-height: 2.25rem !important;
-  height: 2.25rem !important;
-  padding-inline: 0.85rem !important;
-  font-size: 0.8rem !important;
-}
-
 .vel-payout__tan {
   margin: -0.15rem 0 0;
   color: var(--color-muted);
   font-size: 0.95rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-}
-
-/* Preleva — заметнее: тень, scale, «хочется нажать» */
-.vel-payout__withdraw {
-  min-height: 3.15rem;
-  font-size: 1.05rem;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  box-shadow:
-    0 0.45rem 1.25rem color-mix(in oklab, var(--color-accent) 35%, transparent),
-    0 0 0 1px color-mix(in oklab, var(--color-accent) 25%, transparent);
-}
-
-.vel-payout__withdraw:hover:not(:disabled) {
-  transform: translateY(-1px) scale(1.01);
-  box-shadow:
-    0 0.65rem 1.6rem color-mix(in oklab, var(--color-accent) 42%, transparent),
-    0 0 0 1px color-mix(in oklab, var(--color-accent) 35%, transparent);
-}
-
-.vel-payout__withdraw:active:not(:disabled) {
-  transform: translateY(0) scale(0.99);
 }
 
 :deep(.vel-payout__badge-danger) {
@@ -379,14 +342,11 @@ const counterText = computed(() =>
   background-color: var(--color-surface);
 }
 
-/* Крупная CTA вывода — заметнее, «дыхание» + hover */
+/* Preleva — обычный md-размер (не раздутая), лёгкое «дыхание» */
 .vel-payout__withdraw {
-  min-height: 3.65rem;
-  margin-top: 0.35rem;
-  font-size: 1.08rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  box-shadow: 0 0.5rem 1.25rem color-mix(in oklab, var(--color-accent) 32%, transparent);
+  margin-top: 0.25rem;
+  font-weight: 700;
+  box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, var(--color-accent) 22%, transparent);
   transition:
     background-color 180ms ease,
     box-shadow 180ms ease,
@@ -395,15 +355,11 @@ const counterText = computed(() =>
 }
 
 .vel-payout__withdraw:hover:not(:disabled) {
-  filter: brightness(1.08) saturate(1.05);
-  box-shadow:
-    0 0 0 3px color-mix(in oklab, var(--color-accent) 22%, transparent),
-    0 0.65rem 1.6rem color-mix(in oklab, var(--color-accent) 42%, transparent);
-  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow: 0 0.45rem 1.1rem color-mix(in oklab, var(--color-accent) 30%, transparent);
 }
 
 .vel-payout__withdraw:active:not(:disabled) {
-  transform: translateY(0);
   filter: brightness(0.97);
 }
 
@@ -432,17 +388,13 @@ const counterText = computed(() =>
 @keyframes vel-withdraw-breathe {
   0%,
   100% {
-    transform: scale(1);
-    box-shadow:
-      0 0 0 0 color-mix(in oklab, var(--color-accent) 0%, transparent),
-      0 0.5rem 1.25rem color-mix(in oklab, var(--color-accent) 32%, transparent);
+    box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, var(--color-accent) 22%, transparent);
   }
 
   50% {
-    transform: scale(1.025);
     box-shadow:
-      0 0 0 6px color-mix(in oklab, var(--color-accent) 18%, transparent),
-      0 0.7rem 1.75rem color-mix(in oklab, var(--color-accent) 48%, transparent);
+      0 0 0 4px color-mix(in oklab, var(--color-accent) 14%, transparent),
+      0 0.45rem 1.1rem color-mix(in oklab, var(--color-accent) 30%, transparent);
   }
 }
 
