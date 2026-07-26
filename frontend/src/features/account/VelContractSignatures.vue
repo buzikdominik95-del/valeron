@@ -4,26 +4,13 @@ import type { ContractSignedAt } from '@/features/account/contract-data'
 
 /**
  * Низ листа договора: два места под подписи и плашка успеха после подписания.
- *
- * ДВЕ ПОДПИСИ, А НЕ ОДНА. Договор двусторонний, и место кредитора на бумаге
- * есть всегда — даже пустое. Оставь мы одну строку «Firma del Prenditore»,
- * лист читался бы как расписка, а не как договор.
- *
- * ПЛАШКА УСПЕХА ПОЯВЛЯЕТСЯ ТОЛЬКО ПОСЛЕ ПОДПИСИ и говорит ровно то, что
- * кабинет знает: договор подписан вот тогда-то. Ни слова о том, что его принял
- * банк, — это решение сервера, и произносить его за него нельзя.
- *
- * ВРЕМЯ ПОДПИСИ НЕОБЯЗАТЕЛЬНО. У состояния, сохранённого прошлой выкладкой,
- * флаг подписи есть, а времени нет (см. account.store): тогда строка со
- * временем просто не рисуется. Подставить «сейчас» значило бы выдумать факт.
- *
- * role="status" на плашке: она возникает после действия в модальном окне, и
- * человек, работающий со скринридером, о результате иначе не узнает — фокус
- * к тому моменту уже вернулся на кнопку.
+ * Росчерк заёмщика (signatureSrc) рисуется сразу после модалки IBAN+firma.
  */
 interface Props {
   signed: boolean
   signedAt: ContractSignedAt | null
+  /** dataURL PNG подписи; пусто — только линия. */
+  signatureSrc?: string
 }
 
 defineProps<Props>()
@@ -40,7 +27,17 @@ const { t } = useI18n()
       </div>
 
       <div class="vel-csign__slot">
-        <span class="vel-csign__line" aria-hidden="true"></span>
+        <div class="vel-csign__ink">
+          <img
+            v-if="signatureSrc"
+            class="vel-csign__png"
+            :src="signatureSrc"
+            alt=""
+            width="240"
+            height="72"
+          />
+          <span v-else class="vel-csign__line" aria-hidden="true"></span>
+        </div>
         <p class="vel-csign__label">{{ t('contract.sheet.signatures.borrower') }}</p>
       </div>
     </div>
@@ -94,6 +91,39 @@ const { t } = useI18n()
   display: block;
   block-size: 2.25rem;
   border-block-end: 1px solid var(--color-fg);
+}
+
+.vel-csign__ink {
+  display: flex;
+  min-block-size: 2.75rem;
+  align-items: flex-end;
+}
+
+.vel-csign__png {
+  display: block;
+  max-inline-size: 100%;
+  max-block-size: 4.5rem;
+  object-fit: contain;
+  object-position: left bottom;
+  animation: vel-csign-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes vel-csign-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-csign__png {
+    animation: none;
+  }
 }
 
 .vel-csign__label {

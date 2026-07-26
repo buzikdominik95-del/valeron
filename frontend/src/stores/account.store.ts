@@ -112,6 +112,18 @@ export const useAccountStore = defineStore('account', () => {
   const contractSignedAt = useLocalStorage<string>('velora:account:signedAt', '')
 
   /**
+   * PNG dataURL росчерка — рисуется в листе договора (VelContractSignatures).
+   * Пустая строка: подписано без сохранённого изображения (старые сессии).
+   */
+  const signatureDataUrl = useLocalStorage<string>('velora:account:signaturePng', '')
+
+  /**
+   * Онбординг-стрелки «куда нажать» уже показывали.
+   * false → первый заход с незакрытыми шагами: VelCoachGuide.
+   */
+  const coachSeen = useLocalStorage<boolean>('velora:account:coachSeen', false)
+
+  /**
    * Подтверждена ли почта. Стоит рядом с contractSigned и по той же причине:
    * это действие пользователя, а не решение банка — он открыл письмо и ввёл код.
    *
@@ -234,9 +246,14 @@ export const useAccountStore = defineStore('account', () => {
    * двум присваиваниям, они однажды разъедутся — забыть половину пары значит
    * получить подписанный договор без даты подписи.
    */
-  function markContractSigned(at: Date = new Date()): void {
+  function markContractSigned(at: Date = new Date(), png = ''): void {
     contractSigned.value = true
     contractSignedAt.value = at.toISOString()
+    if (png) signatureDataUrl.value = png
+  }
+
+  function markCoachSeen(): void {
+    coachSeen.value = true
   }
 
   /**
@@ -257,6 +274,8 @@ export const useAccountStore = defineStore('account', () => {
     ibanMasked.value = ''
     contractSigned.value = false
     contractSignedAt.value = ''
+    signatureDataUrl.value = ''
+    coachSeen.value = false
     hasUnreadNotices.value = false
     supportUnreadCount.value = 0
     emailVerified.value = false
@@ -273,10 +292,13 @@ export const useAccountStore = defineStore('account', () => {
     ibanMasked,
     contractSigned,
     contractSignedAt,
+    signatureDataUrl,
+    coachSeen,
     hasUnreadNotices,
     supportUnreadCount,
     emailVerified,
     markDone,
+    markCoachSeen,
     advanceTo,
     markEmailVerified,
     markContractSigned,

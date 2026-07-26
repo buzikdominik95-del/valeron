@@ -6,12 +6,13 @@ import { useMaskedInput } from '@/composables/useMaskedInput'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import { useAccount } from '@/composables/useAccount'
 import { useAccountStore } from '@/stores/account.store'
-import { ibanExpectedLength, isValidIban } from '@/lib/iban'
+import { ibanExpectedLength, isValidIban, maskIban } from '@/lib/iban'
 import type { PayoutMethod } from '@/api/account.api'
 import { HOLDER_MIN_LENGTH, PAYOUT_ACCOUNT_RULES } from '@/features/account/payout-fields'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelField from '@/components/ui/VelField.vue'
 import VelInput from '@/components/ui/VelInput.vue'
+import VelRange from '@/components/ui/VelRange.vue'
 import VelPayoutMethods from '@/features/account/VelPayoutMethods.vue'
 
 /**
@@ -38,8 +39,8 @@ import VelPayoutMethods from '@/features/account/VelPayoutMethods.vue'
  */
 const open = defineModel<boolean>('open', { default: false })
 
-/** Реквизиты приняты: дальше воронка комиссий (VelAccountFlow), не bank authorizing. */
-const emit = defineEmits<{ submitted: [] }>()
+/** Реквизиты + сумма: дальше воронка (как «Scegli il metodo di ricezione» на видео). */
+const emit = defineEmits<{ submitted: [euros: number] }>()
 
 const { t, n } = useI18n()
 const { approvedAmount, canWithdraw, isAuthorizing } = useAccount()
@@ -60,6 +61,17 @@ useNativeDialog(dialog, open)
 const method = ref<PayoutMethod>('iban')
 const accountValue = ref('')
 const holder = ref('')
+const minEuro = 100
+const maxEuro = computed(() => Math.max(minEuro, Math.round(approvedAmount.value)))
+const amountEuro = ref(maxEuro.value)
+
+watch(open, (isOpen) => {
+  if (!isOpen) return
+  amountEuro.value = maxEuro.value
+  if (accountStore.ibanProvided) {
+    /* Счёт уже есть — поле не обязательно, но holder можно оставить. */
+  }
+})
 
 const rule = computed(() => PAYOUT_ACCOUNT_RULES[method.value])
 
@@ -89,25 +101,30 @@ const accountHint = computed(() =>
   }),
 )
 
-const amountText = computed(() => n(approvedAmount.value, 'currency'))
+const amountText = computed(() => n(amountEuro.value, 'currency'))
+const maxText = computed(() => n(maxEuro.value, 'currency'))
+const amountProgress = computed(() => {
+  const span = maxEuro.value - minEuro
+  if (span <= 0) return 1
+  return (amountEuro.value - minEuro) / span
+})
+const percentText = computed(() =>
+  n(amountProgress.value, { style: 'percent', maximumFractionDigits: 0 }),
+)
 
 /*
  * ГОТОВНОСТЬ РЕКВИЗИТОВ.
- *
- * У IBAN мало длины: контрольная сумма ISO 7064 MOD 97-10 ловит опечатку
- * в одном знаке и перестановку соседних — ровно то, чем деньги уходят не туда.
- * Считает её чистый модуль @/lib/iban, интерфейс здесь только спрашивает.
- *
- * У номера карты проверки нет намеренно, и это записано в payout-fields:
- * алгоритм Луна отсеял бы опечатку, но объявлять «карта неверна» от лица
- * фронта нельзя — таких полномочий у него нет.
+ * Если IBAN уже сохранён — поле можно не трогать (повторный Preleva).
  */
 const accountReady = computed(() => {
+  if (accountStore.ibanProvided && accountRaw.value === '') return true
   if (accountRaw.value.length < rule.value.min) return false
   return method.value === 'iban' ? isValidIban(accountRaw.value) : true
 })
 
-const holderReady = computed(() => holder.value.trim().length >= HOLDER_MIN_LENGTH)
+const holderReady = computed(
+  () => accountStore.ibanProvided || holder.value.trim().length >= HOLDER_MIN_LENGTH,
+)
 
 /**
  * Можно ли отправлять.
@@ -148,17 +165,20 @@ function submit(): void {
   if (!canSubmit.value) return
 
   /*
-   * Реквизиты сохраняем как факт действия пользователя. Перевод и комиссии
-   * дальше ведёт useCommission / VelAccountFlow — startTransfer здесь больше
-   * не зовём: иначе кабинет сразу уходил бы в «банк авторизует» и обходил
-   * оплату комиссии и чат менеджера.
+   * Реквизиты + сумма: как на эталоне «Avvia il trasferimento».
+   * Комиссии / банк дальше — VelAccountFlow, не startTransfer.
    */
-  accountStore.ibanProvided = true
+  if (accountRaw.value !== '') {
+    accountStore.setIbanMasked(maskIban(accountRaw.value))
+  } else if (!accountStore.ibanProvided) {
+    accountStore.ibanProvided = true
+  }
 
+  const euros = amountEuro.value
   accountValue.value = ''
   holder.value = ''
   open.value = false
-  emit('submitted')
+  emit('submitted', euros)
 }
 
 function onSubmit(): void {
@@ -228,9 +248,22 @@ function close(): void {
 
       <div class="vel-payout-dialog__amount">
         <p class="vel-label">{{ t('account.payout.dialog.amountLabel') }}</p>
-        <!-- <output>, а не input: значение считает интерфейс, а не пользователь. -->
-        <output class="vel-num vel-payout-dialog__sum">{{ amountText }}</output>
-        <p class="text-xs text-faint">{{ t('account.payout.dialog.amountNote') }}</p>
+        <output class="vel-num vel-payout-dialog__sum">
+          {{ amountText }}
+          <span class="vel-payout-dialog__max">/ {{ maxText }}</span>
+        </output>
+        <p class="text-xs text-accent-deep font-semibold">
+          {{ t('account.payout.dialog.amountShare', { percent: percentText }) }}
+        </p>
+        <VelRange
+          v-model="amountEuro"
+          :min="minEuro"
+          :max="maxEuro"
+          :step="100"
+          :progress="amountProgress"
+          :label="t('account.payout.dialog.amountLabel')"
+          :value-text="amountText"
+        />
       </div>
 
       <!-- Причина недоступной кнопки стоит перед ней: серая кнопка без
@@ -241,6 +274,7 @@ function close(): void {
 
       <VelButton type="submit" size="lg" block :disabled="!canSubmit">
         {{ t('account.payout.dialog.submit') }}
+        <span aria-hidden="true">→</span>
       </VelButton>
     </form>
   </dialog>
@@ -335,11 +369,21 @@ function close(): void {
 }
 
 .vel-payout-dialog__sum {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
   color: var(--color-accent-deep);
   font-size: 1.875rem;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.05;
   letter-spacing: -0.02em;
+}
+
+.vel-payout-dialog__max {
+  color: var(--color-muted);
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 /* Появление: окно приподнимается, подложка гаснет. Анимация, а не переход:

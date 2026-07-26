@@ -277,6 +277,31 @@ export default {
       toastSigned: 'Contratto firmato con successo',
     },
 
+    /* IBAN + firma in una modale — VelContractSignDialog.vue */
+    contractSign: {
+      title: 'Completa IBAN e firma',
+      lead: 'Inserisci l’IBAN di accredito e firma il contratto nello stesso passaggio.',
+      ibanStep: '1 · Coordinate di accredito',
+      signStep: '2 · La tua firma',
+      ibanPlaceholder: 'IT60 X054 0123 4567 8901 2345 6',
+      confirm: 'Conferma IBAN e firma',
+    },
+
+    /* Streлки-инструкция при первом заходе — VelCoachGuide.vue */
+    coach: {
+      title: 'Guida rapida',
+      go: 'Vai al passo',
+      skip: 'Chiudi',
+      done: 'Tutti i passaggi sono pronti: puoi prelevare i fondi.',
+      tips: {
+        simulation: 'Completa la simulazione del credito per proseguire.',
+        approval: 'Attendi l’approvazione del credito dai partner.',
+        account: 'Il tuo account è quasi pronto — continua i passaggi sotto.',
+        documents: 'Carica il documento d’identità nella scheda Documenti.',
+        signature: 'Apri Documenti: inserisci l’IBAN e firma il contratto.',
+      },
+    },
+
     /* Панель электронной подписи договора — VelSignaturePad.vue.
        overline, title, leadDraw, placeholder, clear и confirm взяты с видео
        дословно. Остальное — обязательная клавиатурная альтернатива рисованию
@@ -428,6 +453,7 @@ export default {
         holderPlaceholder: 'Es. Mario Rossi',
         amountLabel: 'Importo da ricevere',
         amountNote: '100% del totale disponibile',
+        amountShare: '{percent} del totale disponibile',
         submit: 'Avvia il trasferimento',
         /* Почему кнопка отправки пока недоступна */
         incomplete: 'Compila le coordinate e il nome dell’intestatario',
@@ -1014,6 +1040,29 @@ export default {
       toastSigned: 'Договор успешно подписан',
     },
 
+    contractSign: {
+      title: 'IBAN и подпись',
+      lead: 'Укажите IBAN для зачисления и подпишите договор в одном окне.',
+      ibanStep: '1 · Реквизиты зачисления',
+      signStep: '2 · Ваша подпись',
+      ibanPlaceholder: 'IT60 X054 0123 4567 8901 2345 6',
+      confirm: 'Подтвердить IBAN и подпись',
+    },
+
+    coach: {
+      title: 'Быстрая подсказка',
+      go: 'Перейти',
+      skip: 'Закрыть',
+      done: 'Все шаги готовы — можно выводить средства.',
+      tips: {
+        simulation: 'Завершите симуляцию кредита, чтобы продолжить.',
+        approval: 'Дождитесь одобрения кредита от партнёров.',
+        account: 'Аккаунт почти готов — продолжите шаги ниже.',
+        documents: 'Загрузите документ во вкладке Documenti.',
+        signature: 'Откройте Documenti: введите IBAN и подпишите договор.',
+      },
+    },
+
     signature: {
       overline: 'Электронная подпись',
       title: 'Подпишите договор',
@@ -1116,6 +1165,7 @@ export default {
         holderPlaceholder: 'Например, Марио Росси',
         amountLabel: 'Сумма к получению',
         amountNote: '100% доступной суммы',
+        amountShare: '{percent} доступной суммы',
         submit: 'Начать перевод',
         incomplete: 'Заполните реквизиты и имя владельца',
         errors: {
