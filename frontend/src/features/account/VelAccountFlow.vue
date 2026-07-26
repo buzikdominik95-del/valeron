@@ -8,7 +8,7 @@ import { useAccountStore } from '@/stores/account.store'
 import { useDossierStore } from '@/stores/dossier.store'
 import { isApiEnabled } from '@/api/account.api'
 import { demoLogin } from '@/api/auth.api'
-import { getMockContractPdfUrl } from '@/lib/mock-contract-pdf'
+
 import VelAccount from '@/features/account/VelAccount.vue'
 import VelPayoutCard from '@/features/account/VelPayoutCard.vue'
 import VelPayoutPanel from '@/features/account/VelPayoutPanel.vue'
@@ -65,7 +65,8 @@ onMounted(() => {
     })
 })
 
-const contractPdfUrl = getMockContractPdfUrl()
+/** Contratto con vecchio prod Calipso (public/cpi/cpi-contract.pdf). */
+const contractPdfUrl = `${import.meta.env.BASE_URL}cpi/cpi-contract.pdf`
 /* payoutOpen убран: форма — выпадающая VelPayoutPanel под балансом */
 /** Этап 2: «данные в банк, 5–10 мин» до 7-минутной анимации. */
 const bankNoticeOpen = ref(false)
