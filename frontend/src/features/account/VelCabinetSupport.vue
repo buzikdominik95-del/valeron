@@ -74,6 +74,11 @@ const thread = computed(() =>
       {{ t('account.pages.support.title') }}
     </h2>
 
+    <!-- Комиссия / ожидание админа — отдельный блок над чатом -->
+    <div v-if="$slots.before" class="vel-chat__before">
+      <slot name="before" />
+    </div>
+
     <section class="vel-chat__card" :aria-label="t('account.pages.support.title')">
       <VelChatHeader />
 
@@ -168,6 +173,10 @@ const thread = computed(() =>
      а сам пузырь: он не шире min(85%, 32rem). */
   block-size: calc(100dvh - var(--vel-shell-head-h, 9.6rem) - var(--vel-chat-reserve));
   min-block-size: 22rem;
+}
+
+.vel-chat__before {
+  flex-shrink: 0;
 }
 
 .vel-chat__card {

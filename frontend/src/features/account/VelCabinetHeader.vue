@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { useAccountView } from '@/composables/useAccountView'
+import { useCabinetTab } from '@/composables/useCabinetTab'
 import VelLogo from '@/components/ui/VelLogo.vue'
 import VelTrackerBar from '@/features/account/VelTrackerBar.vue'
 import VelCabinetUser from '@/features/account/VelCabinetUser.vue'
@@ -30,9 +31,22 @@ import VelCabinetUser from '@/features/account/VelCabinetUser.vue'
  */
 const { t } = useI18n()
 const { close } = useAccountView()
+const { tab, select: selectTab } = useCabinetTab()
 
 /** Уведомления открывает тот, кто соберёт их экран, — шапка только сообщает. */
 const emit = defineEmits<{ notices: [] }>()
+
+/**
+ * Логотип: из профиля/документов/чата — на Home кабинета (первый экран),
+ * уже с Home — выход на лендинг. Иначе с профиля «домой» не попадали.
+ */
+function onLogoClick(): void {
+  if (tab.value !== 'home') {
+    selectTab('home')
+    return
+  }
+  close()
+}
 
 /*
  * Сжата ли шапка — решает оболочка (VelAccount): то же состояние нужно
@@ -50,7 +64,7 @@ const props = defineProps<{ condensed: boolean }>()
         type="button"
         class="vel-cabinet__home"
         :aria-label="t('account.shell.home')"
-        @click="close"
+        @click="onLogoClick"
       >
         <VelLogo />
       </button>
