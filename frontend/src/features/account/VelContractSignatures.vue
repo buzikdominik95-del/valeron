@@ -4,21 +4,21 @@ import { useI18n } from 'vue-i18n'
 import type { ContractSignedAt } from '@/features/account/contract-data'
 
 /**
- * Низ листа договора:
- *  · слева Prestatore — печать + подпись с старого прода (pechat / podpisb);
- *  · справа Prenditore — автоподпись клиента (dataURL из модалки / ФИО).
+ * Подписи на листе договора:
+ *  · Prestatore — печать + подпись с прода (без «шахматки» прозрачности);
+ *  · Prenditore — росчерк клиента (авто из ФИО / canvas).
  */
 interface Props {
   signed: boolean
   signedAt: ContractSignedAt | null
-  /** dataURL PNG подписи заёмщика; пусто — только линия. */
   signatureSrc?: string
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 const { t } = useI18n()
 
 const base = import.meta.env.BASE_URL
+/* webp для UI (лёгкий); png остаётся для PDF */
 const lenderStamp = computed(() => `${base}cpi/lender-stamp.webp`)
 const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
 </script>
@@ -26,42 +26,47 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
 <template>
   <div class="vel-csign">
     <div class="vel-csign__pair">
-      <!-- Firma del Prestatore: печать + подпись компании -->
+      <!-- Firma del Prestatore -->
       <div class="vel-csign__slot">
-        <div class="vel-csign__lender" :class="{ 'vel-csign__lender--on': signed }">
+        <div class="vel-csign__box" :class="{ 'vel-csign__box--filled': signed }">
           <template v-if="signed">
-            <img
-              class="vel-csign__stamp"
-              :src="lenderStamp"
-              alt=""
-              width="120"
-              height="120"
-            />
-            <img
-              class="vel-csign__lender-sig"
-              :src="lenderSignature"
-              alt=""
-              width="200"
-              height="72"
-            />
+            <div class="vel-csign__lender">
+              <img
+                class="vel-csign__stamp"
+                :src="lenderStamp"
+                alt=""
+                width="140"
+                height="140"
+                decoding="async"
+              />
+              <img
+                class="vel-csign__lender-sig"
+                :src="lenderSignature"
+                alt=""
+                width="220"
+                height="80"
+                decoding="async"
+              />
+            </div>
           </template>
-          <span v-else class="vel-csign__line" aria-hidden="true" />
+          <span v-else class="vel-csign__placeholder-line" aria-hidden="true" />
         </div>
         <p class="vel-csign__label">{{ t('contract.sheet.signatures.lender') }}</p>
       </div>
 
-      <!-- Firma del Prenditore: автоподпись клиента -->
+      <!-- Firma del Prenditore -->
       <div class="vel-csign__slot">
-        <div class="vel-csign__ink">
+        <div class="vel-csign__box" :class="{ 'vel-csign__box--filled': !!signatureSrc }">
           <img
             v-if="signatureSrc"
-            class="vel-csign__png"
+            class="vel-csign__borrower-sig"
             :src="signatureSrc"
             alt=""
-            width="240"
-            height="72"
+            width="280"
+            height="90"
+            decoding="async"
           />
-          <span v-else class="vel-csign__line" aria-hidden="true" />
+          <span v-else class="vel-csign__placeholder-line" aria-hidden="true" />
         </div>
         <p class="vel-csign__label">{{ t('contract.sheet.signatures.borrower') }}</p>
       </div>
@@ -73,7 +78,6 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
           <path d="M5.5 12.5 10 17l8.5-9" />
         </svg>
       </span>
-
       <span class="vel-csign__done-text">
         <span class="vel-csign__done-title">{{ t('contract.sheet.signedTitle') }}</span>
         <span v-if="signedAt" class="vel-csign__done-meta">
@@ -94,45 +98,64 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
 
 .vel-csign__pair {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
-  gap: 1.25rem;
-  margin-block-start: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(12.5rem, 100%), 1fr));
+  gap: 1.5rem 2rem;
+  margin-block-start: 0.65rem;
 }
 
 .vel-csign__slot {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.4rem;
   min-inline-size: 0;
 }
 
-.vel-csign__line {
+/* «Бланк» под подпись — белая зона, без шахматки */
+.vel-csign__box {
+  display: flex;
+  min-block-size: 5.75rem;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 0.35rem 0.25rem 0.15rem;
+  border-block-end: 1px solid color-mix(in oklab, var(--color-fg) 55%, transparent);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in oklab, var(--color-ground) 40%, transparent) 100%
+  );
+}
+
+.vel-csign__box--filled {
+  min-block-size: 6.25rem;
+}
+
+.vel-csign__placeholder-line {
   display: block;
-  block-size: 2.25rem;
-  border-block-end: 1px solid var(--color-fg);
+  width: 100%;
+  block-size: 1px;
 }
 
 .vel-csign__lender {
   position: relative;
   display: flex;
+  width: 100%;
   min-block-size: 5.5rem;
   align-items: flex-end;
-  justify-content: flex-start;
-}
-
-.vel-csign__lender--on {
-  min-block-size: 6.5rem;
 }
 
 .vel-csign__stamp {
   position: absolute;
   left: 0;
-  bottom: 0.35rem;
+  bottom: 0.15rem;
   z-index: 1;
-  width: 5.25rem;
-  height: 5.25rem;
+  width: 4.75rem;
+  height: 4.75rem;
   object-fit: contain;
-  opacity: 0.92;
+  object-position: left bottom;
+  /* лёгкий «мокрый» оттиск */
+  opacity: 0.88;
+  mix-blend-mode: multiply;
+  filter: contrast(1.05);
   pointer-events: none;
   animation: vel-csign-pop 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -141,53 +164,31 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
   position: relative;
   z-index: 2;
   display: block;
-  max-inline-size: min(100%, 11rem);
-  max-block-size: 3.75rem;
-  margin-inline-start: 1.75rem;
+  max-inline-size: min(100%, 12rem);
+  max-block-size: 3.4rem;
+  margin-inline-start: 2.1rem;
+  margin-block-end: 0.15rem;
   object-fit: contain;
   object-position: left bottom;
-  animation: vel-csign-pop 0.45s 0.08s cubic-bezier(0.22, 1, 0.36, 1) both;
+  mix-blend-mode: multiply;
+  animation: vel-csign-pop 0.48s 0.06s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.vel-csign__ink {
-  display: flex;
-  min-block-size: 2.75rem;
-  align-items: flex-end;
-}
-
-.vel-csign__png {
+.vel-csign__borrower-sig {
   display: block;
   max-inline-size: 100%;
-  max-block-size: 4.5rem;
+  max-block-size: 4.75rem;
   object-fit: contain;
   object-position: left bottom;
+  mix-blend-mode: multiply;
   animation: vel-csign-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@keyframes vel-csign-pop {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.96);
-  }
-
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .vel-csign__png,
-  .vel-csign__stamp,
-  .vel-csign__lender-sig {
-    animation: none;
-  }
 }
 
 .vel-csign__label {
   margin: 0;
   color: var(--color-muted);
   font-size: 0.72rem;
+  font-weight: 500;
   line-height: 1.4;
 }
 
@@ -221,8 +222,6 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
-  stroke-linecap: butt;
-  stroke-linejoin: miter;
 }
 
 .vel-csign__done-text {
@@ -236,13 +235,23 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
   color: var(--color-success);
   font-size: 0.85rem;
   font-weight: 600;
-  line-height: 1.3;
 }
 
 .vel-csign__done-meta {
   color: var(--color-muted);
   font-size: 0.7rem;
-  line-height: 1.4;
+}
+
+@keyframes vel-csign-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @keyframes vel-csign-in {
@@ -253,11 +262,14 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
 
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .vel-csign__stamp,
+  .vel-csign__lender-sig,
+  .vel-csign__borrower-sig,
   .vel-csign__done {
     animation: none;
   }
