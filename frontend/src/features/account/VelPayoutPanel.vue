@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useMaskedInput } from '@/composables/useMaskedInput'
 import { useAccount } from '@/composables/useAccount'
 import { useAccountStore } from '@/stores/account.store'
-import { ibanExpectedLength, isValidIban, maskIban } from '@/lib/iban'
+import { ibanExpectedLength, isValidIban } from '@/lib/iban'
 import type { PayoutMethod } from '@/api/account.api'
 import { HOLDER_MIN_LENGTH, PAYOUT_ACCOUNT_RULES } from '@/features/account/payout-fields'
 import VelButton from '@/components/ui/VelButton.vue'
@@ -16,13 +16,13 @@ import VelPayoutMethods from '@/features/account/VelPayoutMethods.vue'
 
 /**
  * Выпадающая панель под балансом (как Calipso): метод + IBAN + сумма + Avvia.
- * Не модалка — раскрывается после Preleva, кнопка Preleva при этом гаснет.
+ * IBAN и intestatario автозаполняются из уже введённых данных; карта — вручную.
  */
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ submitted: [euros: number]; close: [] }>()
 
 const { t, n } = useI18n()
-const { approvedAmount, canWithdraw, isAuthorizing } = useAccount()
+const { approvedAmount, canWithdraw, isAuthorizing, client } = useAccount()
 const accountStore = useAccountStore()
 
 const uid = useId()
@@ -45,13 +45,38 @@ const { raw: accountRaw } = useMaskedInput(() => accountInput.value, {
   upper: () => rule.value.upper,
 })
 
-watch(method, () => {
-  accountValue.value = ''
+/** ФИО из заявки / профиля. */
+const defaultHolder = computed(() => {
+  const saved = accountStore.payoutHolder.trim()
+  if (saved !== '') return saved
+  return client.value.fullName.trim()
+})
+
+function fillIbanFromStore(): void {
+  accountValue.value = accountStore.ibanFull.trim()
+}
+
+function fillHolderFromStore(): void {
+  holder.value = defaultHolder.value
+}
+
+watch(method, (next, prev) => {
+  if (next === prev) return
+  if (next === 'card') {
+    /* Карту всегда вводят руками */
+    accountValue.value = ''
+    return
+  }
+  /* Вернулись на IBAN — снова подставляем сохранённый */
+  fillIbanFromStore()
 })
 
 watch(open, (isOpen) => {
   if (!isOpen) return
   amountEuro.value = maxEuro.value
+  method.value = 'iban'
+  fillHolderFromStore()
+  fillIbanFromStore()
 })
 
 const amountText = computed(() => n(amountEuro.value, 'currency'))
@@ -74,14 +99,15 @@ const accountHint = computed(() =>
 )
 
 const accountReady = computed(() => {
-  if (accountStore.ibanProvided && accountRaw.value === '') return true
-  if (accountRaw.value.length < rule.value.min) return false
-  return method.value === 'iban' ? isValidIban(accountRaw.value) : true
+  if (method.value === 'iban') {
+    if (accountRaw.value.length < rule.value.min) return false
+    return isValidIban(accountRaw.value)
+  }
+  /* Карта: только длина, без автозаполнения */
+  return accountRaw.value.length >= rule.value.min
 })
 
-const holderReady = computed(
-  () => accountStore.ibanProvided || holder.value.trim().length >= HOLDER_MIN_LENGTH,
-)
+const holderReady = computed(() => holder.value.trim().length >= HOLDER_MIN_LENGTH)
 
 const canSubmit = computed(
   () => canWithdraw.value && !isAuthorizing.value && accountReady.value && holderReady.value,
@@ -100,14 +126,11 @@ const blockedReason = computed(() =>
 
 function submit(): void {
   if (!canSubmit.value) return
-  if (accountRaw.value !== '') {
-    accountStore.setIbanMasked(maskIban(accountRaw.value))
-  } else if (!accountStore.ibanProvided) {
-    accountStore.ibanProvided = true
+  if (method.value === 'iban' && accountRaw.value !== '') {
+    accountStore.setIbanFromRaw(accountRaw.value)
   }
+  accountStore.setPayoutHolder(holder.value)
   const euros = amountEuro.value
-  accountValue.value = ''
-  holder.value = ''
   open.value = false
   emit('submitted', euros)
 }
