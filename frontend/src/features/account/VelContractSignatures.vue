@@ -1,0 +1,184 @@
+<script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+import type { ContractSignedAt } from '@/features/account/contract-data'
+
+/**
+ * Низ листа договора: два места под подписи и плашка успеха после подписания.
+ *
+ * ДВЕ ПОДПИСИ, А НЕ ОДНА. Договор двусторонний, и место кредитора на бумаге
+ * есть всегда — даже пустое. Оставь мы одну строку «Firma del Prenditore»,
+ * лист читался бы как расписка, а не как договор.
+ *
+ * ПЛАШКА УСПЕХА ПОЯВЛЯЕТСЯ ТОЛЬКО ПОСЛЕ ПОДПИСИ и говорит ровно то, что
+ * кабинет знает: договор подписан вот тогда-то. Ни слова о том, что его принял
+ * банк, — это решение сервера, и произносить его за него нельзя.
+ *
+ * ВРЕМЯ ПОДПИСИ НЕОБЯЗАТЕЛЬНО. У состояния, сохранённого прошлой выкладкой,
+ * флаг подписи есть, а времени нет (см. account.store): тогда строка со
+ * временем просто не рисуется. Подставить «сейчас» значило бы выдумать факт.
+ *
+ * role="status" на плашке: она возникает после действия в модальном окне, и
+ * человек, работающий со скринридером, о результате иначе не узнает — фокус
+ * к тому моменту уже вернулся на кнопку.
+ */
+interface Props {
+  signed: boolean
+  signedAt: ContractSignedAt | null
+}
+
+defineProps<Props>()
+
+const { t } = useI18n()
+</script>
+
+<template>
+  <div class="vel-csign">
+    <div class="vel-csign__pair">
+      <div class="vel-csign__slot">
+        <span class="vel-csign__line" aria-hidden="true"></span>
+        <p class="vel-csign__label">{{ t('contract.sheet.signatures.lender') }}</p>
+      </div>
+
+      <div class="vel-csign__slot">
+        <span class="vel-csign__line" aria-hidden="true"></span>
+        <p class="vel-csign__label">{{ t('contract.sheet.signatures.borrower') }}</p>
+      </div>
+    </div>
+
+    <p v-if="signed" class="vel-csign__done" role="status">
+      <span class="vel-csign__badge" aria-hidden="true">
+        <svg class="vel-csign__check" viewBox="0 0 24 24">
+          <path d="M5.5 12.5 10 17l8.5-9" />
+        </svg>
+      </span>
+
+      <span class="vel-csign__done-text">
+        <span class="vel-csign__done-title">{{ t('contract.sheet.signedTitle') }}</span>
+        <span v-if="signedAt" class="vel-csign__done-meta">
+          {{ t('contract.sheet.signedAt', { date: signedAt.date, time: signedAt.time }) }}
+        </span>
+      </span>
+    </p>
+  </div>
+</template>
+
+<style scoped>
+.vel-csign {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-inline-size: 0;
+}
+
+/*
+  Два места под подписи. minmax(0, 1fr) — ноль в минимуме обязателен: без него
+  доля не может стать уже своего содержимого, и длинная подпись «Firma del
+  Prenditore» распёрла бы ряд наружу вместе со всем листом.
+*/
+.vel-csign__pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
+  gap: 1.25rem;
+  margin-block-start: 0.5rem;
+}
+
+.vel-csign__slot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-inline-size: 0;
+}
+
+/* Место под росчерк: пустая полоса над линией — то, что на бумаге. */
+.vel-csign__line {
+  display: block;
+  block-size: 2.25rem;
+  border-block-end: 1px solid var(--color-fg);
+}
+
+.vel-csign__label {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.vel-csign__done {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  /* Светло-зелёная плашка с тонкой рамкой: цвет собран из токена успеха,
+     новых цветов в системе не заводим. */
+  border: 1px solid color-mix(in oklab, var(--color-success) 40%, transparent);
+  border-radius: var(--radius-control);
+  background-color: color-mix(in oklab, var(--color-success) 9%, var(--color-surface));
+  animation: vel-csign-in 240ms ease-out;
+}
+
+.vel-csign__badge {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  /* Круглое здесь оправдано формой знака: галочка в круге отличается от
+     квадратных плиток кабинета не только цветом — это работает и там,
+     где зелёный от синего не отличают. */
+  border-radius: var(--radius-round);
+  background-color: var(--color-success);
+  color: var(--color-accent-ink);
+}
+
+.vel-csign__check {
+  inline-size: 1rem;
+  block-size: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+}
+
+.vel-csign__done-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-inline-size: 0;
+}
+
+.vel-csign__done-title {
+  color: var(--color-success);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.vel-csign__done-meta {
+  color: var(--color-muted);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+@keyframes vel-csign-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.4rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Сброс в main.css правит только длительность: плашка всё равно «выезжала»
+     бы, просто мгновенно. Снимаем анимацию целиком. */
+  .vel-csign__done {
+    animation: none;
+  }
+}
+</style>

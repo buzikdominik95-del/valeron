@@ -1,0 +1,276 @@
+<script setup lang="ts">
+import { computed, ref, useTemplateRef } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useEventListener } from '@vueuse/core'
+import { useCreditSimulator } from '@/composables/useCreditSimulator'
+import { useWizard } from '@/composables/useWizard'
+import { prefetchWizard } from '@/features/wizard/lazy-wizard'
+import { CREDIT_PURPOSES } from '@/types/velora'
+import type { VelSelectOption, CreditPurpose } from '@/types/velora'
+import VelField from '@/components/ui/VelField.vue'
+import VelSelect from '@/components/ui/VelSelect.vue'
+import VelStepper from '@/components/ui/VelStepper.vue'
+import VelRange from '@/components/ui/VelRange.vue'
+import VelButton from '@/components/ui/VelButton.vue'
+
+/**
+ * Калькулятор кредита. Арифметика и нормализация — в useCreditSimulator,
+ * здесь только разметка, переводы и показ ошибки.
+ */
+const { t, n } = useI18n()
+const { open: openWizard } = useWizard()
+
+const {
+  amount,
+  purpose,
+  progress,
+  canDecrease,
+  canIncrease,
+  canSubmit,
+  calculated,
+  decrease,
+  increase,
+  calculate,
+  min,
+  max,
+  step,
+} = useCreditSimulator()
+
+/** Ошибку показываем только после попытки отправки, а не сразу при загрузке. */
+const attempted = ref(false)
+
+const purposeOptions = computed<VelSelectOption[]>(() =>
+  CREDIT_PURPOSES.map((value) => ({
+    value,
+    label: t(`simulator.purposes.${value}`),
+  })),
+)
+
+/** Мост между строковой моделью селекта и типизированной целью кредита. */
+const purposeValue = computed<string>({
+  get: () => purpose.value,
+  set: (value) => {
+    purpose.value = value as CreditPurpose | ''
+  },
+})
+
+const amountText = computed(() => n(amount.value, 'currency'))
+const minText = computed(() => n(min, 'currency'))
+const maxText = computed(() => n(max, 'currency'))
+
+const purposeError = computed(() =>
+  attempted.value && !canSubmit.value ? t('simulator.needPurpose') : undefined,
+)
+
+const readyDetail = computed(() =>
+  purpose.value === ''
+    ? ''
+    : t('simulator.readyDetail', {
+        purpose: t(`simulator.purposes.${purpose.value}`),
+        amount: amountText.value,
+      }),
+)
+
+/*
+ * ПРОГРЕВ МАСТЕРА. Мастер лежит отдельным куском (см. lazy-wizard.ts), и
+ * единственная цена такого разделения — ожидание сети на нажатии «Calcola».
+ * Убираем её, начиная загрузку по первому признаку намерения: указатель зашёл
+ * на форму или фокус попал внутрь неё с клавиатуры. Между этим моментом и
+ * нажатием человек выбирает цель и сумму — этого времени куску хватает с
+ * запасом, и к нажатию он уже в кеше модулей.
+ *
+ * Оба события — через useEventListener: слушатель снимается вместе с областью
+ * видимости компонента. Сам prefetchWizard идемпотентен, поэтому повторные
+ * наведения сеть не трогают.
+ */
+const form = useTemplateRef<HTMLFormElement>('form')
+useEventListener(form, 'pointerenter', prefetchWizard)
+useEventListener(form, 'focusin', prefetchWizard)
+
+function onSubmit(): void {
+  attempted.value = true
+  // Сумма и цель уже лежат в сторе, поэтому мастер подхватит их сам —
+  // и шаг выбора цели пропускаем, её только что спросили здесь.
+  if (calculate()) openWizard('amount')
+}
+</script>
+
+<template>
+  <form
+    ref="form"
+    class="vel-sim-card flex flex-col gap-6 rounded-panel border border-line p-6"
+    @submit.prevent="onSubmit"
+  >
+    <VelField :label="t('simulator.purposeLabel')" :error="purposeError">
+      <VelSelect
+        v-model="purposeValue"
+        :options="purposeOptions"
+        :placeholder="t('simulator.purposePlaceholder')"
+      />
+    </VelField>
+
+    <VelField :label="t('simulator.amountLabel')">
+      <VelStepper
+        :display="amountText"
+        :can-decrease="canDecrease"
+        :can-increase="canIncrease"
+        :decrease-label="t('simulator.decrease')"
+        :increase-label="t('simulator.increase')"
+        @decrease="decrease"
+        @increase="increase"
+      />
+
+      <VelRange
+        v-model="amount"
+        :min="min"
+        :max="max"
+        :step="step"
+        :progress="progress"
+        :label="t('simulator.amountLabel')"
+        :value-text="amountText"
+      />
+
+      <div class="vel-num flex justify-between text-xs text-muted">
+        <span>{{ minText }}</span>
+        <span>{{ maxText }}</span>
+      </div>
+    </VelField>
+
+    <div class="flex flex-col gap-3">
+      <VelButton type="submit" size="lg" block>
+        {{ t('simulator.submit') }}
+        <span aria-hidden="true">→</span>
+      </VelButton>
+
+      <p
+        v-if="calculated"
+        class="rounded-control border border-accent bg-surface px-3 py-2.5 text-center text-xs"
+        role="status"
+      >
+        <b class="font-semibold text-accent">{{ t('simulator.ready') }}</b>
+        <span class="block text-muted">{{ readyDetail }}</span>
+      </p>
+
+      <p v-else class="text-center text-xs text-muted">{{ t('simulator.note') }}</p>
+    </div>
+  </form>
+</template>
+
+<style scoped>
+/*
+  Карточка прозрачная, чтобы сквозь неё читался каркас знака Velora, который
+  рисует фоновый канвас первого экрана. На узком экране карточка занимает
+  почти всю ширину и без этого закрывала бы знак целиком.
+
+  ХУДШИЙ ФОН ВЗЯТ ИЗ САМОЙ СЦЕНЫ, А НЕ ПРИДУМАН. По hero-canvas-scene.ts канвас
+  кладёт ровно два слоя обычным (не аддитивным) смешиванием поверх
+  --color-ground #f4f7fc:
+
+      сетка точек   --color-accent      #1d4fd8  opacity 0.42
+      каркас знака  --color-accent-deep #12306e  opacity 0.55
+
+  Отсюда два разных «худших фона», и разница между ними принципиальна:
+
+      A  одиночное ребро каркаса по фону                     rgb(120,138,174)
+         0.55·(18,48,110) + 0.45·(244,247,252)
+      B  пересечение двух рёбер, сверху точка сетки          rgb( 49, 84,171)
+         второе ребро → (64,88,139), затем 0.42·(29,79,216)
+
+  A — протяжённое пятно: размытие подложки его сдвигает, но не убирает, и
+  считать надо по нему. B — точечное совпадение в одном месте экрана, и
+  размытие размазывает его сильнее всего именно потому, что оно точечное.
+
+  ПОЧЕМУ 0.40 И 10px, А НЕ 0.55 И 18px. Прежняя пара давала карточку, сквозь
+  которую знак не читался вовсе, — и дело было не в доле подложки, а в размытии.
+  Рёбра каркаса тонкие (1–2px), восемнадцать пикселей размазывали их до полной
+  ровности: под карточкой оставался равномерный светлый фон без следа буквы.
+  Десять пикселей оставляют знак мягким пятном — форма видна, штрих не режет
+  глаз, — а доля 0.40 добавляет ему силы, не превращая карточку в витрину.
+
+  Контраст при 0.40 с вариантами «по стеклу» (заведены ниже):
+
+      текст                      фон A       фон B
+      --color-fg   #16294a        7.30        5.09
+      muted        #2d4066        5.20        3.63
+      faint        #334769        4.72        3.29
+      danger       #8b1913        4.71        3.29
+
+  ЧЕСТНО ПРО ЗАПАС: по фону A норма 4.5 держится у всего, по фону B приглушённые
+  цвета до неё не дотягивают и их несёт размытие, которое в таблицу не заложено.
+  Запас по A при этом стал тоньше, чем был (4.73 против 4.96), — это прямая цена
+  прозрачности, о которой просили. Хочется гарантии без оговорок — путь один и
+  он известен: поднять долю подложки обратно, но тогда знак снова пропадёт.
+  Это решение вкуса против запаса, и принимает его тот, кто отвечает за внешний
+  вид, а не расчёт.
+*/
+.vel-sim-card {
+  /*
+    ПАЛИТРА ПО СТЕКЛУ. На полупрозрачной подложке цвет под текстом темнее, чем
+    на карточке-листе, и штатные приглушённые цвета норму 4.5 здесь уже не
+    проходят: muted #4e668c по фону A даёт всего 3.55, по фону B — 2.75.
+
+    Переопределяются ПЕРЕМЕННЫЕ, а не правила: подписи внутри (vel-label,
+    строка «от … до …», сноска, текст ошибки поля) и вложенные контролы —
+    селект, степпер, ползунок — берут цвет из них же и подхватывают поправку
+    сами. Отдельных классов под это заводить не нужно.
+
+    Иерархия сохраняется: fg #16294a → muted #2d4066 → faint #334769.
+  */
+  --color-muted: #2d4066;
+  --color-faint: #334769;
+  --color-danger: #8b1913;
+
+  background-color: color-mix(in oklab, var(--color-surface) 40%, transparent);
+  border-color: color-mix(in oklab, var(--color-line) 65%, transparent);
+  backdrop-filter: blur(10px) saturate(1.14);
+  box-shadow: 0 0.75rem 2rem color-mix(in oklab, var(--color-fg) 8%, transparent);
+}
+
+/*
+  Плашка «заявка готова» держит собственный сплошной фон (bg-surface), то есть
+  стеклом не является. Возвращаем ей штатную палитру: на белом поправка не
+  нужна, а приглушённый текст в ней стал бы темнее соседнего без причины.
+*/
+.vel-sim-card :where([role='status']) {
+  --color-muted: #4e668c;
+  --color-faint: #587094;
+}
+
+/*
+  Три случая, когда подложка становится СПЛОШНОЙ. Прозрачность без размытия —
+  это линии каркаса под текстом, то есть потеря читаемости ради украшения;
+  просьбу системы убрать прозрачность выполняем буквально (у части людей
+  полупрозрачные слои вызывают трудности с фокусировкой и укачивание); в режиме
+  высокой контрастности подложка обязана быть системной.
+
+  Вместе со сплошным фоном возвращается и штатная палитра: стекла больше нет,
+  и затемнять текст не от чего.
+*/
+@supports not (backdrop-filter: blur(1px)) {
+  .vel-sim-card {
+    --color-muted: #4e668c;
+    --color-faint: #587094;
+    --color-danger: #b3261e;
+
+    background-color: var(--color-surface);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .vel-sim-card {
+    --color-muted: #4e668c;
+    --color-faint: #587094;
+    --color-danger: #b3261e;
+
+    background-color: var(--color-surface);
+    backdrop-filter: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .vel-sim-card {
+    background-color: Canvas;
+    backdrop-filter: none;
+  }
+}
+</style>

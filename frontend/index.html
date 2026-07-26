@@ -1,13 +1,24 @@
 <!doctype html>
-<html lang="ru">
+<html lang="it">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Velora CRM</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- viewport-fit=cover обязателен: без него env(safe-area-inset-*) на телефонах
+         с вырезом и жестовой полосой ВСЕГДА равен нулю, и все три расчёта, которые
+         на него опираются (нижняя панель кабинета, нижнее поле контента, тост),
+         молча теряют свою поправку — панель ложится ровно под жестовую полосу. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Должен совпадать с --color-ground из src/assets/styles/main.css.
+         Значение атрибута нельзя задать переменной, поэтому оно продублировано. -->
+    <meta name="theme-color" content="#f4f7fc" />
+    <title>Velora — Credito preferenziale al tasso del 3,8%</title>
+    <meta
+      name="description"
+      content="Credito preferenziale al tasso fisso del 3,8% per i cittadini d’Italia. Fino a 22.000 €, risposta in 5 minuti, oltre 50 banche partner."
+    />
   </head>
   <body>
     <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
