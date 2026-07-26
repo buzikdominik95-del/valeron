@@ -115,7 +115,13 @@ useAutoAnimate(slotList)
 
     <VelDocChecking v-else-if="status === 'checking'" />
 
-    <VelDocVerified v-else />
+    <!-- Dopo verifica: niente re-upload — solo esito animato «accettati». -->
+    <div v-else class="vel-docup__done">
+      <VelDocVerified />
+      <p class="vel-docup__done-note" role="status">
+        {{ t('account.docs.lockedAfterVerify') }}
+      </p>
+    </div>
   </section>
 </template>
 
@@ -226,5 +232,24 @@ useAutoAnimate(slotList)
   color: var(--color-faint);
   font-size: 0.75rem;
   line-height: 1.4;
+}
+
+.vel-docup__done {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding-block: 0.5rem;
+}
+
+.vel-docup__done-note {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid color-mix(in oklab, var(--color-success) 35%, var(--color-line));
+  border-radius: var(--radius-control);
+  background: color-mix(in oklab, var(--color-success) 8%, var(--color-surface));
+  color: var(--color-success);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
 }
 </style>

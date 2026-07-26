@@ -166,14 +166,21 @@ const counterText = computed(() =>
     </div>
 
     <p class="vel-label m-0 text-muted">{{ t('account.payout.amountLabel') }}</p>
-    <p class="vel-num vel-payout__amount" data-testid="payout-amount">{{ amountText }}</p>
-    <p class="vel-payout__tan vel-num">{{ rateText }}</p>
 
-    <div class="flex flex-wrap gap-2">
-      <VelButton type="button" variant="outline" size="md" @click="emit('openLoan')">
+    <!-- Сумма слева, «Prestito» справа (как на референсе). -->
+    <div class="vel-payout__amount-row">
+      <p class="vel-num vel-payout__amount" data-testid="payout-amount">{{ amountText }}</p>
+      <VelButton
+        type="button"
+        variant="outline"
+        size="md"
+        class="vel-payout__loan"
+        @click="emit('openLoan')"
+      >
         {{ t('account.payout.loanDetails') }}
       </VelButton>
     </div>
+    <p class="vel-payout__tan vel-num">{{ rateText }}</p>
 
     <div v-if="!canWithdraw" :id="lockedId" class="vel-payout__locked">
       <VelAccountSign sign="lock" class="vel-payout__sign" />
@@ -254,13 +261,31 @@ const counterText = computed(() =>
   text-transform: uppercase;
 }
 
+.vel-payout__amount-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+}
+
 .vel-payout__amount {
   margin: 0;
+  min-inline-size: 0;
   color: var(--color-accent-deep);
-  font-size: clamp(2.75rem, 12vw, 3.75rem);
+  font-size: clamp(2.5rem, 11vw, 3.5rem);
   font-weight: 700;
   line-height: 0.95;
   letter-spacing: -0.04em;
+}
+
+/* «Prestito» — компактная, справа от суммы */
+.vel-payout__loan {
+  flex: 0 0 auto;
+  min-height: 2.25rem !important;
+  height: 2.25rem !important;
+  padding-inline: 0.85rem !important;
+  font-size: 0.8rem !important;
 }
 
 .vel-payout__tan {
@@ -269,6 +294,28 @@ const counterText = computed(() =>
   font-size: 0.95rem;
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+/* Preleva — заметнее: тень, scale, «хочется нажать» */
+.vel-payout__withdraw {
+  min-height: 3.15rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  box-shadow:
+    0 0.45rem 1.25rem color-mix(in oklab, var(--color-accent) 35%, transparent),
+    0 0 0 1px color-mix(in oklab, var(--color-accent) 25%, transparent);
+}
+
+.vel-payout__withdraw:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow:
+    0 0.65rem 1.6rem color-mix(in oklab, var(--color-accent) 42%, transparent),
+    0 0 0 1px color-mix(in oklab, var(--color-accent) 35%, transparent);
+}
+
+.vel-payout__withdraw:active:not(:disabled) {
+  transform: translateY(0) scale(0.99);
 }
 
 :deep(.vel-payout__badge-danger) {

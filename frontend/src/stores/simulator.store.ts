@@ -42,6 +42,8 @@ export const useSimulatorStore = defineStore('simulator', () => {
    */
   const surname = useLocalStorage<string>('velora:surname', '')
   const firstName = useLocalStorage<string>('velora:firstName', '')
+  /** Sesso: male | female — per l’animazione prelievo (uomo/donna). */
+  const gender = useLocalStorage<string>('velora:gender', '')
   const docType = useLocalStorage<string>('velora:docType', '')
   const docNumber = useLocalStorage<string>('velora:docNumber', '')
 
@@ -65,6 +67,7 @@ export const useSimulatorStore = defineStore('simulator', () => {
     calculated.value = false
     surname.value = ''
     firstName.value = ''
+    gender.value = ''
     docType.value = ''
     docNumber.value = ''
     email.value = ''
@@ -77,6 +80,7 @@ export const useSimulatorStore = defineStore('simulator', () => {
     calculated,
     surname,
     firstName,
+    gender,
     docType,
     docNumber,
     email,

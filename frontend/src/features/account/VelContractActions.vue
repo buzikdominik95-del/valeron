@@ -26,9 +26,11 @@ interface Props {
   hasIban: boolean
   /** Договор подписан — кнопка подписи превращается в отметку. */
   isSigned: boolean
+  /** PDF уже вынесен в заголовок карточки — здесь не дублируем. */
+  hidePdf?: boolean
 }
 
-defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), { hidePdf: false })
 
 const emit = defineEmits<{
   openPdf: []
@@ -42,6 +44,7 @@ const { t } = useI18n()
 <template>
   <div class="vel-cactions">
     <button
+      v-if="!props.hidePdf"
       type="button"
       class="vel-cactions__btn vel-cactions__btn--pdf"
       :disabled="!hasPdf"

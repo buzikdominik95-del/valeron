@@ -43,19 +43,18 @@ const { open: openAccount } = useAccountView()
     <div
       class="mx-auto flex h-16 w-full max-w-6xl items-center gap-2 px-4 sm:gap-4 sm:px-5"
     >
-      <!-- vel-home: у ссылки-логотипа не было ни наведения, ни нажатия —
-           единственная ссылка шапки никак не отвечала на курсор. Класс несёт
-           оба состояния и заодно поднимает цель нажатия до 44px по высоте
-           (замер до правки: 86.7×33). -->
       <a href="#top" class="vel-home shrink-0">
         <VelLogo />
       </a>
 
-      <span class="mr-auto hidden text-xs text-faint lg:block">
+      <span class="hidden text-xs text-faint lg:block">
         {{ t('brand.accredited') }}
       </span>
 
-      <VelButton variant="outline" @click="openAccount">{{ t('nav.login') }}</VelButton>
+      <!-- Accedi — справа (как на референсе: логотип слева, вход у правого края). -->
+      <VelButton class="ml-auto shrink-0" variant="outline" @click="openAccount">
+        {{ t('nav.login') }}
+      </VelButton>
     </div>
   </header>
 </template>

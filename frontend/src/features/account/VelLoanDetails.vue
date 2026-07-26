@@ -7,9 +7,10 @@ import { storeToRefs } from 'pinia'
 import { buildLoanPlan } from '@/lib/loan-schedule'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
+import VelPersonalData from '@/features/account/VelPersonalData.vue'
 
 /**
- * Dettagli del prestito + piano di ammortamento (клиентский расчёт для демо).
+ * Prestito: 1) dati personali  2) piano di ammortamento (как на старом проде).
  */
 const open = defineModel<boolean>('open', { default: false })
 
@@ -82,6 +83,12 @@ function onSettle(): void {
       </VelButton>
     </div>
 
+    <!-- Блок 1: dati personali (как на старом проде) -->
+    <div class="mb-5">
+      <VelPersonalData />
+    </div>
+
+    <!-- Блок 2: sintesi credito -->
     <dl class="mb-4 grid gap-2 sm:grid-cols-2">
       <div class="rounded-control border border-line bg-ground px-3 py-2">
         <dt class="text-xs text-muted">{{ t('account.loan.approved') }}</dt>
@@ -107,6 +114,7 @@ function onSettle(): void {
       </div>
     </dl>
 
+    <!-- Блок 3: tabella ammortamento -->
     <div class="mb-2 flex flex-wrap items-baseline justify-between gap-2">
       <h3 class="m-0 text-sm font-semibold text-fg">{{ t('account.loan.scheduleTitle') }}</h3>
       <p class="vel-num m-0 text-xs text-muted">
@@ -129,26 +137,30 @@ function onSettle(): void {
       </div>
     </div>
 
-    <div class="max-h-64 overflow-auto rounded-control border border-line">
-      <table class="w-full border-collapse text-left text-xs">
-        <thead class="sticky top-0 bg-raised text-muted">
+    <div class="max-h-[28rem] overflow-auto rounded-control border border-line">
+      <table class="w-full min-w-[28rem] border-collapse text-left text-xs">
+        <thead class="sticky top-0 z-[1] bg-raised text-muted">
           <tr>
-            <th class="px-2 py-2 font-semibold">#</th>
-            <th class="px-2 py-2 font-semibold">{{ t('account.loan.colDate') }}</th>
-            <th class="px-2 py-2 font-semibold">{{ t('account.loan.colPayment') }}</th>
-            <th class="px-2 py-2 font-semibold">{{ t('account.loan.colPrincipal') }}</th>
-            <th class="px-2 py-2 font-semibold">{{ t('account.loan.colInterest') }}</th>
-            <th class="px-2 py-2 font-semibold">{{ t('account.loan.colResidual') }}</th>
+            <th class="px-2 py-2.5 font-semibold">N.</th>
+            <th class="px-2 py-2.5 font-semibold">{{ t('account.loan.colDate') }}</th>
+            <th class="px-2 py-2.5 font-semibold">{{ t('account.loan.colPayment') }}</th>
+            <th class="px-2 py-2.5 font-semibold">{{ t('account.loan.colPrincipal') }}</th>
+            <th class="px-2 py-2.5 font-semibold">{{ t('account.loan.colInterest') }}</th>
+            <th class="px-2 py-2.5 font-semibold">{{ t('account.loan.colResidual') }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in visibleRows" :key="row.index" class="border-t border-line">
-            <td class="vel-num px-2 py-1.5">{{ row.index }}</td>
-            <td class="vel-num px-2 py-1.5">{{ row.date }}</td>
-            <td class="vel-num px-2 py-1.5">{{ euro(row.paymentCents) }}</td>
-            <td class="vel-num px-2 py-1.5">{{ euro(row.principalCents) }}</td>
-            <td class="vel-num px-2 py-1.5">{{ euro(row.interestCents) }}</td>
-            <td class="vel-num px-2 py-1.5">{{ euro(row.residualCents) }}</td>
+          <tr
+            v-for="row in visibleRows"
+            :key="row.index"
+            class="border-t border-line odd:bg-ground/40"
+          >
+            <td class="vel-num px-2 py-2">{{ row.index }}</td>
+            <td class="vel-num px-2 py-2">{{ row.date }}</td>
+            <td class="vel-num px-2 py-2">{{ euro(row.paymentCents) }}</td>
+            <td class="vel-num px-2 py-2">{{ euro(row.principalCents) }}</td>
+            <td class="vel-num px-2 py-2">{{ euro(row.interestCents) }}</td>
+            <td class="vel-num px-2 py-2">{{ euro(row.residualCents) }}</td>
           </tr>
         </tbody>
       </table>

@@ -72,7 +72,14 @@ const programs = computed(() =>
            маркеры, а вместе с ними VoiceOver теряет и роль.
            .vel-depth даёт перспективу для наклона карточек: без неё поворот
            вокруг горизонтальной оси свёлся бы к вертикальному сжатию -->
-      <ul role="list" class="vel-depth grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <!--
+        Desktop: grid 2/4.
+        Mobile: горизонтальный «слайдер» (snap) — как на референсе Calipso.
+      -->
+      <ul
+        role="list"
+        class="vel-depth vel-programs-track flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 sm:snap-none lg:grid-cols-4"
+      >
         <!-- as="li": обёртка обязана остаться прямым ребёнком <ul>,
              иначе рушатся и разметка списка, и ячейки grid.
              Поэтому <li> остаётся здесь, а VelProgramCard отдаёт только
@@ -105,6 +112,28 @@ const programs = computed(() =>
 </template>
 
 <style scoped>
+/* Mobile slider: карточка ~85% ширины, snap-center */
+.vel-programs-track {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  margin-inline: -1.25rem;
+  padding-inline: 1.25rem;
+}
+
+@media (max-width: 639px) {
+  .vel-programs__card {
+    flex: 0 0 min(85vw, 20rem);
+    scroll-snap-align: center;
+  }
+}
+
+@media (min-width: 640px) {
+  .vel-programs-track {
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+}
+
 /*
   ОТКЛИК КАРТОЧКИ НА НАВЕДЕНИЕ.
 

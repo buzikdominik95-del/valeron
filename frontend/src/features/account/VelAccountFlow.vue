@@ -313,22 +313,13 @@ const transferStage = computed((): { key: string; view: Component } | null => {
 })
 
 /*
- * Переключатель фаз L1–L4.
- * Раньше только import.meta.env.DEV — при сборке/стенде с бэком (VITE_USE_API)
- * кнопки пропадали. Теперь: DEV, или включённый API, или явный флаг.
- * Скрыть: VITE_HIDE_PHASE_BAR=1
+ * Переключатель фаз L1–L4 — всегда на экране (демо + стенд + прод-сборка).
+ * Скрыть только явным флагом: VITE_HIDE_PHASE_BAR=1
  */
-const showDevBar = (() => {
-  const hide =
-    import.meta.env.VITE_HIDE_PHASE_BAR === '1' ||
-    import.meta.env.VITE_HIDE_PHASE_BAR === 'true'
-  if (hide) return false
-  if (import.meta.env.DEV) return true
-  if (import.meta.env.VITE_SHOW_PHASE_BAR === '1' || import.meta.env.VITE_SHOW_PHASE_BAR === 'true') {
-    return true
-  }
-  return isApiEnabled()
-})()
+const showDevBar = !(
+  import.meta.env.VITE_HIDE_PHASE_BAR === '1' ||
+  import.meta.env.VITE_HIDE_PHASE_BAR === 'true'
+)
 </script>
 
 <template>

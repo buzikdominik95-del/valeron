@@ -63,6 +63,10 @@ export default {
       title: 'Dicci chi sei',
       surname: 'Cognome',
       name: 'Nome',
+      gender: 'Sesso',
+      genderMale: 'Uomo',
+      genderFemale: 'Donna',
+      genderHint: 'Serve per personalizzare l’animazione del prelievo.',
       docType: 'Tipo di documento',
       /* Заглушка обязана отличаться от подписи: до выбора они стоят друг под
          другом, и одинаковый текст читается как сбой, а не как поле. */
@@ -195,6 +199,10 @@ export default {
       title: 'Расскажите, кто вы',
       surname: 'Фамилия',
       name: 'Имя',
+      gender: 'Пол',
+      genderMale: 'Мужской',
+      genderFemale: 'Женский',
+      genderHint: 'Нужен, чтобы анимация вывода была с мужчиной или женщиной.',
       docType: 'Тип документа',
       docTypePlaceholder: 'Выберите тип',
       docNumber: 'Номер документа',

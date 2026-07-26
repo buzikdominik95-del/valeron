@@ -25,8 +25,8 @@ const { footerGroups } = useSiteLinks()
                Сама ссылка (.vel-link) держит 44px по высоте, поэтому шаг строки
                здесь 52px: промахнуться пальцем по соседней строке уже нечем. -->
           <ul class="mt-4 flex flex-col gap-2" :aria-labelledby="group.id">
-            <li v-for="item in group.items" :key="item">
-              <a class="vel-link text-sm">{{ item }}</a>
+            <li v-for="item in group.items" :key="item.href + item.label">
+              <a class="vel-link text-sm" :href="item.href">{{ item.label }}</a>
             </li>
           </ul>
         </div>

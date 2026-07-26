@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useCommission } from '@/composables/useCommission'
 import { useAccount } from '@/composables/useAccount'
 import { usePanelMotion } from '@/composables/usePanelMotion'
+import { useSimulatorStore } from '@/stores/simulator.store'
+import type { SceneLook } from '@/features/account/scene/transfer-palette'
 import VelTransferScene from '@/features/account/VelTransferScene.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
 import VelBorderBeam from '@/components/magic/VelBorderBeam.vue'
@@ -13,11 +16,15 @@ import VelScanLine from '@/components/magic/VelScanLine.vue'
 const { t } = useI18n()
 const { animationProgress, animationRemainingMs, level, isFailed } = useCommission()
 const { approvedAmount, client, transferAccountTail } = useAccount()
+const { gender } = storeToRefs(useSimulatorStore())
 
 const root = useTemplateRef<HTMLElement>('root')
 usePanelMotion(root)
 
 const recipientName = computed(() => client.value.fullName)
+
+/** Uomo → crop, donna → bob (look сцены, не «угадывание» по имени). */
+const personLook = computed<SceneLook>(() => (gender.value === 'male' ? 'crop' : 'bob'))
 
 /*
  * НАДПИСИ КАРТОЧКИ ЗАВИСЯТ ОТ СОСТОЯНИЯ. При отказе сцена остаётся на экране
@@ -96,6 +103,7 @@ const lead = computed(() =>
         :iban="transferAccountTail"
         :remaining-ms="animationRemainingMs"
         :failed="isFailed"
+        :look="personLook"
       />
     </div>
   </section>
