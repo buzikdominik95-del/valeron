@@ -47,6 +47,7 @@ export default {
       close: 'Chiudi',
       openTab: 'Apri in una nuova scheda',
       empty: 'PDF non disponibile.',
+      loading: 'Preparazione del PDF con i tuoi dati…',
     },
 
     preview: {
@@ -205,6 +206,7 @@ export default {
       close: 'Закрыть',
       openTab: 'Открыть в новой вкладке',
       empty: 'PDF недоступен.',
+      loading: 'Готовим PDF с вашими данными…',
     },
 
     preview: {
