@@ -22,6 +22,7 @@ import VelDocumentUpload from '@/features/account/VelDocumentUpload.vue'
 import VelContractCard from '@/features/account/VelContractCard.vue'
 import VelContractSheet from '@/features/account/VelContractSheet.vue'
 import VelContractSignDialog from '@/features/account/VelContractSignDialog.vue'
+import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
 import VelCoachGuide from '@/features/account/VelCoachGuide.vue'
 import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
@@ -258,8 +259,12 @@ watch(
   },
 )
 
+/** PDF в модалке кабинета (не новая вкладка). */
+const pdfOpen = ref(false)
+
 function onOpenPdf(): void {
-  window.open(contractPdfUrl, '_blank', 'noopener,noreferrer')
+  if (!contractPdfUrl) return
+  pdfOpen.value = true
 }
 
 /*
@@ -386,6 +391,13 @@ const showDevBar = !(
   />
   <!-- IBAN + firma in una modale -->
   <VelContractSignDialog v-model:open="contractSignOpen" @confirm="onContractSignConfirm" />
+
+  <!-- Contratto PDF — panel/modal, non nuova scheda -->
+  <VelPdfDialog
+    v-model:open="pdfOpen"
+    :src="contractPdfUrl"
+    :title="t('contract.card.title')"
+  />
 
   <VelCoachGuide />
 
