@@ -285,7 +285,7 @@ const showVerifyCard = computed(() => step.value === 'verify' && !feeModalOpen.v
         </VelButton>
       </template>
 
-      <!-- 6. Галочка «просмотрел» → потом fullscreen approve → модалка комиссии -->
+      <!-- 6. Галочка «просмотрел» → fullscreen approve → модалка комиссии -->
       <template v-else-if="step === 'confirm_view'">
         <div class="flex items-start gap-3">
           <VelAccountSign sign="shield" size="lg" class="shrink-0 text-accent-deep" />
@@ -297,28 +297,39 @@ const showVerifyCard = computed(() => step.value === 'verify' && !feeModalOpen.v
           </div>
         </div>
         <p class="m-0 text-sm text-muted">{{ t('account.commission.cpi.confirmView.body') }}</p>
+
         <label
-          class="flex cursor-pointer items-start gap-3 rounded-control border border-line bg-ground px-3 py-3"
+          class="vel-cpi-checkrow"
+          :class="{ 'vel-cpi-checkrow--on': viewedChecked }"
           data-testid="cpi-view-check-label"
         >
           <input
             v-model="viewedChecked"
             type="checkbox"
-            class="vel-cpi-check mt-0.5"
+            class="sr-only"
             data-testid="cpi-view-check"
           />
-          <span class="text-sm text-fg">{{ t('account.commission.cpi.confirmView.checkbox') }}</span>
+          <span class="vel-cpi-checkui" aria-hidden="true">
+            <svg class="vel-cpi-checkui__tick" viewBox="0 0 24 24" fill="none">
+              <path d="m6 12.5 4 4 8-9" />
+            </svg>
+          </span>
+          <span class="vel-cpi-checkrow__text">{{ t('account.commission.cpi.confirmView.checkbox') }}</span>
         </label>
-        <VelButton
+
+        <button
           type="button"
-          block
-          size="lg"
+          class="vel-cpi-confirm"
+          :class="{
+            'vel-cpi-confirm--pulse': viewedChecked && !approvalOpen,
+            'vel-cpi-confirm--off': !viewedChecked || approvalOpen,
+          }"
           data-testid="cpi-view-confirm"
           :disabled="!viewedChecked || approvalOpen"
           @click="onConfirmViewed"
         >
           {{ t('account.commission.cpi.confirmView.cta') }}
-        </VelButton>
+        </button>
       </template>
 
       <!-- 7. Карточка, если модалку закрыли — снова открыть breakdown -->
@@ -520,11 +531,185 @@ const showVerifyCard = computed(() => step.value === 'verify' && !feeModalOpen.v
   transform-origin: center;
 }
 
-.vel-cpi-check {
-  width: 1.1rem;
-  height: 1.1rem;
+/* ─── Conferma lettura: галочка + пульс CTA ─────────────────────────────── */
+
+.vel-cpi-checkrow {
+  display: flex;
+  cursor: pointer;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-ground);
+  transition:
+    border-color 200ms ease,
+    background-color 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.vel-cpi-checkrow--on {
+  border-color: color-mix(in oklab, var(--color-accent) 45%, var(--color-line));
+  background: color-mix(in oklab, var(--color-accent) 8%, var(--color-surface));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent) 12%, transparent);
+}
+
+.vel-cpi-checkrow__text {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  color: var(--color-fg);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
+  padding-block-start: 0.1rem;
+}
+
+/* Кастомный чекбокс: прорисовка галочки */
+.vel-cpi-checkui {
+  position: relative;
+  display: inline-flex;
   flex-shrink: 0;
-  accent-color: var(--color-accent);
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-block-start: 0.05rem;
+  border: 2px solid var(--color-line-strong);
+  border-radius: 0.35rem;
+  background: var(--color-surface);
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.vel-cpi-checkrow--on .vel-cpi-checkui {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  box-shadow: 0 0.2rem 0.55rem color-mix(in oklab, var(--color-accent) 35%, transparent);
+  animation: vel-cpi-check-pop 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.vel-cpi-checkui__tick {
+  width: 0.95rem;
+  height: 0.95rem;
+  opacity: 0;
+  stroke: var(--color-accent-ink, #fff);
+  stroke-width: 2.6;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+.vel-cpi-checkrow--on .vel-cpi-checkui__tick {
+  opacity: 1;
+}
+
+.vel-cpi-checkrow--on .vel-cpi-checkui__tick path {
+  stroke-dasharray: 28;
+  animation: vel-cpi-tick-draw 420ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+/* CTA Conferma: пульс когда галочка стоит; press при клике */
+.vel-cpi-confirm {
+  display: inline-flex;
+  width: 100%;
+  min-height: 2.95rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.15rem;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--color-accent);
+  color: var(--color-accent-ink, #fff);
+  font-family: inherit;
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  box-shadow: 0 0.35rem 1rem color-mix(in oklab, var(--color-accent) 35%, transparent);
+  transition:
+    transform 120ms ease,
+    filter 150ms ease,
+    box-shadow 150ms ease,
+    background-color 150ms ease,
+    opacity 150ms ease;
+}
+
+.vel-cpi-confirm--off {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  filter: grayscale(0.15);
+}
+
+.vel-cpi-confirm--pulse:not(:disabled) {
+  animation: vel-cpi-confirm-pulse 1.2s ease-in-out infinite;
+}
+
+.vel-cpi-confirm:not(:disabled):hover {
+  filter: brightness(1.06);
+  box-shadow: 0 0.45rem 1.2rem color-mix(in oklab, var(--color-accent) 45%, transparent);
+}
+
+.vel-cpi-confirm:not(:disabled):active {
+  animation: none;
+  transform: scale(0.97);
+  filter: brightness(0.96);
+  box-shadow: 0 0.15rem 0.45rem color-mix(in oklab, var(--color-accent) 28%, transparent);
+}
+
+@keyframes vel-cpi-check-pop {
+  0% {
+    transform: scale(0.7);
+  }
+
+  55% {
+    transform: scale(1.12);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes vel-cpi-tick-draw {
+  from {
+    stroke-dashoffset: 28;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes vel-cpi-confirm-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-accent) 50%, transparent),
+      0 0.35rem 1rem color-mix(in oklab, var(--color-accent) 35%, transparent);
+  }
+
+  50% {
+    transform: scale(1.03);
+    box-shadow:
+      0 0 0 10px color-mix(in oklab, var(--color-accent) 0%, transparent),
+      0 0.5rem 1.25rem color-mix(in oklab, var(--color-accent) 48%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-cpi-checkrow--on .vel-cpi-checkui,
+  .vel-cpi-checkrow--on .vel-cpi-checkui__tick path,
+  .vel-cpi-confirm--pulse:not(:disabled) {
+    animation: none;
+  }
+
+  .vel-cpi-confirm:not(:disabled):active {
+    transform: none;
+  }
 }
 
 .vel-cpi-dlg {
