@@ -453,6 +453,8 @@ export default {
         suspended: 'Erogazione sospesa',
         failed: 'Trasferimento rifiutato',
       },
+      /** Короткая плашка busy на карточке баланса (+ спиннер). */
+      busyShort: 'In elaborazione',
       withdraw: 'Preleva i fondi',
       loanDetails: 'Prestito',
       remaining: 'Step ancora da completare',
@@ -1304,6 +1306,8 @@ export default {
         suspended: 'Выдача приостановлена',
         failed: 'Перевод отклонён',
       },
+      /** Короткая плашка busy на карточке баланса (+ спиннер). */
+      busyShort: 'В процессе',
       withdraw: 'Вывести средства',
       loanDetails: 'Кредит',
       remaining: 'Осталось пройти',
