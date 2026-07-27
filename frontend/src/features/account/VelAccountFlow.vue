@@ -202,16 +202,41 @@ function startWithdrawFunnel(): void {
 }
 
 /**
- * Preleva: на КАЖДОМ этапе — выпадающая панель (метод + IBAN + сумма),
- * как на L1. Раньше L2/L3 при уже сохранённом IBAN сразу уходили в воронку
- * без dropdown — на L2 панель «не появлялась».
+ * Preleva — повторный вход после 1-й попытки (pay_fee / messenger / suspended).
+ * Раньше кнопка гасла навсегда: phase ≠ ready, а onWithdraw выходил сразу.
  */
 function onWithdraw(): void {
   if (!canWithdraw.value) return
-  if (!isReady.value && !isSuspended.value) return
+
+  /* Уже в оплате комиссии — снова drawer (закрыли без оплаты). */
+  if (isPayFee.value) {
+    if (withdrawAmount.value <= 0) {
+      payoutPanelOpen.value = true
+      return
+    }
+    commissionOpen.value = true
+    return
+  }
+
+  /* После оплаты: продолжить в чате с менеджером. */
+  if (isMessenger.value || isWaiting.value) {
+    selectTab('support')
+    return
+  }
+
+  /* L2 страховка: снова pay_fee. */
   if (isSuspended.value) {
     openFeeFromSuspension()
+    if (withdrawAmount.value <= 0) {
+      payoutPanelOpen.value = true
+      return
+    }
+    commissionOpen.value = true
+    return
   }
+
+  /* Анимация / policy / отказ — кнопки нет (VelPayoutCard.withdrawLocked). */
+  if (!isReady.value) return
 
   /* Toggle: повторный Preleva закрывает панель. */
   if (payoutPanelOpen.value) {
