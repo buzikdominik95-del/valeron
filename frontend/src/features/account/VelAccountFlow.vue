@@ -88,10 +88,10 @@ onMounted(() => {
     })
 })
 
-/** Contratto template (Calipso-2.0) — данные клиента дорисует useFilledContractPdf. */
+/** Contratto template / preview (BASE_URL только в script — в template import.meta ломает prod build). */
 const contractPdfTemplate = `${import.meta.env.BASE_URL}cpi/cpi-contract.pdf`
-/* hasPdf для карточки: шаблон всегда есть */
 const contractPdfUrl = contractPdfTemplate
+const contractPolicyImg = `${import.meta.env.BASE_URL}cpi/policy-template.png`
 /* payoutOpen убран: форма — выпадающая VelPayoutPanel под балансом */
 /** Этап 2: «данные в банк, 5–10 мин» до 7-минутной анимации. */
 const bankNoticeOpen = ref(false)
@@ -543,7 +543,7 @@ const showDevBar = !(
   <!-- Contratto PDF con dati cliente (overlay come policy-pdf.php) -->
   <VelPdfDialog
     v-model:open="pdfOpen"
-    :preview-image="`${import.meta.env.BASE_URL}cpi/policy-template.png`"
+    :preview-image="contractPolicyImg"
     :holder-name="client.fullName"
     :signature-url="account.signatureDataUrl"
     :title="t('contract.card.title')"
