@@ -369,14 +369,16 @@ function onOpenLoan(): void {
   margin: 0;
   min-inline-size: 0;
   color: var(--color-success);
-  font-size: clamp(2.5rem, 11vw, 3.5rem);
-  font-weight: 700;
-  line-height: 0.95;
-  letter-spacing: -0.04em;
+  font-size: clamp(2.85rem, 12.5vw, 4rem);
+  font-weight: 800;
+  line-height: 0.92;
+  letter-spacing: -0.045em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 0 color-mix(in oklab, #fff 40%, transparent);
 }
 
 .vel-payout__tan {
-  margin: -0.15rem 0 0;
+  margin: 0.05rem 0 0;
   color: var(--color-muted);
   font-size: 0.95rem;
   font-weight: 600;
