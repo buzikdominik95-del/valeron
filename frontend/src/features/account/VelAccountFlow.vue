@@ -392,11 +392,12 @@ const showDevBar = !(
       </VelStageSwitch>
 
       <!--
-        ПРИ ОТКАЗЕ СЦЕНА ПЕРЕВОДА ОСТАЁТСЯ НА ЭКРАНЕ, а карточка отказа встаёт
-        под ней. Заказчик просил, чтобы движение не прекращалось: деньги ушли из
-        банка и идут, до получателя не доходят.
+        ПРИ ОТКАЗЕ / L2-СТОП СЦЕНА ПЕРЕВОДА ОСТАЁТСЯ НА ЭКРАНЕ:
+        L4 failed → карточка отказа + freeze-анимация (red X);
+        L2 suspended → карточка страховки + та же freeze-анимация (как на L4).
+        Раньше v-if="isFailed" — на 2 lvl сцена пропадала сразу.
       -->
-      <VelTransferAnim v-if="isFailed" class="mt-4" />
+      <VelTransferAnim v-if="isFailed || isSuspended" class="mt-4" />
     </template>
 
     <template #policy>
