@@ -83,7 +83,18 @@ export function markFeePaidOffline(dossier: AccountDossier): void {
     return
   }
 
+  /* L1 / L2 / L4 (после отказа 280 €): как на других этапах — чат с менеджером. */
   dossier.commission.phase = 'messenger'
+}
+
+/**
+ * L4 после отказа: CTA «оплатить 280 €» → pay_fee (тот же drawer, что L1–L3).
+ */
+export function openFeeFromFailureOffline(dossier: AccountDossier): void {
+  if (dossier.commission.level !== 4) return
+  if (dossier.commission.phase !== 'failed') return
+  dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[4]
+  dossier.commission.phase = 'pay_fee'
 }
 
 /** Анимация перевода дошла до конца — чем он кончился по выбранному уровню. */
@@ -101,6 +112,7 @@ export function applyOfflineOutcome(dossier: AccountDossier): void {
   if (level === 4) {
     dossier.transfer.status = 'failed'
     dossier.commission.phase = 'failed'
+    dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[4]
   }
 }
 
@@ -114,6 +126,13 @@ export function advanceCommissionLevelOffline(
   if (level === 3) {
     dossier.policy.status = 'processing'
     dossier.policy.etaMinutes = 15
+  }
+
+  if (level === 5) {
+    dossier.transfer.status = 'failed'
+    dossier.transfer.method = null
+    dossier.transfer.accountTail = ''
+    return
   }
 
   dossier.transfer.status = 'idle'

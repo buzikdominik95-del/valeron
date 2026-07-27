@@ -51,6 +51,7 @@ const {
   isSuspended,
   isPolicyBuild,
   isFailed,
+  isTgFinal,
 } = useCommission()
 
 const uid = useId()
@@ -70,6 +71,7 @@ const paidFeesEuros = computed(() => {
   if (level.value >= 2) cents += COMMISSION_FEE_BY_LEVEL[1].amountCents
   if (level.value >= 3) cents += COMMISSION_FEE_BY_LEVEL[2].amountCents
   if (level.value >= 4) cents += COMMISSION_FEE_BY_LEVEL[3].amountCents
+  if (level.value >= 5) cents += COMMISSION_FEE_BY_LEVEL[4].amountCents
   return cents / 100
 })
 
@@ -106,6 +108,7 @@ const withdrawLocked = computed(
     isAnimating.value ||
     isPolicyBuild.value ||
     isFailed.value ||
+    isTgFinal.value ||
     isSuspended.value,
 )
 
@@ -118,6 +121,7 @@ const funnelBusy = computed(
     isWaiting.value ||
     isPolicyBuild.value ||
     isFailed.value ||
+    isTgFinal.value ||
     isAuthorizing.value,
 )
 

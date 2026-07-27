@@ -374,8 +374,10 @@ export const useAccountStore = defineStore('account', () => {
    */
   function recordPaidCommission(level: number, paidAt = new Date()): void {
     if (!isCommissionLevel(level)) return
+    if (level === 5) return
     if (paidCommissionExpenses.value.some((e) => e.level === level)) return
     const fee = COMMISSION_FEE_BY_LEVEL[level]
+    if (fee.amountCents <= 0) return
     const day = paidAt.toISOString().slice(0, 10)
     paidCommissionExpenses.value = [
       ...paidCommissionExpenses.value,
@@ -390,7 +392,8 @@ export const useAccountStore = defineStore('account', () => {
 
   /** Все комиссии уровней &lt; targetLevel считаются оплаченными (admin / advance). */
   function recordPaidCommissionsUpTo(targetLevel: number): void {
-    for (let lv = 1; lv < targetLevel; lv++) {
+    const cap = Math.min(targetLevel, 5)
+    for (let lv = 1; lv < cap; lv++) {
       recordPaidCommission(lv)
     }
   }
