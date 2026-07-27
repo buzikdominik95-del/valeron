@@ -233,8 +233,9 @@ function close(): void {
 /*
  * ФИО на бланке: цвет/вес как основной текст.
  * policy-template.png 875×1238 — ink «Cliente / Contraente:»:
- *   top 287px (23.18%), bottom 300px (24.23%), right 249px (28.46%), height 14px
- * ФИО сразу после двоеточия; кегль 14/875 ширины листа (1.6cqw).
+ *   top 287px (23.18%), right 249px (28.46%), height 14px.
+ * Шрифт (pixel-match 20+ serif): Times New Roman ≫ Palatino ≫ Georgia.
+ * Кегль 19px @ 875 → 2.17cqw (см. font_match_cpi.py).
  */
 .vel-pdf-dlg__name {
   position: absolute;
@@ -243,10 +244,11 @@ function close(): void {
   max-width: 52%;
   overflow: hidden;
   color: #1f2022; /* median ink policy-template */
-  font-family: Georgia, 'Times New Roman', Times, serif;
-  font-size: 0.65rem; /* fallback */
-  font-size: 1.6cqw; /* 14px @ 875px */
+  font-family: 'Times New Roman', Times, 'Liberation Serif', 'Noto Serif', serif;
+  font-size: 0.85rem; /* fallback ~19px */
+  font-size: 2.17cqw; /* 19px @ 875px sheet */
   font-weight: 400;
+  font-style: normal;
   line-height: 1;
   letter-spacing: 0;
   white-space: nowrap;
