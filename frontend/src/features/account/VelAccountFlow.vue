@@ -179,11 +179,9 @@ function startWithdrawFunnel(): void {
 }
 
 /**
- * Preleva:
- *  · Уровень 1 — ВСЕГДА выпадающая панель вниз («Scegli il metodo» + IBAN +
- *    сумма). Не пропускать, даже если IBAN уже из модалки подписи.
- *  · Уровни 2+ и IBAN уже в сторе → панель не открываем, сразу воронка.
- *  · Уровни 2+ без IBAN → панель (ввод один раз).
+ * Preleva: на КАЖДОМ этапе — выпадающая панель (метод + IBAN + сумма),
+ * как на L1. Раньше L2/L3 при уже сохранённом IBAN сразу уходили в воронку
+ * без dropdown — на L2 панель «не появлялась».
  */
 function onWithdraw(): void {
   if (!canWithdraw.value) return
@@ -192,21 +190,12 @@ function onWithdraw(): void {
     openFeeFromSuspension()
   }
 
-  const hasIban = account.ibanProvided && account.ibanFull.trim() !== ''
-
-  /* L1: всегда панель вниз. 2+ без IBAN: тоже панель. */
-  if (level.value === 1 || !hasIban) {
-    if (payoutPanelOpen.value) {
-      payoutPanelOpen.value = false
-      return
-    }
-    payoutPanelOpen.value = true
+  /* Toggle: повторный Preleva закрывает панель. */
+  if (payoutPanelOpen.value) {
+    payoutPanelOpen.value = false
     return
   }
-
-  /* L2 / L3 / L4 + IBAN уже сохранён → сразу вывод без повторного ввода. */
-  payoutPanelOpen.value = false
-  continueAfterPayout(Math.round(approvedAmount.value))
+  payoutPanelOpen.value = true
 }
 
 /** После панели или сразу (если IBAN есть) → drawer / анимация по уровню. */

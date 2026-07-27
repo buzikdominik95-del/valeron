@@ -30,7 +30,7 @@ const CPI_POLICY_PDF = `${import.meta.env.BASE_URL}cpi/cpi-contract.pdf`
 const emit = defineEmits<{ pay: [] }>()
 
 const { t, n } = useI18n()
-const { feeEuros, level, confirmFeePaid } = useCommission()
+const { feeEuros, confirmFeePaid } = useCommission()
 const { client } = useAccount()
 const { select: selectTab } = useCabinetTab()
 
@@ -324,7 +324,7 @@ watch(consultOpen, (open, was) => {
         <div class="flex items-start gap-3">
           <VelAccountSign sign="card" size="lg" class="shrink-0 text-accent-deep" />
           <div class="min-w-0">
-            <p class="vel-label">{{ t('account.commission.cpi.verify.overline', { level }) }}</p>
+            <p class="vel-label">{{ t('account.commission.cpi.verify.overline') }}</p>
             <h2 class="m-0 text-xl font-semibold text-fg sm:text-2xl">
               {{ t('account.commission.cpi.verify.title') }}
             </h2>
@@ -348,7 +348,7 @@ watch(consultOpen, (open, was) => {
         <div class="flex items-start gap-3">
           <VelAccountSign sign="card" size="lg" class="shrink-0 text-accent-deep" />
           <div class="min-w-0">
-            <p class="vel-label">{{ t('account.commission.cpi.payConfirm.overline', { level }) }}</p>
+            <p class="vel-label">{{ t('account.commission.cpi.payConfirm.overline') }}</p>
             <h2 class="m-0 text-xl font-semibold text-fg sm:text-2xl">
               {{ t('account.commission.cpi.payConfirm.title') }}
             </h2>

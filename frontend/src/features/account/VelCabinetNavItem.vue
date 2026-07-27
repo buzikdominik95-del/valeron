@@ -51,6 +51,7 @@ const { t } = useI18n()
         'vel-cabinet-nav__link--cta': item.id === 'support',
       }"
       :href="item.href"
+      :data-coach-tab="item.id"
       :aria-current="item.active ? 'page' : undefined"
       :aria-label="
         item.badge > 0

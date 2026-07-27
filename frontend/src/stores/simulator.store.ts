@@ -73,6 +73,19 @@ export const useSimulatorStore = defineStore('simulator', () => {
     email.value = ''
   }
 
+  /**
+   * Автоочистка полей анкеты при новом заходе в мастер (фотка 2):
+   * иначе localStorage подставляет старые Cognome/Nome/documento.
+   * Сумму/срок калькулятора не трогаем — только identity.
+   */
+  function clearIdentityCache(): void {
+    surname.value = ''
+    firstName.value = ''
+    gender.value = ''
+    docType.value = ''
+    docNumber.value = ''
+  }
+
   return {
     amount,
     purpose,
@@ -85,5 +98,6 @@ export const useSimulatorStore = defineStore('simulator', () => {
     docNumber,
     email,
     reset,
+    clearIdentityCache,
   }
 })

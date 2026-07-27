@@ -182,10 +182,11 @@ const canSign = computed(() => props.documentsReady === true && !isSigned.value)
 
 .vel-contract-card__title-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem 0.75rem;
+  gap: 0.65rem 1rem;
+  width: 100%;
 }
 
 .vel-contract-card__pdf {
@@ -194,6 +195,7 @@ const canSign = computed(() => props.documentsReady === true && !isSigned.value)
   align-items: center;
   gap: 0.35rem;
   min-height: 2.5rem;
+  margin-inline-start: auto;
   padding: 0.35rem 0.85rem;
   border: 1px solid var(--color-line-strong);
   border-radius: var(--radius-control);
@@ -237,12 +239,20 @@ const canSign = computed(() => props.documentsReady === true && !isSigned.value)
 }
 
 .vel-contract-card__title {
+  flex: 1 1 auto;
+  min-inline-size: 0;
   margin: 0;
   color: var(--color-fg);
-  font-size: 1.35rem;
+  font-size: 1.2rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.15;
+}
+
+@media (min-width: 24rem) {
+  .vel-contract-card__title {
+    font-size: 1.35rem;
+  }
 }
 
 .vel-contract-card__notes {

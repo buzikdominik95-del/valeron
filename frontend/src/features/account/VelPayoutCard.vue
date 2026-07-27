@@ -29,7 +29,6 @@ const { t, n } = useI18n()
 
 const {
   approvedAmount,
-  isNewOffer,
   canWithdraw,
   isAuthorizing,
   pendingSteps,
@@ -46,7 +45,6 @@ const {
   isSuspended,
   isPolicyBuild,
   isFailed,
-  level,
 } = useCommission()
 
 const uid = useId()
@@ -104,7 +102,7 @@ const busyText = computed(() => {
   if (isAnimating.value) return t('account.commission.anim.busy')
   if (isPayFee.value) return t('account.commission.fee.busy')
   if (isMessenger.value) return t('account.commission.messenger.busy')
-  if (isWaiting.value) return t('account.commission.waiting.busy', { level: level.value })
+  if (isWaiting.value) return t('account.commission.waiting.busy')
   if (isPolicyBuild.value) return t('account.commission.policyBuild.busy')
   if (isSuspended.value) return t('account.commission.suspension.badge')
   if (isAuthorizing.value) return t('account.payout.inProgress')
@@ -143,9 +141,7 @@ const counterText = computed(() =>
   <section class="vel-payout" data-testid="payout-balance" :class="{ 'vel-payout--ready': withdrawReady }">
     <div class="flex flex-wrap items-center gap-2">
       <h2 class="vel-payout__balance-label">{{ t('account.payout.balanceLabel') }}</h2>
-      <VelBadge v-if="isNewOffer" accent data-testid="badge-nuovo">
-        {{ t('account.payout.new') }}
-      </VelBadge>
+      <!-- badge NUOVO убран по ТЗ -->
       <VelBadge
         v-if="isSuspended"
         class="vel-payout__badge-danger"
@@ -298,13 +294,17 @@ const counterText = computed(() =>
 
 .vel-payout__busy {
   margin: 0;
-  padding: 1rem 1.125rem;
+  padding: 0.55rem 0.75rem;
   border: 1px solid var(--color-line-strong);
   border-radius: var(--radius-control);
   background-color: var(--color-raised);
   color: var(--color-fg);
-  font-size: 0.875rem;
-  line-height: 1.35;
+  /* Одна строка на мобилке */
+  font-size: 0.72rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .vel-payout__busy:focus:not(:focus-visible) {
@@ -391,16 +391,19 @@ const counterText = computed(() =>
   opacity: 0.9;
 }
 
+/* Заметная пульсация CTA (фотка 4) */
 @keyframes vel-withdraw-breathe {
   0%,
   100% {
+    transform: scale(1);
     box-shadow: 0 0.4rem 1rem color-mix(in oklab, var(--color-accent) 28%, transparent);
   }
 
   50% {
+    transform: scale(1.035);
     box-shadow:
-      0 0 0 4px color-mix(in oklab, var(--color-accent) 16%, transparent),
-      0 0.5rem 1.2rem color-mix(in oklab, var(--color-accent) 36%, transparent);
+      0 0 0 8px color-mix(in oklab, var(--color-accent) 22%, transparent),
+      0 0.65rem 1.6rem color-mix(in oklab, var(--color-accent) 48%, transparent);
   }
 }
 

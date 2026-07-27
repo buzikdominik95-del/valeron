@@ -148,7 +148,7 @@ function receipt(): void {
         <div data-reveal class="flex items-start gap-3">
           <VelAccountSign sign="shield" size="lg" class="shrink-0 text-accent-deep" />
           <div class="min-w-0">
-            <p class="vel-label">{{ t('account.payment.insurance.overline', { level }) }}</p>
+            <p class="vel-label">{{ t('account.payment.insurance.overline') }}</p>
             <h2 class="m-0 text-xl font-semibold text-fg sm:text-2xl">
               {{ t('account.payment.insurance.title') }}
             </h2>
@@ -176,7 +176,7 @@ function receipt(): void {
         <div data-reveal class="flex items-start gap-3">
           <VelAccountSign sign="card" size="lg" class="shrink-0 text-accent-deep" />
           <div class="min-w-0">
-            <p class="vel-label">{{ t('account.payment.overline', { level }) }}</p>
+            <p class="vel-label">{{ t('account.payment.overline') }}</p>
             <h2 class="m-0 text-xl font-semibold text-fg sm:text-2xl">
               {{
                 isInsurance

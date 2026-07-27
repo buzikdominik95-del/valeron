@@ -13,10 +13,10 @@ import VelDocIcon from '@/features/account/VelDocIcon.vue'
 import VelDocKindChoice from '@/features/account/VelDocKindChoice.vue'
 import VelDocSlotRow from '@/features/account/VelDocSlotRow.vue'
 import VelDocVerified from '@/features/account/VelDocVerified.vue'
-
 /**
  * Documenti: idle → checking → verified.
- * После verified форма загрузки больше не показывается (только анимация «приняты»).
+ * До accept — вкладка Documenti; после — Profilo (docsAccepted).
+ * Анимация «Documento verificato» ВНУТРИ этой карточки, не отдельным блоком снизу.
  */
 const files = defineModel<File[]>({ default: () => [] })
 const emit = defineEmits<{ verified: [] }>()
@@ -110,10 +110,10 @@ useAutoAnimate(slotList)
 
     <VelDocChecking v-else-if="status === 'checking'" />
 
-    <!-- Dopo verifica: niente re-upload — solo esito animato «accettati». -->
-    <div v-else class="vel-docup__done">
+    <!-- Verified: анимация + lock внутри той же карточки (не отдельным блоком) -->
+    <div v-else class="vel-docup__done" role="status">
       <VelDocVerified />
-      <p class="vel-docup__done-note" role="status">
+      <p class="vel-docup__done-note">
         {{ t('account.docs.lockedAfterVerify') }}
       </p>
     </div>
@@ -232,8 +232,19 @@ useAutoAnimate(slotList)
 .vel-docup__done {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
-  padding-block: 0.5rem;
+  gap: 0.75rem;
+  padding-block-start: 0.25rem;
+}
+
+/* Анимация встроена в карточку — чуть компактнее, без внешнего « visания» */
+.vel-docup__done :deep(.vel-docdone) {
+  padding-block: 0.25rem 0.5rem;
+  gap: 0.65rem;
+}
+
+.vel-docup__done :deep(.vel-docdone__sign) {
+  inline-size: 4.75rem;
+  block-size: 4.75rem;
 }
 
 .vel-docup__done-note {
@@ -245,6 +256,7 @@ useAutoAnimate(slotList)
   color: var(--color-success);
   font-size: 0.85rem;
   font-weight: 600;
+  line-height: 1.4;
   text-align: center;
 }
 </style>

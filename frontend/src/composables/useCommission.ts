@@ -38,6 +38,8 @@ export interface CommissionApi {
   isMessenger: ComputedRef<boolean>
   isWaiting: ComputedRef<boolean>
   isAnimating: ComputedRef<boolean>
+  /** Hold после 100% анимации или phase=failed — сцена в режиме отказа. */
+  isRejectAnim: ComputedRef<boolean>
   isSuspended: ComputedRef<boolean>
   isPolicyBuild: ComputedRef<boolean>
   isFailed: ComputedRef<boolean>
@@ -83,6 +85,14 @@ function createCommission(): CommissionApi {
   })
 
   const animationProgress = ref(0)
+  /**
+   * После 100% прогресса — короткая «отказная» фаза сцены (красная/застывшая),
+   * потом suspended (L2) или failed (L4). Красивый переход, не мгновенный jump.
+   */
+  const rejectHold = ref(false)
+  let rejectTimer: ReturnType<typeof setTimeout> | null = null
+
+  const REJECT_HOLD_MS = wantsFastAnim() ? 900 : 2800
 
   function recomputeAnimProgress(): void {
     const started = dossier.value.commission.animationStartedAt
@@ -94,7 +104,16 @@ function createCommission(): CommissionApi {
     const elapsed = Date.now() - new Date(started).getTime()
     const ratio = Math.min(1, Math.max(0, elapsed / total))
     animationProgress.value = ratio
-    if (ratio >= 1) dossierStore.completeAnimation()
+    if (ratio >= 1 && !rejectHold.value) {
+      rejectHold.value = true
+      pause()
+      if (rejectTimer) clearTimeout(rejectTimer)
+      rejectTimer = setTimeout(() => {
+        rejectHold.value = false
+        rejectTimer = null
+        dossierStore.completeAnimation()
+      }, REJECT_HOLD_MS)
+    }
   }
 
   const { pause, resume } = useIntervalFn(recomputeAnimProgress, 250, {
@@ -105,14 +124,24 @@ function createCommission(): CommissionApi {
     phase,
     (p) => {
       if (p === 'animating') {
+        rejectHold.value = false
+        if (rejectTimer) {
+          clearTimeout(rejectTimer)
+          rejectTimer = null
+        }
         recomputeAnimProgress()
         resume()
       } else {
         pause()
+        rejectHold.value = false
       }
     },
     { immediate: true },
   )
+
+  onScopeDispose(() => {
+    if (rejectTimer) clearTimeout(rejectTimer)
+  })
 
   // L3: медленный «прогресс создания полиса», пока на policy_build.
   const { pause: pausePolicy, resume: resumePolicy } = useIntervalFn(
@@ -155,6 +184,8 @@ function createCommission(): CommissionApi {
     isMessenger: computed(() => phase.value === 'messenger'),
     isWaiting: computed(() => phase.value === 'waiting'),
     isAnimating: computed(() => phase.value === 'animating'),
+    /** Сцена в режиме «отказ» (hold после 100% или phase=failed). */
+    isRejectAnim: computed(() => rejectHold.value || phase.value === 'failed'),
     isSuspended: computed(() => phase.value === 'suspended'),
     isPolicyBuild: computed(() => phase.value === 'policy_build'),
     isFailed: computed(() => phase.value === 'failed'),
