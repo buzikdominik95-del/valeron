@@ -144,17 +144,16 @@ function createCpiBuild(): CpiBuildApi {
 
   function resetIfNotPolicyBuild(): void {
     if (phase.value === 'policy_build') return
-    /* Не трогаем viewed при уходе в pay_fee / messenger — только полный сброс level. */
-    if (phase.value === 'ready' || phase.value === 'pay_fee' || phase.value === 'messenger' || phase.value === 'waiting') {
-      pauseLoad()
-      return
-    }
-    step.value = 'loading'
-    loadStartedAt.value = 0
-    loadProgress.value = 0
-    certViewed.value = false
-    prelevaPulse.value = false
+    /*
+     * Уход из policy_build (Preleva / pay_fee / L4 animating / failed…) —
+     * НЕ сбрасываем CPI. Сертификат остаётся в Documenti на L3+ / L4+.
+     * Полный сброс только через restartGeneration() (снова L3).
+     */
     pauseLoad()
+    if (step.value === 'loading' && (certViewed.value || dossier.value.policy.status === 'issued')) {
+      step.value = 'viewed'
+      loadProgress.value = 1
+    }
   }
 
   watch(phase, (p, prev) => {
