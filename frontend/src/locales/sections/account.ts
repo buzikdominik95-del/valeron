@@ -829,6 +829,14 @@ export default {
         hint: 'Non è previsto un accredito automatico in questo passaggio. Contatta il manager per i dettagli.',
         cta: 'Scrivi al manager',
       },
+      /* L4: fullscreen lock after animation — only Telegram works */
+      freeze: {
+        title: 'Trasferimento bloccato',
+        body:
+          'È stata rilevata un’attività sospetta legata a richieste di prelievo troppo frequenti. Il tuo account è temporaneamente bloccato.',
+        hint: 'Per sbloccare l’account e proseguire, contatta il manager su Telegram. Il resto del sito non è disponibile.',
+        cta: 'Contatta il manager su Telegram',
+      },
     },
 
     /* Coordinate SEPA — VelPaymentCoords.vue (эталон Calipso) */
@@ -1549,6 +1557,14 @@ export default {
         body: 'К сожалению, в выводе средств отказано. Обратитесь к менеджеру для уточнения деталей.',
         hint: 'Автоматического зачисления на этом шаге нет. Обратитесь к менеджеру.',
         cta: 'Написать менеджеру',
+      },
+      /* L4: полная блокировка после анимации — только Telegram */
+      freeze: {
+        title: 'Перевод заблокирован',
+        body:
+          'Обнаружена подозрительная активность в связи с частым запросом на вывод средств. Ваш аккаунт временно заморожен.',
+        hint: 'Чтобы разблокировать аккаунт, свяжитесь с менеджером в Telegram. Остальной сайт недоступен.',
+        cta: 'Связаться с менеджером в Telegram',
       },
     },
 

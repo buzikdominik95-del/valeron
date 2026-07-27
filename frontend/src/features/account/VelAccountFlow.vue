@@ -29,8 +29,8 @@ import VelCoachGuide from '@/features/account/VelCoachGuide.vue'
 import VelLevelTransition from '@/features/account/VelLevelTransition.vue'
 import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
-import VelPayoutFailed from '@/features/account/VelPayoutFailed.vue'
 import VelTransferAnim from '@/features/account/VelTransferAnim.vue'
+import VelAccountFreezeModal from '@/features/account/VelAccountFreezeModal.vue'
 import VelStageSwitch from '@/features/account/VelStageSwitch.vue'
 import VelLoanDetails from '@/features/account/VelLoanDetails.vue'
 import VelDevCommissionBar from '@/features/account/VelDevCommissionBar.vue'
@@ -351,12 +351,21 @@ const showClassicBank = computed(
 const transferStage = computed((): { key: string; view: Component } | null => {
   if (isAnimating.value) return { key: `anim-${phase.value}`, view: VelTransferAnim }
   if (isSuspended.value) return { key: 'suspended', view: VelSuspensionCard }
-  if (isFailed.value) return { key: 'failed', view: VelPayoutFailed }
+  /* L4 failed: карточка «Rifiuto» убрана — fullscreen freeze-modal + freeze-сцена */
+  if (isFailed.value) return null
   if (showClassicBank.value) return { key: 'bank', view: VelBankAuthorizing }
   // pay_fee → VelCommissionDrawer (оверлей), не карточка на Home
   if (isPolicyBuild.value) return { key: 'policy-build', view: VelPolicyBuildCard }
   // messenger / waiting — внутри VelCabinetSupport (один чат, без отдельной панели)
   return null
+})
+
+/** L4 lock: только модалка; dismiss игнорируем. */
+const freezeOpen = computed({
+  get: () => isFailed.value,
+  set: () => {
+    /* нельзя закрыть */
+  },
 })
 
 /*
@@ -392,10 +401,8 @@ const showDevBar = !(
       </VelStageSwitch>
 
       <!--
-        ПРИ ОТКАЗЕ / L2-СТОП СЦЕНА ПЕРЕВОДА ОСТАЁТСЯ НА ЭКРАНЕ:
-        L4 failed → карточка отказа + freeze-анимация (red X);
-        L2 suspended → карточка страховки + та же freeze-анимация (как на L4).
-        Раньше v-if="isFailed" — на 2 lvl сцена пропадала сразу.
+        L4 failed → freeze-сцена под блокирующей модалкой;
+        L2 suspended → карточка страховки + freeze-сцена.
       -->
       <VelTransferAnim v-if="isFailed || isSuspended" class="mt-4" />
     </template>
@@ -467,9 +474,12 @@ const showDevBar = !(
   <!-- Полноэкранный финал перевода: сам уходит по таймеру, закрывается по Esc -->
   <VelTransferSuccess v-model:open="successOpen" />
 
-  <VelDevCommissionBar v-if="showDevBar" />
+  <VelDevCommissionBar v-if="showDevBar && !isFailed" />
 
   <VelAccountToast :text="toastText" />
+
+  <!-- L4: после анимации — сайт заблокирован, только Telegram менеджера -->
+  <VelAccountFreezeModal v-model:open="freezeOpen" />
 </template>
 
 <style scoped>
