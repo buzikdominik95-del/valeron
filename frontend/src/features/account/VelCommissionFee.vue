@@ -33,6 +33,16 @@ function lineLabel(key: 'tax' | 'service' | 'sign'): string {
   return t(`account.commission.fee.lines.${labelSet.value}.${key}`)
 }
 
+function lineAmount(euros: number): string {
+  const whole = Number.isInteger(euros) || Math.abs(euros - Math.round(euros)) < 0.005
+  return n(euros, {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: whole ? 0 : 2,
+    maximumFractionDigits: whole ? 0 : 2,
+  })
+}
+
 function onSubmit(): void {
   confirmFeePaid()
   emit('paid')
@@ -63,17 +73,17 @@ function onSubmit(): void {
 
       <p data-reveal class="m-0 text-sm text-muted">{{ body }}</p>
 
-      <!-- Сумма + breakdown (как Calipso) -->
+      <!-- Сумма + breakdown: ровная сетка label | amount -->
       <div data-reveal class="vel-fee-amount rounded-control border border-line bg-ground px-4 py-3">
         <span class="vel-label">{{ t('account.commission.fee.amountLabel') }}</span>
-        <div class="vel-fee-amount__row mt-1">
-          <span class="vel-num text-2xl font-semibold text-accent-deep">{{ amountText }}</span>
-          <dl class="vel-fee-amount__lines">
-            <div v-for="line in parts.lines" :key="line.key" class="vel-fee-amount__line">
-              <dt>{{ lineLabel(line.key) }}</dt>
-              <dd class="vel-num">{{ n(line.amountEuros, 'currency') }}</dd>
-            </div>
-          </dl>
+        <div class="vel-fee-amount__row">
+          <span class="vel-fee-amount__total vel-num">{{ amountText }}</span>
+          <ul class="vel-fee-amount__lines" :aria-label="t('account.commission.fee.amountLabel')">
+            <li v-for="line in parts.lines" :key="line.key" class="vel-fee-amount__line">
+              <span class="vel-fee-amount__label">{{ lineLabel(line.key) }}</span>
+              <span class="vel-fee-amount__sum vel-num">{{ lineAmount(line.amountEuros) }}</span>
+            </li>
+          </ul>
         </div>
       </div>
 
@@ -94,6 +104,9 @@ function onSubmit(): void {
 }
 
 .vel-fee-amount {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
   transition:
     border-color 200ms ease,
     box-shadow 200ms ease;
@@ -105,38 +118,74 @@ function onSubmit(): void {
 }
 
 .vel-fee-amount__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem 1.25rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(10.5rem, auto);
+  align-items: center;
+  gap: 0.75rem 1.35rem;
+}
+
+.vel-fee-amount__total {
+  font-size: clamp(1.5rem, 5vw, 1.85rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--color-accent-deep);
+  font-variant-numeric: tabular-nums;
 }
 
 .vel-fee-amount__lines {
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 0.12rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
   margin: 0;
-  justify-content: end;
+  padding: 0.1rem 0 0.1rem 0.9rem;
+  border-inline-start: 1px solid var(--color-line);
+  list-style: none;
 }
 
 .vel-fee-amount__line {
-  display: contents;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3.75rem;
+  align-items: baseline;
+  gap: 0.55rem;
 }
 
-.vel-fee-amount__line dt {
-  margin: 0;
+.vel-fee-amount__label {
+  min-inline-size: 0;
   color: var(--color-muted);
   font-size: 0.75rem;
   font-weight: 500;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.vel-fee-amount__line dd {
-  margin: 0;
+.vel-fee-amount__sum {
   color: var(--color-fg);
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  text-align: right;
+  line-height: 1.25;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 22.5rem) {
+  .vel-fee-amount__row {
+    grid-template-columns: 1fr;
+  }
+
+  .vel-fee-amount__lines {
+    padding-inline-start: 0;
+    padding-block-start: 0.55rem;
+    border-inline-start: none;
+    border-block-start: 1px solid var(--color-line);
+  }
+
+  .vel-fee-amount__line {
+    grid-template-columns: minmax(0, 1fr) 4rem;
+  }
 }
 
 @keyframes vel-fee-glow {
