@@ -13,6 +13,8 @@ import VelTransferScene from '@/features/account/VelTransferScene.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
 import VelBorderBeam from '@/components/magic/VelBorderBeam.vue'
 import VelScanLine from '@/components/magic/VelScanLine.vue'
+import VelBlurFade from '@/components/magic/VelBlurFade.vue'
+import VelTextAnimate from '@/components/magic/VelTextAnimate.vue'
 import VelButton from '@/components/ui/VelButton.vue'
 
 /** L2/L4: сцена перевода + кнопка «мои реквизиты» → модалка (не dropdown). */
@@ -138,6 +140,8 @@ function closeCoords(): void {
       :aria-labelledby="coordsTitleId"
     >
       <div class="vel-coords-dlg__panel">
+        <VelBorderBeam :duration-ms="6200" :size="40" />
+
         <button
           type="button"
           class="vel-coords-dlg__x"
@@ -147,20 +151,38 @@ function closeCoords(): void {
           ×
         </button>
 
-        <h2 :id="coordsTitleId" class="vel-coords-dlg__title m-0">
-          {{ t('account.commission.anim.coordsTitle') }}
-        </h2>
+        <!-- Magic UI–style: blur-fade + word reveal при каждом открытии -->
+        <template v-if="coordsOpen">
+          <VelBlurFade :delay-ms="40" :duration-ms="420" :offset-px="10">
+            <p class="vel-coords-dlg__eyebrow m-0">
+              {{ t('account.commission.anim.showCoords') }}
+            </p>
+          </VelBlurFade>
 
-        <div class="vel-coords-dlg__card">
-          <p class="m-0 text-base font-semibold text-fg">{{ userHolder }}</p>
-          <p class="vel-num m-0 mt-2 text-base font-semibold text-fg" lang="en">
-            {{ userIban }}
-          </p>
-        </div>
+          <VelTextAnimate
+            :id="coordsTitleId"
+            as="h2"
+            class="vel-coords-dlg__title"
+            animation="blurUp"
+            :stagger-ms="42"
+            :duration-ms="380"
+            :delay-ms="80"
+            :text="t('account.commission.anim.coordsTitle')"
+          />
 
-        <VelButton type="button" block size="lg" @click="closeCoords">
-          {{ t('common.close') }}
-        </VelButton>
+          <VelBlurFade :delay-ms="220" :duration-ms="480" :offset-px="14">
+            <div class="vel-coords-dlg__card">
+              <p class="vel-coords-dlg__holder m-0">{{ userHolder }}</p>
+              <p class="vel-coords-dlg__iban vel-num m-0" lang="en">{{ userIban }}</p>
+            </div>
+          </VelBlurFade>
+
+          <VelBlurFade :delay-ms="360" :duration-ms="420" :offset-px="10">
+            <VelButton type="button" block size="lg" @click="closeCoords">
+              {{ t('common.close') }}
+            </VelButton>
+          </VelBlurFade>
+        </template>
       </div>
     </dialog>
   </section>
@@ -451,34 +473,45 @@ function closeCoords(): void {
   }
 }
 
-/* Модалка «Le mie coordinate» */
+/* Модалка «Le mie coordinate» — мягче, с beam и reveal. */
 .vel-coords-dlg {
-  inline-size: min(100% - 2rem, 24rem);
-  max-block-size: min(90dvh, 28rem);
+  inline-size: min(100% - 2rem, 24.5rem);
+  max-block-size: min(90dvh, 30rem);
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0;
-  border: 1px solid var(--color-line);
+  border: 1px solid color-mix(in oklab, var(--color-accent) 22%, var(--color-line));
   border-radius: var(--radius-panel);
   background: var(--color-surface);
   color: var(--color-fg);
-  box-shadow: 0 1.5rem 3rem color-mix(in oklab, var(--color-fg) 24%, transparent);
+  box-shadow:
+    0 1.75rem 3.25rem color-mix(in oklab, var(--color-fg) 22%, transparent),
+    0 0 0 1px color-mix(in oklab, var(--color-accent) 8%, transparent);
 }
 
 .vel-coords-dlg::backdrop {
-  background: color-mix(in oklab, var(--color-fg) 55%, transparent);
+  background: color-mix(in oklab, var(--color-accent-deep) 48%, transparent);
+  backdrop-filter: blur(3px);
 }
 
 .vel-coords-dlg__panel {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 1.1rem;
-  padding: 1.35rem 1.4rem 1.5rem;
+  gap: 1rem;
+  overflow: hidden;
+  padding: 1.45rem 1.45rem 1.55rem;
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in oklab, var(--color-accent) 8%, var(--color-surface)) 0%,
+      var(--color-surface) 42%
+    );
 }
 
 .vel-coords-dlg__x {
   position: absolute;
+  z-index: 2;
   top: 0.55rem;
   right: 0.55rem;
   display: inline-flex;
@@ -488,7 +521,7 @@ function closeCoords(): void {
   justify-content: center;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-round);
-  background: var(--color-ground);
+  background: color-mix(in oklab, var(--color-surface) 88%, transparent);
   font-size: 1.35rem;
   line-height: 1;
   cursor: pointer;
@@ -499,33 +532,73 @@ function closeCoords(): void {
   background: var(--color-raised);
 }
 
-.vel-coords-dlg__title {
-  padding-inline-end: 2.5rem;
-  font-size: 1.2rem;
+.vel-coords-dlg__eyebrow {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.25;
+  letter-spacing: 0.12em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.vel-coords-dlg__title {
+  margin: 0;
+  padding-inline-end: 2.5rem;
+  color: var(--color-accent-deep);
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
 }
 
 .vel-coords-dlg__card {
-  padding: 1rem 1.05rem;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-control);
-  background: var(--color-ground);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 1.1rem 1.15rem;
+  border: 1px solid color-mix(in oklab, var(--color-accent) 20%, var(--color-line));
+  border-radius: var(--radius-panel);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in oklab, var(--color-accent) 7%, var(--color-ground)) 0%,
+      var(--color-ground) 100%
+    );
+  box-shadow: inset 0 1px 0 color-mix(in oklab, #fff 55%, transparent);
+}
+
+.vel-coords-dlg__holder {
+  color: var(--color-fg);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.vel-coords-dlg__iban {
+  color: var(--color-accent-deep);
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  word-break: break-all;
 }
 
 .vel-coords-dlg[open] {
-  animation: vel-coords-in 200ms ease-out;
+  animation: vel-coords-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes vel-coords-in {
   from {
     opacity: 0;
-    transform: translateY(0.65rem);
+    filter: blur(6px);
+    transform: translateY(0.85rem) scale(0.98);
   }
 
   to {
     opacity: 1;
+    filter: blur(0);
     transform: none;
   }
 }
