@@ -169,11 +169,6 @@ onUnmounted(() => {
   .vel-programs__track {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  /* pager только для mobile */
-  .vel-programs__pager {
-    display: none;
-  }
 }
 
 @media (min-width: 1024px) {
@@ -237,6 +232,22 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding-block: 0.1rem 0.2rem;
+}
+
+/*
+  Капсула-пейджер — только для mobile-карусели. С sm вверх карточки лежат
+  сеткой (2 / 4), листать нечего, и точки лишние.
+
+  ПОРЯДОК ВАЖЕН. Это правило стоит ПОСЛЕ базового .vel-programs__pager
+  { display: flex } намеренно: специфичность у них равная, и решает источник.
+  Раньше скрытие жило в блоке @media (min-width: 640px) ВЫШЕ базового flex —
+  и flex, будучи позже по файлу, перебивал display:none. Точки показывались
+  на десктопе поверх сетки. Теперь скрытие идёт последним и выигрывает.
+*/
+@media (min-width: 640px) {
+  .vel-programs__pager {
+    display: none;
+  }
 }
 
 .vel-programs__capsule {

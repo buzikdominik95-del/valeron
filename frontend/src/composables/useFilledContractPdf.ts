@@ -11,7 +11,9 @@ import { makeTypedSignatureDataUrl } from '@/lib/auto-signature'
 
 /**
  * PDF contratto con dati cliente (come policy-pdf.php su Calipso).
- * Пересобирает blob при открытии / смене данных.
+ *
+ * При открытии сразу отдаём шаблон (чтобы диалог не был пустым), затем
+ * в фоне собираем заполненный blob и подменяем src.
  */
 export function useFilledContractPdf(templateUrl: string, open: Ref<boolean>) {
   const { n } = useI18n()
@@ -24,8 +26,24 @@ export function useFilledContractPdf(templateUrl: string, open: Ref<boolean>) {
   const filledUrl = shallowRef<string | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
+  let rebuildToken = 0
 
-  const displayUrl = computed(() => filledUrl.value ?? templateUrl)
+  /** Абсолютный URL шаблона — fetch/iframe не ломаются на base path. */
+  const absoluteTemplate = computed(() => {
+    const raw = templateUrl.trim()
+    if (raw === '') return ''
+    if (/^https?:\/\//i.test(raw) || raw.startsWith('blob:') || raw.startsWith('data:')) {
+      return raw
+    }
+    if (typeof window === 'undefined') return raw
+    try {
+      return new URL(raw, window.location.origin).href
+    } catch {
+      return raw
+    }
+  })
+
+  const displayUrl = computed(() => filledUrl.value ?? absoluteTemplate.value)
 
   function revoke(): void {
     if (filledUrl.value?.startsWith('blob:')) {
@@ -35,8 +53,17 @@ export function useFilledContractPdf(templateUrl: string, open: Ref<boolean>) {
   }
 
   async function rebuild(): Promise<void> {
+    const token = ++rebuildToken
     loading.value = true
     error.value = null
+
+    const template = absoluteTemplate.value
+    if (template === '') {
+      error.value = 'PDF template missing'
+      loading.value = false
+      return
+    }
+
     try {
       const fullName =
         client.value.fullName.trim() ||
@@ -54,14 +81,21 @@ export function useFilledContractPdf(templateUrl: string, open: Ref<boolean>) {
         }
       }
 
-      const sig =
-        signatureDataUrl.value ||
-        (signed.value ? makeTypedSignatureDataUrl(fullName) : null) ||
-        undefined
+      let sig: string | undefined
+      try {
+        sig =
+          signatureDataUrl.value ||
+          (signed.value ? makeTypedSignatureDataUrl(fullName) || undefined : undefined)
+      } catch {
+        sig = signatureDataUrl.value || undefined
+      }
 
       const base = import.meta.env.BASE_URL
+      const stampAbs = new URL(`${base}cpi/lender-stamp.png`, window.location.origin).href
+      const lenderAbs = new URL(`${base}cpi/lender-signature.png`, window.location.origin).href
+
       const url = await fillContractPdfObjectUrl(
-        templateUrl,
+        template,
         {
           fullName: fullName || 'Cliente',
           email: client.value.email || sim.email || undefined,
@@ -74,31 +108,47 @@ export function useFilledContractPdf(templateUrl: string, open: Ref<boolean>) {
           signatureDataUrl: sig,
         },
         {
-          /* PNG: pdf-lib non supporta webp */
-          stampUrl: `${base}cpi/lender-stamp.png`,
-          lenderSigUrl: `${base}cpi/lender-signature.png`,
+          stampUrl: stampAbs,
+          lenderSigUrl: lenderAbs,
         },
       )
+
+      if (token !== rebuildToken) {
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url)
+        return
+      }
 
       revoke()
       filledUrl.value = url
     } catch (e) {
+      if (token !== rebuildToken) return
+      /* Шаблон остаётся в displayUrl — договор всё равно виден. */
       error.value = e instanceof Error ? e.message : 'PDF fill failed'
       revoke()
     } finally {
-      loading.value = false
+      if (token === rebuildToken) loading.value = false
     }
   }
 
   watch(
     open,
     (isOpen) => {
-      if (isOpen) void rebuild()
-      else revoke()
+      if (isOpen) {
+        /* Не чистим filled сразу — если уже есть blob, покажем его, пока идёт rebuild. */
+        void rebuild()
+        return
+      }
+      rebuildToken += 1
+      revoke()
+      error.value = null
+      loading.value = false
     },
   )
 
-  onScopeDispose(revoke)
+  onScopeDispose(() => {
+    rebuildToken += 1
+    revoke()
+  })
 
   return { displayUrl, loading, error, rebuild }
 }
