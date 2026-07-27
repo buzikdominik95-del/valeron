@@ -25,7 +25,6 @@ import VelContractSheet from '@/features/account/VelContractSheet.vue'
 import VelContractIban from '@/features/account/VelContractIban.vue'
 import VelSignaturePad from '@/features/account/VelSignaturePad.vue'
 import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
-import { useFilledContractPdf } from '@/composables/useFilledContractPdf'
 import VelLevelTransition from '@/features/account/VelLevelTransition.vue'
 import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
@@ -44,7 +43,7 @@ import { useNotices } from '@/composables/useNotices'
 const { t } = useI18n()
 const account = useAccountStore()
 const dossier = useDossierStore()
-const { steps, canWithdraw, isAuthorizing, allDone, approvedAmount } = useAccount()
+const { steps, canWithdraw, isAuthorizing, allDone, approvedAmount, client } = useAccount()
 const {
   isPayFee,
   isMessenger,
@@ -379,14 +378,9 @@ watch(
 
 /** PDF в модалке: шаблон + ФИО/сумма/IBAN/подпись как на старом проде. */
 const pdfOpen = ref(false)
-const {
-  displayUrl: filledPdfUrl,
-  loading: pdfFilling,
-  error: pdfError,
-} = useFilledContractPdf(contractPdfTemplate, pdfOpen)
 
 function onOpenPdf(): void {
-  /* Сразу открываем модалку — шаблон виден, fill идёт в фоне. */
+  /* Чистая модалка с бланком + ФИО (без PDF toolbar / печати). */
   pdfOpen.value = true
 }
 
@@ -549,10 +543,10 @@ const showDevBar = !(
   <!-- Contratto PDF con dati cliente (overlay come policy-pdf.php) -->
   <VelPdfDialog
     v-model:open="pdfOpen"
-    :src="filledPdfUrl"
+    :preview-image="`${import.meta.env.BASE_URL}cpi/policy-template.png`"
+    :holder-name="client.fullName"
+    :signature-url="account.signatureDataUrl"
     :title="t('contract.card.title')"
-    :loading="pdfFilling"
-    :error="pdfError"
   />
 
   <!-- Prestito: модалка с 2 блоками (Dati personali + ammortamento) -->
