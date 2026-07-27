@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useTimeoutFn } from '@vueuse/core'
 import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
+import { useCpiBuild } from '@/composables/useCpiBuild'
 import { useAccountStore } from '@/stores/account.store'
 import { COMMISSION_FEE_BY_LEVEL } from '@/api/commission'
 import VelBadge from '@/components/ui/VelBadge.vue'
@@ -53,6 +54,8 @@ const {
   isFailed,
   isTgFinal,
 } = useCommission()
+
+const { prelevaPulse, clearPrelevaPulse } = useCpiBuild()
 
 const uid = useId()
 const lockedId = `vel-payout-locked-${uid}`
@@ -128,6 +131,14 @@ const funnelBusy = computed(
 const disabled = computed(() => !canWithdraw.value || withdrawLocked.value)
 
 const withdrawReady = computed(() => !disabled.value && !props.panelOpen)
+
+/** После просмотра CPI — более заметный пульс Preleva. */
+const withdrawBoost = computed(() => withdrawReady.value && prelevaPulse.value)
+
+function onWithdrawClick(): void {
+  if (prelevaPulse.value) clearPrelevaPulse()
+  emit('withdraw')
+}
 
 /**
  * Есть непросмотренные изменения в Prestito (оплаченная комиссия / смена этапа).
@@ -279,13 +290,14 @@ function onOpenLoan(): void {
       class="vel-payout__withdraw"
       :class="{
         'vel-payout__withdraw--pulse': withdrawReady,
+        'vel-payout__withdraw--boost': withdrawBoost,
         'vel-payout__withdraw--dim': props.panelOpen,
       }"
       data-testid="payout-withdraw"
       :disabled="disabled"
       :aria-describedby="reasonId"
       :aria-expanded="props.panelOpen"
-      @click="emit('withdraw')"
+      @click="onWithdrawClick"
     >
       <VelAccountSign sign="bank" class="vel-payout__withdraw-icon" />
       {{ t('account.payout.withdraw') }}
@@ -635,6 +647,11 @@ function onOpenLoan(): void {
   animation: vel-withdraw-breathe 2.2s ease-in-out infinite;
 }
 
+/* После CPI: сильнее и быстрее, чтобы нельзя было не заметить */
+.vel-payout__withdraw--boost {
+  animation: vel-withdraw-boost 1.05s ease-in-out infinite;
+}
+
 .vel-payout__withdraw--dim,
 .vel-payout__withdraw:disabled.vel-payout__withdraw--dim {
   opacity: 0.55;
@@ -663,8 +680,26 @@ function onOpenLoan(): void {
   }
 }
 
+@keyframes vel-withdraw-boost {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-success) 45%, transparent),
+      0 0.45rem 1.15rem color-mix(in oklab, var(--color-success) 38%, transparent);
+  }
+
+  50% {
+    transform: scale(1.07);
+    box-shadow:
+      0 0 0 14px color-mix(in oklab, var(--color-success) 0%, transparent),
+      0 0.85rem 2rem color-mix(in oklab, var(--color-success) 55%, transparent);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .vel-payout__withdraw--pulse,
+  .vel-payout__withdraw--boost,
   .vel-payout__prestito-live,
   .vel-payout__busy-text,
   .vel-payout__busy-dots span {

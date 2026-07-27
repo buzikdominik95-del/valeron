@@ -796,8 +796,8 @@ export default {
         ready: {
           overline: 'Certificato CPI',
           title: 'Certificato pronto',
-          body: 'Il certificato è stato generato. Avvia l’attivazione per proseguire.',
-          cta: 'Avvia l’attivazione',
+          body: 'Il certificato CPI è stato generato. Aprilo, consultalo e chiudi la finestra: tornerai alla Home per prelevare i fondi.',
+          cta: 'Apri il certificato',
         },
         activating: {
           overline: 'Attivazione',
@@ -1571,8 +1571,8 @@ export default {
         ready: {
           overline: 'Сертификат CPI',
           title: 'Сертификат готов',
-          body: 'Сертификат сформирован. Запустите активацию, чтобы продолжить.',
-          cta: 'Запустить активацию',
+          body: 'Сертификат CPI сформирован. Откройте его, просмотрите и закройте окно — вернётесь на Home, чтобы вывести средства.',
+          cta: 'Открыть сертификат',
         },
         activating: {
           overline: 'Активация',

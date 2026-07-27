@@ -69,7 +69,11 @@ export function beginWithdrawOffline(dossier: AccountDossier): void {
 export function markFeePaidOffline(dossier: AccountDossier): void {
   const level = dossier.commission.level
 
-  if (level === 3 && dossier.commission.phase === 'policy_build') {
+  /*
+   * L3: после CPI пользователь платит 136 € как на L1 → messenger.
+   * (раньше ошибочно возвращали в policy_build).
+   */
+  if (level === 3) {
     dossier.commission.policyProgress = 1
     dossier.policy.status = 'issued'
     dossier.policy.etaMinutes = 0
@@ -77,13 +81,7 @@ export function markFeePaidOffline(dossier: AccountDossier): void {
     return
   }
 
-  if (level === 3) {
-    dossier.commission.phase = 'policy_build'
-    dossier.commission.policyProgress = 0.08
-    return
-  }
-
-  /* L1 / L2 / L4 (после отказа 280 €): как на других этапах — чат с менеджером. */
+  /* L1 / L2 / L4 (после отказа 280 €): чат с менеджером. */
   dossier.commission.phase = 'messenger'
 }
 
