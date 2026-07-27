@@ -136,8 +136,9 @@ useAutoAnimate(slotList)
 .vel-docup {
   display: flex;
   flex-direction: column;
-  gap: 0.875rem;
-  padding: 1.125rem;
+  gap: var(--vel-cab-card-gap, 0.65rem);
+  min-inline-size: 0;
+  padding: var(--vel-cab-card-pad, 1rem);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-panel);
   background-color: var(--color-surface);

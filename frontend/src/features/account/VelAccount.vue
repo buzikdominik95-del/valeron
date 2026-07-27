@@ -279,7 +279,18 @@ watch(tab, async (next) => {
      настоящего, залипшая колонка Home полезет под полосу шагов. */
   --vel-track-h: 6.1rem;
   --vel-tabbar-h: 4rem;
-  --vel-tabbar-gap: 0.5rem;
+  --vel-tabbar-gap: 0.4rem;
+  /*
+    Плотность ЛК: меньше «воздуха» без ломки min 2.75rem touch targets.
+    Карточки/страницы читают эти переменные.
+  */
+  --vel-cab-pad-x: max(0.7rem, env(safe-area-inset-left, 0px));
+  --vel-cab-pad-x-end: max(0.7rem, env(safe-area-inset-right, 0px));
+  --vel-cab-pad-y: 0.75rem;
+  --vel-cab-gap: 0.7rem;
+  --vel-cab-card-pad: 1rem;
+  --vel-cab-card-gap: 0.65rem;
+  --vel-cab-content-max: 42rem;
 
   display: flex;
   min-block-size: 100dvh;
@@ -325,16 +336,14 @@ watch(tab, async (next) => {
 
 .vel-cabinet__main {
   min-inline-size: 0;
-  padding-block-start: 1.25rem;
-  /* Боковые поля не меньше 0.875rem и не меньше бокового выреза — в ландшафте
-     с viewport-fit=cover текст иначе уходит под «бровь». */
-  padding-inline:
-    max(0.875rem, env(safe-area-inset-left))
-    max(0.875rem, env(safe-area-inset-right));
-  /* Нижнее поле считается из тех же двух переменных, что и сама панель, плюс
-     безопасная зона телефона: под панелью не должно оставаться содержимого. */
+  inline-size: 100%;
+  max-inline-size: min(100%, 52rem);
+  margin-inline: auto;
+  padding-block-start: var(--vel-cab-pad-y);
+  padding-inline: var(--vel-cab-pad-x) var(--vel-cab-pad-x-end);
+  /* Нижнее поле = tabbar + gap + safe-area; без лишних 0.5rem «воздуха». */
   padding-block-end:
-    calc(var(--vel-tabbar-h) + var(--vel-tabbar-gap) * 2 + env(safe-area-inset-bottom) + 0.5rem);
+    calc(var(--vel-tabbar-h) + var(--vel-tabbar-gap) * 2 + env(safe-area-inset-bottom) + 0.35rem);
 }
 
 /* Фокус сюда приходит программно, рамка была бы шумом. :focus-visible
@@ -343,16 +352,50 @@ watch(tab, async (next) => {
   outline: none;
 }
 
-@media (min-width: 64rem) {
-  .vel-cabinet__body {
-    grid-template-columns: 14rem minmax(0, 1fr);
+/* Планшет: чуть больше поле, контент шире — меньше пустых боков. */
+@media (min-width: 40rem) {
+  .vel-cabinet {
+    --vel-cab-pad-x: max(1rem, env(safe-area-inset-left, 0px));
+    --vel-cab-pad-x-end: max(1rem, env(safe-area-inset-right, 0px));
+    --vel-cab-pad-y: 0.9rem;
+    --vel-cab-gap: 0.8rem;
+    --vel-cab-card-pad: 1.1rem;
+    --vel-cab-content-max: 44rem;
   }
 
   .vel-cabinet__main {
-    inline-size: 100%;
-    max-inline-size: 72rem;
-    margin-inline: auto;
-    padding: 1.5rem 1.5rem 3rem;
+    max-inline-size: min(100%, 48rem);
+  }
+}
+
+@media (min-width: 64rem) {
+  .vel-cabinet {
+    --vel-cab-pad-x: 1.15rem;
+    --vel-cab-pad-x-end: 1.15rem;
+    --vel-cab-pad-y: 1rem;
+    --vel-cab-gap: 0.85rem;
+    --vel-cab-card-pad: 1.15rem;
+    --vel-tabbar-gap: 0.5rem;
+  }
+
+  .vel-cabinet__body {
+    grid-template-columns: 12.5rem minmax(0, 1fr);
+  }
+
+  .vel-cabinet__main {
+    max-inline-size: none;
+    /* Без гигантского padding-bottom 3rem — только нормальный низ. */
+    padding: var(--vel-cab-pad-y) var(--vel-cab-pad-x) 1.5rem;
+  }
+}
+
+@media (min-width: 80rem) {
+  .vel-cabinet__body {
+    grid-template-columns: 13.5rem minmax(0, 1fr);
+  }
+
+  .vel-cabinet__main {
+    max-inline-size: 56rem;
   }
 }
 </style>

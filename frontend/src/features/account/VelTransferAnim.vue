@@ -75,7 +75,7 @@ function closeCoords(): void {
 <template>
   <section
     ref="root"
-    class="relative flex flex-col gap-3 overflow-hidden rounded-panel border bg-surface p-5 sm:p-6"
+    class="vel-transfer relative flex flex-col overflow-hidden rounded-panel border bg-surface"
     :class="sceneFailed ? 'border-danger vel-transfer--reject' : 'border-line'"
   >
     <VelBorderBeam v-if="!sceneFailed" :duration-ms="4800" :size="72" />
@@ -189,8 +189,14 @@ function closeCoords(): void {
 </template>
 
 <style scoped>
+.vel-transfer {
+  gap: 0.65rem;
+  min-inline-size: 0;
+  padding: var(--vel-cab-card-pad, 1rem);
+}
+
 .vel-transfer-title {
-  font-size: clamp(1rem, 3.8vw, 1.35rem);
+  font-size: clamp(0.95rem, 3.2vw, 1.2rem);
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;

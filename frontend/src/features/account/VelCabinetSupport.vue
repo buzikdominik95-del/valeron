@@ -140,9 +140,11 @@ const agentLead = computed(() =>
 
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.45rem;
   block-size: calc(100dvh - var(--vel-shell-head-h, 9.6rem) - var(--vel-chat-reserve));
-  min-block-size: 22rem;
+  min-block-size: min(22rem, 70dvh);
+  max-inline-size: var(--vel-cab-content-max, 42rem);
+  width: 100%;
 }
 
 .vel-chat__card {

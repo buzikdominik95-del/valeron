@@ -488,7 +488,7 @@ const showDevBar = !(
 
     <template #signature>
       <!-- Один блок: шапка договора + лист (2.png) -->
-      <section class="vel-contract-block rounded-panel border border-line bg-surface p-4 sm:p-5">
+      <section class="vel-contract-block rounded-panel border border-line bg-surface">
         <VelContractCard
           :pdf-url="contractPdfUrl"
           :documents-ready="documentsReady"
@@ -558,6 +558,11 @@ const showDevBar = !(
 
 <style scoped>
 /* Единый блок договора: убираем вторую рамку у карточки внутри */
+.vel-contract-block {
+  min-inline-size: 0;
+  padding: var(--vel-cab-card-pad, 1rem);
+}
+
 .vel-contract-block :deep(.vel-contract-card) {
   padding: 0;
   border: none;

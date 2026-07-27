@@ -293,8 +293,9 @@ function onOpenLoan(): void {
 .vel-payout {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 1.5rem 1.5rem 1.35rem;
+  gap: var(--vel-cab-card-gap, 0.65rem);
+  min-inline-size: 0;
+  padding: var(--vel-cab-card-pad, 1rem);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-panel);
   background:
@@ -303,7 +304,7 @@ function onOpenLoan(): void {
       color-mix(in oklab, var(--color-success) 8%, var(--color-surface)) 0%,
       var(--color-surface) 48%
     );
-  box-shadow: 0 0.75rem 1.75rem color-mix(in oklab, var(--color-fg) 6%, transparent);
+  box-shadow: 0 0.55rem 1.35rem color-mix(in oklab, var(--color-fg) 6%, transparent);
 }
 
 .vel-payout--ready {
@@ -377,18 +378,22 @@ function onOpenLoan(): void {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.65rem 1rem;
+  gap: 0.45rem 0.75rem;
+  min-inline-size: 0;
 }
 
 .vel-payout__amount {
   margin: 0;
   min-inline-size: 0;
+  max-inline-size: 100%;
   color: var(--color-success);
-  font-size: clamp(2.85rem, 12.5vw, 4rem);
+  /* Не раздувает карточку на узких экранах (длинный «10.370,00 €»). */
+  font-size: clamp(1.85rem, 8.5vw, 3.25rem);
   font-weight: 800;
-  line-height: 0.92;
-  letter-spacing: -0.045em;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
   text-shadow: 0 1px 0 color-mix(in oklab, #fff 40%, transparent);
 }
 
@@ -580,19 +585,19 @@ function onOpenLoan(): void {
  * padding и font тоже).
  */
 .vel-payout__withdraw {
-  align-self: center;
+  align-self: stretch;
   justify-content: center;
-  width: auto;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
-  min-height: 4.2rem !important;
-  margin-top: 0.45rem;
-  padding-inline: 1.7rem !important;
-  padding-block: 0.85rem !important;
+  min-height: clamp(2.85rem, 8vw, 3.5rem) !important;
+  margin-top: 0.25rem;
+  padding-inline: 1.1rem !important;
+  padding-block: 0.65rem !important;
   border: 0 !important;
   background-color: var(--color-success) !important;
   color: #ffffff !important;
-  font-size: 1.12rem !important;
+  font-size: clamp(0.95rem, 2.8vw, 1.05rem) !important;
   font-weight: 700;
   box-shadow: 0 0.45rem 1.15rem color-mix(in oklab, var(--color-success) 38%, transparent);
   transition:
