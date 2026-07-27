@@ -1,117 +1,138 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Aiuto alla Ristrutturazione · Velora</title>
-  <style>
-    :root {
-      --fg: #0f1b2d;
-      --muted: #5b6b7c;
-      --line: #e4e9ef;
-      --accent: #1f6feb;
-      --accent-ink: #fff;
-      --surface: #fff;
-      --ground: #f4f7fb;
-      --radius: 14px;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      color: var(--fg);
-      background: var(--ground);
-      line-height: 1.5;
-    }
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      max-width: 56rem;
-      margin: 0 auto;
-      padding: 1rem 1.25rem;
-    }
-    .logo {
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      color: var(--accent);
-      text-decoration: none;
-      font-size: 1.25rem;
-    }
-    .back {
-      display: inline-flex;
-      min-height: 2.75rem;
-      align-items: center;
-      padding: 0 1rem;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      background: var(--surface);
-      color: var(--fg);
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 0.9rem;
-    }
-    main {
-      max-width: 40rem;
-      margin: 0 auto;
-      padding: 1.5rem 1.25rem 3rem;
-    }
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 1.5rem 1.35rem;
-      box-shadow: 0 0.75rem 1.75rem rgba(15, 27, 45, 0.06);
-    }
-    .label {
-      margin: 0 0 0.5rem;
-      color: var(--muted);
-      font-size: 0.72rem;
-      font-weight: 800;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-    }
-    h1 {
-      margin: 0 0 0.75rem;
-      font-size: clamp(1.6rem, 5vw, 2rem);
-      line-height: 1.2;
-      letter-spacing: -0.02em;
-    }
-    p { margin: 0 0 1rem; color: var(--muted); }
-    .cta {
-      display: inline-flex;
-      min-height: 2.85rem;
-      align-items: center;
-      justify-content: center;
-      padding: 0 1.25rem;
-      border-radius: 10px;
-      background: var(--accent);
-      color: var(--accent-ink);
-      text-decoration: none;
-      font-weight: 700;
-    }
-    ul { margin: 1rem 0 1.25rem; padding-left: 1.15rem; color: var(--muted); }
-    li { margin: 0.35rem 0; }
-  </style>
+  <meta name="description" content="Aiuto alla Ristrutturazione Velora: liquidità dedicata a lavori, efficienza energetica e messa in sicurezza della casa." />
+  <link rel="icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/pages/assets/page.css" />
 </head>
 <body>
-  <header>
-    <a class="logo" href="/">Velora</a>
-    <a class="back" href="/">← Torna al sito</a>
+  <header class="site-head">
+    <div class="site-head__inner">
+      <a class="logo" href="/"><svg class="logo__mark" viewBox="0 0 32 32" role="img" aria-label="Velora"><path class="logo__base" d="M4 6 L14.5 26.5"/><path class="logo__rise" d="M14.5 26.5 L28 3.5"/></svg><span class="logo__word">Velora</span></a>
+      <a class="back" href="/">← Torna al sito</a>
+    </div>
   </header>
-  <main>
-    <article class="card">
-      <p class="label">Informazioni</p>
+
+  <nav class="crumbs" aria-label="Percorso">
+    <a href="/">Home</a> › <a href="/#programmi">Programmi</a> › <span aria-current="page">Aiuto alla Ristrutturazione</span>
+  </nav>
+
+  <section class="hero">
+    <div class="hero__inner">
+      <p class="eyebrow">Programma · Casa</p>
       <h1>Aiuto alla Ristrutturazione</h1>
-      <p>Liquidità dedicata a ristrutturazioni e interventi sull’abitazione.</p>
-      <ul>
-        <li>Trasparenza sulle condizioni e sul TAN 3,8%.</li>
-        <li>Pratica digitale: simulazione, documenti e firma online.</li>
-        <li>Assistenza dedicata in italiano.</li>
-      </ul>
-      <a class="cta" href="/#simulator">Simula il credito →</a>
-    </article>
+      <p class="lead">
+        Liquidità dedicata per rinnovare, mettere in sicurezza e rendere più efficiente
+        la tua abitazione. Rata fissa, condizioni chiare e un percorso pensato per non
+        bloccare i lavori a metà.
+      </p>
+      <div class="hero__actions">
+        <a class="btn btn-primary" href="/#simulator">Simula i lavori →</a>
+        <a class="btn btn-ghost" href="#interventi">Interventi finanziabili</a>
+      </div>
+    </div>
+  </section>
+
+  <main>
+    <section class="band">
+      <div class="wrap">
+        <div class="stats">
+          <div class="stat"><span class="stat__num">3,8%</span><p class="stat__label">TAN fisso del programma</p></div>
+          <div class="stat"><span class="stat__num">fino a 22k€</span><p class="stat__label">Per il tuo cantiere</p></div>
+          <div class="stat"><span class="stat__num">12–84</span><p class="stat__label">Mesi di durata</p></div>
+          <div class="stat"><span class="stat__num">100%</span><p class="stat__label">Pratica digitale</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="cose">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="label">Di cosa si tratta</p>
+          <h2>Un aiuto per la casa che vuoi</h2>
+          <p>
+            Che si tratti di un bagno da rifare, di un impianto da mettere a norma o di un
+            intervento di efficienza energetica, il programma copre le spese del cantiere
+            con una rata sostenibile e definita in anticipo.
+          </p>
+        </div>
+        <div class="grid">
+          <div class="card"><div class="card__ico">🏠</div><h3>Per ogni intervento</h3><p>Dalla piccola opera al rinnovo completo dell’abitazione principale o secondaria.</p></div>
+          <div class="card"><div class="card__ico">🌿</div><h3>Efficienza energetica</h3><p>Isolamento, infissi, impianti: interventi che riducono i consumi nel tempo.</p></div>
+          <div class="card"><div class="card__ico">🛡️</div><h3>Sicurezza</h3><p>Messa a norma di impianti elettrici, idraulici e strutturali.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band--tint" id="interventi">
+      <div class="wrap wrap--narrow">
+        <div class="section-head">
+          <p class="label">Interventi finanziabili</p>
+          <h2>Cosa puoi realizzare</h2>
+        </div>
+        <ul class="check">
+          <li>Rifacimento di bagni, cucine e pavimenti.</li>
+          <li>Sostituzione di infissi e miglioramento dell’isolamento.</li>
+          <li>Impianti elettrici, idraulici e di riscaldamento.</li>
+          <li>Efficientamento energetico e fonti rinnovabili.</li>
+          <li>Piccole opere murarie e finiture.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="band" id="come">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="label">Come funziona</p>
+          <h2>Dal preventivo all’accredito</h2>
+        </div>
+        <div class="steps">
+          <div class="step"><span class="step__n"></span><div><h3>Stimi la spesa</h3><p>Parti dal preventivo dei lavori e simuli l’importo necessario.</p></div></div>
+          <div class="step"><span class="step__n"></span><div><h3>Scegli la rata</h3><p>Definisci durata e rata al TAN 3,8% fisso.</p></div></div>
+          <div class="step"><span class="step__n"></span><div><h3>Firmi online</h3><p>Carichi i documenti e firmi elettronicamente la pratica.</p></div></div>
+          <div class="step"><span class="step__n"></span><div><h3>Avvii il cantiere</h3><p>Ricevi l’accredito e fai partire i lavori senza attese.</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band--tint">
+      <div class="wrap wrap--narrow">
+        <div class="section-head">
+          <p class="label">Domande frequenti</p>
+          <h2>Chiarimenti utili</h2>
+        </div>
+        <div class="faq">
+          <details><summary>Serve essere proprietari dell’immobile?</summary><p>Di norma sì, ma valutiamo anche le situazioni in cui i lavori sono a carico di chi occupa l’immobile con titolo idoneo.</p></details>
+          <details><summary>Devo presentare i preventivi?</summary><p>Il preventivo aiuta a dimensionare l’importo, ma la simulazione iniziale è libera e senza documenti.</p></details>
+          <details><summary>La rata cambia durante i lavori?</summary><p>No: il TAN è fisso e la rata resta la stessa per tutta la durata del piano.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <div class="cta-band">
+          <h2>Dai forma alla casa che immagini</h2>
+          <p>Simula il credito per i tuoi lavori: gratis, senza impegno, con la rata sempre in chiaro.</p>
+          <a class="btn btn-primary" href="/#simulator">Simula i lavori →</a>
+        </div>
+      </div>
+    </section>
   </main>
+
+  <footer class="page-foot">
+    <div class="page-foot__inner">
+      <span>© Velora — aiuto alla ristrutturazione. Contenuti dimostrativi.</span>
+      <nav>
+        <a href="/pages/aiuto-3-8.html">Programma 3,8%</a>
+        <a href="/pages/come-aiutiamo.html">Come aiutiamo</a>
+        <a href="/pages/garanzia.html">Regole di garanzia</a>
+        <a href="/pages/contatti.html">Contatti</a>
+      </nav>
+    </div>
+  </footer>
 </body>
 </html>

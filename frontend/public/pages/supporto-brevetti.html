@@ -1,117 +1,127 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Supporto ai Brevetti · Velora</title>
-  <style>
-    :root {
-      --fg: #0f1b2d;
-      --muted: #5b6b7c;
-      --line: #e4e9ef;
-      --accent: #1f6feb;
-      --accent-ink: #fff;
-      --surface: #fff;
-      --ground: #f4f7fb;
-      --radius: 14px;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      color: var(--fg);
-      background: var(--ground);
-      line-height: 1.5;
-    }
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      max-width: 56rem;
-      margin: 0 auto;
-      padding: 1rem 1.25rem;
-    }
-    .logo {
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      color: var(--accent);
-      text-decoration: none;
-      font-size: 1.25rem;
-    }
-    .back {
-      display: inline-flex;
-      min-height: 2.75rem;
-      align-items: center;
-      padding: 0 1rem;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      background: var(--surface);
-      color: var(--fg);
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 0.9rem;
-    }
-    main {
-      max-width: 40rem;
-      margin: 0 auto;
-      padding: 1.5rem 1.25rem 3rem;
-    }
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 1.5rem 1.35rem;
-      box-shadow: 0 0.75rem 1.75rem rgba(15, 27, 45, 0.06);
-    }
-    .label {
-      margin: 0 0 0.5rem;
-      color: var(--muted);
-      font-size: 0.72rem;
-      font-weight: 800;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-    }
-    h1 {
-      margin: 0 0 0.75rem;
-      font-size: clamp(1.6rem, 5vw, 2rem);
-      line-height: 1.2;
-      letter-spacing: -0.02em;
-    }
-    p { margin: 0 0 1rem; color: var(--muted); }
-    .cta {
-      display: inline-flex;
-      min-height: 2.85rem;
-      align-items: center;
-      justify-content: center;
-      padding: 0 1.25rem;
-      border-radius: 10px;
-      background: var(--accent);
-      color: var(--accent-ink);
-      text-decoration: none;
-      font-weight: 700;
-    }
-    ul { margin: 1rem 0 1.25rem; padding-left: 1.15rem; color: var(--muted); }
-    li { margin: 0.35rem 0; }
-  </style>
+  <meta name="description" content="Supporto ai Brevetti Velora: liquidità e accompagnamento per proteggere e valorizzare innovazioni e proprietà intellettuale." />
+  <link rel="icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/pages/assets/page.css" />
 </head>
 <body>
-  <header>
-    <a class="logo" href="/">Velora</a>
-    <a class="back" href="/">← Torna al sito</a>
+  <header class="site-head">
+    <div class="site-head__inner">
+      <a class="logo" href="/"><svg class="logo__mark" viewBox="0 0 32 32" role="img" aria-label="Velora"><path class="logo__base" d="M4 6 L14.5 26.5"/><path class="logo__rise" d="M14.5 26.5 L28 3.5"/></svg><span class="logo__word">Velora</span></a>
+      <a class="back" href="/">← Torna al sito</a>
+    </div>
   </header>
-  <main>
-    <article class="card">
-      <p class="label">Informazioni</p>
+
+  <nav class="crumbs" aria-label="Percorso">
+    <a href="/">Home</a> › <a href="/#programmi">Programmi</a> › <span aria-current="page">Supporto ai Brevetti</span>
+  </nav>
+
+  <section class="hero">
+    <div class="hero__inner">
+      <p class="eyebrow">Programma · Innovazione</p>
       <h1>Supporto ai Brevetti</h1>
-      <p>Sostegno alla valorizzazione di innovazioni e proprietà intellettuale.</p>
-      <ul>
-        <li>Trasparenza sulle condizioni e sul TAN 3,8%.</li>
-        <li>Pratica digitale: simulazione, documenti e firma online.</li>
-        <li>Assistenza dedicata in italiano.</li>
-      </ul>
-      <a class="cta" href="/#simulator">Simula il credito →</a>
-    </article>
+      <p class="lead">
+        Un’idea vale davvero solo quando è protetta. Il programma sostiene inventori,
+        artigiani e piccole imprese nel percorso di deposito, tutela e valorizzazione
+        della proprietà intellettuale, con liquidità dedicata e accompagnamento tecnico.
+      </p>
+      <div class="hero__actions">
+        <a class="btn btn-primary" href="/#simulator">Simula il finanziamento →</a>
+        <a class="btn btn-ghost" href="#coperture">Cosa copre</a>
+      </div>
+    </div>
+  </section>
+
+  <main>
+    <section class="band" id="cose">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="label">Di cosa si tratta</p>
+          <h2>Dalla buona idea al diritto riconosciuto</h2>
+          <p>
+            Depositare e mantenere un brevetto ha costi e tempi che frenano molti progetti
+            validi. Velora interviene con un finanziamento agevolato e un affiancamento
+            che aiuta a orientarsi tra ricerca di anteriorità, deposito ed estensioni.
+          </p>
+        </div>
+        <div class="grid">
+          <div class="card"><div class="card__ico">💡</div><h3>Tutela dell’idea</h3><p>Copertura delle spese per il deposito nazionale e per le prime estensioni.</p></div>
+          <div class="card"><div class="card__ico">🧭</div><h3>Accompagnamento</h3><p>Ti orientiamo nel percorso, dalla verifica di anteriorità al mantenimento.</p></div>
+          <div class="card"><div class="card__ico">📈</div><h3>Valorizzazione</h3><p>Un brevetto protetto è un asset: apre a licenze, partnership e nuovi mercati.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band--tint" id="coperture">
+      <div class="wrap wrap--narrow">
+        <div class="section-head">
+          <p class="label">Cosa copre</p>
+          <h2>Spese ammissibili</h2>
+        </div>
+        <ul class="check">
+          <li>Ricerca di anteriorità e analisi di brevettabilità.</li>
+          <li>Costi di deposito della domanda di brevetto o modello.</li>
+          <li>Consulenza di un mandatario abilitato.</li>
+          <li>Prime estensioni internazionali (PCT / Europa).</li>
+          <li>Tasse di mantenimento nei primi anni.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="band" id="come">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="label">Come funziona</p>
+          <h2>Un percorso in quattro tappe</h2>
+        </div>
+        <div class="steps">
+          <div class="step"><span class="step__n"></span><div><h3>Presenti il progetto</h3><p>Descrivi l’invenzione e lo stato del deposito, anche solo un’idea iniziale.</p></div></div>
+          <div class="step"><span class="step__n"></span><div><h3>Definiamo il fabbisogno</h3><p>Stimiamo insieme costi e tempi delle spese ammissibili.</p></div></div>
+          <div class="step"><span class="step__n"></span><div><h3>Simuli e attivi il credito</h3><p>Scegli importo e durata con il TAN agevolato del programma.</p></div></div>
+          <div class="step"><span class="step__n"></span><div><h3>Procedi con la tutela</h3><p>Usi la liquidità per depositare e proteggere l’innovazione.</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band--tint">
+      <div class="wrap wrap--narrow">
+        <div class="section-head">
+          <p class="label">Domande frequenti</p>
+          <h2>Chiarimenti utili</h2>
+        </div>
+        <div class="faq">
+          <details><summary>Devo avere già depositato il brevetto?</summary><p>No. Il supporto vale anche nella fase iniziale, dalla ricerca di anteriorità al primo deposito.</p></details>
+          <details><summary>È rivolto solo alle imprese?</summary><p>No. Possono richiederlo inventori privati, professionisti, artigiani e piccole imprese.</p></details>
+          <details><summary>Velora deposita il brevetto al posto mio?</summary><p>No: il deposito resta a te e al tuo mandatario. Velora fornisce la liquidità e l’orientamento nel percorso.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <div class="cta-band">
+          <h2>Proteggi la tua innovazione</h2>
+          <p>Simula il finanziamento dedicato alle spese di brevettazione, senza impegno.</p>
+          <a class="btn btn-primary" href="/#simulator">Simula ora →</a>
+        </div>
+      </div>
+    </section>
   </main>
+
+  <footer class="page-foot">
+    <div class="page-foot__inner">
+      <span>© Velora — supporto all’innovazione. Contenuti dimostrativi.</span>
+      <nav>
+        <a href="/pages/come-aiutiamo.html">Come aiutiamo</a>
+        <a href="/pages/banche-partner.html">Banche partner</a>
+        <a href="/pages/informazioni-legali.html">Informazioni legali</a>
+        <a href="/pages/contatti.html">Contatti</a>
+      </nav>
+    </div>
+  </footer>
 </body>
 </html>
