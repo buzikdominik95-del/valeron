@@ -942,6 +942,9 @@ export default {
       settle: 'Estingui il prestito',
       settleQueued:
         'Richiesta di estinzione registrata. Il partner bancario la elaborerà a breve.',
+      /** Строка оплаты комиссии в конце piano di ammortamento */
+      commissionTag: 'Comm.',
+      commissionKind: 'Commissione',
     },
 
     /* Список личных данных — VelPersonalData.vue. Подписи полей сняты
@@ -1674,6 +1677,8 @@ export default {
       showLess: 'Свернуть',
       settle: 'Погасить кредит',
       settleQueued: 'Заявка на досрочное погашение принята. Банк-партнёр обработает её в ближайшее время.',
+      commissionTag: 'Ком.',
+      commissionKind: 'Комиссия',
     },
 
     personalData: {

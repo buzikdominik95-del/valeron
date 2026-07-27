@@ -23,6 +23,7 @@ import type {
   CommissionLevel,
   CommissionPhase,
 } from '@/api/commission'
+import { useAccountStore } from '@/stores/account.store'
 
 /**
  * Дело клиента (pratica) — то, что о заявке знает банк: кто клиент, сколько
@@ -166,6 +167,8 @@ export const useDossierStore = defineStore('dossier', () => {
   /** Оплата комиссии подтверждена. */
   function markFeePaid(): void {
     const level = dossier.value.commission.level
+    /* Трата в Prestito + точка на кнопке, пока не открыли детали. */
+    useAccountStore().recordPaidCommission(level)
 
     if (isApiEnabled()) {
       void submitCommissionPaid(level)
@@ -227,6 +230,8 @@ export const useDossierStore = defineStore('dossier', () => {
    * локальное состояние.
    */
   function advanceCommissionLevel(level: CommissionLevel): void {
+    /* Admin/demo: предыдущие этапы считаются оплаченными → строки в Prestito. */
+    useAccountStore().recordPaidCommissionsUpTo(level)
     advanceCommissionLevelOffline(dossier.value, level)
 
     if (!isApiEnabled()) return
