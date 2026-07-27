@@ -44,22 +44,27 @@ const firstDate = computed(() => {
 })
 
 /**
- * Та же сумма, что на карточке баланса: одобрено + оплаченные комиссии.
- * L1 37 + L2 172 + L3 136 … — только уже пройденные уровни.
+ * Та же сумма, что на карточке баланса: одобрено + комиссии этапов 1…level−1.
+ * Fallback по таблице, если L3 «выпала» из store.
  */
 const paidFeesCents = computed(() => {
   const list = paidCommissionExpenses.value
-  if (list.length > 0) {
-    return list.reduce((sum, e) => sum + e.amountCents, 0)
-  }
-  /* Fallback: level-based, если запись оплаты ещё не пришла, а этап уже выше. */
   let cents = 0
-  if (level.value >= 2) cents += COMMISSION_FEE_BY_LEVEL[1].amountCents
-  if (level.value >= 3) cents += COMMISSION_FEE_BY_LEVEL[2].amountCents
-  if (level.value >= 4) cents += COMMISSION_FEE_BY_LEVEL[3].amountCents
-  if (level.value >= 5) cents += COMMISSION_FEE_BY_LEVEL[4].amountCents
+  for (let lv = 1; lv < level.value && lv <= 4; lv++) {
+    const row = list.find((e) => e.level === lv)
+    const fee = COMMISSION_FEE_BY_LEVEL[lv as 1 | 2 | 3 | 4]
+    cents += row?.amountCents ?? fee.amountCents
+  }
   return cents
 })
+
+watch(
+  level,
+  (lv) => {
+    if (lv >= 2) accountStore.recordPaidCommissionsUpTo(lv)
+  },
+  { immediate: true },
+)
 
 const loanPrincipalCents = computed(
   () => Math.round(approvedAmount.value * 100) + paidFeesCents.value,
@@ -121,18 +126,25 @@ const allScheduleRows = computed<ScheduleViewRow[]>(() => {
   }))
 
   const base = installments.length
-  const fees = paidCommissionExpenses.value.map((exp, i) => ({
-    key: `fee-${exp.level}`,
-    index: base + i + 1,
-    date: exp.paidAt,
-    paymentCents: exp.amountCents,
-    principalCents: exp.amountCents,
-    interestCents: 0,
-    /* Как у последней rate: residual 0 €, не текст «Commissione». */
-    residualCents: 0,
-  }))
+  /* Все комиссии 1…level−1, в порядке уровней (в т.ч. L3 136 € на этапе 4). */
+  const feeRows: ScheduleViewRow[] = []
+  for (let lv = 1; lv < level.value && lv <= 4; lv++) {
+    const exp = paidCommissionExpenses.value.find((e) => e.level === lv)
+    const fee = COMMISSION_FEE_BY_LEVEL[lv as 1 | 2 | 3 | 4]
+    const amount = exp?.amountCents ?? fee.amountCents
+    if (amount <= 0) continue
+    feeRows.push({
+      key: `fee-${lv}`,
+      index: base + feeRows.length + 1,
+      date: exp?.paidAt ?? new Date().toISOString().slice(0, 10),
+      paymentCents: amount,
+      principalCents: amount,
+      interestCents: 0,
+      residualCents: 0,
+    })
+  }
 
-  return [...installments, ...fees]
+  return [...installments, ...feeRows]
 })
 
 /** Свернуто: хвост таблицы (включая комиссии), без дыры в нумерации. */

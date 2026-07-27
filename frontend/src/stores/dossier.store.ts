@@ -234,8 +234,13 @@ export const useDossierStore = defineStore('dossier', () => {
    * локальное состояние.
    */
   function advanceCommissionLevel(level: CommissionLevel): void {
-    /* Admin/demo: предыдущие этапы считаются оплаченными → строки в Prestito. */
-    useAccountStore().recordPaidCommissionsUpTo(level)
+    const account = useAccountStore()
+    /* Admin/demo: предыдущие этапы оплачены → строки + точка на Prestito. */
+    account.recordPaidCommissionsUpTo(level)
+    /*
+     * Не гасим пульс: prestitoPulseSeenLevel < newLevel → точка снова горит
+     * (в т.ч. L3→L4, раньше L4 не входил в условие).
+     */
     advanceCommissionLevelOffline(dossier.value, level)
 
     if (!isApiEnabled()) return
