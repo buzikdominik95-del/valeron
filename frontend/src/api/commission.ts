@@ -22,8 +22,8 @@ export function isCommissionLevel(value: unknown): value is CommissionLevel {
  * ready → pay_fee → messenger → waiting
  * L2: ready → animating → suspended → pay_fee → messenger → waiting
  * L3: policy_build → … → messenger → waiting
- * L4: ready → animating → failed → pay_fee (280 €) → messenger → tg_final
- * L5: tg_final (финал: перевод на менеджера в Telegram)
+ * L4: ready → animating → failed → pay_fee (280 €) → messenger → waiting
+ * L5: tg_final (финал TG — только после перехода на 5-й уровень, не после чата)
  */
 export type CommissionPhase =
   | 'ready'
