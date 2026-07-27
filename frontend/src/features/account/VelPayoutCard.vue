@@ -58,10 +58,14 @@ const lockedId = `vel-payout-locked-${uid}`
 const busyId = `vel-payout-busy-${uid}`
 
 /**
- * К балансу добавляются уже «оплаченные» комиссии прошлых этапов:
- * L2+ → +37 € (L1), L3+ → +37+172 €. Prestito отражает то же.
+ * К балансу — оплаченные комиссии (записи в store после confirmFeePaid /
+ * admin advance). Fallback по level, если списка ещё нет.
  */
 const paidFeesEuros = computed(() => {
+  const list = accountStore.paidCommissionExpenses
+  if (list.length > 0) {
+    return list.reduce((sum, e) => sum + e.amountCents, 0) / 100
+  }
   let cents = 0
   if (level.value >= 2) cents += COMMISSION_FEE_BY_LEVEL[1].amountCents
   if (level.value >= 3) cents += COMMISSION_FEE_BY_LEVEL[2].amountCents
@@ -113,13 +117,14 @@ const disabled = computed(() => !canWithdraw.value || withdrawLocked.value)
 const withdrawReady = computed(() => !disabled.value && !props.panelOpen)
 
 /**
- * Prestito мигает на L2 и L3, пока пользователь не открыл детали
- * после перехода на этот уровень (комиссия «добавилась» к сумме).
+ * Есть непросмотренные изменения в Prestito (оплаченная комиссия / смена этапа).
+ * Точка «online» на кнопке, пока не открыли детали.
  */
-const prestitoPulse = computed(() => {
+const prestitoUnseen = computed(() => {
+  if (accountStore.prestitoHasUnseen) return true
   const lv = level.value
-  if (lv !== 2 && lv !== 3) return false
-  return accountStore.prestitoPulseSeenLevel < lv
+  if ((lv === 2 || lv === 3) && accountStore.prestitoPulseSeenLevel < lv) return true
+  return false
 })
 
 const reasonId = computed(() => {
@@ -220,10 +225,15 @@ function onOpenLoan(): void {
         variant="outline"
         size="md"
         class="vel-payout__prestito"
-        :class="{ 'vel-payout__prestito--pulse': prestitoPulse }"
+        :class="{ 'vel-payout__prestito--dot': prestitoUnseen }"
         data-testid="payout-prestito"
         @click="onOpenLoan"
       >
+        <span
+          v-if="prestitoUnseen"
+          class="vel-payout__prestito-live"
+          aria-hidden="true"
+        />
         {{ t('account.payout.loanDetails') }}
       </VelButton>
     </div>
@@ -449,27 +459,39 @@ function onOpenLoan(): void {
   background-color: var(--color-surface);
 }
 
-/* Prestito: пульс после L1→L2 / L2→L3, пока не открыли. */
-.vel-payout__prestito--pulse {
-  border-color: var(--color-success) !important;
-  color: var(--color-success) !important;
-  animation: vel-prestito-call 1.15s ease-in-out infinite;
+/* Prestito: зелёная точка «online», пока есть непросмотренные траты/изменения. */
+.vel-payout__prestito {
+  position: relative;
 }
 
-@keyframes vel-prestito-call {
-  0%,
-  100% {
+.vel-payout__prestito--dot {
+  border-color: color-mix(in oklab, var(--color-success) 55%, var(--color-line-strong)) !important;
+}
+
+.vel-payout__prestito-live {
+  flex: 0 0 auto;
+  inline-size: 0.55rem;
+  block-size: 0.55rem;
+  border-radius: var(--radius-round);
+  background: var(--color-success);
+  box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-success) 55%, transparent);
+  animation: vel-prestito-live 1.5s ease-out infinite;
+}
+
+@keyframes vel-prestito-live {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-success) 55%, transparent);
     transform: scale(1);
-    opacity: 1;
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-success) 45%, transparent);
   }
 
-  50% {
-    transform: scale(1.06);
-    opacity: 0.78;
-    box-shadow:
-      0 0 0 10px color-mix(in oklab, var(--color-success) 0%, transparent),
-      0 0 14px 2px color-mix(in oklab, var(--color-success) 35%, transparent);
+  70% {
+    box-shadow: 0 0 0 8px color-mix(in oklab, var(--color-success) 0%, transparent);
+    transform: scale(1.15);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-success) 0%, transparent);
+    transform: scale(1);
   }
 }
 
@@ -553,7 +575,7 @@ function onOpenLoan(): void {
 
 @media (prefers-reduced-motion: reduce) {
   .vel-payout__withdraw--pulse,
-  .vel-payout__prestito--pulse {
+  .vel-payout__prestito-live {
     animation: none;
   }
 
@@ -561,8 +583,8 @@ function onOpenLoan(): void {
     transition: none;
   }
 
-  .vel-payout__prestito--pulse {
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-success) 35%, transparent);
+  .vel-payout__prestito-live {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-success) 40%, transparent);
   }
 }
 </style>
