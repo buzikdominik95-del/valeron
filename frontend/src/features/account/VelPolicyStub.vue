@@ -8,6 +8,7 @@ import { useCabinetTab } from '@/composables/useCabinetTab'
 import VelMeter from '@/components/ui/VelMeter.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
 import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
+import VelCpiGenAnim from '@/features/account/VelCpiGenAnim.vue'
 
 /**
  * Documenti · CPI:
@@ -60,8 +61,6 @@ const isStored = computed(
     (step.value === 'viewed' || certViewed.value || isPolicyIssued.value || level.value > 3),
 )
 
-const genReveal = computed(() => Math.max(0.06, loadProgress.value))
-
 const holderName = computed(
   () =>
     client.value.fullName.trim() ||
@@ -113,14 +112,11 @@ watch(previewOpen, (open, was) => {
         <span class="vel-num">{{ t('account.commission.cpi.remain', { time: loadRemainLabel }) }}</span>
       </div>
 
-      <div class="vel-pstub__gen" data-testid="policy-stub-generating" aria-hidden="true">
-        <div class="vel-pstub__file" :style="{ '--vel-pstub-reveal': String(genReveal) }">
-          <span class="vel-pstub__fold" />
-          <span class="vel-pstub__lines"><i /><i /><i /><i /><i /></span>
-          <span class="vel-pstub__scan" />
-        </div>
-        <p class="vel-pstub__gen-cap m-0">{{ t('account.commission.cpi.stub.building') }}</p>
-      </div>
+      <VelCpiGenAnim
+        data-testid="policy-stub-generating"
+        :progress="loadProgress"
+        :holder-name="holderName"
+      />
     </template>
 
     <!-- 2) Первый раз готов — пульс «Apri» -->
@@ -219,102 +215,6 @@ watch(previewOpen, (open, was) => {
   font-weight: 600;
 }
 
-.vel-pstub__gen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.95rem 0.75rem 0.85rem;
-  border: 1px dashed color-mix(in oklab, var(--color-accent) 30%, var(--color-line));
-  border-radius: var(--radius-control);
-  background: color-mix(in oklab, var(--color-accent) 5%, var(--color-ground));
-}
-
-.vel-pstub__file {
-  --vel-pstub-reveal: 0.1;
-
-  position: relative;
-  width: 5rem;
-  height: 6.35rem;
-  overflow: hidden;
-  border: 1px solid color-mix(in oklab, var(--color-accent) 28%, var(--color-line));
-  border-radius: 0.3rem 0.5rem 0.3rem 0.3rem;
-  background: #fff;
-  box-shadow: 0 0.3rem 0.8rem color-mix(in oklab, var(--color-fg) 8%, transparent);
-}
-
-.vel-pstub__fold {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 1.05rem;
-  height: 1.05rem;
-  background: linear-gradient(
-    225deg,
-    color-mix(in oklab, var(--color-accent) 18%, #eef3fa) 50%,
-    transparent 50%
-  );
-}
-
-.vel-pstub__lines {
-  position: absolute;
-  inset: 1.25rem 0.65rem 0.65rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.42rem;
-}
-
-.vel-pstub__lines i {
-  display: block;
-  height: 0.26rem;
-  border-radius: 99px;
-  background: color-mix(in oklab, var(--color-fg) 12%, transparent);
-  transform-origin: 0 50%;
-  animation: vel-pstub-line 1.4s ease-in-out infinite;
-}
-
-.vel-pstub__lines i:nth-child(1) {
-  width: 88%;
-}
-.vel-pstub__lines i:nth-child(2) {
-  width: 72%;
-  animation-delay: 0.12s;
-}
-.vel-pstub__lines i:nth-child(3) {
-  width: 94%;
-  animation-delay: 0.24s;
-}
-.vel-pstub__lines i:nth-child(4) {
-  width: 60%;
-  animation-delay: 0.36s;
-}
-.vel-pstub__lines i:nth-child(5) {
-  width: 80%;
-  animation-delay: 0.48s;
-}
-
-.vel-pstub__scan {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(var(--vel-pstub-reveal) * 100%);
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in oklab, var(--color-accent) 75%, #fff),
-    transparent
-  );
-  box-shadow: 0 0 10px color-mix(in oklab, var(--color-accent) 40%, transparent);
-  transition: top 400ms ease;
-}
-
-.vel-pstub__gen-cap {
-  color: var(--color-muted);
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
 .vel-pstub__ready {
   display: flex;
   align-items: flex-start;
@@ -391,18 +291,6 @@ watch(previewOpen, (open, was) => {
   }
 }
 
-@keyframes vel-pstub-line {
-  0%,
-  100% {
-    opacity: 0.45;
-    transform: scaleX(0.92);
-  }
-  50% {
-    opacity: 1;
-    transform: scaleX(1);
-  }
-}
-
 @keyframes vel-pstub-ready-pop {
   from {
     transform: scale(0.6);
@@ -432,14 +320,9 @@ watch(previewOpen, (open, was) => {
 
 @media (prefers-reduced-motion: reduce) {
   .vel-pstub__spin,
-  .vel-pstub__lines i,
   .vel-pstub__ready-icon,
   .vel-pstub__open--pulse {
     animation: none;
-  }
-
-  .vel-pstub__scan {
-    transition: none;
   }
 }
 </style>
