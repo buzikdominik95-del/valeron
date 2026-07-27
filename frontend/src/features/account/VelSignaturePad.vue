@@ -1,30 +1,17 @@
 <script setup lang="ts">
-import { computed, ref, useId } from 'vue'
+import { ref, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSignaturePad } from '@/composables/useSignaturePad'
 import { useDialogFocus } from '@/composables/useDialogFocus'
 import type { SignatureMode } from '@/composables/useSignaturePad'
 import VelButton from '@/components/ui/VelButton.vue'
-import VelField from '@/components/ui/VelField.vue'
-import VelInput from '@/components/ui/VelInput.vue'
 import VelSignatureClose from '@/features/account/VelSignatureClose.vue'
-import VelSignatureModes from '@/features/account/VelSignatureModes.vue'
 
 /**
- * Модальная панель подписи договора.
+ * Модальная панель подписи договора — только росчерк (графическая подпись).
+ * Набор имени буквами убран по брифу (фотка 4): режим draw зафиксирован.
  *
- * Структура и тексты — с эталонного видео: надзаголовок, заголовок, подпись,
- * пунктирная область с подсказкой «Firma qui…» и две кнопки. Оформление наше,
- * светлое: белая панель на голубоватой бумаге, роли вместо значений.
- *
- * Ничего о решении банка панель не сообщает и сообщать не может: она отдаёт
- * наружу картинку подписи событием confirm, а что с ней делать дальше —
- * дело вызывающего экрана и ответа API.
- *
- * Рисование живёт в useSignaturePad, поведение окна — в useDialogFocus,
- * переключатель способа и крестик закрытия — в VelSignatureModes и
- * VelSignatureClose. Здесь остаётся сама панель: подложка, каркас, ARIA,
- * область подписи и кнопки.
+ * Рисование — useSignaturePad, окно — useDialogFocus, крестик — VelSignatureClose.
  */
 const open = defineModel<boolean>('open', { default: false })
 
@@ -42,6 +29,7 @@ const leadId = `vel-signature-lead-${uid}`
 const panel = ref<HTMLElement | null>(null)
 const canvas = ref<HTMLCanvasElement | null>(null)
 
+/** Только draw — mode ref нужен useSignaturePad API. */
 const mode = ref<SignatureMode>('draw')
 const typedName = ref('')
 
@@ -53,14 +41,8 @@ function close(): void {
 
 useDialogFocus({ panel, open, onEscape: close })
 
-const leadText = computed(() =>
-  mode.value === 'type' ? t('account.signature.leadType') : t('account.signature.leadDraw'),
-)
-
 function confirm(): void {
   const dataUrl = toDataUrl()
-  // Пустую подпись не отправляем: кнопка заблокирована, но событие могло
-  // прийти и с клавиатуры до перерисовки.
   if (!dataUrl) return
   emit('confirm', dataUrl)
   close()
@@ -88,10 +70,8 @@ function confirm(): void {
           <div class="flex flex-col gap-2">
             <p class="vel-label">{{ t('account.signature.overline') }}</p>
             <h2 :id="titleId" class="text-2xl sm:text-3xl">{{ t('account.signature.title') }}</h2>
-            <p :id="leadId" class="text-sm text-muted">{{ leadText }}</p>
+            <p :id="leadId" class="text-sm text-muted">{{ t('account.signature.leadDraw') }}</p>
           </div>
-
-          <VelSignatureModes v-model="mode" />
 
           <div
             class="vel-signature__area"
@@ -100,26 +80,14 @@ function confirm(): void {
             <canvas
               ref="canvas"
               class="vel-signature__canvas"
-              :class="{ 'vel-signature__canvas--locked': mode === 'type' }"
               role="img"
               :aria-label="t('account.signature.canvasLabel')"
             ></canvas>
 
-            <!-- Подсказка внутри рамки: пропадает, как только появился первый
-                 штрих. Кликов не ловит — под ней канвас. -->
-            <p v-if="mode === 'draw' && isEmpty" class="vel-signature__hint">
+            <p v-if="isEmpty" class="vel-signature__hint">
               {{ t('account.signature.placeholder') }}
             </p>
           </div>
-
-          <VelField v-if="mode === 'type'" :label="t('account.signature.nameLabel')">
-            <VelInput
-              v-model="typedName"
-              :placeholder="t('account.signature.namePlaceholder')"
-              autocomplete="name"
-              spellcheck="false"
-            />
-          </VelField>
 
           <div class="vel-signature__actions">
             <VelButton type="button" variant="outline" :disabled="isEmpty" @click="clear">
@@ -204,12 +172,6 @@ function confirm(): void {
      а браузер отменяет указатель на первом же движении. */
   touch-action: none;
   cursor: crosshair;
-}
-
-/* В режиме ввода канвас — предпросмотр: рисовать по нему нечем. */
-.vel-signature__canvas--locked {
-  pointer-events: none;
-  cursor: default;
 }
 
 .vel-signature__hint {

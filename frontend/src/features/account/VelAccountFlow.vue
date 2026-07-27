@@ -21,7 +21,8 @@ import VelPolicyCard from '@/features/account/VelPolicyCard.vue'
 import VelDocumentUpload from '@/features/account/VelDocumentUpload.vue'
 import VelContractCard from '@/features/account/VelContractCard.vue'
 import VelContractSheet from '@/features/account/VelContractSheet.vue'
-import VelContractSignDialog from '@/features/account/VelContractSignDialog.vue'
+import VelContractIban from '@/features/account/VelContractIban.vue'
+import VelSignaturePad from '@/features/account/VelSignaturePad.vue'
 import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
 import { useFilledContractPdf } from '@/composables/useFilledContractPdf'
 import VelCoachGuide from '@/features/account/VelCoachGuide.vue'
@@ -84,9 +85,8 @@ const levelTransitionOpen = ref(false)
 /** Выпадающая панель метода (не модалка) под Preleva. */
 const payoutPanelOpen = ref(false)
 provide(PAYOUT_PANEL_KEY, payoutPanelOpen)
-/* Счёт для зачисления кредита — своё окно, не окно вывода: почему именно так,
-   написано в шапке VelContractIban.vue. */
-/** IBAN + подпись в одной модалке */
+/* IBAN и подпись — отдельно (бриф, фотка 4): сначала счёт, потом росчерк. */
+const contractIbanOpen = ref(false)
 const contractSignOpen = ref(false)
 /** Prestito → модалка Dati personali + Piano di ammortamento */
 const loanOpen = ref(false)
@@ -148,18 +148,23 @@ function onDocumentsVerified(): void {
   showToast(t('account.docs.toastReady'))
 }
 
-function onContractSignConfirm(payload: { dataUrl: string; ibanSaved: boolean }): void {
+function onContractSignConfirm(dataUrl: string): void {
   /* Подпись сразу в стор → лист договора рисует PNG. */
-  account.markContractSigned(new Date(), payload.dataUrl)
+  account.markContractSigned(new Date(), dataUrl)
   account.markDone('signature')
-  showToast(
-    payload.ibanSaved
-      ? t('account.contract.toastSigned')
-      : t('account.contract.toastSigned'),
-  )
+  showToast(t('account.contract.toastSigned'))
+}
+
+function openContractIban(): void {
+  contractIbanOpen.value = true
 }
 
 function openContractSign(): void {
+  /* Firma disabled без IBAN на карточке; страховка на случай вызова сбоку. */
+  if (!account.ibanProvided) {
+    contractIbanOpen.value = true
+    return
+  }
   contractSignOpen.value = true
 }
 
@@ -376,7 +381,7 @@ const showDevBar = !(
           :signed="account.contractSigned"
           @sign="openContractSign"
           @open-pdf="onOpenPdf"
-          @enter-iban="openContractSign"
+          @enter-iban="openContractIban"
         />
         <div class="mt-4 border-t border-line pt-4">
           <VelContractSheet />
@@ -397,8 +402,9 @@ const showDevBar = !(
     v-model:open="commissionOpen"
     @confirmed="onCommissionConfirmed"
   />
-  <!-- IBAN + firma in una modale -->
-  <VelContractSignDialog v-model:open="contractSignOpen" @confirm="onContractSignConfirm" />
+  <!-- IBAN отдельно, подпись (только росчерк) отдельно -->
+  <VelContractIban v-model:open="contractIbanOpen" />
+  <VelSignaturePad v-model:open="contractSignOpen" @confirm="onContractSignConfirm" />
 
   <!-- Contratto PDF con dati cliente (overlay come policy-pdf.php) -->
   <VelPdfDialog

@@ -14,12 +14,9 @@ import VelContractActions from '@/features/account/VelContractActions.vue'
  * «проверено банком» здесь не появляется ни при каких условиях: такие слова
  * вправе сказать только ответ API.
  *
- * ЕДИНСТВЕННОЕ УСЛОВИЕ ПОДПИСИ — ПРИНЯТЫЕ ДОКУМЕНТЫ, и IBAN на него не влияет.
- * Это не недосмотр: реквизиты в этом кабинете спрашивают и после подписи, в
- * окне вывода средств. Запирай подпись за IBAN — маршрут замкнулся бы сам на
- * себя на первой же заявке, где человек ещё не выбрал счёт. Кнопка «Inserisci
- * IBAN» здесь стоит как удобный ярлык (счёт сразу попадает в лист договора
- * ниже), а не как пропуск к подписи.
+ * ПОДПИСЬ ЗАПЕРТА ЗА IBAN (бриф, фотка 4): сначала Inserisci IBAN, потом
+ * Firma. После ввода счёт «запирается» замком; подпись — отдельная модалка
+ * только с росчерком (без набора имени буквами).
  *
  * НА УЗКОМ ЭКРАНЕ действия уезжают ПОД текст и выстраиваются в ряд с
  * переносом, а не жмутся к правому краю: три кнопки в колонке шириной в треть
@@ -60,7 +57,14 @@ const titleId = `vel-contract-${useId()}`
 const hasPdf = computed(() => (props.pdfUrl ?? '') !== '')
 const isSigned = computed(() => props.signed === true)
 const hasIban = computed(() => props.ibanProvided === true)
-const canSign = computed(() => props.documentsReady === true && !isSigned.value)
+/** Документы + IBAN, договор ещё не подписан. */
+const canSign = computed(
+  () => props.documentsReady === true && hasIban.value && !isSigned.value,
+)
+const docsMissing = computed(() => props.documentsReady !== true && !isSigned.value)
+const ibanMissing = computed(
+  () => props.documentsReady === true && !hasIban.value && !isSigned.value,
+)
 </script>
 
 <template>
@@ -118,10 +122,13 @@ const canSign = computed(() => props.documentsReady === true && !isSigned.value)
 
     <!-- Причина, по которой кнопка недоступна, написана словами: заблокированная
          кнопка сама по себе не объясняет ничего. -->
-    <div v-if="!hasPdf || !canSign" class="vel-contract-card__notes">
+    <div v-if="!hasPdf || docsMissing || ibanMissing" class="vel-contract-card__notes">
       <p v-if="!hasPdf" class="vel-contract-card__note">{{ t('contract.card.pdfWaiting') }}</p>
-      <p v-if="!canSign && !isSigned" class="vel-contract-card__note">
+      <p v-if="docsMissing" class="vel-contract-card__note">
         {{ t('contract.card.signLocked') }}
+      </p>
+      <p v-if="ibanMissing" class="vel-contract-card__note">
+        {{ t('contract.card.signNeedsIban') }}
       </p>
     </div>
   </section>

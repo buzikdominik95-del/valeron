@@ -58,9 +58,12 @@ const { t } = useI18n()
       {{ t('contract.card.openPdf') }}
     </button>
 
-    <p v-if="hasIban" class="vel-cactions__state">
+    <!-- IBAN введён: замок + подпись «inserito», повторно открывать нечего. -->
+    <p v-if="hasIban" class="vel-cactions__state" role="status">
       <svg class="vel-cactions__icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4.5 12.5 9.5 17.5 19.5 6.5" />
+        <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+        <path d="M5.5 10.5h13v10h-13z" />
+        <path d="M12 14.5v2.5" />
       </svg>
       {{ t('contract.card.ibanDone') }}
     </p>

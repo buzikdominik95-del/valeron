@@ -103,7 +103,15 @@ useAutoAnimate(slotList)
         {{ rejectionText }}
       </p>
 
-      <VelButton v-if="kind !== null" block size="lg" :disabled="!ready" @click="submit">
+      <!-- Пульс «Carica il documento» только когда все снимки выбраны (фотка 2). -->
+      <VelButton
+        v-if="kind !== null"
+        block
+        size="lg"
+        :disabled="!ready"
+        :class="{ 'vel-docup__submit--pulse': ready }"
+        @click="submit"
+      >
         {{ t('account.docs.submit') }}
       </VelButton>
 
@@ -262,5 +270,31 @@ useAutoAnimate(slotList)
   font-weight: 600;
   line-height: 1.4;
   text-align: center;
+}
+
+/* CTA загрузки: мягкое «дыхание», как у Preleva (фотка 2 брифа). */
+.vel-docup__submit--pulse {
+  animation: vel-docup-breathe 2.2s ease-in-out infinite;
+}
+
+@keyframes vel-docup-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, var(--color-accent) 24%, transparent);
+  }
+
+  50% {
+    transform: scale(1.03);
+    box-shadow:
+      0 0 0 7px color-mix(in oklab, var(--color-accent) 18%, transparent),
+      0 0.55rem 1.4rem color-mix(in oklab, var(--color-accent) 42%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-docup__submit--pulse {
+    animation: none;
+  }
 }
 </style>
