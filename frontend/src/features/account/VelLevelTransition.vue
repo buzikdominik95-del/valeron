@@ -5,7 +5,6 @@ import { usePreferredReducedMotion, useTimeoutFn } from '@vueuse/core'
 import type { CommissionLevel } from '@/api/commission'
 import VelLogo from '@/components/ui/VelLogo.vue'
 import VelTextAnimate from '@/components/magic/VelTextAnimate.vue'
-import VelBlurFade from '@/components/magic/VelBlurFade.vue'
 
 /**
  * Прогрузка между этапами воронки (L1→L2…).
@@ -74,12 +73,7 @@ watch(
   },
 )
 
-const stepLabel = computed(() =>
-  t('account.levelTransition.step', { n: props.level, total: 4 }),
-)
-
-const titleText = computed(() => t('account.levelTransition.title'))
-const leadText = computed(() => t('account.levelTransition.text'))
+const waitText = computed(() => t('account.levelTransition.text'))
 </script>
 
 <template>
@@ -117,17 +111,13 @@ const leadText = computed(() => t('account.levelTransition.text'))
             </div>
           </div>
 
-          <VelBlurFade :delay-ms="120" :duration-ms="500" :offset-px="10">
-            <p class="vel-lvl__step m-0">{{ stepLabel }}</p>
-          </VelBlurFade>
-
           <VelTextAnimate
             as="p"
             class="vel-lvl__brand"
             animation="blurUp"
             :stagger-ms="36"
             :duration-ms="400"
-            :delay-ms="160"
+            :delay-ms="120"
             :text="t('brand.name')"
           />
 
@@ -137,13 +127,9 @@ const leadText = computed(() => t('account.levelTransition.text'))
             animation="blurUp"
             :stagger-ms="40"
             :duration-ms="420"
-            :delay-ms="280"
-            :text="titleText"
+            :delay-ms="220"
+            :text="waitText"
           />
-
-          <VelBlurFade :delay-ms="420" :duration-ms="480" :offset-px="12">
-            <p class="vel-lvl__text m-0">{{ leadText }}</p>
-          </VelBlurFade>
 
           <!-- Прогресс-бар «дыхание» -->
           <div class="vel-lvl__track" aria-hidden="true">
