@@ -7,8 +7,8 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
  * а не в PDF points. Старый policy-pdf.php/FPDI ставил SetXY(60, 67) в мм —
  * те же числа сюда, без × (72/25.4).
  *
- * Текст: WinAnsi (Helvetica). Кириллицу транслитерируем в латиницу —
- * никаких «???????».
+ * Текст: WinAnsi (Times-Roman — serif бланка). Кириллицу транслитерируем
+ * в латиницу — никаких «???????».
  */
 
 /** A4 points; если страница близка к этому — координаты в pt, иначе мм. */
@@ -205,7 +205,8 @@ export async function fillContractPdf(
   const page = pdf.getPages()[0]
   if (!page) throw new Error('PDF has no pages')
 
-  const fontReg = await pdf.embedFont(StandardFonts.Helvetica)
+  /* Times = pixel-match serif бланка (Helvetica/Georgia хуже). Cyr → latin (WinAnsi). */
+  const fontReg = await pdf.embedFont(StandardFonts.TimesRoman)
   const { width, height } = page.getSize()
   const scale = unitScale(width)
   /* Тон ink policy-template (~#1f2022). */
@@ -214,11 +215,11 @@ export async function fillContractPdf(
   /*
    * Calipso-2.0 / policy-template.png 875×1238, page 210×297 mm:
    *   Cliente ink top 23.18% → 68.85 mm; label right 28.46% + gap → name x 61.2 mm
-   *   label height 14px @ 875 → ~3.36 mm (A4 scale ≈ 10.5 pt)
+   *   Times 19px @ 875 ≈ 4.56 mm (mm template) / ~12 pt (A4 pt)
    */
   const name = toPdfText(fields.fullName)
   if (name !== '') {
-    const size = scale === 1 ? 3.36 : 10.5
+    const size = scale === 1 ? 4.56 : 12
     page.drawText(name, {
       x: xMm(61.2, scale),
       y: yFromTop(height, 68.85, scale, size),

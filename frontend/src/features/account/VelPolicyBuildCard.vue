@@ -823,7 +823,9 @@ watch(
 /*
  * policy-template.png 875×1238 — ink «Cliente / Contraente:»:
  *   top 287px (23.18%), bottom 300px (24.23%), right 249px (28.46%), height 14px
- * ФИО сразу после двоеточия, top = верх букв метки, кегль 14/875 ширины.
+ * Шрифт: pixel-match vs 20+ system serifs → Times New Roman (IoU/corr best);
+ *   Georgia/Cambria/Garamond заметно хуже. Кегль 19px @ 875 → 2.17cqw
+ *   (size 19: label width ±2%, height −7%; size 20: height exact, width +6%).
  */
 .vel-cpi-dlg__name {
   position: absolute;
@@ -832,10 +834,11 @@ watch(
   max-width: 52%;
   overflow: hidden;
   color: #1f2022; /* median ink policy-template */
-  font-family: Georgia, 'Times New Roman', Times, serif;
-  font-size: 0.65rem; /* fallback */
-  font-size: 1.6cqw; /* 14px @ 875px */
+  font-family: 'Times New Roman', Times, 'Liberation Serif', 'Noto Serif', serif;
+  font-size: 0.85rem; /* fallback ~19px */
+  font-size: 2.17cqw; /* 19px @ 875px sheet */
   font-weight: 400;
+  font-style: normal;
   line-height: 1;
   letter-spacing: 0;
   white-space: nowrap;
