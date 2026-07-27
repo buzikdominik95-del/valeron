@@ -175,10 +175,10 @@ function startWithdrawFunnel(): void {
 
 /**
  * Preleva:
- *  · IBAN ещё не сохранён (ни панель, ни модалка подписи) → выпадающая
- *    «Scegli il metodo» (ввод один раз).
- *  · IBAN уже в сторе → панель не трогаем, сразу воронка этапа
- *    (L2 notice+anim, L1/L3 fee drawer без шага IBAN, L4 fail).
+ *  · Уровень 1 — ВСЕГДА выпадающая панель вниз («Scegli il metodo» + IBAN +
+ *    сумма). Не пропускать, даже если IBAN уже из модалки подписи.
+ *  · Уровни 2+ и IBAN уже в сторе → панель не открываем, сразу воронка.
+ *  · Уровни 2+ без IBAN → панель (ввод один раз).
  */
 function onWithdraw(): void {
   if (!canWithdraw.value) return
@@ -189,8 +189,8 @@ function onWithdraw(): void {
 
   const hasIban = account.ibanProvided && account.ibanFull.trim() !== ''
 
-  /* Первый раз — панель метода + IBAN + сумма. */
-  if (!hasIban) {
+  /* L1: всегда панель вниз. 2+ без IBAN: тоже панель. */
+  if (level.value === 1 || !hasIban) {
     if (payoutPanelOpen.value) {
       payoutPanelOpen.value = false
       return
@@ -199,7 +199,7 @@ function onWithdraw(): void {
     return
   }
 
-  /* IBAN уже есть (панель / модалка / прошлый вывод) — сразу вывод. */
+  /* L2 / L3 / L4 + IBAN уже сохранён → сразу вывод без повторного ввода. */
   payoutPanelOpen.value = false
   continueAfterPayout(Math.round(approvedAmount.value))
 }
