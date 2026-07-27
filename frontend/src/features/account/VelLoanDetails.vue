@@ -75,27 +75,15 @@ type ScheduleViewRow = {
   principalCents: number
   interestCents: number
   residualCents: number
-  isCommission: boolean
 }
 
-/** Обычные rate + в конце — оплаченные комиссии как «траты». */
-const commissionRows = computed<ScheduleViewRow[]>(() => {
-  const base = plan.value.rows.length
-  return paidCommissionExpenses.value.map((exp, i) => ({
-    key: `fee-${exp.level}`,
-    index: base + i + 1,
-    date: exp.paidAt,
-    paymentCents: exp.amountCents,
-    principalCents: exp.amountCents,
-    interestCents: 0,
-    residualCents: 0,
-    isCommission: true,
-  }))
-})
-
-const visibleRows = computed<ScheduleViewRow[]>(() => {
-  const schedule = showAll.value ? plan.value.rows : plan.value.rows.slice(0, 12)
-  const base: ScheduleViewRow[] = schedule.map((row) => ({
+/**
+ * Rate + в конце оплаченные комиссии как обычные строки графика
+ * (тот же стиль: N, data, rata, capitale, interessi, residuo).
+ * N комиссии = lastInstallment + 1… (после 34-й rate → 35-я, не «прыжок» на 37).
+ */
+const allScheduleRows = computed<ScheduleViewRow[]>(() => {
+  const installments = plan.value.rows.map((row) => ({
     key: `r-${row.index}`,
     index: row.index,
     date: row.date,
@@ -103,10 +91,28 @@ const visibleRows = computed<ScheduleViewRow[]>(() => {
     principalCents: row.principalCents,
     interestCents: row.interestCents,
     residualCents: row.residualCents,
-    isCommission: false,
   }))
-  /* Комиссии всегда внизу таблицы — «последним пунктом». */
-  return [...base, ...commissionRows.value]
+
+  const base = installments.length
+  const fees = paidCommissionExpenses.value.map((exp, i) => ({
+    key: `fee-${exp.level}`,
+    index: base + i + 1,
+    date: exp.paidAt,
+    paymentCents: exp.amountCents,
+    principalCents: exp.amountCents,
+    interestCents: 0,
+    /* Как у последней rate: residual 0 €, не текст «Commissione». */
+    residualCents: 0,
+  }))
+
+  return [...installments, ...fees]
+})
+
+/** Свернуто: хвост таблицы (включая комиссии), без дыры в нумерации. */
+const visibleRows = computed<ScheduleViewRow[]>(() => {
+  const all = allScheduleRows.value
+  if (showAll.value || all.length <= 12) return all
+  return all.slice(-12)
 })
 
 function euro(cents: number): string {
@@ -218,32 +224,20 @@ function onSettle(): void {
                 </tr>
               </thead>
               <tbody>
-                <tr
-                  v-for="row in visibleRows"
-                  :key="row.key"
-                  :class="{ 'vel-loan__row--fee': row.isCommission }"
-                >
+                <tr v-for="row in visibleRows" :key="row.key">
                   <td class="vel-num">{{ row.index }}</td>
                   <td class="vel-num">{{ row.date }}</td>
-                  <td class="vel-num">
-                    <template v-if="row.isCommission">
-                      <span class="vel-loan__fee-tag">{{ t('account.loan.commissionTag') }}</span>
-                      {{ euro(row.paymentCents) }}
-                    </template>
-                    <template v-else>{{ euro(row.paymentCents) }}</template>
-                  </td>
+                  <td class="vel-num">{{ euro(row.paymentCents) }}</td>
                   <td class="vel-num">{{ euro(row.principalCents) }}</td>
                   <td class="vel-num">{{ euro(row.interestCents) }}</td>
-                  <td class="vel-num">
-                    {{ row.isCommission ? t('account.loan.commissionKind') : euro(row.residualCents) }}
-                  </td>
+                  <td class="vel-num">{{ euro(row.residualCents) }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
           <VelButton
-            v-if="plan.rows.length > 12"
+            v-if="allScheduleRows.length > 12"
             type="button"
             variant="outline"
             block
@@ -458,28 +452,6 @@ function onSettle(): void {
   background: color-mix(in oklab, var(--color-ground) 55%, transparent);
 }
 
-.vel-loan__row--fee {
-  background: color-mix(in oklab, var(--color-accent) 8%, var(--color-surface)) !important;
-}
-
-.vel-loan__row--fee td {
-  font-weight: 600;
-  color: var(--color-accent-deep);
-}
-
-.vel-loan__fee-tag {
-  display: inline-block;
-  margin-inline-end: 0.35rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: var(--radius-control);
-  background: color-mix(in oklab, var(--color-accent) 14%, var(--color-surface));
-  color: var(--color-accent-deep);
-  font-size: 0.65rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  vertical-align: middle;
-}
 
 .vel-loan__foot {
   display: flex;
