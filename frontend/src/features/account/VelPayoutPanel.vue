@@ -271,7 +271,15 @@ function close(): void {
 
       <p v-if="!canSubmit" class="m-0 text-xs text-muted">{{ blockedReason }}</p>
 
-      <VelButton type="submit" size="lg" block :disabled="!canSubmit">
+      <VelButton
+        type="submit"
+        size="lg"
+        block
+        class="vel-ppanel__cta"
+        :class="{ 'vel-ppanel__cta--pulse': canSubmit }"
+        :disabled="!canSubmit"
+        data-testid="payout-start-transfer"
+      >
         {{ t('account.payout.dialog.submit') }}
         <span aria-hidden="true">→</span>
       </VelButton>
@@ -290,6 +298,36 @@ function close(): void {
   background: var(--color-surface);
   box-shadow: 0 0.75rem 1.75rem color-mix(in oklab, var(--color-fg) 7%, transparent);
   animation: vel-ppanel-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* «Avvia il trasferimento» — сильный пульс, когда форма готова. */
+.vel-ppanel__cta--pulse {
+  font-weight: 800 !important;
+  animation: vel-ppanel-cta 1.15s ease-in-out infinite;
+  box-shadow: 0 0.45rem 1.25rem color-mix(in oklab, var(--color-accent) 42%, transparent);
+}
+
+.vel-ppanel__cta--pulse:hover {
+  animation: none;
+  filter: brightness(1.06);
+  box-shadow: 0 0.55rem 1.5rem color-mix(in oklab, var(--color-accent) 52%, transparent);
+}
+
+@keyframes vel-ppanel-cta {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-accent) 50%, transparent),
+      0 0.45rem 1.25rem color-mix(in oklab, var(--color-accent) 40%, transparent);
+  }
+
+  50% {
+    transform: scale(1.04);
+    box-shadow:
+      0 0 0 12px color-mix(in oklab, var(--color-accent) 0%, transparent),
+      0 0.65rem 1.7rem color-mix(in oklab, var(--color-accent) 55%, transparent);
+  }
 }
 
 /* v-show: поле IBAN живёт в DOM, автозаполнение не гоняется с mount */
@@ -376,8 +414,13 @@ function close(): void {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vel-ppanel {
+  .vel-ppanel,
+  .vel-ppanel__cta--pulse {
     animation: none;
+  }
+
+  .vel-ppanel__cta--pulse {
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-accent) 35%, transparent);
   }
 }
 </style>
