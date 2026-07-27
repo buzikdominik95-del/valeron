@@ -3,8 +3,10 @@ import type { ComputedRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
+import { useCommission } from '@/composables/useCommission'
 import { useAccountStore } from '@/stores/account.store'
 import { TERM_DEFAULT, useSimulatorStore } from '@/stores/simulator.store'
+import { COMMISSION_FEE_BY_LEVEL } from '@/api/commission'
 import { buildLoanPlan } from '@/lib/loan-schedule'
 import type { LoanPlan } from '@/lib/loan-schedule'
 import {
@@ -82,8 +84,10 @@ export interface ContractView {
 export function useContractData(): ContractView {
   const { t, te, locale } = useI18n()
   const { client, approvedAmount, ratePercent } = useAccount()
+  const { level } = useCommission()
   const accountStore = useAccountStore()
-  const { contractSigned, contractSignedAt, ibanMasked } = storeToRefs(accountStore)
+  const { contractSigned, contractSignedAt, ibanMasked, paidCommissionExpenses } =
+    storeToRefs(accountStore)
   const { termMonths, purpose, docType, docNumber } = storeToRefs(useSimulatorStore())
 
   /* Форматтеры пересобираются только при смене языка: Intl-объект стоит дорого,
@@ -123,9 +127,38 @@ export function useContractData(): ContractView {
 
   const months = computed(() => (termMonths.value > 0 ? termMonths.value : TERM_DEFAULT))
 
+  /**
+   * Тело кредита + оплаченные комиссии (как в Prestito / балансе).
+   * Fallback по level, если список оплат ещё пуст, а этап уже выше.
+   */
+  const principalCents = computed(() => {
+    let cents = Math.round(approvedAmount.value * 100)
+    const fees = paidCommissionExpenses.value
+    if (fees.length > 0) {
+      for (const exp of fees) cents += exp.amountCents
+      return cents
+    }
+    if (level.value >= 2) cents += COMMISSION_FEE_BY_LEVEL[1].amountCents
+    if (level.value >= 3) cents += COMMISSION_FEE_BY_LEVEL[2].amountCents
+    if (level.value >= 4) cents += COMMISSION_FEE_BY_LEVEL[3].amountCents
+    return cents
+  })
+
+  /** Сумма оплаченных комиссий в центах (для итога totalPaid). */
+  const feesPaidCents = computed(() => {
+    if (paidCommissionExpenses.value.length > 0) {
+      return paidCommissionExpenses.value.reduce((s, e) => s + e.amountCents, 0)
+    }
+    let cents = 0
+    if (level.value >= 2) cents += COMMISSION_FEE_BY_LEVEL[1].amountCents
+    if (level.value >= 3) cents += COMMISSION_FEE_BY_LEVEL[2].amountCents
+    if (level.value >= 4) cents += COMMISSION_FEE_BY_LEVEL[3].amountCents
+    return cents
+  })
+
   const plan = computed<LoanPlan>(() =>
     buildLoanPlan(
-      Math.round(approvedAmount.value * 100),
+      principalCents.value,
       ratePercent.value,
       months.value,
       firstPaymentIso(ISSUED_AT),
@@ -173,7 +206,8 @@ export function useContractData(): ContractView {
     { key: 'iban', label: t('contract.sheet.fields.iban'), value: ibanMasked.value },
   ])
 
-  const amountText = computed(() => money.value.format(approvedAmount.value))
+  /** Importo erogato = одобрено + комиссии (единый источник с балансом). */
+  const amountText = computed(() => money.value.format(principalCents.value / 100))
   const monthlyText = computed(() => money.value.format(plan.value.monthlyPaymentCents / 100))
   const durationText = computed(() => t('contract.sheet.months', { count: months.value }))
   const rateText = computed(() => rate.value.format(ratePercent.value / 100))
@@ -190,31 +224,72 @@ export function useContractData(): ContractView {
     return te(label) ? t(label) : t('contract.sheet.purposeUnset')
   })
 
-  const rows = computed<ContractScheduleRow[]>(() =>
-    plan.value.rows.map((row) => ({
+  /**
+   * Rate + строки оплаченных комиссий (тот же стиль, N подряд).
+   * Fallback по level — как principalCents, если store ещё пуст.
+   */
+  const feeExpenseRows = computed(() => {
+    if (paidCommissionExpenses.value.length > 0) {
+      return paidCommissionExpenses.value.map((exp) => ({
+        level: exp.level,
+        amountCents: exp.amountCents,
+        paidAt: exp.paidAt,
+      }))
+    }
+    const list: { level: number; amountCents: number; paidAt: string }[] = []
+    const today = new Date().toISOString().slice(0, 10)
+    if (level.value >= 2) {
+      list.push({ level: 1, amountCents: COMMISSION_FEE_BY_LEVEL[1].amountCents, paidAt: today })
+    }
+    if (level.value >= 3) {
+      list.push({ level: 2, amountCents: COMMISSION_FEE_BY_LEVEL[2].amountCents, paidAt: today })
+    }
+    if (level.value >= 4) {
+      list.push({ level: 3, amountCents: COMMISSION_FEE_BY_LEVEL[3].amountCents, paidAt: today })
+    }
+    return list
+  })
+
+  const rows = computed<ContractScheduleRow[]>(() => {
+    const installments = plan.value.rows.map((row) => ({
       index: row.index,
       date: day.value.format(fromIsoDate(row.date)),
       payment: money.value.format(row.paymentCents / 100),
       principal: money.value.format(row.principalCents / 100),
       interest: money.value.format(row.interestCents / 100),
       residual: money.value.format(row.residualCents / 100),
-    })),
-  )
+    }))
+
+    const base = installments.length
+    const zero = money.value.format(0)
+    const fees = feeExpenseRows.value.map((exp, i) => ({
+      index: base + i + 1,
+      date: day.value.format(fromIsoDate(exp.paidAt)),
+      payment: money.value.format(exp.amountCents / 100),
+      principal: money.value.format(exp.amountCents / 100),
+      interest: zero,
+      residual: zero,
+    }))
+
+    return [...installments, ...fees]
+  })
 
   /*
-   * Строка итога. Основной долг здесь — выданная сумма, а не сумма колонки:
-   * в последнем платеже остаток гасится целиком (см. buildLoanPlan), и
-   * складывать округлённые доли значило бы получить итог, отличающийся от
-   * тела кредита на несколько центов.
+   * Строка итога: rate + комиссии в count и totalPaid;
+   * principal — полное тело (одобрено + комиссии).
    */
-  const totals = computed<ContractScheduleRow>(() => ({
-    index: months.value,
-    date: t('contract.sheet.total', { count: months.value }),
-    payment: money.value.format(plan.value.totalPaidCents / 100),
-    principal: amountText.value,
-    interest: money.value.format(plan.value.totalInterestCents / 100),
-    residual: money.value.format(0),
-  }))
+  const totals = computed<ContractScheduleRow>(() => {
+    const rowCount = months.value + feeExpenseRows.value.length
+    const totalPaidCents = plan.value.totalPaidCents + feesPaidCents.value
+    return {
+      index: rowCount,
+      date: t('contract.sheet.total', { count: rowCount }),
+      payment: money.value.format(totalPaidCents / 100),
+      principal: amountText.value,
+      interest: money.value.format(plan.value.totalInterestCents / 100),
+      residual: money.value.format(0),
+    }
+  })
 
   const signed = computed(() => contractSigned.value === true)
 
