@@ -367,10 +367,11 @@ watch(
   { flush: 'post' },
 )
 
-/* Числа пришли из пропов — перерисовываем немедленно, не ожидая кадра:
-   при reduced-motion кадров не будет вовсе, а процент обязан обновиться. */
+/* Числа / failed пришли из пропов — перерисовываем сразу.
+   При failed всегда settle-кадр (freeze), иначе при remount/v-show
+   raf мог не успеть и сцена «пропадала» на Home. */
 watch([() => props.progress, () => props.failed, () => props.look, texts], () => {
-  if (motion.value === 'reduce') renderStill()
+  if (motion.value === 'reduce' || props.failed) renderStill()
 })
 
 tryOnScopeDispose(() => {
