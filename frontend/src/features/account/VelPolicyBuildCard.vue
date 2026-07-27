@@ -563,11 +563,11 @@ const showVerifyCard = computed(() => step.value === 'verify' && !feeModalOpen.v
   height: auto;
 }
 
-/* Имя = тон основного текста бланка (не жирный чёрный) */
+/* Calipso-2.0: Cliente ~23.6% top, label ends ~28.5% → name 29.2% */
 .vel-cpi-dlg__name {
   position: absolute;
-  left: 29.5%;
-  top: 23.55%;
+  left: 29.2%;
+  top: 23.6%;
   max-width: 52%;
   overflow: hidden;
   color: #3a3f4a;

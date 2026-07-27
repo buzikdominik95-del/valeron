@@ -1,22 +1,18 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
 import { useCpiBuild } from '@/composables/useCpiBuild'
 import VelMeter from '@/components/ui/VelMeter.vue'
+import VelButton from '@/components/ui/VelButton.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
+import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
 
 /**
- * CPI на вкладке Documenti (L3 · policy_build).
- *
- * Пока сертификат генерируется (step === loading) — только «генерация»
- * (прогресс + bozza, как на Home). Готовый CPI не показываем.
- * После loading — чистый сгенерированный сертификат с ФИО в поле Cliente.
- * Во время activating — тот же сертификат + meter активации.
- *
- * Координаты ФИО сняты с policy-template.png (876×1238):
- *   «Cliente / Contraente:» ≈ top 23.7%, label ends ≈ 28.4% → name left 29.5%.
+ * CPI на Documenti (L3 · policy_build).
+ * Генерация — компактная анимация (не полный бланк на всю высоту).
+ * Готовый документ — кнопка → модалка (VelPdfDialog).
  */
 const CPI_POLICY_IMG = `${import.meta.env.BASE_URL}cpi/policy-template.png`
 
@@ -32,21 +28,13 @@ const {
   step,
 } = useCpiBuild()
 
+const previewOpen = ref(false)
+
 const visible = computed(() => level.value === 3 && isPolicyBuild.value)
-
-/** Генерация сертификата ещё идёт — финальный CPI скрыт. */
 const isGenerating = computed(() => step.value === 'loading')
-
-/** Активация после генерации. */
 const isActivating = computed(() => step.value === 'activating')
-
-/** Генерация завершена — можно показать готовый CPI. */
 const isGenerated = computed(() => !isGenerating.value)
 
-/**
- * 0…1 на bozza: только во время loading.
- * min 0.06 — рамка видна сразу.
- */
 const reveal = computed(() => {
   if (!isGenerating.value) return 1
   return Math.min(1, Math.max(0.06, loadProgress.value))
@@ -61,21 +49,16 @@ const holderName = computed(
     '—',
 )
 
-/**
- * Имя на строке Cliente (~24% высоты). Во время генерации — только когда
- * «печать» дошла до этой строки; после генерации — всегда.
- */
-const showName = computed(() => {
-  if (isGenerated.value) return true
-  return reveal.value >= 0.26
-})
-
 const statusKey = computed(() => {
   if (isGenerated.value) return 'ready'
   if (reveal.value >= 0.92) return 'almost'
   if (reveal.value >= 0.45) return 'filling'
   return 'draft'
 })
+
+function openPreview(): void {
+  previewOpen.value = true
+}
 </script>
 
 <template>
@@ -90,18 +73,49 @@ const statusKey = computed(() => {
     data-testid="policy-stub"
     :aria-label="t('account.commission.cpi.stub.region')"
   >
-    <!-- ─── Фаза 1: генерация (финальный CPI не показываем) ─── -->
+    <div class="vel-pstub__bar">
+      <p class="vel-pstub__lead m-0">
+        {{
+          isGenerating
+            ? t('account.commission.cpi.stub.lead')
+            : t('account.commission.cpi.stub.readyLead')
+        }}
+      </p>
+      <span
+        class="vel-pstub__badge"
+        :class="{ 'vel-pstub__badge--ok': isGenerated }"
+      >
+        {{
+          t(
+            `account.commission.cpi.stub.status.${
+              isActivating ? 'activating' : statusKey
+            }`,
+          )
+        }}
+      </span>
+    </div>
+
+    <div class="vel-pstub__head">
+      <h3 class="vel-pstub__title m-0">
+        {{
+          isGenerating
+            ? t('account.commission.cpi.stub.title')
+            : t('account.commission.cpi.stub.readyTitle')
+        }}
+      </h3>
+      <p class="vel-pstub__sub m-0">
+        {{
+          isActivating
+            ? t('account.commission.cpi.activating.body')
+            : isGenerating
+              ? t('account.commission.cpi.stub.subtitle')
+              : t('account.commission.cpi.stub.readySubtitle')
+        }}
+      </p>
+    </div>
+
+    <!-- Генерация: компактная анимация «создания файла», не полный бланк -->
     <template v-if="isGenerating">
-      <div class="vel-pstub__bar">
-        <p class="vel-pstub__lead m-0">{{ t('account.commission.cpi.stub.lead') }}</p>
-        <span class="vel-pstub__badge">{{ t(`account.commission.cpi.stub.status.${statusKey}`) }}</span>
-      </div>
-
-      <div class="vel-pstub__head">
-        <h3 class="vel-pstub__title m-0">{{ t('account.commission.cpi.stub.title') }}</h3>
-        <p class="vel-pstub__sub m-0">{{ t('account.commission.cpi.stub.subtitle') }}</p>
-      </div>
-
       <div
         class="vel-pstub__meter"
         role="progressbar"
@@ -120,46 +134,24 @@ const statusKey = computed(() => {
         </p>
       </div>
 
-      <!-- Bozza: шаблон проявляется сверху вниз; готовый вид — только после loading -->
-      <div class="vel-pstub__frame vel-pstub__frame--draft">
-        <div class="vel-pstub__sheet" :style="{ '--vel-pstub-reveal': String(reveal) }">
-          <img
-            class="vel-pstub__img"
-            :src="CPI_POLICY_IMG"
-            :alt="t('account.commission.cpi.stub.imgAlt')"
-            width="600"
-            height="auto"
-          />
-          <span v-if="showName" class="vel-pstub__name" aria-hidden="true">{{ holderName }}</span>
-          <div class="vel-pstub__fog" aria-hidden="true" />
-          <div class="vel-pstub__scan" aria-hidden="true" />
+      <div class="vel-pstub__build" aria-hidden="true">
+        <div class="vel-pstub__file" :style="{ '--vel-pstub-reveal': String(reveal) }">
+          <span class="vel-pstub__file-fold" />
+          <span class="vel-pstub__file-lines">
+            <i /><i /><i /><i /><i />
+          </span>
+          <span class="vel-pstub__file-scan" />
         </div>
+        <p class="vel-pstub__build-cap m-0">
+          {{ t('account.commission.cpi.stub.building') }}
+        </p>
       </div>
 
       <p class="vel-pstub__hint m-0">{{ t('account.commission.cpi.stub.hint') }}</p>
     </template>
 
-    <!-- ─── Фаза 2+: сгенерированный CPI (+ meter активации) ─── -->
+    <!-- Готово: мини-превью + кнопка → модалка (полный бланк не разворачиваем) -->
     <template v-else>
-      <div class="vel-pstub__bar">
-        <p class="vel-pstub__lead m-0">{{ t('account.commission.cpi.stub.readyLead') }}</p>
-        <span class="vel-pstub__badge vel-pstub__badge--ok">
-          {{ t(`account.commission.cpi.stub.status.${isActivating ? 'activating' : 'ready'}`) }}
-        </span>
-      </div>
-
-      <div class="vel-pstub__head">
-        <h3 class="vel-pstub__title m-0">{{ t('account.commission.cpi.stub.readyTitle') }}</h3>
-        <p class="vel-pstub__sub m-0">
-          {{
-            isActivating
-              ? t('account.commission.cpi.activating.body')
-              : t('account.commission.cpi.stub.readySubtitle')
-          }}
-        </p>
-      </div>
-
-      <!-- Активация: тот же UI, что на Home (фотка «Attivazione del certificato») -->
       <div v-if="isActivating" class="vel-pstub__act" data-testid="policy-stub-activation">
         <div class="vel-pstub__act-head">
           <span class="vel-pstub__act-mark text-accent-deep" aria-hidden="true">
@@ -177,22 +169,33 @@ const statusKey = computed(() => {
         </div>
       </div>
 
-      <!-- Готовый сертификат — только после окончания генерации -->
-      <div class="vel-pstub__frame vel-pstub__frame--ready" data-testid="policy-stub-cert">
-        <div class="vel-pstub__sheet vel-pstub__sheet--full">
-          <img
-            class="vel-pstub__img"
-            :src="CPI_POLICY_IMG"
-            :alt="t('account.commission.cpi.stub.readyImgAlt')"
-            width="600"
-            height="auto"
-          />
-          <span class="vel-pstub__name" aria-hidden="true">{{ holderName }}</span>
+      <div class="vel-pstub__ready-card" data-testid="policy-stub-cert">
+        <div class="vel-pstub__thumb" aria-hidden="true">
+          <img class="vel-pstub__thumb-img" :src="CPI_POLICY_IMG" alt="" width="120" height="auto" />
         </div>
+        <div class="vel-pstub__ready-text min-w-0">
+          <p class="vel-pstub__ready-name m-0">{{ t('account.commission.cpi.stub.readyTitle') }}</p>
+          <p class="vel-pstub__ready-meta m-0">{{ holderName }}</p>
+        </div>
+        <VelButton
+          type="button"
+          size="lg"
+          data-testid="policy-stub-open"
+          @click="openPreview"
+        >
+          {{ t('account.commission.cpi.stub.openCta') }}
+        </VelButton>
       </div>
 
       <p class="vel-pstub__hint m-0">{{ t('account.commission.cpi.stub.readyHint') }}</p>
     </template>
+
+    <VelPdfDialog
+      v-model:open="previewOpen"
+      :preview-image="CPI_POLICY_IMG"
+      :holder-name="holderName"
+      :title="t('account.commission.cpi.stub.readyTitle')"
+    />
   </section>
 </template>
 
@@ -301,6 +304,105 @@ const statusKey = computed(() => {
   font-weight: 600;
 }
 
+/* Компактная «сборка файла» */
+.vel-pstub__build {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 1rem 0.75rem 0.85rem;
+  border: 1px dashed color-mix(in oklab, var(--color-accent) 30%, var(--color-line));
+  border-radius: var(--radius-control);
+  background: color-mix(in oklab, var(--color-accent) 5%, var(--color-ground));
+}
+
+.vel-pstub__file {
+  --vel-pstub-reveal: 0.1;
+
+  position: relative;
+  width: 5.5rem;
+  height: 7rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--color-accent) 28%, var(--color-line));
+  border-radius: 0.35rem 0.55rem 0.35rem 0.35rem;
+  background: #fff;
+  box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, var(--color-fg) 8%, transparent);
+}
+
+.vel-pstub__file-fold {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1.15rem;
+  height: 1.15rem;
+  background:
+    linear-gradient(
+      225deg,
+      color-mix(in oklab, var(--color-accent) 18%, #eef3fa) 50%,
+      transparent 50%
+    );
+}
+
+.vel-pstub__file-lines {
+  position: absolute;
+  inset: 1.4rem 0.7rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.vel-pstub__file-lines i {
+  display: block;
+  height: 0.28rem;
+  border-radius: 99px;
+  background: color-mix(in oklab, var(--color-fg) 12%, transparent);
+  transform-origin: 0 50%;
+  animation: vel-pstub-line 1.4s ease-in-out infinite;
+}
+
+.vel-pstub__file-lines i:nth-child(1) {
+  width: 88%;
+  animation-delay: 0s;
+}
+.vel-pstub__file-lines i:nth-child(2) {
+  width: 72%;
+  animation-delay: 0.12s;
+}
+.vel-pstub__file-lines i:nth-child(3) {
+  width: 94%;
+  animation-delay: 0.24s;
+}
+.vel-pstub__file-lines i:nth-child(4) {
+  width: 60%;
+  animation-delay: 0.36s;
+}
+.vel-pstub__file-lines i:nth-child(5) {
+  width: 80%;
+  animation-delay: 0.48s;
+}
+
+.vel-pstub__file-scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--vel-pstub-reveal) * 100%);
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--color-accent) 75%, #fff),
+    transparent
+  );
+  box-shadow: 0 0 10px color-mix(in oklab, var(--color-accent) 40%, transparent);
+  transition: top 400ms ease;
+}
+
+.vel-pstub__build-cap {
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .vel-pstub__act {
   display: flex;
   flex-direction: column;
@@ -321,7 +423,6 @@ const statusKey = computed(() => {
   display: inline-flex;
   flex-shrink: 0;
   animation: vel-pstub-spin 8s linear infinite;
-  transform-origin: center;
 }
 
 .vel-pstub__act-title {
@@ -331,99 +432,52 @@ const statusKey = computed(() => {
   line-height: 1.25;
 }
 
-.vel-pstub__frame {
+.vel-pstub__ready-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem 1rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid color-mix(in oklab, var(--color-success) 28%, var(--color-line));
+  border-radius: var(--radius-control);
+  background: color-mix(in oklab, var(--color-success) 6%, var(--color-surface));
+}
+
+.vel-pstub__thumb {
+  flex-shrink: 0;
+  width: 3.4rem;
+  height: 4.4rem;
   overflow: hidden;
   border: 1px solid var(--color-line);
-  border-radius: var(--radius-control);
-  background: var(--color-ground);
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-fg) 4%, transparent);
+  border-radius: 0.3rem;
+  background: #fff;
+  box-shadow: 0 0.2rem 0.55rem color-mix(in oklab, var(--color-fg) 8%, transparent);
 }
 
-.vel-pstub__frame--ready {
-  border-color: color-mix(in oklab, var(--color-success) 28%, var(--color-line));
-}
-
-.vel-pstub__sheet {
-  --vel-pstub-reveal: 0.1;
-
-  position: relative;
+.vel-pstub__thumb-img {
   display: block;
   width: 100%;
-  clip-path: inset(0 0 calc((1 - var(--vel-pstub-reveal)) * 100%) 0);
-  transition: clip-path 450ms ease;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
 }
 
-.vel-pstub__sheet--full {
-  clip-path: none;
+.vel-pstub__ready-text {
+  flex: 1 1 8rem;
 }
 
-.vel-pstub__img {
-  display: block;
-  width: 100%;
-  height: auto;
-  filter: saturate(0.92);
+.vel-pstub__ready-name {
+  color: var(--color-fg);
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.25;
 }
 
-.vel-pstub__frame--ready .vel-pstub__img {
-  filter: none;
-}
-
-/*
- * ФИО в поле «Cliente / Contraente:» на policy-template.png (876×1238):
- * строка ~23.6–24.2% top, label ends ~28.4% → имя с 29.5%.
- * Старые 43% / 35.4% сажали текст в «1. Tipo di Assicurazione».
- */
-.vel-pstub__name {
-  position: absolute;
-  left: 29.5%;
-  top: 23.55%;
-  max-width: 52%;
-  overflow: hidden;
-  color: #3a3f4a;
-  font-family: Georgia, 'Times New Roman', Times, serif;
-  font-size: clamp(0.55rem, 1.75vw, 0.78rem);
-  font-weight: 400;
-  line-height: 1.2;
-  letter-spacing: 0.005em;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  pointer-events: none;
-  animation: vel-pstub-name-in 500ms ease both;
-}
-
-.vel-pstub__sheet--full .vel-pstub__name {
-  animation: none;
-}
-
-/* «Туман» на ещё не «напечатанной» части (только bozza) */
-.vel-pstub__fog {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    transparent calc(var(--vel-pstub-reveal) * 100% - 8%),
-    color-mix(in oklab, var(--color-ground) 88%, transparent) calc(var(--vel-pstub-reveal) * 100%),
-    var(--color-ground) 100%
-  );
-  pointer-events: none;
-}
-
-.vel-pstub__scan {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(var(--vel-pstub-reveal) * 100% - 2px);
-  height: 3px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in oklab, var(--color-accent) 70%, white),
-    transparent
-  );
-  box-shadow: 0 0 12px color-mix(in oklab, var(--color-accent) 45%, transparent);
-  pointer-events: none;
-  transition: top 450ms ease;
+.vel-pstub__ready-meta {
+  margin-top: 0.15rem;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  line-height: 1.3;
 }
 
 .vel-pstub__hint {
@@ -432,15 +486,16 @@ const statusKey = computed(() => {
   line-height: 1.4;
 }
 
-@keyframes vel-pstub-name-in {
-  from {
-    opacity: 0;
-    transform: translateY(0.2rem);
+@keyframes vel-pstub-line {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scaleX(0.92);
   }
 
-  to {
+  50% {
     opacity: 1;
-    transform: none;
+    transform: scaleX(1);
   }
 }
 
@@ -455,16 +510,12 @@ const statusKey = computed(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vel-pstub__sheet,
   .vel-pstub__meter-fill,
-  .vel-pstub__scan {
+  .vel-pstub__file-scan {
     transition: none;
   }
 
-  .vel-pstub__name {
-    animation: none;
-  }
-
+  .vel-pstub__file-lines i,
   .vel-pstub__act-mark {
     animation: none;
   }

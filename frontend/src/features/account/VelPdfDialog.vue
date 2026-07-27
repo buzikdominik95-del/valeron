@@ -231,10 +231,14 @@ function close(): void {
  * ФИО на бланке: цвет и вес как у основного текста (не «чёрный bold»).
  * Координаты как policy-template.png.
  */
+/*
+ * Calipso-2.0.png 875×1238: «Cliente / Contraente:» ends ~28.5% left,
+ * baseline ~23.6–24.2% top → name immediately after colon.
+ */
 .vel-pdf-dlg__name {
   position: absolute;
-  left: 29.5%;
-  top: 23.55%;
+  left: 29.2%;
+  top: 23.6%;
   max-width: 52%;
   overflow: hidden;
   color: #3a3f4a;
