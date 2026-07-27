@@ -5,29 +5,24 @@ import { useNativeDialog } from '@/composables/useNativeDialog'
 import VelButton from '@/components/ui/VelButton.vue'
 
 /**
- * Договор в модалке: чистый превью-лист (картинка + ФИО), без PDF-toolbar,
- * печати и «открыть во вкладке».
+ * Модалка документа:
+ * — CPI: картинка policy-template + оверлей ФИО
+ * — Contratto: слот #default (полный VelContractSheet) или PDF src
  */
 const open = defineModel<boolean>('open', { default: false })
 
 const props = withDefaults(
   defineProps<{
-    /** Картинка бланка (policy-template / contract-preview). */
+    /** Картинка бланка CPI. */
     previewImage?: string
-    /** ФИО на строке Cliente / Contraente (CPI). Пусто = без оверлея. */
+    /** ФИО на строке Cliente (только CPI). */
     holderName?: string
-    /** Подпись клиента (data URL), если уже есть. */
     signatureUrl?: string
     title?: string
     loading?: boolean
     error?: string | null
-    /**
-     * Режим оверлея имени.
-     * cpi — строка Cliente на policy-template;
-     * none — бланк как есть (контракт уже с данными).
-     */
     nameMode?: 'cpi' | 'none'
-    /** @deprecated PDF iframe больше не используется для UI. */
+    /** Заполненный PDF (blob:/url) — Contratto. */
     src?: string
   }>(),
   {
@@ -42,6 +37,10 @@ const props = withDefaults(
   },
 )
 
+const slots = defineSlots<{
+  default?: () => unknown
+}>()
+
 const { t } = useI18n()
 const uid = useId()
 const titleId = `vel-pdf-dialog-title-${uid}`
@@ -49,6 +48,8 @@ const dialog = useTemplateRef<HTMLDialogElement>('dialog')
 useNativeDialog(dialog, open)
 
 const hasPreview = computed(() => (props.previewImage ?? '').trim() !== '')
+const hasPdf = computed(() => (props.src ?? '').trim() !== '')
+const hasSlot = computed(() => typeof slots.default === 'function')
 const nameText = computed(() => {
   if (props.nameMode === 'none') return ''
   return (props.holderName ?? '').trim()
@@ -66,6 +67,7 @@ function close(): void {
   <dialog
     ref="dialog"
     class="vel-pdf-dlg"
+    :class="{ 'vel-pdf-dlg--wide': hasSlot || hasPdf }"
     data-testid="pdf-dialog"
     :aria-labelledby="titleId"
   >
@@ -83,7 +85,6 @@ function close(): void {
           :aria-label="t('contract.pdfDialog.close')"
           @click="close"
         >
-          <!-- Ровный крестик (не глиф «×» — он часто кривой по baseline) -->
           <svg class="vel-pdf-dlg__x-ico" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M6 6 18 18M18 6 6 18" />
           </svg>
@@ -95,6 +96,24 @@ function close(): void {
           {{ t('contract.pdfDialog.loading') }}
         </div>
 
+        <!-- Полный Contratto di credito al consumo (лист договора) -->
+        <div v-else-if="hasSlot" class="vel-pdf-dlg__slot">
+          <slot />
+        </div>
+
+        <!-- PDF blob (fallback) -->
+        <div v-else-if="hasPdf" class="vel-pdf-dlg__pdf-wrap">
+          <object
+            class="vel-pdf-dlg__pdf"
+            :data="src"
+            type="application/pdf"
+            :aria-label="title || t('contract.pdfDialog.title')"
+          >
+            <iframe class="vel-pdf-dlg__pdf" :src="src" title="PDF" />
+          </object>
+        </div>
+
+        <!-- CPI image + name overlay -->
         <div v-else-if="hasPreview" class="vel-pdf-dlg__sheet-wrap">
           <div class="vel-pdf-dlg__sheet">
             <img
@@ -104,7 +123,6 @@ function close(): void {
               width="600"
               height="auto"
             />
-            <!-- Имя: тот же «чернильный» тон, что основной текст бланка -->
             <span v-if="nameText" class="vel-pdf-dlg__name" aria-hidden="true">{{ nameText }}</span>
             <img
               v-if="hasSig"
@@ -141,6 +159,30 @@ function close(): void {
   background: var(--color-surface);
   color: var(--color-fg);
   box-shadow: 0 1.5rem 3rem color-mix(in oklab, var(--color-fg) 28%, transparent);
+}
+
+.vel-pdf-dlg--wide {
+  inline-size: min(100% - 0.85rem, 44rem);
+}
+
+.vel-pdf-dlg__slot {
+  display: flex;
+  flex-direction: column;
+}
+
+.vel-pdf-dlg__pdf-wrap {
+  overflow: hidden;
+  min-block-size: min(70dvh, 36rem);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: #fff;
+}
+
+.vel-pdf-dlg__pdf {
+  display: block;
+  width: 100%;
+  min-block-size: min(70dvh, 36rem);
+  border: 0;
 }
 
 .vel-pdf-dlg::backdrop {

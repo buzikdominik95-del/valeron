@@ -88,11 +88,9 @@ onMounted(() => {
     })
 })
 
-/** Contratto template / preview (BASE_URL только в script — в template import.meta ломает prod build). */
+/** Contratto PDF template (BASE_URL только в script — в template import.meta ломает prod build). */
 const contractPdfTemplate = `${import.meta.env.BASE_URL}cpi/cpi-contract.pdf`
 const contractPdfUrl = contractPdfTemplate
-/** Превью «Apri PDF» — бланк контракта (не CPI). */
-const contractPreviewImg = `${import.meta.env.BASE_URL}cpi/contract-preview.png`
 /* payoutOpen убран: форма — выпадающая VelPayoutPanel под балансом */
 /** Этап 2: «данные в банк, 5–10 мин» до 7-минутной анимации. */
 const bankNoticeOpen = ref(false)
@@ -542,13 +540,14 @@ const showDevBar = !(
   <VelContractIban v-model:open="contractIbanOpen" />
   <VelSignaturePad v-model:open="contractSignOpen" @confirm="onContractSignConfirm" />
 
-  <!-- Contratto: превью бланка (данные уже на листе) -->
+  <!-- Apri PDF: полный Contratto di credito al consumo (тот же лист, что на Documenti) -->
   <VelPdfDialog
     v-model:open="pdfOpen"
-    :preview-image="contractPreviewImg"
     name-mode="none"
-    :title="t('contract.card.title')"
-  />
+    :title="t('contract.preview.title')"
+  >
+    <VelContractSheet />
+  </VelPdfDialog>
 
   <!-- Prestito: модалка с 2 блоками (Dati personali + ammortamento) -->
   <VelLoanDetails v-model:open="loanOpen" />
