@@ -748,6 +748,20 @@ export default {
       cpi: {
         pct: '{value}% completato',
         remain: 'restano circa {time}',
+        /* Bozza polizza su Documenti durante policy_build */
+        stub: {
+          region: 'Bozza della polizza CPI in elaborazione',
+          lead: 'Bozza polizza',
+          title: 'Polizza assicurativa CPI',
+          subtitle: 'Stiamo componendo il documento di protezione collegato al tuo credito.',
+          hint: 'La bozza si aggiorna in tempo reale. Al termine troverai qui il certificato completo.',
+          imgAlt: 'Anteprima della polizza CPI in formazione',
+          status: {
+            draft: 'In preparazione',
+            filling: 'Compilazione dati',
+            almost: 'Quasi pronto',
+          },
+        },
         loading: {
           overline: 'Certificato CPI',
           title: 'Ottenimento del certificato CPI',
@@ -1456,6 +1470,20 @@ export default {
       cpi: {
         pct: '{value}% выполнено',
         remain: 'осталось примерно {time}',
+        /* Черновик полиса на Documenti во время policy_build */
+        stub: {
+          region: 'Черновик полиса CPI в обработке',
+          lead: 'Черновик полиса',
+          title: 'Страховой полис CPI',
+          subtitle: 'Формируем документ защиты, привязанный к вашему кредиту.',
+          hint: 'Черновик обновляется в реальном времени. По готовности здесь появится полный сертификат.',
+          imgAlt: 'Превью полиса CPI в процессе формирования',
+          status: {
+            draft: 'Готовится',
+            filling: 'Заполнение данных',
+            almost: 'Почти готово',
+          },
+        },
         loading: {
           overline: 'Сертификат CPI',
           title: 'Получение сертификата CPI',
