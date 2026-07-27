@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { storeToRefs } from 'pinia'
 import { useAccount } from '@/composables/useAccount'
 import { useCpiBuild } from '@/composables/useCpiBuild'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { usePanelMotion } from '@/composables/usePanelMotion'
+import { useSimulatorStore } from '@/stores/simulator.store'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelMeter from '@/components/ui/VelMeter.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
@@ -22,6 +24,7 @@ const CPI_POLICY_IMG = `${import.meta.env.BASE_URL}cpi/policy-template.png`
 
 const { t } = useI18n()
 const { client } = useAccount()
+const { gender } = storeToRefs(useSimulatorStore())
 const { select: selectTab } = useCabinetTab()
 const {
   step,
@@ -99,7 +102,11 @@ watch(previewOpen, (open, was) => {
           <span class="vel-num">{{ t('account.commission.cpi.remain', { time: loadRemainLabel }) }}</span>
         </div>
 
-        <VelCpiGenAnim :progress="loadProgress" :holder-name="holderName" />
+        <VelCpiGenAnim
+          :progress="loadProgress"
+          :holder-name="holderName"
+          :gender="gender || 'female'"
+        />
 
         <VelButton
           type="button"

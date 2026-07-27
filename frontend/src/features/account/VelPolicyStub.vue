@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { storeToRefs } from 'pinia'
 import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
 import { useCpiBuild } from '@/composables/useCpiBuild'
 import { useCabinetTab } from '@/composables/useCabinetTab'
+import { useSimulatorStore } from '@/stores/simulator.store'
 import VelMeter from '@/components/ui/VelMeter.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
 import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
@@ -20,6 +22,7 @@ const CPI_POLICY_IMG = `${import.meta.env.BASE_URL}cpi/policy-template.png`
 
 const { t } = useI18n()
 const { client, isPolicyIssued } = useAccount()
+const { gender } = storeToRefs(useSimulatorStore())
 const { isPolicyBuild, level } = useCommission()
 const { select: selectTab } = useCabinetTab()
 const {
@@ -116,6 +119,7 @@ watch(previewOpen, (open, was) => {
         data-testid="policy-stub-generating"
         :progress="loadProgress"
         :holder-name="holderName"
+        :gender="gender || 'female'"
       />
     </template>
 

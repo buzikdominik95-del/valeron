@@ -15,13 +15,18 @@ const TOTAL = CPI_GEN_TOTAL
 let ctx = null
 /** @type {string} */
 let holderName = 'Cliente Velora'
+/** @type {'f' | 'm'} */
+let G = 'f'
 /**
  * @param {CanvasRenderingContext2D} c
  * @param {string} [name]
+ * @param {'male' | 'female' | string} [gender]
  */
-export function setCpiGenContext(c, name) {
+export function setCpiGenContext(c, name, gender) {
   ctx = c
   if (name && String(name).trim()) holderName = String(name).trim()
+  const g = String(gender || '').toLowerCase()
+  G = g === 'male' || g === 'm' || g === 'uomo' ? 'm' : 'f'
 }
 
 /* ---------- helpers ---------- */
@@ -122,7 +127,6 @@ const PEOPLE={
      shirt:'#2e5fc0',shirtDk:'#1f4499',
      jaw:1.07,chin:63,sh:91,brow:6.0,browW:13,lash:0,stub:.15,tie:1,neck:0,lip:'#96524b'}
 };
-let G='f';
 const P=()=>PEOPLE[G];
 
 function facePath(fw,chin){

@@ -213,16 +213,16 @@ export async function fillContractPdf(
   const bodyInk = rgb(0.122, 0.125, 0.133)
 
   /*
-   * Calipso-2.0 / policy-template.png 875×1238, page 210×297 mm:
-   *   Cliente name top 23.02% (−2px vs label) → 68.37 mm; x after colon → 61.2 mm
-   *   Times 19px @ 875 ≈ 4.56 mm (mm template) / ~12 pt (A4 pt)
+   * policy-template.png 1054×1492 → page 210×297 mm:
+   *   Cliente top 23.32% → 69.26 mm; name top 23.22% → 68.96 mm
+   *   label right 28.75% → name x 61.7 mm
    */
   const name = toPdfText(fields.fullName)
   if (name !== '') {
     const size = scale === 1 ? 4.56 : 12
     page.drawText(name, {
-      x: xMm(61.2, scale),
-      y: yFromTop(height, 68.37, scale, size),
+      x: xMm(61.7, scale),
+      y: yFromTop(height, 68.96, scale, size),
       size,
       font: fontReg,
       color: bodyInk,

@@ -12,15 +12,21 @@ const open = defineModel<boolean>('open', { default: false })
 
 const props = withDefaults(
   defineProps<{
-    /** Картинка бланка (policy-template). */
+    /** Картинка бланка (policy-template / contract-preview). */
     previewImage?: string
-    /** ФИО на строке Cliente / Contraente. */
+    /** ФИО на строке Cliente / Contraente (CPI). Пусто = без оверлея. */
     holderName?: string
     /** Подпись клиента (data URL), если уже есть. */
     signatureUrl?: string
     title?: string
     loading?: boolean
     error?: string | null
+    /**
+     * Режим оверлея имени.
+     * cpi — строка Cliente на policy-template;
+     * none — бланк как есть (контракт уже с данными).
+     */
+    nameMode?: 'cpi' | 'none'
     /** @deprecated PDF iframe больше не используется для UI. */
     src?: string
   }>(),
@@ -31,6 +37,7 @@ const props = withDefaults(
     title: '',
     loading: false,
     error: null,
+    nameMode: 'cpi',
     src: '',
   },
 )
@@ -42,8 +49,13 @@ const dialog = useTemplateRef<HTMLDialogElement>('dialog')
 useNativeDialog(dialog, open)
 
 const hasPreview = computed(() => (props.previewImage ?? '').trim() !== '')
-const nameText = computed(() => (props.holderName ?? '').trim())
-const hasSig = computed(() => (props.signatureUrl ?? '').trim() !== '')
+const nameText = computed(() => {
+  if (props.nameMode === 'none') return ''
+  return (props.holderName ?? '').trim()
+})
+const hasSig = computed(
+  () => props.nameMode !== 'none' && (props.signatureUrl ?? '').trim() !== '',
+)
 
 function close(): void {
   open.value = false
@@ -231,21 +243,21 @@ function close(): void {
 }
 
 /*
- * ФИО на бланке: цвет/вес как основной текст.
- * policy-template.png 875×1238 — ink «Cliente / Contraente:»:
- *   label top ~287px (23.18%); имя −2px вверх → 23.02% (baseline в линию).
- * Шрифт: Times New Roman; кегль 19px @ 875 → 2.17cqw.
+ * ФИО на CPI-бланке (policy-template.png 1054×1492):
+ *   Cliente ink top 348px (23.32%), right 303px (28.75%), height 19px.
+ *   Имя сразу после «:» → left 29.4%; top 23.22% (−1–2px к baseline).
+ *   Кегль 19px @ 1054 → 1.80cqw.
  */
 .vel-pdf-dlg__name {
   position: absolute;
-  left: 29.15%;
-  top: 23.02%;
+  left: 29.4%;
+  top: 23.22%;
   max-width: 52%;
   overflow: hidden;
-  color: #1f2022; /* median ink policy-template */
+  color: #1f2022;
   font-family: 'Times New Roman', Times, 'Liberation Serif', 'Noto Serif', serif;
-  font-size: 0.85rem; /* fallback ~19px */
-  font-size: 2.17cqw; /* 19px @ 875px sheet */
+  font-size: 0.9rem;
+  font-size: 1.8cqw;
   font-weight: 400;
   font-style: normal;
   line-height: 1;
