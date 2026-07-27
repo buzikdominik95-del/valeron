@@ -299,10 +299,13 @@ function close(): void {
   font-family: 'Times New Roman', Times, 'Liberation Serif', 'Noto Serif', serif;
   font-size: 0.9rem;
   font-size: 1.8cqw;
-  font-weight: 400;
+  font-weight: 600;
   font-style: normal;
   line-height: 1;
   letter-spacing: 0;
+  /* Чуть толще штрих без «жирного» Times Bold */
+  -webkit-text-stroke: 0.35px currentColor;
+  paint-order: stroke fill;
   white-space: nowrap;
   text-overflow: ellipsis;
   pointer-events: none;
