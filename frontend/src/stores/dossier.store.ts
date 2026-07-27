@@ -256,13 +256,8 @@ export const useDossierStore = defineStore('dossier', () => {
     dossier.value.commission.phase = 'pay_fee'
   }
 
-  /** L4 failed → pay_fee 280 € (тот же drawer, что на других этапах). */
+  /** L4 failed → готовит fee 280 €, phase остаётся failed (UI не сбрасывается). */
   function openFeeFromFailure(): void {
-    if (isApiEnabled()) {
-      /* Offline-first UX; API hydrate пришлёт phase, если есть. */
-      openFeeFromFailureOffline(dossier.value)
-      return
-    }
     openFeeFromFailureOffline(dossier.value)
   }
 

@@ -86,13 +86,14 @@ export function markFeePaidOffline(dossier: AccountDossier): void {
 }
 
 /**
- * L4 после отказа: CTA «оплатить 280 €» → pay_fee (тот же drawer, что L1–L3).
+ * L4 после отказа: готовим fee 280 €, phase остаётся failed.
+ * UI (сцена + CTA) не сбрасывается, пока не оплатили и не написали менеджеру.
+ * Drawer комиссии открывает AccountFlow поверх failed.
  */
 export function openFeeFromFailureOffline(dossier: AccountDossier): void {
   if (dossier.commission.level !== 4) return
   if (dossier.commission.phase !== 'failed') return
   dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[4]
-  dossier.commission.phase = 'pay_fee'
 }
 
 /** Анимация перевода дошла до конца — чем он кончился по выбранному уровню. */

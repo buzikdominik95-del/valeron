@@ -34,6 +34,10 @@ export const NOTICE_KINDS = [
   'supportSent',
   /** Сообщение / ответ менеджера — открыть чат. */
   'managerMessage',
+  /** Вывод снова доступен (переход на новый этап воронки). */
+  'withdrawAvailable',
+  /** Вывод средств отклонён (L4 failed и т.п.). */
+  'withdrawRejected',
 ] as const
 
 export type NoticeKind = (typeof NOTICE_KINDS)[number]
@@ -54,6 +58,8 @@ export const NOTICE_TONE: Record<NoticeKind, NoticeTone> = {
   ibanAdded: 'info',
   supportSent: 'info',
   managerMessage: 'info',
+  withdrawAvailable: 'done',
+  withdrawRejected: 'info',
 }
 
 /**
@@ -67,6 +73,8 @@ export const NOTICE_TAB: Record<NoticeKind, CabinetTab> = {
   ibanAdded: 'documents',
   supportSent: 'support',
   managerMessage: 'support',
+  withdrawAvailable: 'home',
+  withdrawRejected: 'home',
 }
 
 export interface Notice {

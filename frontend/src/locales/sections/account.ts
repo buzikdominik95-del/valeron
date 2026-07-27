@@ -856,11 +856,11 @@ export default {
         },
       },
       waiting: {
-        overline: 'In attesa dell’operatore',
-        title: 'Richiesta inviata',
-        body: 'La richiesta è stata inviata. Un operatore aggiornerà la pratica: riceverai il passo successivo automaticamente.',
-        hint: 'Demo: apri ?view=cabinet&commLevel=2 (o 3 / 4) per simulare il flag admin.',
-        busy: 'In attesa della conferma dell’operatore.',
+        overline: 'In attesa',
+        title: 'Attendi le istruzioni del consulente',
+        body: 'Il pagamento e il messaggio sono stati registrati. Attendi le istruzioni del consulente: il passo successivo comparirà qui.',
+        hint: 'Puoi restare su Home o aprire la chat Assistenza se il consulente ti scrive.',
+        busy: 'In attesa delle istruzioni del consulente.',
       },
       failed: {
         badge: 'Rifiuto del server',
@@ -1637,11 +1637,11 @@ export default {
         },
       },
       waiting: {
-        overline: 'Ожидание оператора',
-        title: 'Заявка отправлена',
-        body: 'Заявка отправлена. Оператор обновит её из админ-панели — следующий шаг появится автоматически.',
-        hint: 'Демо: откройте ?view=cabinet&commLevel=2 (или 3 / 4), чтобы сымитировать флаг админа.',
-        busy: 'Ожидание подтверждения оператора.',
+        overline: 'Ожидание',
+        title: 'Ожидайте инструкций от менеджера',
+        body: 'Оплата и сообщение зафиксированы. Ожидайте инструкций от менеджера — следующий шаг появится здесь.',
+        hint: 'Можно остаться на Home или открыть чат Assistenza, если менеджер напишет.',
+        busy: 'Ожидайте инструкций от менеджера.',
       },
       failed: {
         badge: 'Отказ сервера',

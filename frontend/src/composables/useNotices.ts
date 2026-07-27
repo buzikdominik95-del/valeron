@@ -1,7 +1,9 @@
 import { computed, watch } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
 import { createSharedComposable, useLocalStorage } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { useAccountStore } from '@/stores/account.store'
+import { useDossierStore } from '@/stores/dossier.store'
 import {
   NOTICES_KEEP,
   NOTICES_STORAGE_KEY,
@@ -115,6 +117,28 @@ function createNotices(): NoticesApi {
   onceOnTrue(() => account.documentsUploaded, 'documentSent')
   onceOnTrue(() => account.contractSigned, 'contractSigned')
   onceOnTrue(() => account.ibanProvided, 'ibanAdded')
+
+  /*
+   * Воронка: новый этап → «вывод снова доступен» (без номеров уровней).
+   * Отказ вывода → «перевод не завершён» (колокольчик).
+   */
+  const { dossier } = storeToRefs(useDossierStore())
+
+  watch(
+    () => dossier.value.commission.level,
+    (next, prev) => {
+      if (typeof prev !== 'number') return
+      if (next > prev) push('withdrawAvailable')
+    },
+  )
+
+  watch(
+    () => dossier.value.commission.phase,
+    (next, prev) => {
+      if (prev === undefined) return
+      if (next === 'failed' && prev !== 'failed') push('withdrawRejected')
+    },
+  )
 
   return { items, unread, hasUnread, markAllRead, markRead, clear, push }
 }
