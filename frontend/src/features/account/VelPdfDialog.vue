@@ -220,16 +220,25 @@ function close(): void {
   width: 2.75rem;
   height: 2.75rem;
   padding: 0;
-  border: 1px solid var(--color-line);
+  border: 0;
   border-radius: var(--radius-round);
-  background: var(--color-ground);
-  color: var(--color-fg);
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-muted);
   cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease;
 }
 
 .vel-pdf-dlg__x:hover {
-  border-color: var(--color-accent);
-  color: var(--color-accent-deep);
+  background: var(--color-raised);
+  color: var(--color-fg);
+}
+
+.vel-pdf-dlg__x:focus,
+.vel-pdf-dlg__x:focus-visible {
+  outline: none;
+  border: 0;
+  box-shadow: none;
 }
 
 .vel-pdf-dlg__x-ico {

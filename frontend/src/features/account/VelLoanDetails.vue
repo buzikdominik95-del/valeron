@@ -349,13 +349,28 @@ function onSettle(): void {
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-line);
+  padding: 0;
+  border: 0;
   border-radius: var(--radius-round);
-  background: var(--color-ground);
-  color: var(--color-fg);
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-muted);
   font-size: 1.35rem;
   line-height: 1;
   cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.vel-loan__x:hover {
+  background: var(--color-raised);
+  color: var(--color-fg);
+}
+
+.vel-loan__x:focus,
+.vel-loan__x:focus-visible {
+  outline: none;
+  border: 0;
+  box-shadow: none;
 }
 
 .vel-loan__body {

@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { usePreferredReducedMotion, useTimeoutFn } from '@vueuse/core'
+import { usePreferredReducedMotion } from '@vueuse/core'
 import type { CommissionLevel } from '@/api/commission'
 import VelLogo from '@/components/ui/VelLogo.vue'
 import VelTextAnimate from '@/components/magic/VelTextAnimate.vue'
 
 /**
- * Прогрузка между этапами воронки (L1→L2…).
- * Полноэкранный «шторм» с логотипом, орбитами и shimmer-текстом —
- * чтобы смена UI не выглядела как прыжок карточек.
+ * Прогрузка между этапами (L1→L2…).
+ * Каждый play() всегда force-remount: open false → tick → true + новый key,
+ * иначе Vue Transition enter не стартует, если оверлей ещё «открыт» — «через раз».
  */
 const props = defineProps<{
   level: CommissionLevel
@@ -22,56 +22,97 @@ const reducedMotion = usePreferredReducedMotion()
 
 const HOLD_MS = 2000
 const FADE_MS = 420
-const FAST_MS = 220
+const FAST_HOLD = 220
+const FAST_FADE = 80
 
 const fading = ref(false)
-const bootstrapped = ref(false)
-/** Ключ remount анимаций текста при каждом play(). */
+/** Ключ remount DOM + text-анимаций на каждый play(). */
 const playKey = ref(0)
+/** Защита от параллельных/устаревших play(). */
+let playGen = 0
+let fadeTimer: ReturnType<typeof setTimeout> | null = null
+let closeTimer: ReturnType<typeof setTimeout> | null = null
 
-const { start: startFade, stop: stopFade } = useTimeoutFn(
-  () => {
+function clearTimers(): void {
+  if (fadeTimer != null) {
+    clearTimeout(fadeTimer)
+    fadeTimer = null
+  }
+  if (closeTimer != null) {
+    clearTimeout(closeTimer)
+    closeTimer = null
+  }
+}
+
+function holdMs(): number {
+  return reducedMotion.value === 'reduce' ? FAST_HOLD : HOLD_MS
+}
+
+function closeMs(): number {
+  return reducedMotion.value === 'reduce' ? FAST_HOLD + FAST_FADE : HOLD_MS + FADE_MS
+}
+
+function scheduleClose(gen: number): void {
+  clearTimers()
+  const hold = holdMs()
+  const close = closeMs()
+  fadeTimer = setTimeout(() => {
+    if (gen !== playGen) return
     fading.value = true
-  },
-  () => (reducedMotion.value === 'reduce' ? FAST_MS : HOLD_MS),
-  { immediate: false },
-)
-
-const { start: startClose, stop: stopClose } = useTimeoutFn(
-  () => {
+  }, hold)
+  closeTimer = setTimeout(() => {
+    if (gen !== playGen) return
     open.value = false
     fading.value = false
-  },
-  () =>
-    reducedMotion.value === 'reduce' ? FAST_MS + 80 : HOLD_MS + FADE_MS,
-  { immediate: false },
-)
+  }, close)
+}
 
-function play(): void {
-  stopFade()
-  stopClose()
+/**
+ * Всегда: закрыть → nextTick → открыть с новым key.
+ * Так enter-анимация Transition гарантированно срабатывает.
+ */
+async function play(): Promise<void> {
+  const gen = ++playGen
+  clearTimers()
   fading.value = false
+
+  open.value = false
+  await nextTick()
+  if (gen !== playGen) return
+
+  /* Двойной rAF: браузер успевает снять v-if node до повторного mount. */
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve())
+    })
+  })
+  if (gen !== playGen) return
+
   playKey.value += 1
   open.value = true
-  startFade()
-  startClose()
+  await nextTick()
+  if (gen !== playGen) return
+
+  scheduleClose(gen)
 }
 
 /*
- * Первый mount — не играем (это не «переход», а начальный уровень).
- * Дальше любое изменение level → прогрузка.
+ * Смена level после mount → прогрузка.
+ * prev === undefined — первый watch при mount (не «переход»).
  */
 watch(
   () => props.level,
   (next, prev) => {
-    if (!bootstrapped.value) {
-      bootstrapped.value = true
-      return
-    }
+    if (prev === undefined) return
     if (next === prev) return
-    play()
+    void play()
   },
 )
+
+onBeforeUnmount(() => {
+  playGen += 1
+  clearTimers()
+})
 
 const waitText = computed(() => t('account.levelTransition.text'))
 </script>
@@ -81,13 +122,13 @@ const waitText = computed(() => t('account.levelTransition.text'))
     <Transition name="vel-lvl">
       <div
         v-if="open"
+        :key="playKey"
         class="vel-lvl"
         :class="{ 'vel-lvl--out': fading }"
         role="status"
         aria-live="polite"
         :aria-label="t('account.levelTransition.aria')"
       >
-        <!-- Фон: сетка + мягкие «авроры» -->
         <div class="vel-lvl__bg" aria-hidden="true">
           <span class="vel-lvl__aurora vel-lvl__aurora--a" />
           <span class="vel-lvl__aurora vel-lvl__aurora--b" />
@@ -95,8 +136,7 @@ const waitText = computed(() => t('account.levelTransition.text'))
           <span class="vel-lvl__scan" />
         </div>
 
-        <div class="vel-lvl__stage" :key="playKey">
-          <!-- Орбиты вокруг логотипа -->
+        <div class="vel-lvl__stage">
           <div class="vel-lvl__orbit-wrap" aria-hidden="true">
             <span class="vel-lvl__orbit vel-lvl__orbit--outer" />
             <span class="vel-lvl__orbit vel-lvl__orbit--mid" />
@@ -131,7 +171,6 @@ const waitText = computed(() => t('account.levelTransition.text'))
             :text="waitText"
           />
 
-          <!-- Прогресс-бар «дыхание» -->
           <div class="vel-lvl__track" aria-hidden="true">
             <span class="vel-lvl__track-fill" />
             <span class="vel-lvl__track-glow" />
@@ -342,19 +381,6 @@ const waitText = computed(() => t('account.levelTransition.text'))
   transform: scale(1.4);
 }
 
-.vel-lvl__step {
-  padding: 0.28rem 0.7rem;
-  border: 1px solid color-mix(in oklab, #fff 28%, transparent);
-  border-radius: var(--radius-round);
-  background: color-mix(in oklab, #fff 10%, transparent);
-  color: color-mix(in oklab, #fff 92%, transparent);
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 .vel-lvl__brand {
   margin: 0.15rem 0 0;
   font-size: 1.85rem;
@@ -372,14 +398,6 @@ const waitText = computed(() => t('account.levelTransition.text'))
   letter-spacing: -0.02em;
   line-height: 1.3;
   color: color-mix(in oklab, #fff 94%, transparent);
-}
-
-.vel-lvl__text {
-  max-width: 17.5rem;
-  color: color-mix(in oklab, #fff 72%, transparent);
-  font-size: 0.88rem;
-  font-weight: 500;
-  line-height: 1.45;
 }
 
 .vel-lvl__track {
