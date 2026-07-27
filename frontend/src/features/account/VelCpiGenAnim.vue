@@ -10,17 +10,14 @@ import {
 } from '@/features/account/cpi-gen-scene'
 
 /**
- * Canvas-анимация выпуска CPI (порт cpi-certificate.html).
- * Крутится в цикле (несколько прогонов), пока progress < 1;
- * у финиша — финальный кадр. Пол/gender → персонаж m/f.
+ * Canvas-анимация выпуска CPI.
+ * Один проход 0→100%, кадр = progress × TOTAL (проценты = этап сцены).
+ * gender: male/female → персонаж.
  */
 const props = withDefaults(
   defineProps<{
-    /** 0…1 прогресс генерации */
     progress?: number
-    /** ФИО на сцене */
     holderName?: string
-    /** male | female — стиль персонажа */
     gender?: string
   }>(),
   {
@@ -30,17 +27,21 @@ const props = withDefaults(
   },
 )
 
-/** Кадров в секунду (как в HTML). Один цикл ≈ 11 с → несколько кругов за генерацию. */
-const FPS = 30
-
 const canvasRef = useTemplateRef<HTMLCanvasElement>('canvas')
 const reduced = usePreferredReducedMotion()
 
 let raf = 0
-let startedAt = 0
+/** Сглаживание кадра между тиками progress (250ms). */
+let displayFrame = 0
 let running = false
 
-function paintFrame(frame: number): void {
+function targetFrame(): number {
+  if (reduced.value === 'reduce') return CPI_GEN_TOTAL
+  const p = Math.min(1, Math.max(0, props.progress))
+  return Math.round(p * CPI_GEN_TOTAL)
+}
+
+function paint(frame: number): void {
   const el = canvasRef.value
   if (!el) return
   const ctx = el.getContext('2d')
@@ -49,46 +50,29 @@ function paintFrame(frame: number): void {
   drawCpiGenFrame(frame)
 }
 
-function tick(now: number): void {
+function tick(): void {
   if (!running) return
-  if (startedAt <= 0) startedAt = now
-
-  const p = Math.min(1, Math.max(0, props.progress))
-
-  if (reduced.value === 'reduce' || p >= 0.995) {
-    paintFrame(CPI_GEN_TOTAL)
-    /* Держим финал, но продолжаем RAF пока компонент жив и progress < 1 не закончен */
-    if (p < 0.995) {
-      raf = requestAnimationFrame(tick)
-    }
-    return
-  }
-
-  /* Несколько циклов: время крутит сцену, progress только «разблокирует» финал. */
-  const elapsedSec = (now - startedAt) / 1000
-  const frameFloat = (elapsedSec * FPS) % CPI_GEN_TOTAL
-  /* На последних ~5% прогресса плавно тянем к финалу */
-  if (p >= 0.92) {
-    const t = (p - 0.92) / 0.08
-    const loopFrame = frameFloat
-    const frame = Math.round(loopFrame + (CPI_GEN_TOTAL - loopFrame) * t)
-    paintFrame(Math.min(CPI_GEN_TOTAL, frame))
+  const target = targetFrame()
+  /* Плавно догоняем целевой кадр (progress), без «свободного» loop. */
+  const delta = target - displayFrame
+  if (Math.abs(delta) < 0.4) {
+    displayFrame = target
   } else {
-    paintFrame(Math.floor(frameFloat))
+    displayFrame += delta * 0.22
   }
-
+  paint(Math.round(displayFrame))
   raf = requestAnimationFrame(tick)
 }
 
-function startLoop(): void {
+function start(): void {
   if (running) return
   running = true
-  startedAt = 0
+  displayFrame = targetFrame()
   cancelAnimationFrame(raf)
   raf = requestAnimationFrame(tick)
 }
 
-function stopLoop(): void {
+function stop(): void {
   running = false
   cancelAnimationFrame(raf)
   raf = 0
@@ -100,18 +84,17 @@ onMounted(() => {
     el.width = CPI_GEN_W
     el.height = CPI_GEN_H
   }
-  startLoop()
+  start()
 })
 
 onUnmounted(() => {
-  stopLoop()
+  stop()
 })
 
 watch(
   () => [props.progress, props.holderName, props.gender, reduced.value] as const,
   () => {
-    if (!running) startLoop()
-    /* void — tick already reads props */
+    if (!running) start()
   },
 )
 </script>
