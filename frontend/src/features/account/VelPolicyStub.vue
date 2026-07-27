@@ -38,30 +38,33 @@ const previewOpen = ref(false)
 const openedCert = ref(false)
 
 /**
- * Показываем на Documenti:
- * — пока L3 policy_build (генерация / первый open)
- * — после выпуска CPI (issued) на L3+
- * — если step ready/viewed (localStorage), даже после оплаты
+ * С L3+ карточка всегда в Documenti.
+ * Состояния: generating → first ready → stored (в т.ч. весь L4+).
  */
-const visible = computed(
-  () =>
-    level.value >= 3 &&
-    (isPolicyBuild.value ||
-      isPolicyIssued.value ||
-      step.value === 'ready' ||
-      step.value === 'viewed' ||
-      certViewed.value),
-)
+const visible = computed(() => level.value >= 3)
 
 const isGenerating = computed(() => isPolicyBuild.value && step.value === 'loading')
-/** Первый раз «готов, открой» — ещё не закрывал превью. */
-const isFirstReady = computed(() => step.value === 'ready' && !certViewed.value)
-/** После просмотра / оплаты — сертификат лежит в Documenti. */
+/** Первый раз «готов, открой» — ещё не закрывал превью (только L3 policy_build). */
+const isFirstReady = computed(
+  () =>
+    level.value === 3 &&
+    isPolicyBuild.value &&
+    step.value === 'ready' &&
+    !certViewed.value,
+)
+/**
+ * После просмотра / оплаты / L4+: сертификат лежит в Documenti.
+ * На L4+ всегда stored (CPI уже пройден), даже если localStorage сбросили.
+ */
 const isStored = computed(
   () =>
     !isGenerating.value &&
     !isFirstReady.value &&
-    (step.value === 'viewed' || certViewed.value || isPolicyIssued.value || level.value > 3),
+    (level.value > 3 ||
+      step.value === 'viewed' ||
+      step.value === 'ready' ||
+      certViewed.value ||
+      isPolicyIssued.value),
 )
 
 const holderName = computed(

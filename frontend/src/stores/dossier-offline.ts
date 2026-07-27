@@ -126,6 +126,16 @@ export function advanceCommissionLevelOffline(
     dossier.policy.etaMinutes = 15
   }
 
+  /*
+   * L4+: CPI уже пройден на L3 — сертификат остаётся issued
+   * (карточка в Documenti не зависит от policy_build).
+   */
+  if (level >= 4) {
+    dossier.policy.status = 'issued'
+    dossier.policy.etaMinutes = 0
+    dossier.commission.policyProgress = 1
+  }
+
   if (level === 5) {
     dossier.transfer.status = 'failed'
     dossier.transfer.method = null
