@@ -1,22 +1,30 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, useId, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useAccount } from '@/composables/useAccount'
-import { useSimulatorStore } from '@/stores/simulator.store'
 import { storeToRefs } from 'pinia'
+import { useAccount } from '@/composables/useAccount'
+import { useNativeDialog } from '@/composables/useNativeDialog'
+import { useSimulatorStore } from '@/stores/simulator.store'
 import { buildLoanPlan } from '@/lib/loan-schedule'
 import VelButton from '@/components/ui/VelButton.vue'
-import VelAccountSign from '@/features/account/VelAccountSign.vue'
 import VelPersonalData from '@/features/account/VelPersonalData.vue'
 
 /**
- * Prestito: 1) dati personali  2) piano di ammortamento (как на старом проде).
+ * Prestito (кнопка на карточке баланса):
+ * модалка с двумя блоками, как на старом проде:
+ *  1) Dati personali
+ *  2) Piano di ammortamento (таблица rate)
  */
 const open = defineModel<boolean>('open', { default: false })
 
 const { t, n } = useI18n()
 const { approvedAmount, ratePercent } = useAccount()
 const { termMonths, purpose } = storeToRefs(useSimulatorStore())
+
+const uid = useId()
+const titleId = `vel-loan-title-${uid}`
+const dialog = useTemplateRef<HTMLDialogElement>('dialog')
+useNativeDialog(dialog, open)
 
 const showAll = ref(false)
 
@@ -45,7 +53,7 @@ const purposeLabel = computed(() => {
 })
 
 const visibleRows = computed(() =>
-  showAll.value ? plan.value.rows : plan.value.rows.slice(0, 6),
+  showAll.value ? plan.value.rows : plan.value.rows.slice(0, 12),
 )
 
 function euro(cents: number): string {
@@ -59,127 +67,356 @@ function close(): void {
 const settleNote = ref('')
 
 function onSettle(): void {
-  // Prod: POST /api/account/settle — сейчас честное «запрос принят» без выдумки.
   settleNote.value = t('account.loan.settleQueued')
 }
 </script>
 
 <template>
-  <section
-    v-if="open"
-    class="rounded-panel border border-line bg-surface p-5 sm:p-6"
+  <dialog
+    ref="dialog"
+    class="vel-loan"
     data-testid="loan-details"
+    :aria-labelledby="titleId"
   >
-    <div class="mb-4 flex items-start justify-between gap-3">
-      <div class="flex items-start gap-3">
-        <VelAccountSign sign="bank" size="lg" class="shrink-0 text-accent-deep" />
-        <div>
-          <p class="vel-label">{{ t('account.loan.overline') }}</p>
-          <h2 class="m-0 text-xl font-semibold text-fg">{{ t('account.loan.title') }}</h2>
+    <div class="vel-loan__shell">
+      <header class="vel-loan__head">
+        <div class="min-w-0">
+          <p class="vel-label m-0">{{ t('account.loan.overline') }}</p>
+          <h2 :id="titleId" class="vel-loan__title">{{ t('account.loan.title') }}</h2>
         </div>
-      </div>
-      <VelButton type="button" variant="ghost" :aria-label="t('account.loan.close')" @click="close">
-        ×
-      </VelButton>
-    </div>
+        <button
+          type="button"
+          class="vel-loan__x"
+          :aria-label="t('account.loan.close')"
+          @click="close"
+        >
+          ×
+        </button>
+      </header>
 
-    <!-- Блок 1: dati personali (как на старом проде) -->
-    <div class="mb-5">
-      <VelPersonalData />
-    </div>
+      <div class="vel-loan__body">
+        <!-- Блок 1: Dati personali (как на референсе) -->
+        <div class="vel-loan__block">
+          <VelPersonalData />
+        </div>
 
-    <!-- Блок 2: sintesi credito -->
-    <dl class="mb-4 grid gap-2 sm:grid-cols-2">
-      <div class="rounded-control border border-line bg-ground px-3 py-2">
-        <dt class="text-xs text-muted">{{ t('account.loan.approved') }}</dt>
-        <dd class="vel-num m-0 text-lg font-semibold text-fg">{{ n(approvedAmount, 'currency') }}</dd>
-      </div>
-      <div class="rounded-control border border-line bg-ground px-3 py-2">
-        <dt class="text-xs text-muted">{{ t('account.loan.monthly') }}</dt>
-        <dd class="vel-num m-0 text-lg font-semibold text-fg">
-          {{ euro(plan.monthlyPaymentCents) }}
-        </dd>
-      </div>
-      <div class="rounded-control border border-line bg-ground px-3 py-2">
-        <dt class="text-xs text-muted">{{ t('account.loan.duration') }}</dt>
-        <dd class="m-0 font-semibold text-fg">{{ t('account.loan.months', { n: months }) }}</dd>
-      </div>
-      <div class="rounded-control border border-line bg-ground px-3 py-2">
-        <dt class="text-xs text-muted">{{ t('account.loan.rate') }}</dt>
-        <dd class="vel-num m-0 font-semibold text-fg">{{ n(ratePercent / 100, 'percent') }}</dd>
-      </div>
-      <div class="rounded-control border border-line bg-ground px-3 py-2 sm:col-span-2">
-        <dt class="text-xs text-muted">{{ t('account.loan.purpose') }}</dt>
-        <dd class="m-0 font-semibold text-fg">{{ purposeLabel }}</dd>
-      </div>
-    </dl>
+        <!-- Блок 2: Piano di ammortamento -->
+        <section class="vel-loan__block vel-loan__plan" :aria-label="t('account.loan.scheduleTitle')">
+          <div class="vel-loan__plan-head">
+            <h3 class="vel-loan__plan-title">{{ t('account.loan.scheduleTitle') }}</h3>
+            <p class="vel-num m-0 text-xs text-muted">
+              {{ t('account.loan.scheduleMeta', { n: months }) }}
+            </p>
+          </div>
 
-    <!-- Блок 3: tabella ammortamento -->
-    <div class="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-      <h3 class="m-0 text-sm font-semibold text-fg">{{ t('account.loan.scheduleTitle') }}</h3>
-      <p class="vel-num m-0 text-xs text-muted">
-        {{ t('account.loan.scheduleMeta', { n: months }) }}
-      </p>
-    </div>
+          <dl class="vel-loan__meta">
+            <div class="vel-loan__meta-item">
+              <dt>{{ t('account.loan.approved') }}</dt>
+              <dd class="vel-num">{{ n(approvedAmount, 'currency') }}</dd>
+            </div>
+            <div class="vel-loan__meta-item">
+              <dt>{{ t('account.loan.monthly') }}</dt>
+              <dd class="vel-num">{{ euro(plan.monthlyPaymentCents) }}</dd>
+            </div>
+            <div class="vel-loan__meta-item">
+              <dt>{{ t('account.loan.duration') }}</dt>
+              <dd>{{ t('account.loan.months', { n: months }) }}</dd>
+            </div>
+            <div class="vel-loan__meta-item">
+              <dt>{{ t('account.loan.rate') }}</dt>
+              <dd class="vel-num">{{ n(ratePercent / 100, 'percent') }}</dd>
+            </div>
+            <div class="vel-loan__meta-item vel-loan__meta-item--wide">
+              <dt>{{ t('account.loan.purpose') }}</dt>
+              <dd>{{ purposeLabel }}</dd>
+            </div>
+          </dl>
 
-    <div class="mb-3 grid grid-cols-3 gap-2 text-center text-xs">
-      <div class="rounded-control bg-ground px-2 py-2">
-        <p class="m-0 text-muted">{{ t('account.loan.totalPaid') }}</p>
-        <p class="vel-num m-0 font-semibold">{{ euro(plan.totalPaidCents) }}</p>
-      </div>
-      <div class="rounded-control bg-ground px-2 py-2">
-        <p class="m-0 text-muted">{{ t('account.loan.totalInterest') }}</p>
-        <p class="vel-num m-0 font-semibold">{{ euro(plan.totalInterestCents) }}</p>
-      </div>
-      <div class="rounded-control bg-ground px-2 py-2">
-        <p class="m-0 text-muted">{{ t('account.loan.monthly') }}</p>
-        <p class="vel-num m-0 font-semibold">{{ euro(plan.monthlyPaymentCents) }}</p>
-      </div>
-    </div>
+          <div class="vel-loan__totals">
+            <div>
+              <p class="m-0 text-muted">{{ t('account.loan.totalPaid') }}</p>
+              <p class="vel-num m-0 font-semibold">{{ euro(plan.totalPaidCents) }}</p>
+            </div>
+            <div>
+              <p class="m-0 text-muted">{{ t('account.loan.totalInterest') }}</p>
+              <p class="vel-num m-0 font-semibold">{{ euro(plan.totalInterestCents) }}</p>
+            </div>
+            <div>
+              <p class="m-0 text-muted">{{ t('account.loan.monthly') }}</p>
+              <p class="vel-num m-0 font-semibold">{{ euro(plan.monthlyPaymentCents) }}</p>
+            </div>
+          </div>
 
-    <div class="max-h-[28rem] overflow-auto rounded-control border border-line">
-      <table class="w-full min-w-[28rem] border-collapse text-left text-xs">
-        <thead class="sticky top-0 z-[1] bg-raised text-muted">
-          <tr>
-            <th class="px-2 py-2.5 font-semibold">N.</th>
-            <th class="px-2 py-2.5 font-semibold">{{ t('account.loan.colDate') }}</th>
-            <th class="px-2 py-2.5 font-semibold">{{ t('account.loan.colPayment') }}</th>
-            <th class="px-2 py-2.5 font-semibold">{{ t('account.loan.colPrincipal') }}</th>
-            <th class="px-2 py-2.5 font-semibold">{{ t('account.loan.colInterest') }}</th>
-            <th class="px-2 py-2.5 font-semibold">{{ t('account.loan.colResidual') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="row in visibleRows"
-            :key="row.index"
-            class="border-t border-line odd:bg-ground/40"
+          <div class="vel-loan__table-wrap">
+            <table class="vel-loan__table">
+              <thead>
+                <tr>
+                  <th>N.</th>
+                  <th>{{ t('account.loan.colDate') }}</th>
+                  <th>{{ t('account.loan.colPayment') }}</th>
+                  <th>{{ t('account.loan.colPrincipal') }}</th>
+                  <th>{{ t('account.loan.colInterest') }}</th>
+                  <th>{{ t('account.loan.colResidual') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in visibleRows" :key="row.index">
+                  <td class="vel-num">{{ row.index }}</td>
+                  <td class="vel-num">{{ row.date }}</td>
+                  <td class="vel-num">{{ euro(row.paymentCents) }}</td>
+                  <td class="vel-num">{{ euro(row.principalCents) }}</td>
+                  <td class="vel-num">{{ euro(row.interestCents) }}</td>
+                  <td class="vel-num">{{ euro(row.residualCents) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <VelButton
+            v-if="plan.rows.length > 12"
+            type="button"
+            variant="outline"
+            block
+            class="mt-3"
+            @click="showAll = !showAll"
           >
-            <td class="vel-num px-2 py-2">{{ row.index }}</td>
-            <td class="vel-num px-2 py-2">{{ row.date }}</td>
-            <td class="vel-num px-2 py-2">{{ euro(row.paymentCents) }}</td>
-            <td class="vel-num px-2 py-2">{{ euro(row.principalCents) }}</td>
-            <td class="vel-num px-2 py-2">{{ euro(row.interestCents) }}</td>
-            <td class="vel-num px-2 py-2">{{ euro(row.residualCents) }}</td>
-          </tr>
-        </tbody>
-      </table>
+            {{ showAll ? t('account.loan.showLess') : t('account.loan.showAll') }}
+          </VelButton>
+
+          <VelButton type="button" variant="outline" block class="mt-3" @click="onSettle">
+            {{ t('account.loan.settle') }}
+          </VelButton>
+          <p v-if="settleNote" class="m-0 mt-2 text-xs text-muted">{{ settleNote }}</p>
+        </section>
+      </div>
+
+      <footer class="vel-loan__foot">
+        <VelButton type="button" size="lg" @click="close">
+          {{ t('account.loan.close') }}
+        </VelButton>
+      </footer>
     </div>
-
-    <VelButton
-      v-if="plan.rows.length > 6"
-      type="button"
-      variant="outline"
-      block
-      class="mt-3"
-      @click="showAll = !showAll"
-    >
-      {{ showAll ? t('account.loan.showLess') : t('account.loan.showAll') }}
-    </VelButton>
-
-    <VelButton type="button" variant="outline" block class="mt-3" @click="onSettle">
-      {{ t('account.loan.settle') }}
-    </VelButton>
-    <p v-if="settleNote" class="m-0 mt-2 text-xs text-muted">{{ settleNote }}</p>
-  </section>
+  </dialog>
 </template>
+
+<style scoped>
+.vel-loan {
+  inline-size: min(100% - 1rem, 36rem);
+  max-block-size: min(94dvh, 52rem);
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  color: var(--color-fg);
+  box-shadow: 0 1.5rem 3rem color-mix(in oklab, var(--color-fg) 28%, transparent);
+}
+
+.vel-loan::backdrop {
+  background-color: color-mix(in oklab, var(--color-accent-deep) 72%, #000);
+}
+
+.vel-loan__shell {
+  display: flex;
+  max-block-size: min(94dvh, 52rem);
+  flex-direction: column;
+}
+
+.vel-loan__head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1.1rem 1.2rem 0.85rem;
+  border-block-end: 1px solid var(--color-line);
+}
+
+.vel-loan__title {
+  margin: 0.15rem 0 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.vel-loan__x {
+  display: inline-flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-round);
+  background: var(--color-ground);
+  color: var(--color-fg);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.vel-loan__body {
+  display: flex;
+  min-block-size: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+  padding: 1rem 1.15rem 1.15rem;
+  background: var(--color-ground);
+}
+
+.vel-loan__block {
+  min-inline-size: 0;
+}
+
+/* Убираем «вторую» рамку у Dati personali внутри модалки */
+.vel-loan__block :deep(.vel-personal) {
+  box-shadow: 0 0.35rem 1rem color-mix(in oklab, var(--color-fg) 6%, transparent);
+}
+
+.vel-loan__plan {
+  padding: 1.1rem 1.15rem 1.2rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  box-shadow: 0 0.35rem 1rem color-mix(in oklab, var(--color-fg) 6%, transparent);
+}
+
+.vel-loan__plan-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  margin-block-end: 0.85rem;
+}
+
+.vel-loan__plan-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-fg);
+}
+
+.vel-loan__meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin: 0 0 0.85rem;
+}
+
+.vel-loan__meta-item {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-ground);
+}
+
+.vel-loan__meta-item--wide {
+  grid-column: 1 / -1;
+}
+
+.vel-loan__meta-item dt {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vel-loan__meta-item dd {
+  margin: 0.15rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-fg);
+}
+
+.vel-loan__totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-block-end: 0.75rem;
+  text-align: center;
+  font-size: 0.72rem;
+}
+
+.vel-loan__totals > div {
+  padding: 0.45rem 0.35rem;
+  border-radius: var(--radius-control);
+  background: var(--color-ground);
+}
+
+.vel-loan__table-wrap {
+  max-block-size: min(42dvh, 22rem);
+  overflow: auto;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+}
+
+.vel-loan__table {
+  width: 100%;
+  min-width: 28rem;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.75rem;
+}
+
+.vel-loan__table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-raised);
+  color: var(--color-muted);
+}
+
+.vel-loan__table th {
+  padding: 0.55rem 0.5rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.vel-loan__table td {
+  padding: 0.45rem 0.5rem;
+  border-block-start: 1px solid var(--color-line);
+  white-space: nowrap;
+}
+
+.vel-loan__table tbody tr:nth-child(odd) {
+  background: color-mix(in oklab, var(--color-ground) 55%, transparent);
+}
+
+.vel-loan__foot {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  padding: 0.85rem 1.15rem 1.05rem;
+  border-block-start: 1px solid var(--color-line);
+  background: var(--color-surface);
+}
+
+.vel-loan[open] {
+  animation: vel-loan-in 200ms ease-out;
+}
+
+@keyframes vel-loan-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.55rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-loan[open] {
+    animation: none;
+  }
+}
+</style>
