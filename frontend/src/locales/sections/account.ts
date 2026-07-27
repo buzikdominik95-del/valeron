@@ -300,6 +300,18 @@ export default {
       skip: 'Chiudi',
       done: 'Tutti i passaggi sono pronti: puoi prelevare i fondi.',
       tips: {
+        /* Цепочка онбординга (не путать с commission levels) */
+        'documents-tab':
+          'Apri la scheda Documenti per caricare il documento d’identità (passaporto o carta).',
+        'documents-upload':
+          'Scegli il tipo di documento, carica la foto e premi Invia. Attendi la verifica: vedrai l’animazione di conferma.',
+        'signature-tab':
+          'Torna in Documenti per inserire l’IBAN e firmare il contratto.',
+        'signature-iban':
+          'Inserisci l’IBAN su cui riceverai i fondi (serve una sola volta).',
+        'signature-sign':
+          'Firma il contratto per completare la pratica e sbloccare il prelievo.',
+        /* legacy keys (steps) */
         simulation: 'Completa la simulazione del credito per proseguire.',
         approval: 'Attendi l’approvazione del credito dai partner.',
         account: 'Il tuo account è quasi pronto — continua i passaggi sotto.',
@@ -1108,6 +1120,16 @@ export default {
       skip: 'Закрыть',
       done: 'Все шаги готовы — можно выводить средства.',
       tips: {
+        'documents-tab':
+          'Откройте вкладку Documenti, чтобы загрузить документ (паспорт или карту).',
+        'documents-upload':
+          'Выберите тип документа, загрузите фото и нажмите Отправить. Дождитесь проверки — появится анимация подтверждения.',
+        'signature-tab':
+          'Вернитесь в Documenti, чтобы указать IBAN и подписать договор.',
+        'signature-iban':
+          'Введите IBAN, на который поступят средства (нужен один раз).',
+        'signature-sign':
+          'Подпишите договор, чтобы завершить оформление и открыть вывод.',
         simulation: 'Завершите симуляцию кредита, чтобы продолжить.',
         approval: 'Дождитесь одобрения кредита от партнёров.',
         account: 'Аккаунт почти готов — продолжите шаги ниже.',
