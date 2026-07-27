@@ -65,18 +65,29 @@ const busyId = `vel-payout-busy-${uid}`
  * К балансу — оплаченные комиссии (записи в store после confirmFeePaid /
  * admin advance). Fallback по level, если списка ещё нет.
  */
+/**
+ * Одобрено + все комиссии пройденных этапов (1…level−1).
+ * Запись из store; если L3 «потерялась» — fallback из таблицы комиссий.
+ */
 const paidFeesEuros = computed(() => {
   const list = accountStore.paidCommissionExpenses
-  if (list.length > 0) {
-    return list.reduce((sum, e) => sum + e.amountCents, 0) / 100
-  }
   let cents = 0
-  if (level.value >= 2) cents += COMMISSION_FEE_BY_LEVEL[1].amountCents
-  if (level.value >= 3) cents += COMMISSION_FEE_BY_LEVEL[2].amountCents
-  if (level.value >= 4) cents += COMMISSION_FEE_BY_LEVEL[3].amountCents
-  if (level.value >= 5) cents += COMMISSION_FEE_BY_LEVEL[4].amountCents
+  for (let lv = 1; lv < level.value && lv <= 4; lv++) {
+    const row = list.find((e) => e.level === lv)
+    const fee = COMMISSION_FEE_BY_LEVEL[lv as 1 | 2 | 3 | 4]
+    cents += row?.amountCents ?? fee.amountCents
+  }
   return cents / 100
 })
+
+/* При смене этапа дописываем недостающие комиссии (L3 136 € на L4). */
+watch(
+  level,
+  (lv) => {
+    if (lv >= 2) accountStore.recordPaidCommissionsUpTo(lv)
+  },
+  { immediate: true },
+)
 
 const displayAmount = computed(() => approvedAmount.value + paidFeesEuros.value)
 
@@ -141,13 +152,14 @@ function onWithdrawClick(): void {
 }
 
 /**
- * Есть непросмотренные изменения в Prestito (оплаченная комиссия / смена этапа).
- * Точка «online» на кнопке, пока не открыли детали.
+ * Непросмотренные изменения в Prestito (оплаченная комиссия / смена этапа).
+ * Точка «online» на L2…L5, пока не открыли детали на текущем уровне.
+ * (Раньше L4/L5 выпадали — после L3→L4 кнопка не мигала.)
  */
 const prestitoUnseen = computed(() => {
   if (accountStore.prestitoHasUnseen) return true
   const lv = level.value
-  if ((lv === 2 || lv === 3) && accountStore.prestitoPulseSeenLevel < lv) return true
+  if (lv >= 2 && accountStore.prestitoPulseSeenLevel < lv) return true
   return false
 })
 
