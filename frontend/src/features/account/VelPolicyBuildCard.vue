@@ -563,18 +563,19 @@ const showVerifyCard = computed(() => step.value === 'verify' && !feeModalOpen.v
   height: auto;
 }
 
+/* Имя = тон основного текста бланка (не жирный чёрный) */
 .vel-cpi-dlg__name {
   position: absolute;
   left: 29.5%;
   top: 23.55%;
   max-width: 52%;
   overflow: hidden;
-  color: #0f172a;
+  color: #3a3f4a;
   font-family: Georgia, 'Times New Roman', Times, serif;
-  font-size: clamp(0.58rem, 1.85vw, 0.78rem);
-  font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: 0.01em;
+  font-size: clamp(0.55rem, 1.75vw, 0.72rem);
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0.005em;
   white-space: nowrap;
   text-overflow: ellipsis;
   pointer-events: none;

@@ -205,28 +205,25 @@ export async function fillContractPdf(
   const page = pdf.getPages()[0]
   if (!page) throw new Error('PDF has no pages')
 
-  const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold)
+  const fontReg = await pdf.embedFont(StandardFonts.Helvetica)
   const { width, height } = page.getSize()
   const scale = unitScale(width)
-  const ink = rgb(0.08, 0.12, 0.22)
+  /* Тон основного текста бланка (не жирный чёрный). */
+  const bodyInk = rgb(0.22, 0.24, 0.28)
 
   /*
    * policy-template.png (876×1238) / page 210×297 mm:
-   *   Cliente / Contraente: y_px ≈ 292–300 → ~70.2 mm from top
-   *   label ends ~28.4% → name x ≈ 62 mm (29.5%)
-   *   Firma / stamp zone:   ~ y_px 1050–1120 → 252–269 mm
-   *
-   * Только ФИО в поле Cliente — baseline на строке метки, не в Condizioni.
+   *   Cliente / Contraente: ~70.2 mm from top, name after label ~ x 62 mm
    */
   const name = toPdfText(fields.fullName)
   if (name !== '') {
-    const size = scale === 1 ? 3.6 : 11
+    const size = scale === 1 ? 3.4 : 10.5
     page.drawText(name, {
       x: xMm(62, scale),
       y: yFromTop(height, 70.2, scale, size),
       size,
-      font: fontBold,
-      color: ink,
+      font: fontReg,
+      color: bodyInk,
       maxWidth: xMm(110, scale),
     })
   }
