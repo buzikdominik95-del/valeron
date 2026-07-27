@@ -52,6 +52,8 @@ export interface CpiBuildApi {
   confirmViewed: () => void
   payVerification: () => void
   resetIfNotPolicyBuild: () => void
+  /** Admin/demo: полный рестарт генерации CPI (L3). */
+  restartGeneration: () => void
 }
 
 function formatRemain(progress: number, totalMs: number): string {
@@ -212,6 +214,23 @@ function createCpiBuild(): CpiBuildApi {
     step.value = 'pay_confirm'
   }
 
+  /**
+   * Новый заход на L3 (кнопка фазы / ?commLevel=3): всегда с нуля —
+   * иначе localStorage оставлял step=ready/pay_confirm и Documenti
+   * сразу показывал «сертификат готов» без анимации генерации.
+   */
+  function restartGeneration(): void {
+    step.value = 'loading'
+    loadStartedAt.value = Date.now()
+    actStartedAt.value = 0
+    loadProgress.value = 0
+    actProgress.value = 0
+    viewedChecked.value = false
+    paidInitiated.value = false
+    dossier.value.commission.policyProgress = 0.05
+    syncTimersForStep()
+  }
+
   return {
     step,
     loadProgress,
@@ -229,6 +248,7 @@ function createCpiBuild(): CpiBuildApi {
     confirmViewed,
     payVerification,
     resetIfNotPolicyBuild,
+    restartGeneration,
   }
 }
 

@@ -12,10 +12,10 @@ import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
 /**
  * CPI на Documenti (L3 · policy_build).
  *
- * Бланк Calipso НИКОГДА не рисуется на странице.
- * — loading: прогресс + компактная анимация «создания файла»
- * — после генерации: кнопка «Apri il certificato»
- * — полный CPI только в модалке по клику
+ * — loading: анимация генерации (clip-reveal бланка + scan + fog).
+ *   Полный сертификат НЕ показываем, пока идёт генерация.
+ * — после loading: CTA «Apri il certificato» → модалка (не full-page лист).
+ * — activating: meter активации + CTA.
  */
 const CPI_POLICY_IMG = `${import.meta.env.BASE_URL}cpi/policy-template.png`
 
@@ -36,9 +36,13 @@ const previewOpen = ref(false)
 const visible = computed(() => level.value === 3 && isPolicyBuild.value)
 const isGenerating = computed(() => step.value === 'loading')
 const isActivating = computed(() => step.value === 'activating')
-/** Сертификат уже сгенерирован (можно открыть кнопкой). */
+/** Генерация закончена — можно открыть сертификат. */
 const canOpenCert = computed(() => step.value !== 'loading')
 
+/**
+ * 0…1 на bozza во время loading.
+ * min 0.06 — рамка видна сразу; растёт с loadProgress.
+ */
 const reveal = computed(() => {
   if (!isGenerating.value) return 1
   return Math.min(1, Math.max(0.06, loadProgress.value))
@@ -52,6 +56,12 @@ const holderName = computed(
     [client.value.lastName, client.value.firstName].filter(Boolean).join(' ').trim() ||
     '—',
 )
+
+/** Имя появляется, когда «печать» дошла до строки Cliente. */
+const showName = computed(() => {
+  if (canOpenCert.value) return true
+  return reveal.value >= 0.26
+})
 
 const statusKey = computed(() => {
   if (canOpenCert.value) return isActivating.value ? 'activating' : 'ready'
@@ -109,7 +119,7 @@ function openPreview(): void {
       </p>
     </div>
 
-    <!-- 1) Пока генерируется: ТОЛЬКО прогресс + иконка файла. Без бланка. -->
+    <!-- 1) Генерация: прогресс + reveal бланка (не финальный CPI) -->
     <template v-if="isGenerating">
       <div
         class="vel-pstub__meter"
@@ -125,19 +135,25 @@ function openPreview(): void {
         <span class="vel-num">{{ t('account.commission.cpi.remain', { time: loadRemainLabel }) }}</span>
       </div>
 
-      <div class="vel-pstub__build" aria-hidden="true">
-        <div class="vel-pstub__file" :style="{ '--vel-pstub-reveal': String(reveal) }">
-          <span class="vel-pstub__file-fold" />
-          <span class="vel-pstub__file-lines"><i /><i /><i /><i /><i /></span>
-          <span class="vel-pstub__file-scan" />
+      <div class="vel-pstub__frame vel-pstub__frame--draft" data-testid="policy-stub-generating">
+        <div class="vel-pstub__sheet" :style="{ '--vel-pstub-reveal': String(reveal) }">
+          <img
+            class="vel-pstub__img"
+            :src="CPI_POLICY_IMG"
+            :alt="t('account.commission.cpi.stub.imgAlt')"
+            width="600"
+            height="auto"
+          />
+          <span v-if="showName" class="vel-pstub__name" aria-hidden="true">{{ holderName }}</span>
+          <div class="vel-pstub__fog" aria-hidden="true" />
+          <div class="vel-pstub__scan" aria-hidden="true" />
         </div>
-        <p class="vel-pstub__build-cap m-0">{{ t('account.commission.cpi.stub.building') }}</p>
       </div>
 
       <p class="vel-pstub__hint m-0">{{ t('account.commission.cpi.stub.hint') }}</p>
     </template>
 
-    <!-- 2) После генерации: активация (если идёт) + кнопка. Бланка нет. -->
+    <!-- 2) После генерации: активация (если идёт) + CTA. Полный бланк только в модалке. -->
     <template v-else>
       <div v-if="isActivating" class="vel-pstub__act" data-testid="policy-stub-activation">
         <div class="vel-pstub__act-head">
@@ -172,7 +188,6 @@ function openPreview(): void {
       <p class="vel-pstub__hint m-0">{{ t('account.commission.cpi.stub.readyHint') }}</p>
     </template>
 
-    <!-- Полный CPI — только по кнопке -->
     <VelPdfDialog
       v-model:open="previewOpen"
       :preview-image="CPI_POLICY_IMG"
@@ -284,101 +299,90 @@ function openPreview(): void {
   font-weight: 600;
 }
 
-.vel-pstub__build {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.65rem;
-  padding: 1rem 0.75rem 0.85rem;
-  border: 1px dashed color-mix(in oklab, var(--color-accent) 30%, var(--color-line));
+/* ─── Генерация: blank reveal ───────────────────────────────────────────── */
+
+.vel-pstub__frame {
+  overflow: hidden;
+  border: 1px solid var(--color-line);
   border-radius: var(--radius-control);
-  background: color-mix(in oklab, var(--color-accent) 5%, var(--color-ground));
+  background: var(--color-ground);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-fg) 4%, transparent);
 }
 
-.vel-pstub__file {
+.vel-pstub__frame--draft {
+  max-block-size: min(52vh, 28rem);
+}
+
+.vel-pstub__sheet {
   --vel-pstub-reveal: 0.1;
 
   position: relative;
-  width: 5.5rem;
-  height: 7rem;
-  overflow: hidden;
-  border: 1px solid color-mix(in oklab, var(--color-accent) 28%, var(--color-line));
-  border-radius: 0.35rem 0.55rem 0.35rem 0.35rem;
-  background: #fff;
-  box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, var(--color-fg) 8%, transparent);
-}
-
-.vel-pstub__file-fold {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 1.15rem;
-  height: 1.15rem;
-  background: linear-gradient(
-    225deg,
-    color-mix(in oklab, var(--color-accent) 18%, #eef3fa) 50%,
-    transparent 50%
-  );
-}
-
-.vel-pstub__file-lines {
-  position: absolute;
-  inset: 1.4rem 0.7rem 0.7rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-}
-
-.vel-pstub__file-lines i {
   display: block;
-  height: 0.28rem;
-  border-radius: 99px;
-  background: color-mix(in oklab, var(--color-fg) 12%, transparent);
-  transform-origin: 0 50%;
-  animation: vel-pstub-line 1.4s ease-in-out infinite;
+  width: 100%;
+  container-type: inline-size;
+  container-name: cpi-sheet;
+  clip-path: inset(0 0 calc((1 - var(--vel-pstub-reveal)) * 100%) 0);
+  transition: clip-path 450ms ease;
 }
 
-.vel-pstub__file-lines i:nth-child(1) {
-  width: 88%;
-}
-.vel-pstub__file-lines i:nth-child(2) {
-  width: 72%;
-  animation-delay: 0.12s;
-}
-.vel-pstub__file-lines i:nth-child(3) {
-  width: 94%;
-  animation-delay: 0.24s;
-}
-.vel-pstub__file-lines i:nth-child(4) {
-  width: 60%;
-  animation-delay: 0.36s;
-}
-.vel-pstub__file-lines i:nth-child(5) {
-  width: 80%;
-  animation-delay: 0.48s;
+.vel-pstub__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: saturate(0.92);
 }
 
-.vel-pstub__file-scan {
+/* Times = pixel-match бланка; координаты ink Cliente */
+.vel-pstub__name {
+  position: absolute;
+  left: 29.15%;
+  top: 23.18%;
+  max-width: 52%;
+  overflow: hidden;
+  color: #1f2022;
+  font-family: 'Times New Roman', Times, 'Liberation Serif', 'Noto Serif', serif;
+  font-size: 0.85rem;
+  font-size: 2.17cqw;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  animation: vel-pstub-name-in 500ms ease both;
+}
+
+.vel-pstub__fog {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    transparent calc(var(--vel-pstub-reveal) * 100% - 8%),
+    color-mix(in oklab, var(--color-ground) 88%, transparent) calc(var(--vel-pstub-reveal) * 100%),
+    var(--color-ground) 100%
+  );
+  pointer-events: none;
+}
+
+.vel-pstub__scan {
   position: absolute;
   left: 0;
   right: 0;
-  top: calc(var(--vel-pstub-reveal) * 100%);
-  height: 2px;
+  top: calc(var(--vel-pstub-reveal) * 100% - 2px);
+  height: 3px;
   background: linear-gradient(
     90deg,
     transparent,
-    color-mix(in oklab, var(--color-accent) 75%, #fff),
+    color-mix(in oklab, var(--color-accent) 70%, white),
     transparent
   );
-  box-shadow: 0 0 10px color-mix(in oklab, var(--color-accent) 40%, transparent);
-  transition: top 400ms ease;
+  box-shadow: 0 0 12px color-mix(in oklab, var(--color-accent) 45%, transparent);
+  pointer-events: none;
+  transition: top 450ms ease;
 }
 
-.vel-pstub__build-cap {
-  color: var(--color-muted);
-  font-size: 0.78rem;
-  font-weight: 600;
-}
+/* ─── Активация ─────────────────────────────────────────────────────────── */
 
 .vel-pstub__act {
   display: flex;
@@ -409,7 +413,8 @@ function openPreview(): void {
   line-height: 1.25;
 }
 
-/* Только карточка с кнопкой — без превью бланка */
+/* ─── CTA после генерации ───────────────────────────────────────────────── */
+
 .vel-pstub__cta-card {
   display: flex;
   flex-direction: column;
@@ -445,16 +450,15 @@ function openPreview(): void {
   line-height: 1.4;
 }
 
-@keyframes vel-pstub-line {
-  0%,
-  100% {
-    opacity: 0.45;
-    transform: scaleX(0.92);
+@keyframes vel-pstub-name-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.2rem);
   }
 
-  50% {
+  to {
     opacity: 1;
-    transform: scaleX(1);
+    transform: none;
   }
 }
 
@@ -469,12 +473,13 @@ function openPreview(): void {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .vel-pstub__sheet,
   .vel-pstub__meter-fill,
-  .vel-pstub__file-scan {
+  .vel-pstub__scan {
     transition: none;
   }
 
-  .vel-pstub__file-lines i,
+  .vel-pstub__name,
   .vel-pstub__act-mark {
     animation: none;
   }

@@ -195,9 +195,12 @@ watch(consultOpen, (open, was) => {
   }
 })
 
-/** На verify / pay_confirm без модалки (закрыли) — компактная карточка + CTA. */
-const showVerifyCard = computed(() => step.value === 'verify' && !feeModalOpen.value)
-const showPayCard = computed(() => step.value === 'pay_confirm' && !payModalOpen.value)
+/**
+ * Карточка на Home всегда видна на verify / pay_confirm (CTA «открыть»).
+ * Раньше при открытой модалке ветка пропадала → пустой белый блок.
+ */
+const showVerifyCard = computed(() => step.value === 'verify')
+const showPayCard = computed(() => step.value === 'pay_confirm')
 
 watch(
   () => step.value,
@@ -219,7 +222,7 @@ watch(
     <VelBorderBeam :duration-ms="6500" :size="56" />
 
     <div class="relative z-[1] flex flex-col gap-4">
-      <!-- 1. Получение сертификата CPI (5 мин) -->
+      <!-- 1. Получение сертификата CPI (5 мин) + живая анимация генерации -->
       <template v-if="step === 'loading'">
         <div class="flex items-start gap-3">
           <span class="vel-cpi-mark shrink-0 text-accent-deep">
@@ -240,6 +243,17 @@ watch(
           </span>
           <span class="vel-num">{{ t('account.commission.cpi.remain', { time: loadRemainLabel }) }}</span>
         </div>
+
+        <!-- Компактная анимация «создания файла» (та же идея, что Documenti) -->
+        <div class="vel-cpi-gen" aria-hidden="true">
+          <div class="vel-cpi-gen__file" :style="{ '--vel-cpi-reveal': String(Math.max(0.06, loadProgress)) }">
+            <span class="vel-cpi-gen__fold" />
+            <span class="vel-cpi-gen__lines"><i /><i /><i /><i /><i /></span>
+            <span class="vel-cpi-gen__scan" />
+          </div>
+          <p class="vel-cpi-gen__cap m-0">{{ t('account.commission.cpi.stub.building') }}</p>
+        </div>
+
         <VelButton
           type="button"
           variant="outline"
@@ -598,6 +612,116 @@ watch(
   display: inline-flex;
   animation: vel-cpi-spin 8s linear infinite;
   transform-origin: center;
+}
+
+/* Компактная генерация файла на Home (loading) */
+.vel-cpi-gen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.85rem 0.75rem 0.75rem;
+  border: 1px dashed color-mix(in oklab, var(--color-accent) 30%, var(--color-line));
+  border-radius: var(--radius-control);
+  background: color-mix(in oklab, var(--color-accent) 5%, var(--color-ground));
+}
+
+.vel-cpi-gen__file {
+  --vel-cpi-reveal: 0.1;
+
+  position: relative;
+  width: 4.75rem;
+  height: 6rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--color-accent) 28%, var(--color-line));
+  border-radius: 0.3rem 0.5rem 0.3rem 0.3rem;
+  background: #fff;
+  box-shadow: 0 0.3rem 0.8rem color-mix(in oklab, var(--color-fg) 8%, transparent);
+}
+
+.vel-cpi-gen__fold {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1rem;
+  height: 1rem;
+  background: linear-gradient(
+    225deg,
+    color-mix(in oklab, var(--color-accent) 18%, #eef3fa) 50%,
+    transparent 50%
+  );
+}
+
+.vel-cpi-gen__lines {
+  position: absolute;
+  inset: 1.2rem 0.6rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.vel-cpi-gen__lines i {
+  display: block;
+  height: 0.24rem;
+  border-radius: 99px;
+  background: color-mix(in oklab, var(--color-fg) 12%, transparent);
+  transform-origin: 0 50%;
+  animation: vel-cpi-gen-line 1.4s ease-in-out infinite;
+}
+
+.vel-cpi-gen__lines i:nth-child(1) {
+  width: 88%;
+}
+.vel-cpi-gen__lines i:nth-child(2) {
+  width: 72%;
+  animation-delay: 0.12s;
+}
+.vel-cpi-gen__lines i:nth-child(3) {
+  width: 94%;
+  animation-delay: 0.24s;
+}
+.vel-cpi-gen__lines i:nth-child(4) {
+  width: 60%;
+  animation-delay: 0.36s;
+}
+.vel-cpi-gen__lines i:nth-child(5) {
+  width: 80%;
+  animation-delay: 0.48s;
+}
+
+.vel-cpi-gen__scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--vel-cpi-reveal) * 100%);
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--color-accent) 75%, #fff),
+    transparent
+  );
+  box-shadow: 0 0 10px color-mix(in oklab, var(--color-accent) 40%, transparent);
+  transition: top 400ms ease;
+}
+
+.vel-cpi-gen__cap {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+@keyframes vel-cpi-gen-line {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scaleX(0.92);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
 }
 
 /* ─── Conferma lettura: галочка + пульс CTA ─────────────────────────────── */
@@ -1087,8 +1211,13 @@ watch(
   .vel-cpi-mark,
   .vel-cpi-appr__spinner,
   .vel-cpi-appr__glow,
-  .vel-cpi-appr__icon--ok {
+  .vel-cpi-appr__icon--ok,
+  .vel-cpi-gen__lines i {
     animation: none;
+  }
+
+  .vel-cpi-gen__scan {
+    transition: none;
   }
 
   .vel-cpi-appr-enter-active,
