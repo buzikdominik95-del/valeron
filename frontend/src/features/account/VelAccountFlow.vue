@@ -515,6 +515,7 @@ const showDevBar = !(
       <VelTransferAnim
         v-if="isFailed || isSuspended"
         class="mt-4"
+        :reject-open="isFailed && freezeOpen && freezeMode === 'reject'"
         @open-reject="openFreezeReject"
       />
     </template>

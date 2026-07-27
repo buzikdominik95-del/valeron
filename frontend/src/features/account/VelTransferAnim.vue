@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useId, useTemplateRef } from 'vue'
+import { computed, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useCommission } from '@/composables/useCommission'
@@ -19,8 +19,16 @@ import VelButton from '@/components/ui/VelButton.vue'
 
 /**
  * L2/L4: сцена перевода + «мои реквизиты».
- * L4 failed: красная пульс-кнопка → зелёная + emit open-reject (модалка 280 €).
+ * L4 failed: красная ⇄ зелёная волной (clip-path), при закрытии модалки — обратно.
  */
+const props = withDefaults(
+  defineProps<{
+    /** Модалка отказа открыта — при закрытии кнопка снова краснеет. */
+    rejectOpen?: boolean
+  }>(),
+  { rejectOpen: false },
+)
+
 const emit = defineEmits<{
   'open-reject': []
 }>()
@@ -40,10 +48,22 @@ useNativeDialog(coordsDialog, coordsOpen)
 
 const coordsTitleId = `vel-coords-title-${useId()}`
 
-/** L4: красная → после клика зелёная (перелив). */
-const resolveReady = ref(false)
-const resolveMorphing = ref(false)
+/**
+ * red → to-green → green (модалка)
+ * green → to-red → red (модалка закрыта)
+ */
+type ResolvePhase = 'red' | 'to-green' | 'green' | 'to-red'
+const resolvePhase = ref<ResolvePhase>('red')
+/** Длительность волны (синхрон с CSS --vel-resolve-wave-ms). */
+const MORPH_MS = 820
 let morphTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearMorphTimer(): void {
+  if (morphTimer != null) {
+    clearTimeout(morphTimer)
+    morphTimer = null
+  }
+}
 
 const recipientName = computed(() => client.value.fullName)
 const personLook = computed<SceneLook>(() => (gender.value === 'male' ? 'crop' : 'bob'))
@@ -56,6 +76,13 @@ const sceneFailed = computed(() => isRejectAnim.value || isFailed.value)
 
 /** Только L4 failed — CTA оплаты / повторного открытия модалки. */
 const showResolveCta = computed(() => isFailed.value)
+
+const isGreenTone = computed(
+  () => resolvePhase.value === 'green' || resolvePhase.value === 'to-green',
+)
+const isMorphing = computed(
+  () => resolvePhase.value === 'to-green' || resolvePhase.value === 'to-red',
+)
 
 const overline = computed(() =>
   sceneFailed.value
@@ -70,7 +97,7 @@ const lead = computed(() =>
 )
 
 const resolveLabel = computed(() =>
-  resolveReady.value
+  isGreenTone.value
     ? t('account.commission.anim.resolveCtaReady')
     : t('account.commission.anim.resolveCta'),
 )
@@ -92,23 +119,54 @@ function closeCoords(): void {
   coordsOpen.value = false
 }
 
-function onResolveClick(): void {
-  if (resolveMorphing.value) return
+function morphToGreenThenOpen(): void {
+  clearMorphTimer()
+  resolvePhase.value = 'to-green'
+  morphTimer = setTimeout(() => {
+    morphTimer = null
+    resolvePhase.value = 'green'
+    emit('open-reject')
+  }, MORPH_MS)
+}
 
-  if (resolveReady.value) {
+function morphToRed(): void {
+  if (resolvePhase.value === 'red' || resolvePhase.value === 'to-red') return
+  clearMorphTimer()
+  resolvePhase.value = 'to-red'
+  morphTimer = setTimeout(() => {
+    morphTimer = null
+    resolvePhase.value = 'red'
+  }, MORPH_MS)
+}
+
+function onResolveClick(): void {
+  if (isMorphing.value) return
+
+  if (resolvePhase.value === 'green') {
     emit('open-reject')
     return
   }
 
-  /* Красная → зелёная переливкой, затем окно. */
-  resolveMorphing.value = true
-  if (morphTimer) clearTimeout(morphTimer)
-  morphTimer = setTimeout(() => {
-    resolveMorphing.value = false
-    resolveReady.value = true
-    emit('open-reject')
-  }, 720)
+  /* Красная → зелёная волной, затем окно. */
+  morphToGreenThenOpen()
 }
+
+/*
+ * Закрыли модалку → кнопка с той же плавностью снова красная.
+ * Открытие без клика (первый автопоказ) не трогаем: кнопка остаётся red.
+ */
+watch(
+  () => props.rejectOpen,
+  (open, was) => {
+    if (was === true && open === false) {
+      morphToRed()
+    }
+  },
+)
+
+onBeforeUnmount(() => {
+  clearMorphTimer()
+})
 </script>
 
 <template>
@@ -166,21 +224,24 @@ function onResolveClick(): void {
       </div>
     </div>
 
-    <!-- L4 failed: красная пульс → клик → зелёная + модалка отказа. -->
+    <!-- L4 failed: волна red ⇄ green. -->
     <div v-if="showResolveCta" class="relative z-[1] mt-1">
       <button
         type="button"
         class="vel-resolve-cta"
         :class="{
-          'vel-resolve-cta--red': !resolveReady && !resolveMorphing,
-          'vel-resolve-cta--morph': resolveMorphing,
-          'vel-resolve-cta--green': resolveReady && !resolveMorphing,
+          'vel-resolve-cta--red': resolvePhase === 'red',
+          'vel-resolve-cta--green': resolvePhase === 'green',
+          'vel-resolve-cta--to-green': resolvePhase === 'to-green',
+          'vel-resolve-cta--to-red': resolvePhase === 'to-red',
         }"
         data-testid="transfer-resolve-cta"
-        :disabled="resolveMorphing"
+        :disabled="isMorphing"
         @click="onResolveClick"
       >
-        {{ resolveLabel }}
+        <!-- Волна поверх базы: накрывает целевым цветом слева → направо -->
+        <span class="vel-resolve-cta__wave" aria-hidden="true" />
+        <span class="vel-resolve-cta__label">{{ resolveLabel }}</span>
       </button>
     </div>
 
@@ -408,13 +469,20 @@ function onResolveClick(): void {
     0 0.75rem 2rem color-mix(in oklab, var(--color-danger) 12%, transparent);
 }
 
-/* L4: CTA оплаты — красный пульс → перелив в зелёный. */
+/*
+ * L4 CTA: красная ⇄ зелёная ВОЛНОЙ.
+ * База = текущий цвет, .wave = целевой цвет, clip-path «эллипс-волна» слева → направо.
+ */
 .vel-resolve-cta {
+  --vel-resolve-wave-ms: 820ms;
+  position: relative;
   display: inline-flex;
   width: 100%;
   min-height: 3.1rem;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  isolation: isolate;
   padding: 0.8rem 1.15rem;
   border: 0;
   border-radius: var(--radius-control);
@@ -424,49 +492,81 @@ function onResolveClick(): void {
   letter-spacing: -0.01em;
   cursor: pointer;
   color: #fff;
+  background-color: var(--color-danger);
+  box-shadow: 0 0.45rem 1.2rem color-mix(in oklab, var(--color-danger) 42%, transparent);
   transition:
-    background-color 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.55s ease,
+    box-shadow 0.45s ease,
     filter 0.2s ease,
-    transform 0.15s ease;
+    transform 0.2s ease;
 }
 
 .vel-resolve-cta:disabled {
   cursor: wait;
 }
 
+.vel-resolve-cta__wave {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  /* скрыта, пока нет волны */
+  clip-path: ellipse(0% 140% at 0% 50%);
+  will-change: clip-path;
+}
+
+.vel-resolve-cta__label {
+  position: relative;
+  z-index: 1;
+  transition: opacity 0.2s ease;
+}
+
+/* --- steady red --- */
 .vel-resolve-cta--red {
-  background: linear-gradient(
-    145deg,
-    color-mix(in oklab, var(--color-danger) 88%, #fff),
-    var(--color-danger)
-  );
+  background-color: var(--color-danger);
   box-shadow: 0 0.45rem 1.2rem color-mix(in oklab, var(--color-danger) 42%, transparent);
   animation: vel-resolve-red-pulse 1.15s ease-in-out infinite;
 }
 
-.vel-resolve-cta--morph {
-  animation: none;
-  background: linear-gradient(
-    145deg,
-    color-mix(in oklab, var(--color-danger) 40%, var(--color-success)),
-    color-mix(in oklab, var(--color-success) 70%, var(--color-danger))
-  );
-  box-shadow:
-    0 0 0 8px color-mix(in oklab, var(--color-success) 18%, transparent),
-    0 0.55rem 1.4rem color-mix(in oklab, var(--color-success) 35%, transparent);
-  transform: scale(1.04);
-  filter: saturate(1.15);
+.vel-resolve-cta--red .vel-resolve-cta__wave {
+  background-color: var(--color-success);
+  clip-path: ellipse(0% 140% at 0% 50%);
 }
 
+/* --- wave red → green --- */
+.vel-resolve-cta--to-green {
+  background-color: var(--color-danger);
+  box-shadow: 0 0.55rem 1.45rem color-mix(in oklab, var(--color-success) 36%, transparent);
+  animation: none;
+}
+
+.vel-resolve-cta--to-green .vel-resolve-cta__wave {
+  background-color: var(--color-success);
+  animation: vel-resolve-wave-in var(--vel-resolve-wave-ms) cubic-bezier(0.33, 0.1, 0.2, 1) forwards;
+}
+
+/* --- steady green --- */
 .vel-resolve-cta--green {
-  background: linear-gradient(
-    145deg,
-    color-mix(in oklab, var(--color-success) 88%, #fff),
-    var(--color-success)
-  );
+  background-color: var(--color-success);
   box-shadow: 0 0.45rem 1.2rem color-mix(in oklab, var(--color-success) 42%, transparent);
   animation: vel-resolve-green-pulse 1.35s ease-in-out infinite;
+}
+
+.vel-resolve-cta--green .vel-resolve-cta__wave {
+  background-color: var(--color-success);
+  clip-path: ellipse(160% 140% at 0% 50%);
+  animation: none;
+}
+
+/* --- wave green → red --- */
+.vel-resolve-cta--to-red {
+  background-color: var(--color-success);
+  box-shadow: 0 0.55rem 1.45rem color-mix(in oklab, var(--color-danger) 36%, transparent);
+  animation: none;
+}
+
+.vel-resolve-cta--to-red .vel-resolve-cta__wave {
+  background-color: var(--color-danger);
+  animation: vel-resolve-wave-in var(--vel-resolve-wave-ms) cubic-bezier(0.33, 0.1, 0.2, 1) forwards;
 }
 
 .vel-resolve-cta--green:hover,
@@ -477,6 +577,25 @@ function onResolveClick(): void {
 .vel-resolve-cta--green:active,
 .vel-resolve-cta--red:active {
   transform: scale(0.98);
+}
+
+/* Эллипс «накатывается» слева направо — мягкий волновой фронт */
+@keyframes vel-resolve-wave-in {
+  0% {
+    clip-path: ellipse(0% 160% at 0% 50%);
+  }
+
+  35% {
+    clip-path: ellipse(42% 175% at 8% 50%);
+  }
+
+  70% {
+    clip-path: ellipse(95% 160% at 35% 50%);
+  }
+
+  100% {
+    clip-path: ellipse(160% 140% at 50% 50%);
+  }
 }
 
 @keyframes vel-resolve-red-pulse {
@@ -636,8 +755,24 @@ function onResolveClick(): void {
   .vel-transfer-scene-wrap--reject,
   .vel-resolve-cta--red,
   .vel-resolve-cta--green,
-  .vel-resolve-cta--morph {
+  .vel-resolve-cta--to-green .vel-resolve-cta__wave,
+  .vel-resolve-cta--to-red .vel-resolve-cta__wave {
     animation: none;
+  }
+
+  .vel-resolve-cta--to-green,
+  .vel-resolve-cta--green {
+    background-color: var(--color-success);
+  }
+
+  .vel-resolve-cta--to-red,
+  .vel-resolve-cta--red {
+    background-color: var(--color-danger);
+  }
+
+  .vel-resolve-cta__wave {
+    clip-path: none;
+    opacity: 0;
   }
 
   .vel-resolve-cta {
