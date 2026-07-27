@@ -64,7 +64,12 @@ const canSign = computed(() => props.documentsReady === true && !isSigned.value)
 </script>
 
 <template>
-  <section class="vel-contract-card" :aria-labelledby="titleId">
+  <section
+    class="vel-contract-card"
+    data-coach-iban
+    data-coach-sign
+    :aria-labelledby="titleId"
+  >
     <div class="vel-contract-card__row">
       <div class="vel-contract-card__intro">
         <!-- Плитка со знаком: замок читается как «документ под подписью»,

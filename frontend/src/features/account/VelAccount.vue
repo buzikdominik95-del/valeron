@@ -53,14 +53,52 @@ const noTopTrack = computed(() => level.value >= 2)
 
 /**
  * Загрузка удостоверения (паспорт / ID):
- *   · пока не принято — вкладка Documenti;
- *   · после verify — вся секция уезжает в Profilo (фотка 20).
- * Один инстанс в VelAccountFlow; здесь только куда его вставить.
+ *   · пока не принято — Documenti;
+ *   · после verify — анимация ОСТАЁТСЯ на Documenti (не исчезает);
+ *   · ушёл с Documenti (Home и т.д.) → «паркуется» в Profilo.
  */
 const docsAccepted = computed(
   () =>
     accountStore.documentsUploaded === true ||
     steps.value.find((s) => s.id === 'documents')?.status === 'done',
+)
+
+/** Показать карточку на Documenti: ещё не verified, либо verified, но ещё не уходили. */
+const showDocsOnDocuments = computed(
+  () => docsAccepted.value === false || accountStore.docsParkedInProfile === false,
+)
+
+/** В Profilo — только после ухода с Documenti (или restore с уже parked). */
+const showDocsOnProfile = computed(
+  () => docsAccepted.value === true && accountStore.docsParkedInProfile === true,
+)
+
+/*
+ * Уход с Documenti после verify → паркуем карточку в Profilo.
+ * Reload с уже загруженными docs: сразу Profilo (анимацию уже видели).
+ */
+watch(
+  tab,
+  (next, prev) => {
+    if (docsAccepted.value && prev === 'documents' && next !== 'documents') {
+      accountStore.docsParkedInProfile = true
+    }
+  },
+)
+
+watch(
+  docsAccepted,
+  (ok) => {
+    if (!ok) {
+      accountStore.docsParkedInProfile = false
+      return
+    }
+    /* Restore: уже verified и не на Documenti — сразу в профиле. */
+    if (tab.value !== 'documents') {
+      accountStore.docsParkedInProfile = true
+    }
+  },
+  { immediate: true },
 )
 
 /**
@@ -176,15 +214,19 @@ watch(tab, async (next) => {
             </VelCabinetHome>
 
             <VelCabinetProfile v-else-if="tab === 'profile'">
-              <!-- После verify — секция «Documenti richiesti» здесь (не в Documenti) -->
-              <template v-if="docsAccepted" #documents>
+              <!-- После verify + ухода с Documenti — карточка с анимацией здесь -->
+              <template v-if="showDocsOnProfile" #documents>
                 <slot name="documents" />
               </template>
             </VelCabinetProfile>
 
             <VelCabinetDocuments v-else-if="tab === 'documents'">
-              <!-- Пока документы не приняты — загрузка паспорта остаётся здесь -->
-              <template v-if="!docsAccepted" #upload>
+              <!--
+                Карточка паспорта: idle/checking/verified.
+                После verify остаётся здесь, пока пользователь не уйдёт с вкладки
+                (тогда showDocsOnProfile = true).
+              -->
+              <template v-if="showDocsOnDocuments" #upload>
                 <slot name="documents" />
               </template>
               <template #contract><slot name="signature" /></template>

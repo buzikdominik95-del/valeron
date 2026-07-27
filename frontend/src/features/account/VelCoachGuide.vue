@@ -6,11 +6,11 @@ import { useAccount } from '@/composables/useAccount'
 import { useAccountStore } from '@/stores/account.store'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { accountStepHref } from '@/features/account/account-anchors'
-import type { AccountStep } from '@/stores/account.store'
 
 /**
- * Подсказки новичку: карточка + анимированная стрелка к реальной цели.
- * Mobile: снизу над tabbar. Desktop (≥64rem): рядом с пунктом меню / блоком.
+ * Подсказки по кабинету: только ПОСЛЕ появления ЛК (splash скрыт, nav в DOM).
+ * Цепочка: вкладка Documenti → фото паспорта → IBAN → подпись.
+ * «Vai» не гасит coach — только «Chiudi» / allDone.
  */
 const { t } = useI18n()
 const { steps, allDone } = useAccount()
@@ -21,62 +21,86 @@ const isDesktop = useMediaQuery('(min-width: 64rem)')
 const visible = ref(false)
 const cardEl = ref<HTMLElement | null>(null)
 
-/** Позиция карточки (fixed). */
 const cardStyle = ref<Record<string, string>>({})
-/** SVG path стрелки (viewport coords). */
 const arrowPath = ref('')
-/** Точка «хвоста» стрелки у карточки и «наконечник» у цели. */
 const arrowHead = ref({ x: 0, y: 0, angle: 0 })
-/** Подсветка цели. */
 const spot = ref<{ top: number; left: number; width: number; height: number } | null>(null)
 const hasTarget = ref(false)
 
-onMounted(() => {
-  if (allDone.value || account.coachSeen) return
-  visible.value = true
-  void nextTick(() => updateLayout())
-})
+/** Фазы онбординга (не «уровни комиссии»). */
+type CoachPhase =
+  | 'documents-tab'
+  | 'documents-upload'
+  | 'signature-tab'
+  | 'signature-iban'
+  | 'signature-sign'
 
-const nextAction = computed(() => {
-  const pending = steps.value.find((s) => s.status !== 'done' && s.needsAction)
-  if (!pending) return null
-  return pending.id as AccountStep
+const docsDone = computed(
+  () =>
+    account.documentsUploaded === true ||
+    steps.value.find((s) => s.id === 'documents')?.status === 'done',
+)
+
+const sigDone = computed(
+  () =>
+    account.contractSigned === true ||
+    steps.value.find((s) => s.id === 'signature')?.status === 'done',
+)
+
+const phase = computed<CoachPhase | null>(() => {
+  if (allDone.value || account.coachSeen) return null
+
+  if (!docsDone.value) {
+    if (tab.value !== 'documents') return 'documents-tab'
+    return 'documents-upload'
+  }
+
+  if (!sigDone.value) {
+    if (tab.value !== 'documents') return 'signature-tab'
+    if (!account.ibanProvided) return 'signature-iban'
+    return 'signature-sign'
+  }
+
+  return null
 })
 
 const tip = computed(() => {
-  const id = nextAction.value
-  if (!id) return t('account.coach.done')
-  return t(`account.coach.tips.${id}`)
+  const p = phase.value
+  if (!p) return t('account.coach.done')
+  return t(`account.coach.tips.${p}`)
 })
 
 const tipTitle = computed(() => t('account.coach.title'))
 
-/** Куда смотрит стрелка: DOM-цель по шагу. */
 function resolveTarget(): HTMLElement | null {
-  const id = nextAction.value
-  if (!id) return null
+  const p = phase.value
+  if (!p) return null
 
-  if (id === 'documents') {
+  if (p === 'documents-tab' || p === 'signature-tab') {
     return (
       document.querySelector<HTMLElement>('[data-coach-tab="documents"]') ??
       document.getElementById('vel-account-documents')
     )
   }
-  if (id === 'signature') {
-    const panel = document.getElementById('vel-account-signature')
-    if (panel && panel.getClientRects().length > 0) return panel
+  if (p === 'documents-upload') {
     return (
-      document.querySelector<HTMLElement>('[data-coach-tab="documents"]') ??
+      document.querySelector<HTMLElement>('[data-coach-docs]') ??
       document.getElementById('vel-account-documents')
     )
   }
-  if (id === 'account') {
+  if (p === 'signature-iban') {
     return (
-      document.querySelector<HTMLElement>('[data-coach-tab="profile"]') ??
-      document.querySelector<HTMLElement>('[data-coach-tab="home"]')
+      document.querySelector<HTMLElement>('[data-coach-iban]') ??
+      document.getElementById('vel-account-signature')
     )
   }
-  return document.querySelector<HTMLElement>('[data-coach-tab="home"]')
+  if (p === 'signature-sign') {
+    return (
+      document.querySelector<HTMLElement>('[data-coach-sign]') ??
+      document.getElementById('vel-account-signature')
+    )
+  }
+  return null
 }
 
 function clamp(n: number, min: number, max: number): number {
@@ -84,7 +108,7 @@ function clamp(n: number, min: number, max: number): number {
 }
 
 function updateLayout(): void {
-  if (!visible.value || allDone.value) return
+  if (!visible.value || allDone.value || !phase.value) return
 
   const target = resolveTarget()
   const vw = window.innerWidth
@@ -97,7 +121,6 @@ function updateLayout(): void {
     hasTarget.value = false
     spot.value = null
     arrowPath.value = ''
-    /* fallback: низ по центру (mobile-friendly) */
     cardStyle.value = {
       position: 'fixed',
       left: `${(vw - cardW) / 2}px`,
@@ -128,10 +151,6 @@ function updateLayout(): void {
   let toY: number
 
   if (isDesktop.value) {
-    /*
-     * Desktop: карточка справа от сайдбара / цели.
-     * Стрелка идёт от левого края карточки к центру цели.
-     */
     const preferRight = tr.right + 16 + cardW + pad < vw
     if (preferRight) {
       left = tr.right + 20
@@ -141,7 +160,6 @@ function updateLayout(): void {
       toX = tr.right + 4
       toY = tr.top + tr.height / 2
     } else {
-      /* карточка слева от цели */
       left = clamp(tr.left - cardW - 20, pad, vw - cardW - pad)
       top = clamp(tr.top + tr.height / 2 - cardH / 2, pad, vh - cardH - pad)
       fromX = left + cardW
@@ -150,9 +168,6 @@ function updateLayout(): void {
       toY = tr.top + tr.height / 2
     }
   } else {
-    /*
-     * Mobile: карточка над нижней панелью, стрелка вниз к tabbar / цели.
-     */
     left = (vw - cardW) / 2
     const aboveTarget = tr.top > cardH + 80
     if (aboveTarget && tr.bottom < vh - 100) {
@@ -162,7 +177,6 @@ function updateLayout(): void {
       toX = tr.left + tr.width / 2
       toY = tr.top - 4
     } else {
-      /* default: над tabbar, стрелка к нижней навигации */
       const bottomGap =
         parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--vel-tabbar-h')) ||
         64
@@ -184,7 +198,6 @@ function updateLayout(): void {
     right: 'auto',
   }
 
-  /* Кривая Безье от карточки к цели */
   const dx = toX - fromX
   const dy = toY - fromY
   const midX = fromX + dx * 0.45
@@ -202,26 +215,62 @@ function updateLayout(): void {
   }
 }
 
-function go(): void {
-  const id = nextAction.value
-  account.markCoachSeen()
-  visible.value = false
-  if (id === 'documents') {
-    selectTab('documents')
-    return
+/** Кабинет готов: splash скрыт, навигация в DOM. */
+function cabinetReady(): boolean {
+  const splash = document.querySelector<HTMLElement>('.vel-splash')
+  if (splash) {
+    const st = getComputedStyle(splash)
+    if (st.display !== 'none' && st.visibility !== 'hidden' && Number(st.opacity) > 0.05) {
+      return false
+    }
   }
-  if (id === 'signature') {
-    selectTab('documents')
-    const href = accountStepHref('signature')
-    if (href?.startsWith('#')) {
-      requestAnimationFrame(() =>
-        document.querySelector(href)?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
-      )
+  return !!document.querySelector('[data-coach-tab="documents"]')
+}
+
+let readyTimer: ReturnType<typeof setTimeout> | null = null
+let readyTries = 0
+
+function tryShowCoach(): void {
+  if (account.coachSeen || allDone.value) return
+  if (!cabinetReady()) {
+    readyTries += 1
+    if (readyTries < 80) {
+      readyTimer = setTimeout(tryShowCoach, 120)
     }
     return
   }
-  if (id === 'approval' || id === 'simulation' || id === 'account') {
-    selectTab(id === 'account' ? 'profile' : 'home')
+  if (!phase.value) return
+  visible.value = true
+  void nextTick(() => updateLayout())
+}
+
+function go(): void {
+  const p = phase.value
+  /* Не markCoachSeen — подсказки продолжаются на следующих шагах. */
+  if (p === 'documents-tab' || p === 'signature-tab') {
+    selectTab('documents')
+    void nextTick(() => updateLayout())
+    return
+  }
+  if (p === 'documents-upload') {
+    selectTab('documents')
+    requestAnimationFrame(() => {
+      document
+        .querySelector('[data-coach-docs]')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      updateLayout()
+    })
+    return
+  }
+  if (p === 'signature-iban' || p === 'signature-sign') {
+    selectTab('documents')
+    const href = accountStepHref('signature')
+    requestAnimationFrame(() => {
+      if (href?.startsWith('#')) {
+        document.querySelector(href)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+      updateLayout()
+    })
   }
 }
 
@@ -230,9 +279,17 @@ function dismiss(): void {
   visible.value = false
 }
 
-watch([visible, nextAction, isDesktop, tab], () => {
-  if (!visible.value) return
-  void nextTick(() => updateLayout())
+watch([visible, phase, isDesktop, tab, docsDone, sigDone], () => {
+  if (account.coachSeen || allDone.value || !phase.value) {
+    visible.value = false
+    return
+  }
+  if (visible.value) {
+    void nextTick(() => updateLayout())
+  } else if (cabinetReady()) {
+    visible.value = true
+    void nextTick(() => updateLayout())
+  }
 })
 
 useEventListener(window, 'resize', () => updateLayout(), { passive: true })
@@ -240,10 +297,13 @@ useEventListener(window, 'scroll', () => updateLayout(), { passive: true, captur
 
 let ro: ResizeObserver | null = null
 onMounted(() => {
+  readyTries = 0
+  tryShowCoach()
   ro = new ResizeObserver(() => updateLayout())
   ro.observe(document.documentElement)
 })
 onUnmounted(() => {
+  if (readyTimer) clearTimeout(readyTimer)
   ro?.disconnect()
 })
 </script>
@@ -252,13 +312,12 @@ onUnmounted(() => {
   <Teleport to="body">
     <Transition name="vel-coach">
       <div
-        v-if="visible && !allDone"
+        v-if="visible && phase && !allDone"
         class="vel-coach"
         role="dialog"
         aria-modal="false"
         :aria-label="tipTitle"
       >
-        <!-- Затемнение лёгкое + spotlight на цель -->
         <div class="vel-coach__scrim" aria-hidden="true" @click="dismiss" />
         <div
           v-if="spot"
@@ -272,7 +331,6 @@ onUnmounted(() => {
           }"
         />
 
-        <!-- Анимированная стрелка (SVG поверх всего) -->
         <svg
           v-if="hasTarget && arrowPath"
           class="vel-coach__svg"
@@ -314,7 +372,6 @@ onUnmounted(() => {
             stroke-dasharray="8 10"
             marker-end="url(#vel-coach-head)"
           />
-          <!-- Пульсирующая точка у цели -->
           <g
             class="vel-coach__pulse-g"
             :style="{
@@ -326,7 +383,6 @@ onUnmounted(() => {
           </g>
         </svg>
 
-        <!-- Карточка подсказки -->
         <div ref="cardEl" class="vel-coach__card" :style="cardStyle">
           <div class="vel-coach__card-arrow" aria-hidden="true">
             <svg class="vel-coach__mini-arrow" viewBox="0 0 24 32" fill="none">
@@ -451,15 +507,15 @@ onUnmounted(() => {
 .vel-coach__mini-arrow {
   width: 1.35rem;
   height: 1.75rem;
-  animation: vel-coach-point 1.05s ease-in-out infinite;
+  animation: vel-coach-mini 1.1s ease-in-out infinite;
 }
 
 .vel-coach__eyebrow {
   margin: 0;
   color: var(--color-accent-deep);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 800;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -475,81 +531,39 @@ onUnmounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-top: 0.4rem;
+  margin-block-start: 0.35rem;
 }
 
 .vel-coach__cta {
   display: inline-flex;
-  min-height: 2.75rem;
-  flex: 1 1 auto;
+  min-height: 2.5rem;
   align-items: center;
-  justify-content: center;
   gap: 0.35rem;
-  padding: 0 1rem;
+  padding: 0.45rem 0.9rem;
   border: none;
   border-radius: var(--radius-control);
   background: var(--color-accent);
   color: var(--color-accent-ink);
-  font: inherit;
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   font-weight: 700;
   cursor: pointer;
 }
 
-.vel-coach__cta:hover {
-  background: var(--color-accent-dim);
-}
-
 .vel-coach__skip {
-  min-height: 2.75rem;
-  padding: 0 0.85rem;
-  border: 1px solid var(--color-line);
+  min-height: 2.5rem;
+  padding: 0.45rem 0.75rem;
+  border: none;
   border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-muted);
-  font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 600;
   cursor: pointer;
 }
 
 .vel-coach__skip:hover {
-  border-color: var(--color-line-strong);
   color: var(--color-fg);
-}
-
-/* Desktop: мини-стрелка на карточке смотрит вбок — path SVG главный */
-@media (min-width: 64rem) {
-  .vel-coach__card-arrow {
-    display: none;
-  }
-
-  .vel-coach__scrim {
-    background: color-mix(in oklab, var(--color-accent-deep) 12%, transparent);
-  }
-}
-
-@keyframes vel-coach-bob {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-5px);
-  }
-}
-
-@keyframes vel-coach-point {
-  0%,
-  100% {
-    transform: translateY(0);
-    opacity: 1;
-  }
-
-  50% {
-    transform: translateY(6px);
-    opacity: 0.55;
-  }
+  background: var(--color-raised);
 }
 
 @keyframes vel-coach-dash {
@@ -560,29 +574,22 @@ onUnmounted(() => {
 
 @keyframes vel-coach-pulse {
   0% {
+    opacity: 0.55;
     transform: scale(0.7);
-    opacity: 0.5;
   }
-
-  70% {
-    transform: scale(2.2);
-    opacity: 0;
-  }
-
   100% {
-    transform: scale(2.2);
     opacity: 0;
+    transform: scale(2.2);
   }
 }
 
 @keyframes vel-coach-dot {
   0%,
   100% {
-    opacity: 1;
+    transform: scale(1);
   }
-
   50% {
-    opacity: 0.55;
+    transform: scale(1.25);
   }
 }
 
@@ -591,28 +598,40 @@ onUnmounted(() => {
   100% {
     box-shadow:
       0 0 0 9999px color-mix(in oklab, var(--color-accent-deep) 28%, transparent),
-      0 0 0 4px color-mix(in oklab, var(--color-accent) 30%, transparent),
-      0 0.5rem 1.5rem color-mix(in oklab, var(--color-accent) 22%, transparent);
+      0 0 0 4px color-mix(in oklab, var(--color-accent) 35%, transparent),
+      0 0.5rem 1.5rem color-mix(in oklab, var(--color-accent) 25%, transparent);
   }
-
   50% {
     box-shadow:
-      0 0 0 9999px color-mix(in oklab, var(--color-accent-deep) 28%, transparent),
-      0 0 0 7px color-mix(in oklab, var(--color-accent) 48%, transparent),
-      0 0.65rem 1.75rem color-mix(in oklab, var(--color-accent) 32%, transparent);
+      0 0 0 9999px color-mix(in oklab, var(--color-accent-deep) 32%, transparent),
+      0 0 0 7px color-mix(in oklab, var(--color-accent) 50%, transparent),
+      0 0.5rem 1.8rem color-mix(in oklab, var(--color-accent) 35%, transparent);
+  }
+}
+
+@keyframes vel-coach-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes vel-coach-mini {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(4px);
   }
 }
 
 .vel-coach-enter-active,
 .vel-coach-leave-active {
-  transition: opacity 280ms ease;
-}
-
-.vel-coach-enter-active .vel-coach__card,
-.vel-coach-leave-active .vel-coach__card {
-  transition:
-    opacity 280ms ease,
-    transform 280ms ease;
+  transition: opacity 0.25s ease;
 }
 
 .vel-coach-enter-from,
@@ -620,19 +639,13 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-.vel-coach-enter-from .vel-coach__card,
-.vel-coach-leave-to .vel-coach__card {
-  opacity: 0;
-  transform: translateY(14px);
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .vel-coach__card,
-  .vel-coach__mini-arrow,
   .vel-coach__path,
   .vel-coach__pulse,
   .vel-coach__dot,
-  .vel-coach__spot {
+  .vel-coach__spot,
+  .vel-coach__card,
+  .vel-coach__mini-arrow {
     animation: none;
   }
 }

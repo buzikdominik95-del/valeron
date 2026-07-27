@@ -131,10 +131,16 @@ export const useAccountStore = defineStore('account', () => {
   const signatureDataUrl = useLocalStorage<string>('velora:account:signaturePng', '')
 
   /**
-   * Онбординг-стрелки «куда нажать» уже показывали.
-   * false → первый заход с незакрытыми шагами: VelCoachGuide.
+   * Онбординг-стрелки «куда нажать» уже показывали (закрыл / skip).
+   * false → VelCoachGuide ведёт по шагам, пока не skip и не allDone.
    */
   const coachSeen = useLocalStorage<boolean>('velora:account:coachSeen', false)
+
+  /**
+   * После verify паспортная карточка остаётся в Documenti, пока пользователь
+   * не уйдёт с вкладки; затем «паркуется» в Profilo (анимация не пропадает).
+   */
+  const docsParkedInProfile = useLocalStorage<boolean>('velora:docs:parkedProfile', false)
 
   /**
    * Подтверждена ли почта. Стоит рядом с contractSigned и по той же причине:
@@ -303,8 +309,10 @@ export const useAccountStore = defineStore('account', () => {
     completed.value = []
     currentStep.value = ACCOUNT_STEPS[0]
     documentsUploaded.value = false
+    docsParkedInProfile.value = false
     try {
       localStorage.removeItem('velora:docs:verified')
+      localStorage.removeItem('velora:docs:parkedProfile')
     } catch {
       /* ignore */
     }
@@ -328,6 +336,7 @@ export const useAccountStore = defineStore('account', () => {
     currentNumber,
     steps,
     documentsUploaded,
+    docsParkedInProfile,
     ibanProvided,
     ibanMasked,
     ibanFull,

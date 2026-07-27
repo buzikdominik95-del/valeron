@@ -30,7 +30,11 @@ const docsLocked = computed(() => documentsUploaded.value === true)
 const { kind, sides, fileOf, previewOf, rejection, status, ready, pick, submit } =
   useDocumentUpload(files, { locked: docsLocked })
 
-/* Когда проверка дошла до verified — фиксируем в store и закрываем шаг. */
+/*
+ * Проверка дошла до verified: анимация VelDocVerified уже на экране (карточка
+ * остаётся в Documenti до ухода с вкладки — см. VelAccount showDocsOnDocuments).
+ * Только потом documentsUploaded=true открывает Firma / парковку в Profilo.
+ */
 watch(status, (s) => {
   if (s !== 'verified') return
   if (!documentsUploaded.value) {
@@ -61,7 +65,7 @@ useAutoAnimate(slotList)
 </script>
 
 <template>
-  <section class="vel-docup" :aria-labelledby="titleId">
+  <section class="vel-docup" data-coach-docs :aria-labelledby="titleId">
     <h2 :id="titleId" class="vel-docup__title">{{ t('account.docs.cardTitle') }}</h2>
 
     <div class="vel-docup__head">
