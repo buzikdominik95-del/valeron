@@ -3,6 +3,7 @@ import type { ComputedRef } from 'vue'
 import { createSharedComposable } from '@vueuse/core'
 import { useAppView } from '@/composables/useAppView'
 import { useViewParams } from '@/composables/useViewParams'
+import { useLandingLogin } from '@/composables/useLandingLogin'
 
 /**
  * Открыт ли кабинет — одним окном для его шапки, кнопки «Accedi» и экрана
@@ -30,10 +31,21 @@ export interface AccountViewApi {
 function createAccountView(): AccountViewApi {
   const appView = useAppView()
   const params = useViewParams()
+  const landingLogin = useLandingLogin()
 
   const isOpen = computed(() => appView.view.value === 'cabinet')
 
   function open(): void {
+    /*
+     * Без своей заявки (мастер + регистрация) кабинет не открываем:
+     * иначе Accedi с лендинга впускал бы в заглушку Marco Rossi.
+     * Показываем форму входа; после регистрации openCabinet идёт напрямую
+     * через useAppView (email → cabinet), минуя этот gate.
+     */
+    if (!landingLogin.hasCabinetAccess()) {
+      landingLogin.show()
+      return
+    }
     // Мастер на этом заканчивается: из кабинета в него не возвращаются шагом
     // назад, а начинают новую заявку.
     delete params.step

@@ -8,6 +8,7 @@ import { useAccountStore } from '@/stores/account.store'
 import { useDossierStore } from '@/stores/dossier.store'
 import { isApiEnabled } from '@/api/account.api'
 import { demoLogin } from '@/api/auth.api'
+import { useSimulatorStore } from '@/stores/simulator.store'
 
 import VelAccount from '@/features/account/VelAccount.vue'
 import VelPayoutCard from '@/features/account/VelPayoutCard.vue'
@@ -66,7 +67,16 @@ const agentToastOpen = ref(false)
 
 onMounted(() => {
   if (!isApiEnabled()) return
-  void demoLogin()
+  /*
+   * Не логинимся как marco@esempio.it по умолчанию — только email
+   * зарегистрированного пользователя (после мастера).
+   */
+  const simulator = useSimulatorStore()
+  const mail = simulator.email.trim()
+  if (mail === '') return
+  const name =
+    [simulator.firstName.trim(), simulator.surname.trim()].filter(Boolean).join(' ') || mail
+  void demoLogin(mail, 'password', name)
     .then(() => dossier.pullAccount())
     .catch((e: unknown) => {
       apiError.value = e instanceof Error ? e.message : 'API unavailable'
