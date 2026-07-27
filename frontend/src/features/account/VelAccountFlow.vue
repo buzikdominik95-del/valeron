@@ -31,6 +31,7 @@ import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
 import VelTransferAnim from '@/features/account/VelTransferAnim.vue'
 import VelAccountFreezeModal from '@/features/account/VelAccountFreezeModal.vue'
+import VelRejectFlash from '@/features/account/VelRejectFlash.vue'
 import VelStageSwitch from '@/features/account/VelStageSwitch.vue'
 import VelLoanDetails from '@/features/account/VelLoanDetails.vue'
 import VelDevCommissionBar from '@/features/account/VelDevCommissionBar.vue'
@@ -52,6 +53,7 @@ const {
   isSuspended,
   isPolicyBuild,
   isFailed,
+  isRejectAnim,
   isReady,
   phase,
   level,
@@ -64,6 +66,8 @@ const notices = useNotices()
 const apiError = ref<string | null>(null)
 /** Toast «Nuovo messaggio» сверху после verify документов. */
 const agentToastOpen = ref(false)
+/** Полноэкранный крестик при L2 freeze / L4 reject — сам закрывается. */
+const rejectFlashOpen = ref(false)
 
 onMounted(() => {
   if (!isApiEnabled()) return
@@ -397,6 +401,16 @@ watch(isAnimating, (now, was) => {
   }
 })
 
+/*
+ * Конец анимации L2/L4: полноэкранный крестик «вылетает» и через ~1.4 с уходит.
+ * isRejectAnim = true в hold 100% и в suspended/failed.
+ */
+watch(isRejectAnim, (now, was) => {
+  if (now && was === false) {
+    rejectFlashOpen.value = true
+  }
+})
+
 const showClassicBank = computed(
   () => isAuthorizing.value && !isAnimating.value && !isSuspended.value && !isFailed.value,
 )
@@ -534,6 +548,9 @@ const showDevBar = !(
     @open="onAgentToastOpen"
     @close="onAgentToastClose"
   />
+
+  <!-- L2/L4: крестик на весь экран → сам закрывается -->
+  <VelRejectFlash v-model:open="rejectFlashOpen" />
 
   <!-- L4: после анимации — сайт заблокирован, только Telegram менеджера -->
   <VelAccountFreezeModal v-model:open="freezeOpen" />
