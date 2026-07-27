@@ -325,22 +325,56 @@ function onOpenLoan(): void {
   gap: var(--vel-cab-card-gap, 0.65rem);
   min-inline-size: 0;
   padding: var(--vel-cab-card-pad, 1rem);
-  border: 1px solid var(--color-line);
+  border: 1px solid color-mix(in oklab, var(--color-success) 22%, var(--color-line));
   border-radius: var(--radius-panel);
+  /* Зелёный градиент на заливке: мята сверху-слева → светлее вниз-вправо */
   background:
+    radial-gradient(
+      120% 90% at 12% 0%,
+      color-mix(in oklab, var(--color-success) 22%, transparent) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      90% 70% at 100% 100%,
+      color-mix(in oklab, var(--color-success) 10%, transparent) 0%,
+      transparent 50%
+    ),
     linear-gradient(
-      165deg,
-      color-mix(in oklab, var(--color-success) 8%, var(--color-surface)) 0%,
-      var(--color-surface) 48%
+      155deg,
+      color-mix(in oklab, var(--color-success) 16%, #eefaf3) 0%,
+      color-mix(in oklab, var(--color-success) 9%, var(--color-surface)) 42%,
+      color-mix(in oklab, var(--color-success) 4%, var(--color-surface)) 72%,
+      var(--color-surface) 100%
     );
-  box-shadow: 0 0.55rem 1.35rem color-mix(in oklab, var(--color-fg) 6%, transparent);
+  box-shadow:
+    0 0.55rem 1.35rem color-mix(in oklab, var(--color-fg) 6%, transparent),
+    inset 0 1px 0 color-mix(in oklab, #fff 70%, transparent);
 }
 
 .vel-payout--ready {
-  border-color: color-mix(in oklab, var(--color-success) 42%, var(--color-line));
+  border-color: color-mix(in oklab, var(--color-success) 48%, var(--color-line));
+  background:
+    radial-gradient(
+      120% 90% at 12% 0%,
+      color-mix(in oklab, var(--color-success) 28%, transparent) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      90% 70% at 100% 100%,
+      color-mix(in oklab, var(--color-success) 14%, transparent) 0%,
+      transparent 50%
+    ),
+    linear-gradient(
+      155deg,
+      color-mix(in oklab, var(--color-success) 20%, #e6f8ee) 0%,
+      color-mix(in oklab, var(--color-success) 12%, var(--color-surface)) 40%,
+      color-mix(in oklab, var(--color-success) 6%, var(--color-surface)) 70%,
+      var(--color-surface) 100%
+    );
   box-shadow:
-    0 0 0 1px color-mix(in oklab, var(--color-success) 16%, transparent),
-    0 0.85rem 2rem color-mix(in oklab, var(--color-success) 10%, transparent);
+    0 0 0 1px color-mix(in oklab, var(--color-success) 18%, transparent),
+    0 0.85rem 2rem color-mix(in oklab, var(--color-success) 12%, transparent),
+    inset 0 1px 0 color-mix(in oklab, #fff 75%, transparent);
 }
 
 .vel-payout__balance-label {
