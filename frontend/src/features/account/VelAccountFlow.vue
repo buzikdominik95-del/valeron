@@ -155,22 +155,20 @@ function showToast(message: string): void {
 }
 
 /**
- * Firma unlock: документы закрыты / verified / файлы выбраны /
- * уже стоим на шаге Firma (index < current ⇒ docs done).
+ * Документы приняты (для Firma / пульса IBAN).
  *
- * Раньше ловили только status==='done' и documentsUploaded===true — после
- * advanceTo('signature') без флага store (или при «truthy» localStorage)
- * кнопка Firma оставалась серой при уже введённом IBAN.
+ * НЕ смотрим chosenFiles: файлы выбирают до checking — иначе IBAN пульсирует
+ * ещё во время анимации «Documento verificato». Только после verified
+ * (documentsUploaded / step done / уже на Firma).
  */
 const documentsReady = computed(() => {
-  if (account.documentsUploaded) return true
-  if (chosenFiles.value.length > 0) return true
+  if (account.documentsUploaded === true) return true
   if (account.completed.includes('documents')) return true
 
   const docs = steps.value.find((step) => step.id === 'documents')
   if (docs?.status === 'done') return true
 
-  /* Уже на Firma / после — документы позади по воронке. */
+  /* Уже на Firma / подписан — документы позади. */
   const sig = steps.value.find((step) => step.id === 'signature')
   if (sig?.status === 'current' || sig?.status === 'done') return true
   if (account.currentStep === 'signature') return true

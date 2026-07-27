@@ -80,17 +80,19 @@ export function useTrackerBar(root: Ref<HTMLElement | null>): TrackerBar {
   })
 
   /*
-   * Онбординг без coach-оверлея: пульс на step bar.
-   * 1) documents пока не verified
-   * 2) signature (IBAN + firma) после docs, пока не signed
+   * Онбординг: пульс на step bar строго по цепочке.
+   * 1) documents — пока НЕ documentsUploaded (checking/idle ещё «docs»)
+   * 2) signature — только после verified, пока не signed
+   * documentsUploaded ставится после анимации Verificato (см. VelDocumentUpload).
    */
   const onboardingCall = computed<'documents' | 'signature' | null>(() => {
+    const store = useAccountStore()
     const docsDone =
-      useAccountStore().documentsUploaded === true ||
+      store.documentsUploaded === true ||
       steps.value.find((s) => s.id === 'documents')?.status === 'done'
     if (!docsDone) return 'documents'
     const sigDone =
-      useAccountStore().contractSigned === true ||
+      store.contractSigned === true ||
       steps.value.find((s) => s.id === 'signature')?.status === 'done'
     if (!sigDone) return 'signature'
     return null
