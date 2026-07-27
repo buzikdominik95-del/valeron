@@ -1,0 +1,10 @@
+import { chromium } from 'playwright'
+const browser = await chromium.launch({ headless: true })
+const ctx = await browser.newContext({ viewport:{width:900,height:900}, deviceScaleFactor:4, locale:'it-IT' })
+const page = await ctx.newPage()
+await page.goto('http://127.0.0.1:5273/?step=analysis', { waitUntil:'domcontentloaded' })
+await page.waitForSelector('.vel-bank')
+await page.waitForTimeout(3800)
+const list = page.locator('.vel-banks')
+await list.screenshot({ path:'e2e-artifacts/analysis/zoom-list.png' })
+await browser.close()

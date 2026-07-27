@@ -1,0 +1,50 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Локальные переменные окружения — в репозиторий не попадают
+.env
+.env.*
+!.env.example
+
+# Служебные каталоги инструментов разработки
+.claude/
+.mcp.json
+
+# Снимки и замеры прогонов — локальные, в репозиторий не идут
+e2e-artifacts/
+*.png.probe
+
+probe-l4.png
+*.png.probe
+
+# Local notes / prompts � not for the repo
+*.md
+!src/img/banks/.gitkeep
+
+
+# Server pull scratch (credentials)
+_fetch_cpi*.py
+_server_cpi/
+
