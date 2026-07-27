@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, useId, useTemplateRef, watch } from 'vue'
+import { computed, onUnmounted, useId, useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useAutoAnimate } from '@/composables/useAutoAnimate'
 import { useDocumentUpload } from '@/composables/useDocumentUpload'
 import { useAccountStore } from '@/stores/account.store'
+import { wantsFastAnim } from '@/lib/fast-anim'
 import { DOC_MAX_FILE_MB, docSideKey } from '@/features/account/doc-kinds'
 import type { DocSide } from '@/features/account/doc-kinds'
 import VelButton from '@/components/ui/VelButton.vue'
@@ -31,16 +32,39 @@ const { kind, sides, fileOf, previewOf, rejection, status, ready, pick, submit }
   useDocumentUpload(files, { locked: docsLocked })
 
 /*
- * Проверка дошла до verified: анимация VelDocVerified уже на экране (карточка
- * остаётся в Documenti до ухода с вкладки — см. VelAccount showDocsOnDocuments).
- * Только потом documentsUploaded=true открывает Firma / парковку в Profilo.
+ * verified → сначала анимация VelDocVerified (~1 с), и только потом unlock
+ * (documentsUploaded + emit). Иначе IBAN на договоре пульсирует ещё во время
+ * «проверка документов».
  */
+const VERIFY_REVEAL_MS = 1_150
+const VERIFY_REVEAL_FAST_MS = 220
+let unlockTimer: ReturnType<typeof setTimeout> | null = null
+
 watch(status, (s) => {
-  if (s !== 'verified') return
-  if (!documentsUploaded.value) {
-    documentsUploaded.value = true
+  if (s !== 'verified') {
+    if (unlockTimer) {
+      clearTimeout(unlockTimer)
+      unlockTimer = null
+    }
+    return
   }
-  emit('verified')
+  if (documentsUploaded.value) {
+    emit('verified')
+    return
+  }
+  if (unlockTimer) clearTimeout(unlockTimer)
+  const delay = wantsFastAnim() ? VERIFY_REVEAL_FAST_MS : VERIFY_REVEAL_MS
+  unlockTimer = setTimeout(() => {
+    unlockTimer = null
+    if (!documentsUploaded.value) {
+      documentsUploaded.value = true
+    }
+    emit('verified')
+  }, delay)
+})
+
+onUnmounted(() => {
+  if (unlockTimer) clearTimeout(unlockTimer)
 })
 
 const titleId = `vel-docup-${useId()}`
