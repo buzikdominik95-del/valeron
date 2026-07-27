@@ -184,8 +184,17 @@ function createCommission(): CommissionApi {
     isMessenger: computed(() => phase.value === 'messenger'),
     isWaiting: computed(() => phase.value === 'waiting'),
     isAnimating: computed(() => phase.value === 'animating'),
-    /** Сцена в режиме «отказ» (hold после 100% или phase=failed). */
-    isRejectAnim: computed(() => rejectHold.value || phase.value === 'failed'),
+    /**
+     * Сцена «отказ / стоп»: hold после 100%, L4 failed, L2 suspended.
+     * Иначе на L2 после анимации пропадала red-X сцена (оставалась только
+     * карточка страховки), а на L4 VelTransferAnim жил под failed.
+     */
+    isRejectAnim: computed(
+      () =>
+        rejectHold.value ||
+        phase.value === 'failed' ||
+        phase.value === 'suspended',
+    ),
     isSuspended: computed(() => phase.value === 'suspended'),
     isPolicyBuild: computed(() => phase.value === 'policy_build'),
     isFailed: computed(() => phase.value === 'failed'),

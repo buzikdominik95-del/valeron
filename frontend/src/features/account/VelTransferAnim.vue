@@ -34,7 +34,10 @@ const coordsTitleId = `vel-coords-title-${useId()}`
 const recipientName = computed(() => client.value.fullName)
 const personLook = computed<SceneLook>(() => (gender.value === 'male' ? 'crop' : 'bob'))
 
-/** failed prop for canvas: hold after 100% or final fail */
+/**
+ * Freeze / red-X: hold 100%, L4 failed, L2 suspended (isRejectAnim).
+ * isFailed дублирует failed-фазу на случай рассинхрона.
+ */
 const sceneFailed = computed(() => isRejectAnim.value || isFailed.value)
 
 const overline = computed(() =>
