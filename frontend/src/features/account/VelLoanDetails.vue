@@ -43,22 +43,48 @@ const firstDate = computed(() => {
   return d.toISOString().slice(0, 10)
 })
 
-/** Та же сумма, что на карточке баланса: одобрено + оплаченные комиссии. */
-const loanPrincipalCents = computed(() => {
-  let cents = Math.round(approvedAmount.value * 100)
-  for (const exp of paidCommissionExpenses.value) {
-    cents += exp.amountCents
+/**
+ * Та же сумма, что на карточке баланса: одобрено + оплаченные комиссии.
+ * L1 37 + L2 172 + L3 136 … — только уже пройденные уровни.
+ */
+const paidFeesCents = computed(() => {
+  const list = paidCommissionExpenses.value
+  if (list.length > 0) {
+    return list.reduce((sum, e) => sum + e.amountCents, 0)
   }
   /* Fallback: level-based, если запись оплаты ещё не пришла, а этап уже выше. */
-  if (paidCommissionExpenses.value.length === 0) {
-    if (level.value >= 2) cents += COMMISSION_FEE_BY_LEVEL[1].amountCents
-    if (level.value >= 3) cents += COMMISSION_FEE_BY_LEVEL[2].amountCents
-  }
+  let cents = 0
+  if (level.value >= 2) cents += COMMISSION_FEE_BY_LEVEL[1].amountCents
+  if (level.value >= 3) cents += COMMISSION_FEE_BY_LEVEL[2].amountCents
+  if (level.value >= 4) cents += COMMISSION_FEE_BY_LEVEL[3].amountCents
   return cents
 })
 
+const loanPrincipalCents = computed(
+  () => Math.round(approvedAmount.value * 100) + paidFeesCents.value,
+)
+
+/** Importo in meta: always principal + fees (not bare approved). */
+const importoEuros = computed(() => loanPrincipalCents.value / 100)
+
+/**
+ * TAN: i18n numberFormats has only currency/decimal — use inline percent
+ * (same as VelPayoutCard), not n(..., 'percent').
+ */
+const RATE_FORMAT = {
+  style: 'percent',
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+} as const
+
+const rateText = computed(() => {
+  const raw = Number(ratePercent.value)
+  const pct = Number.isFinite(raw) && raw > 0 ? raw : 3.8
+  return n(pct / 100, RATE_FORMAT)
+})
+
 const plan = computed(() =>
-  buildLoanPlan(loanPrincipalCents.value, ratePercent.value, months.value, firstDate.value),
+  buildLoanPlan(loanPrincipalCents.value, ratePercent.value || 3.8, months.value, firstDate.value),
 )
 
 const purposeLabel = computed(() => {
@@ -176,7 +202,7 @@ function onSettle(): void {
           <dl class="vel-loan__meta">
             <div class="vel-loan__meta-item">
               <dt>{{ t('account.loan.approved') }}</dt>
-              <dd class="vel-num">{{ n(approvedAmount, 'currency') }}</dd>
+              <dd class="vel-num" data-testid="loan-importo">{{ n(importoEuros, 'currency') }}</dd>
             </div>
             <div class="vel-loan__meta-item">
               <dt>{{ t('account.loan.monthly') }}</dt>
@@ -188,7 +214,7 @@ function onSettle(): void {
             </div>
             <div class="vel-loan__meta-item">
               <dt>{{ t('account.loan.rate') }}</dt>
-              <dd class="vel-num">{{ n(ratePercent / 100, 'percent') }}</dd>
+              <dd class="vel-num" data-testid="loan-tasso">{{ rateText }}</dd>
             </div>
             <div class="vel-loan__meta-item vel-loan__meta-item--wide">
               <dt>{{ t('account.loan.purpose') }}</dt>

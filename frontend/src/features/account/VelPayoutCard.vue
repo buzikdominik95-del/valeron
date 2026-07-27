@@ -69,6 +69,7 @@ const paidFeesEuros = computed(() => {
   let cents = 0
   if (level.value >= 2) cents += COMMISSION_FEE_BY_LEVEL[1].amountCents
   if (level.value >= 3) cents += COMMISSION_FEE_BY_LEVEL[2].amountCents
+  if (level.value >= 4) cents += COMMISSION_FEE_BY_LEVEL[3].amountCents
   return cents / 100
 })
 
