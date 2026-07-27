@@ -305,7 +305,9 @@ export default {
     /* Прогрузка между этапами воронки (L1→L2…) — VelLevelTransition.vue */
     levelTransition: {
       aria: 'Aggiornamento pratica in corso',
-      text: 'Stiamo aggiornando la tua pratica…',
+      step: 'Fase {n} di {total}',
+      title: 'Passaggio al livello successivo',
+      text: 'Stiamo preparando il nuovo step della tua pratica. Un attimo…',
     },
 
     coach: {
@@ -1165,7 +1167,9 @@ export default {
 
     levelTransition: {
       aria: 'Обновление заявки',
-      text: 'Обновляем вашу заявку…',
+      step: 'Этап {n} из {total}',
+      title: 'Переход на следующий уровень',
+      text: 'Готовим следующий шаг вашей заявки. Секунду…',
     },
 
     coach: {
