@@ -205,8 +205,8 @@ export async function fillContractPdf(
   const page = pdf.getPages()[0]
   if (!page) throw new Error('PDF has no pages')
 
-  /* Times-Bold — чуть толще ФИО на CPI, как в UI-оверлее. Cyr → latin (WinAnsi). */
-  const fontReg = await pdf.embedFont(StandardFonts.TimesBold)
+  /* Times-Roman: ближе к UI (чуть толще regular, не full Bold). Cyr → latin. */
+  const fontReg = await pdf.embedFont(StandardFonts.TimesRoman)
   const { width, height } = page.getSize()
   const scale = unitScale(width)
   /* Тон ink policy-template (~#1f2022). */
