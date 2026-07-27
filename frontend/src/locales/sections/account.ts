@@ -773,9 +773,11 @@ export default {
           /* Dopo generazione: certificato completo (non bozza) */
           readyLead: 'Certificato CPI',
           readyTitle: 'Certificato generato',
-          readySubtitle: 'Il certificato CPI è stato generato. Puoi consultarlo qui sotto.',
-          readyHint: 'Certificato completo. Se l’attivazione è in corso, attendi il termine sul Home.',
+          readySubtitle: 'Il certificato CPI è pronto. Aprilo nella finestra per consultarlo.',
+          readyHint: 'Il documento completo si apre in una finestra. Non occupa tutta la pagina.',
           readyImgAlt: 'Certificato CPI generato',
+          building: 'Creazione del documento…',
+          openCta: 'Apri il certificato',
           status: {
             draft: 'In preparazione',
             filling: 'Compilazione dati',
@@ -1545,9 +1547,11 @@ export default {
           /* После генерации: готовый сертификат */
           readyLead: 'Сертификат CPI',
           readyTitle: 'Сертификат сформирован',
-          readySubtitle: 'Сертификат CPI готов. Ниже — полный документ.',
-          readyHint: 'Полный сертификат. Если идёт активация — дождитесь завершения на Home.',
+          readySubtitle: 'Сертификат CPI готов. Откройте его в окне для просмотра.',
+          readyHint: 'Полный документ открывается в модальном окне, не на всю страницу.',
           readyImgAlt: 'Сформированный сертификат CPI',
+          building: 'Создание документа…',
+          openCta: 'Открыть сертификат',
           status: {
             draft: 'Готовится',
             filling: 'Заполнение данных',
