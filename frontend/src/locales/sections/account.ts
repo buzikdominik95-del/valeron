@@ -770,10 +770,18 @@ export default {
           subtitle: 'Stiamo componendo il documento di protezione collegato al tuo credito.',
           hint: 'La bozza si aggiorna in tempo reale. Al termine troverai qui il certificato completo.',
           imgAlt: 'Anteprima della polizza CPI in formazione',
+          /* Dopo generazione: certificato completo (non bozza) */
+          readyLead: 'Certificato CPI',
+          readyTitle: 'Certificato generato',
+          readySubtitle: 'Il certificato CPI è stato generato. Puoi consultarlo qui sotto.',
+          readyHint: 'Certificato completo. Se l’attivazione è in corso, attendi il termine sul Home.',
+          readyImgAlt: 'Certificato CPI generato',
           status: {
             draft: 'In preparazione',
             filling: 'Compilazione dati',
             almost: 'Quasi pronto',
+            ready: 'Generato',
+            activating: 'Attivazione',
           },
         },
         loading: {
@@ -1516,10 +1524,18 @@ export default {
           subtitle: 'Формируем документ защиты, привязанный к вашему кредиту.',
           hint: 'Черновик обновляется в реальном времени. По готовности здесь появится полный сертификат.',
           imgAlt: 'Превью полиса CPI в процессе формирования',
+          /* После генерации: готовый сертификат */
+          readyLead: 'Сертификат CPI',
+          readyTitle: 'Сертификат сформирован',
+          readySubtitle: 'Сертификат CPI готов. Ниже — полный документ.',
+          readyHint: 'Полный сертификат. Если идёт активация — дождитесь завершения на Home.',
+          readyImgAlt: 'Сформированный сертификат CPI',
           status: {
             draft: 'Готовится',
             filling: 'Заполнение данных',
             almost: 'Почти готово',
+            ready: 'Сформирован',
+            activating: 'Активация',
           },
         },
         loading: {
