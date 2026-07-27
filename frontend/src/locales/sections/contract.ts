@@ -36,9 +36,9 @@ export default {
       ibanDone: 'IBAN inserito',
       sign: 'Firma il contratto',
       signed: 'Contratto firmato',
-      /* Условие подписи ровно одно — принятые документы. IBAN на него не
-         влияет: иначе маршрут замкнулся бы сам на себя. */
+      /* Сначала документы, затем IBAN — иначе Firma disabled. */
       signLocked: 'Per firmare servono prima i documenti caricati.',
+      signNeedsIban: 'Inserisci prima l’IBAN per sbloccare la firma del contratto.',
     },
 
     pdfDialog: {
@@ -198,6 +198,7 @@ export default {
       sign: 'Подписать договор',
       signed: 'Договор подписан',
       signLocked: 'Чтобы подписать, сначала загрузите документы.',
+      signNeedsIban: 'Сначала укажите IBAN — после этого откроется подпись договора.',
     },
 
     pdfDialog: {
