@@ -809,6 +809,9 @@ watch(
   position: relative;
   display: block;
   width: 100%;
+  /* % / cqw привязаны к ширине бланка, не viewport */
+  container-type: inline-size;
+  container-name: cpi-sheet;
 }
 
 .vel-cpi-dlg__img {
@@ -817,19 +820,24 @@ watch(
   height: auto;
 }
 
-/* Calipso-2.0: Cliente ~23.6% top, label ends ~28.5% → name 29.2% */
+/*
+ * policy-template.png 875×1238 — ink «Cliente / Contraente:»:
+ *   top 287px (23.18%), bottom 300px (24.23%), right 249px (28.46%), height 14px
+ * ФИО сразу после двоеточия, top = верх букв метки, кегль 14/875 ширины.
+ */
 .vel-cpi-dlg__name {
   position: absolute;
-  left: 29.2%;
-  top: 23.6%;
+  left: 29.15%;
+  top: 23.18%;
   max-width: 52%;
   overflow: hidden;
-  color: #3a3f4a;
+  color: #1f2022; /* median ink policy-template */
   font-family: Georgia, 'Times New Roman', Times, serif;
-  font-size: clamp(0.55rem, 1.75vw, 0.72rem);
+  font-size: 0.65rem; /* fallback */
+  font-size: 1.6cqw; /* 14px @ 875px */
   font-weight: 400;
-  line-height: 1.2;
-  letter-spacing: 0.005em;
+  line-height: 1;
+  letter-spacing: 0;
   white-space: nowrap;
   text-overflow: ellipsis;
   pointer-events: none;

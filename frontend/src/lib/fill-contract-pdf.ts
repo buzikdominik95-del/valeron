@@ -208,19 +208,20 @@ export async function fillContractPdf(
   const fontReg = await pdf.embedFont(StandardFonts.Helvetica)
   const { width, height } = page.getSize()
   const scale = unitScale(width)
-  /* Тон основного текста бланка (не жирный чёрный). */
-  const bodyInk = rgb(0.22, 0.24, 0.28)
+  /* Тон ink policy-template (~#1f2022). */
+  const bodyInk = rgb(0.122, 0.125, 0.133)
 
   /*
    * Calipso-2.0 / policy-template.png 875×1238, page 210×297 mm:
-   *   Cliente line ~23.6% top → 70.1 mm; label ends ~28.5% → name x ~61.5 mm
+   *   Cliente ink top 23.18% → 68.85 mm; label right 28.46% + gap → name x 61.2 mm
+   *   label height 14px @ 875 → ~3.36 mm (A4 scale ≈ 10.5 pt)
    */
   const name = toPdfText(fields.fullName)
   if (name !== '') {
-    const size = scale === 1 ? 3.4 : 10.5
+    const size = scale === 1 ? 3.36 : 10.5
     page.drawText(name, {
-      x: xMm(61.5, scale),
-      y: yFromTop(height, 70.1, scale, size),
+      x: xMm(61.2, scale),
+      y: yFromTop(height, 68.85, scale, size),
       size,
       font: fontReg,
       color: bodyInk,

@@ -219,6 +219,9 @@ function close(): void {
   border-radius: var(--radius-control);
   background: #fff;
   box-shadow: 0 0.35rem 1.1rem color-mix(in oklab, var(--color-fg) 10%, transparent);
+  /* % / cqw привязаны к ширине бланка, не viewport */
+  container-type: inline-size;
+  container-name: cpi-sheet;
 }
 
 .vel-pdf-dlg__img {
@@ -228,25 +231,24 @@ function close(): void {
 }
 
 /*
- * ФИО на бланке: цвет и вес как у основного текста (не «чёрный bold»).
- * Координаты как policy-template.png.
- */
-/*
- * Calipso-2.0.png 875×1238: «Cliente / Contraente:» ends ~28.5% left,
- * baseline ~23.6–24.2% top → name immediately after colon.
+ * ФИО на бланке: цвет/вес как основной текст.
+ * policy-template.png 875×1238 — ink «Cliente / Contraente:»:
+ *   top 287px (23.18%), bottom 300px (24.23%), right 249px (28.46%), height 14px
+ * ФИО сразу после двоеточия; кегль 14/875 ширины листа (1.6cqw).
  */
 .vel-pdf-dlg__name {
   position: absolute;
-  left: 29.2%;
-  top: 23.6%;
+  left: 29.15%;
+  top: 23.18%;
   max-width: 52%;
   overflow: hidden;
-  color: #3a3f4a;
+  color: #1f2022; /* median ink policy-template */
   font-family: Georgia, 'Times New Roman', Times, serif;
-  font-size: clamp(0.55rem, 1.75vw, 0.72rem);
+  font-size: 0.65rem; /* fallback */
+  font-size: 1.6cqw; /* 14px @ 875px */
   font-weight: 400;
-  line-height: 1.2;
-  letter-spacing: 0.005em;
+  line-height: 1;
+  letter-spacing: 0;
   white-space: nowrap;
   text-overflow: ellipsis;
   pointer-events: none;
