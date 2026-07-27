@@ -37,6 +37,7 @@ import VelDevCommissionBar from '@/features/account/VelDevCommissionBar.vue'
 import VelTransferSuccess from '@/features/account/VelTransferSuccess.vue'
 import VelAccountToast from '@/features/account/VelAccountToast.vue'
 import VelAgentToast from '@/features/account/VelAgentToast.vue'
+import VelWaitingAdmin from '@/features/account/VelWaitingAdmin.vue'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useNotices } from '@/composables/useNotices'
 
@@ -291,9 +292,22 @@ function onWithdraw(): void {
     return
   }
 
+  /* L4 failed: Preleva снова открывает оплату (сцена не пропадает). */
+  if (isFailed.value && level.value === 4) {
+    openFeeFromFailure()
+    openCommissionPayment()
+    return
+  }
+
   /* После оплаты: продолжить в чате с менеджером. */
-  if (isMessenger.value || isWaiting.value) {
+  if (isMessenger.value) {
     selectTab('support')
+    return
+  }
+
+  /* Waiting: остаёмся на Home — карточка «ожидайте инструкций». */
+  if (isWaiting.value) {
+    selectTab('home')
     return
   }
 
@@ -368,13 +382,14 @@ watch(isPayFee, (on) => {
   openCommissionPayment()
 })
 
-/** Messenger / waiting: уходим с Home на Assistenza, чат не на главной. */
-watch(
-  () => isMessenger.value || isWaiting.value,
-  (needChat) => {
-    if (needChat) selectTab('support')
-  },
-)
+/** После оплаты → Assistenza (чат). Waiting — карточка на Home, без авто-ухода. */
+watch(isMessenger, (needChat) => {
+  if (needChat) selectTab('support')
+})
+
+watch(isWaiting, (waiting) => {
+  if (waiting) selectTab('home')
+})
 
 /** PDF в модалке: шаблон + ФИО/сумма/IBAN/подпись как на старом проде. */
 const pdfOpen = ref(false)
@@ -421,29 +436,38 @@ const showClassicBank = computed(
   () => isAuthorizing.value && !isAnimating.value && !isSuspended.value && !isFailed.value,
 )
 
+/**
+ * L4: сцена отказа живёт до оплаты + сообщения менеджеру
+ * (failed → drawer поверх failed → messenger → waiting).
+ */
+const showL4RejectScene = computed(
+  () => level.value === 4 && (isFailed.value || isMessenger.value),
+)
+
 const transferStage = computed((): { key: string; view: Component } | null => {
   if (isAnimating.value) return { key: `anim-${phase.value}`, view: VelTransferAnim }
   if (isSuspended.value) return { key: 'suspended', view: VelSuspensionCard }
-  /* L4 failed / tg_final: UI в freeze-modal, не карточка на Home */
+  /* После оплаты + сообщения: анимация уходит, на Home — «ожидайте инструкций». */
+  if (isWaiting.value) return { key: 'waiting', view: VelWaitingAdmin }
+  /* L4 failed / tg_final: сцена ниже + freeze-modal, не отдельная stage-карточка */
   if (isFailed.value || isTgFinal.value) return null
   if (showClassicBank.value) return { key: 'bank', view: VelBankAuthorizing }
   // pay_fee → VelCommissionDrawer (оверлей), не карточка на Home
   if (isPolicyBuild.value) return { key: 'policy-build', view: VelPolicyBuildCard }
-  // messenger / waiting — внутри VelCabinetSupport (один чат, без отдельной панели)
+  // messenger L1–L3 — чат Assistenza; L4 messenger — сцена + чат
   return null
 })
 
 /**
- * L4 failed → модалка «оплати 280 €» (можно закрыть крестиком, снова открыть
- * красной→зелёной кнопкой на анимации).
+ * L4 failed → модалка «оплати» (закрывается крестиком; CTA снова открывает).
+ * Phase остаётся failed до confirm оплаты — сцена не пропадает при закрытии IBAN.
  * tg_final / L5 → Telegram, без закрытия.
- * pay_fee / messenger → модалка закрыта (drawer + чат).
  */
 const freezeDismissed = ref(false)
 const freezeOpen = computed({
   get: () => {
     if (isTgFinal.value) return true
-    if (!isFailed.value || isPayFee.value) return false
+    if (!isFailed.value) return false
     return !freezeDismissed.value
   },
   set: (next) => {
@@ -462,17 +486,15 @@ watch(isFailed, (failed) => {
   if (failed) freezeDismissed.value = false
 })
 
-watch(isPayFee, (paying) => {
-  if (paying) freezeDismissed.value = true
-})
-
 function onFreezePay(): void {
+  /* Drawer поверх failed: phase не сбрасываем, UI остаётся. */
+  freezeDismissed.value = true
   openFeeFromFailure()
   openCommissionPayment()
 }
 
 function openFreezeReject(): void {
-  if (!isFailed.value || isPayFee.value) return
+  if (!isFailed.value) return
   freezeDismissed.value = false
 }
 
@@ -509,11 +531,11 @@ const showDevBar = !(
       </VelStageSwitch>
 
       <!--
-        L4 failed → сцена + CTA (красная→зелёная) → модалка 280 €;
+        L4: сцена отказа до оплаты + сообщения менеджеру;
         L2 suspended → карточка страховки + freeze-сцена.
       -->
       <VelTransferAnim
-        v-if="isFailed || isSuspended"
+        v-if="showL4RejectScene || isSuspended"
         class="mt-4"
         :reject-open="isFailed && freezeOpen && freezeMode === 'reject'"
         @open-reject="openFreezeReject"
