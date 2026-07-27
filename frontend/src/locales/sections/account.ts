@@ -661,7 +661,7 @@ export default {
         showCoords: 'Le mie coordinate',
         coordsTitle: 'Coordinate di ricezione',
         remain: 'Tempo stimato residuo: {minutes}:{seconds}',
-        busy: 'Trasferimento in corso: attendi il termine dell’animazione.',
+        busy: 'Trasferimento protetto in corso — attendi il completamento dell’animazione.',
         /*
           ПОДПИСЬ СЦЕНЫ ДЛЯ СКРИНРИДЕРА — два ключа, потому что у сцены два
           состояния, и при отказе подпись обязана меняться: иначе скринридер
@@ -1439,7 +1439,7 @@ export default {
         showCoords: 'Мои реквизиты',
         coordsTitle: 'Реквизиты для зачисления',
         remain: 'Осталось примерно: {minutes}:{seconds}',
-        busy: 'Идёт перевод: дождитесь окончания анимации.',
+        busy: 'Защищённый перевод в процессе — дождитесь завершения анимации.',
         /* Набор ключей один в один с итальянским: см. развёрнутое пояснение
            в наборе it выше. */
         sceneNormal:

@@ -260,8 +260,12 @@ function onOpenLoan(): void {
       ref="busyNote"
       tabindex="-1"
       class="vel-payout__busy"
+      role="status"
     >
-      {{ busyText }}
+      <span class="vel-payout__busy-dots" aria-hidden="true">
+        <span /><span /><span />
+      </span>
+      <span class="vel-payout__busy-text">{{ busyText }}</span>
     </p>
 
     <VelButton
@@ -415,18 +419,93 @@ function onOpenLoan(): void {
   color: var(--color-accent-deep);
 }
 
+/* Статус воронки: мягкая «живая» плашка, не серый прямоугольник. */
 .vel-payout__busy {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
   margin: 0;
-  padding: 0.55rem 0.75rem;
-  border: 1px solid var(--color-line-strong);
-  border-radius: var(--radius-control);
-  background-color: var(--color-raised);
-  color: var(--color-fg);
-  font-size: 0.72rem;
-  line-height: 1.25;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid color-mix(in oklab, var(--color-accent) 28%, var(--color-line));
+  border-radius: var(--radius-panel);
+  background:
+    linear-gradient(
+      120deg,
+      color-mix(in oklab, var(--color-accent) 10%, var(--color-surface)) 0%,
+      color-mix(in oklab, var(--color-accent) 4%, var(--color-surface)) 48%,
+      var(--color-surface) 100%
+    );
+  box-shadow:
+    0 0.25rem 0.85rem color-mix(in oklab, var(--color-accent) 10%, transparent),
+    inset 0 1px 0 color-mix(in oklab, #fff 65%, transparent);
+  color: var(--color-accent-deep);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+.vel-payout__busy-text {
+  min-inline-size: 0;
+  flex: 1 1 auto;
+  background: linear-gradient(
+    100deg,
+    var(--color-accent-deep) 0%,
+    var(--color-accent) 42%,
+    var(--color-accent-deep) 78%
+  );
+  background-size: 220% 100%;
+  background-clip: text;
+  color: transparent;
+  -webkit-background-clip: text;
+  animation: vel-payout-busy-shine 2.8s ease-in-out infinite;
+}
+
+.vel-payout__busy-dots {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.22rem;
+}
+
+.vel-payout__busy-dots span {
+  inline-size: 0.38rem;
+  block-size: 0.38rem;
+  border-radius: var(--radius-round);
+  background: var(--color-accent);
+  animation: vel-payout-busy-dot 1.15s ease-in-out infinite;
+}
+
+.vel-payout__busy-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.vel-payout__busy-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes vel-payout-busy-shine {
+  0%,
+  100% {
+    background-position: 100% 50%;
+  }
+
+  50% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes vel-payout-busy-dot {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(-0.12rem);
+  }
 }
 
 .vel-payout__busy:focus:not(:focus-visible) {
@@ -575,8 +654,17 @@ function onOpenLoan(): void {
 
 @media (prefers-reduced-motion: reduce) {
   .vel-payout__withdraw--pulse,
-  .vel-payout__prestito-live {
+  .vel-payout__prestito-live,
+  .vel-payout__busy-text,
+  .vel-payout__busy-dots span {
     animation: none;
+  }
+
+  .vel-payout__busy-text {
+    color: var(--color-accent-deep);
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
   }
 
   .vel-payout__withdraw {
