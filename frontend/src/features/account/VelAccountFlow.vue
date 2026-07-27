@@ -271,9 +271,11 @@ const pdfOpen = ref(false)
 const {
   displayUrl: filledPdfUrl,
   loading: pdfFilling,
+  error: pdfError,
 } = useFilledContractPdf(contractPdfTemplate, pdfOpen)
 
 function onOpenPdf(): void {
+  /* Сразу открываем модалку — шаблон виден, fill идёт в фоне. */
   pdfOpen.value = true
 }
 
@@ -408,6 +410,7 @@ const showDevBar = !(
     :src="filledPdfUrl"
     :title="t('contract.card.title')"
     :loading="pdfFilling"
+    :error="pdfError"
   />
 
   <VelCoachGuide />

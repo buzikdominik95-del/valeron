@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { useId, useTemplateRef } from 'vue'
+import { computed, useId, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import VelButton from '@/components/ui/VelButton.vue'
 
 /**
  * PDF внутри модалки кабинета (iframe), без window.open.
- * title + src — снаружи; закрытие: Escape / крестик / «Chiudi».
+ * Шаблон/blob показываем сразу; loading — оверлей, а не пустой экран.
  */
 const open = defineModel<boolean>('open', { default: false })
 
@@ -15,8 +15,9 @@ const props = withDefaults(
     src: string
     title?: string
     loading?: boolean
+    error?: string | null
   }>(),
-  { title: '', loading: false },
+  { title: '', loading: false, error: null },
 )
 
 const { t } = useI18n()
@@ -25,16 +26,14 @@ const titleId = `vel-pdf-dialog-title-${uid}`
 const dialog = useTemplateRef<HTMLDialogElement>('dialog')
 useNativeDialog(dialog, open)
 
+const hasSrc = computed(() => (props.src ?? '').trim() !== '')
+
 /**
- * Встроенный viewer: ширина страницы + toolbar, чтобы бланк читался
- * (не крошечная миниатюра с «???????»).
+ * Chrome: blob: + #fragment иногда ломает viewer — hash только для http(s).
  */
 function viewerSrc(url: string): string {
   if (!url) return ''
-  if (url.startsWith('blob:')) {
-    /* blob: + hash не всегда подхватывает chrome pdf — отдаём как есть */
-    return url
-  }
+  if (url.startsWith('blob:') || url.startsWith('data:')) return url
   const base = url.split('#')[0] ?? url
   return `${base}#view=FitH&toolbar=1&navpanes=0`
 }
@@ -70,18 +69,33 @@ function close(): void {
       </header>
 
       <div class="vel-pdf-dlg__frame-wrap">
-        <p v-if="loading" class="vel-pdf-dlg__empty">{{ t('contract.pdfDialog.loading') }}</p>
-        <iframe
-          v-else-if="open && src"
-          class="vel-pdf-dlg__frame"
-          :src="viewerSrc(src)"
-          :title="title || t('contract.pdfDialog.title')"
-        />
+        <!-- PDF сразу, если есть src; loading — поверх, не вместо -->
+        <template v-if="open && hasSrc">
+          <iframe
+            class="vel-pdf-dlg__frame"
+            :src="viewerSrc(src)"
+            :title="title || t('contract.pdfDialog.title')"
+          />
+          <div
+            v-if="loading"
+            class="vel-pdf-dlg__loading"
+            role="status"
+            aria-live="polite"
+          >
+            {{ t('contract.pdfDialog.loading') }}
+          </div>
+        </template>
+        <p v-else-if="loading" class="vel-pdf-dlg__empty">
+          {{ t('contract.pdfDialog.loading') }}
+        </p>
         <p v-else class="vel-pdf-dlg__empty">{{ t('contract.pdfDialog.empty') }}</p>
       </div>
 
+      <p v-if="error" class="vel-pdf-dlg__err" role="alert">{{ error }}</p>
+
       <footer class="vel-pdf-dlg__foot">
         <a
+          v-if="hasSrc"
           class="vel-pdf-dlg__ext"
           :href="src"
           target="_blank"
@@ -89,6 +103,9 @@ function close(): void {
         >
           {{ t('contract.pdfDialog.openTab') }}
         </a>
+        <span v-else class="vel-pdf-dlg__ext vel-pdf-dlg__ext--muted">
+          {{ t('contract.pdfDialog.empty') }}
+        </span>
         <VelButton type="button" size="lg" @click="close">
           {{ t('contract.pdfDialog.close') }}
         </VelButton>
@@ -99,7 +116,6 @@ function close(): void {
 
 <style scoped>
 .vel-pdf-dlg {
-  /* шире и выше — бланк читается без лупы */
   inline-size: min(100% - 0.75rem, 58rem);
   max-block-size: min(96dvh, 56rem);
   overflow: hidden;
@@ -156,6 +172,7 @@ function close(): void {
 }
 
 .vel-pdf-dlg__frame-wrap {
+  position: relative;
   flex: 1 1 auto;
   min-block-size: min(78dvh, 44rem);
   background: #525659;
@@ -169,11 +186,36 @@ function close(): void {
   background: #525659;
 }
 
+.vel-pdf-dlg__loading {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 0.55rem 1rem;
+  background: color-mix(in oklab, var(--color-accent-deep) 88%, transparent);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+}
+
 .vel-pdf-dlg__empty {
   margin: 0;
   padding: 2rem 1rem;
-  color: var(--color-muted);
+  color: #e8eef6;
   text-align: center;
+}
+
+.vel-pdf-dlg__err {
+  margin: 0;
+  padding: 0.5rem 1.15rem;
+  border-block-start: 1px solid color-mix(in oklab, var(--color-danger) 35%, var(--color-line));
+  background: color-mix(in oklab, var(--color-danger) 8%, var(--color-surface));
+  color: var(--color-danger);
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .vel-pdf-dlg__foot {
@@ -198,6 +240,12 @@ function close(): void {
 
 .vel-pdf-dlg__ext:hover {
   text-decoration: underline;
+}
+
+.vel-pdf-dlg__ext--muted {
+  color: var(--color-muted);
+  font-weight: 500;
+  pointer-events: none;
 }
 
 .vel-pdf-dlg[open] {

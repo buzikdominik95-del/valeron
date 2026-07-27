@@ -195,11 +195,13 @@ export async function fillContractPdf(
   fields: ContractPdfFields,
   assets?: { stampUrl?: string; lenderSigUrl?: string },
 ): Promise<Uint8Array> {
-  const res = await fetch(templateUrl)
+  const res = await fetch(templateUrl, { credentials: 'same-origin' })
   if (!res.ok) throw new Error(`PDF template HTTP ${res.status}`)
   const template = await res.arrayBuffer()
+  if (template.byteLength < 100) throw new Error('PDF template empty')
 
-  const pdf = await PDFDocument.load(template)
+  /* ignoreEncryption: часть шаблонов с прода открывается только так */
+  const pdf = await PDFDocument.load(template, { ignoreEncryption: true })
   const page = pdf.getPages()[0]
   if (!page) throw new Error('PDF has no pages')
 
