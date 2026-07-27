@@ -285,15 +285,14 @@ function close(): void {
 }
 
 /*
- * ФИО на CPI-бланке (policy-template.png 1054×1492):
- *   Cliente ink top 348px (23.32%), right 303px (28.75%), height 19px.
- *   Имя сразу после «:» → left 29.4%; top 23.22% (−1–2px к baseline).
- *   Кегль 19px @ 1054 → 1.80cqw.
+ * ФИО на CPI-бланке (policy-template.png):
+ *   Cliente label ~23.32%; имя left 29.4%, top 23.38% (+2px вниз).
+ *   Кегль ~1.8cqw.
  */
 .vel-pdf-dlg__name {
   position: absolute;
   left: 29.4%;
-  top: 23.22%;
+  top: 23.38%;
   max-width: 52%;
   overflow: hidden;
   color: #1f2022;

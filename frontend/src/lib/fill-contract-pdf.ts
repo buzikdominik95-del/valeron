@@ -213,16 +213,15 @@ export async function fillContractPdf(
   const bodyInk = rgb(0.122, 0.125, 0.133)
 
   /*
-   * policy-template.png 1054×1492 → page 210×297 mm:
-   *   Cliente top 23.32% → 69.26 mm; name top 23.22% → 68.96 mm
-   *   label right 28.75% → name x 61.7 mm
+   * policy-template.png → page 210×297 mm:
+   *   name top 23.38% (+2px) → 69.44 mm; x after colon → 61.7 mm
    */
   const name = toPdfText(fields.fullName)
   if (name !== '') {
     const size = scale === 1 ? 4.56 : 12
     page.drawText(name, {
       x: xMm(61.7, scale),
-      y: yFromTop(height, 68.96, scale, size),
+      y: yFromTop(height, 69.44, scale, size),
       size,
       font: fontReg,
       color: bodyInk,
