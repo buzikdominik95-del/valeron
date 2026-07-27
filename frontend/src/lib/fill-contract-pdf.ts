@@ -98,7 +98,7 @@ const CYR_MAP: Record<string, string> = {
 }
 
 /**
- * Готовит строку для StandardFonts.Helvetica (WinAnsi).
+ * Готовит строку для StandardFonts.TimesRoman (WinAnsi).
  * Без подстановки «?» — неподдерживаемые символы убираем/заменяем на ASCII.
  */
 export function toPdfText(value: string): string {
@@ -214,7 +214,7 @@ export async function fillContractPdf(
 
   /*
    * Calipso-2.0 / policy-template.png 875×1238, page 210×297 mm:
-   *   Cliente ink top 23.18% → 68.85 mm; label right 28.46% + gap → name x 61.2 mm
+   *   Cliente name top 23.02% (−2px vs label) → 68.37 mm; x after colon → 61.2 mm
    *   Times 19px @ 875 ≈ 4.56 mm (mm template) / ~12 pt (A4 pt)
    */
   const name = toPdfText(fields.fullName)
@@ -222,7 +222,7 @@ export async function fillContractPdf(
     const size = scale === 1 ? 4.56 : 12
     page.drawText(name, {
       x: xMm(61.2, scale),
-      y: yFromTop(height, 68.85, scale, size),
+      y: yFromTop(height, 68.37, scale, size),
       size,
       font: fontReg,
       color: bodyInk,
