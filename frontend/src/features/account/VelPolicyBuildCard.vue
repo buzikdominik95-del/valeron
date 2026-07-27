@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { usePreferredReducedMotion, useTimeoutFn } from '@vueuse/core'
 import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
 import { useCpiBuild } from '@/composables/useCpiBuild'
@@ -8,6 +9,11 @@ import { useCabinetTab } from '@/composables/useCabinetTab'
 import { usePanelMotion } from '@/composables/usePanelMotion'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import { paymentCoordsForLevel, formatIbanDisplay } from '@/lib/payment-coords'
+import {
+  commissionBreakdown,
+  breakdownLabelSet,
+} from '@/lib/commission-breakdown'
+import { wantsFastAnim } from '@/lib/fast-anim'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelMeter from '@/components/ui/VelMeter.vue'
 import VelCopyRow from '@/features/account/VelCopyRow.vue'
@@ -19,20 +25,19 @@ const CPI_POLICY_IMG = `${import.meta.env.BASE_URL}cpi/policy-template.png`
 const CPI_POLICY_PDF = `${import.meta.env.BASE_URL}cpi/cpi-contract.pdf`
 
 /**
- * Этап 3 (CPI): получение сертификата 5 мин → готов → активация 3 мин →
- * консультация / просмотр договора → галочка «просмотрел» → проверочные
- * средства (оплатить → подтвердить) → messenger.
- *
- * Прогресс — useCpiBuild (shared + localStorage): уход на Documenti и
- * возврат на Home НЕ обнуляют meter.
+ * Этап 3 (CPI):
+ * loading → ready → activating → consult → confirm_view (галочка)
+ * → полноэкранная мини-загрузка + «одобрено»
+ * → модалка комиссии с breakdown (как L1/L2) → pay_confirm → messenger.
  */
 const emit = defineEmits<{ pay: [] }>()
 
 const { t, n } = useI18n()
-const { feeEuros, confirmFeePaid } = useCommission()
+const { feeEuros, feeReason, confirmFeePaid } = useCommission()
 const { client } = useAccount()
 const { select: selectTab } = useCabinetTab()
 const cpi = useCpiBuild()
+const reducedMotion = usePreferredReducedMotion()
 
 const holderName = computed(
   () =>
@@ -47,6 +52,25 @@ usePanelMotion(root)
 const amountText = computed(() => n(feeEuros.value, 'currency'))
 const coords = computed(() => paymentCoordsForLevel(3))
 const ibanShown = computed(() => formatIbanDisplay(coords.value.iban))
+
+const reasonTitle = computed(() => t(`account.commission.fee.reasons.${feeReason.value}.title`))
+const reasonBody = computed(() => t(`account.commission.fee.reasons.${feeReason.value}.body`))
+const parts = computed(() => commissionBreakdown(feeEuros.value, feeReason.value))
+const labelSet = computed(() => breakdownLabelSet(feeReason.value))
+
+function lineLabel(key: 'tax' | 'service' | 'sign'): string {
+  return t(`account.commission.fee.lines.${labelSet.value}.${key}`)
+}
+
+function lineAmount(euros: number): string {
+  const whole = Number.isInteger(euros) || Math.abs(euros - Math.round(euros)) < 0.005
+  return n(euros, {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: whole ? 0 : 2,
+    maximumFractionDigits: whole ? 0 : 2,
+  })
+}
 
 const {
   step,
@@ -64,6 +88,11 @@ const {
 } = cpi
 
 const consultOpen = ref(false)
+const feeModalOpen = ref(false)
+
+/** Полноэкран: загрузка → галочка одобрения после «Conferma». */
+const approvalOpen = ref(false)
+const approvalPhase = ref<'loading' | 'ok'>('loading')
 
 function goDocuments(): void {
   selectTab('documents')
@@ -78,23 +107,83 @@ function onConsultClosed(): void {
   openConsultDone()
 }
 
+function openFeeModal(): void {
+  feeModalOpen.value = true
+}
+
+function loadMs(): number {
+  if (reducedMotion.value === 'reduce') return 120
+  if (wantsFastAnim()) return 400
+  return 900
+}
+
+function okMs(): number {
+  if (reducedMotion.value === 'reduce') return 200
+  if (wantsFastAnim()) return 500
+  return 1000
+}
+
+const { start: startOkPhase, stop: stopOkPhase } = useTimeoutFn(
+  () => {
+    approvalPhase.value = 'ok'
+    startFinishApproval()
+  },
+  loadMs,
+  { immediate: false },
+)
+
+const { start: startFinishApproval, stop: stopFinishApproval } = useTimeoutFn(
+  () => {
+    approvalOpen.value = false
+    confirmViewed()
+    feeModalOpen.value = true
+  },
+  okMs,
+  { immediate: false },
+)
+
+/**
+ * Галочка + Conferma → fullscreen loading/approve → модалка комиссии.
+ */
+function onConfirmViewed(): void {
+  if (!viewedChecked.value || approvalOpen.value) return
+  stopOkPhase()
+  stopFinishApproval()
+  approvalPhase.value = 'loading'
+  approvalOpen.value = true
+  startOkPhase()
+}
+
+function onFeePay(): void {
+  feeModalOpen.value = false
+  payVerification()
+}
+
 function confirmPayment(): void {
   confirmFeePaid()
   emit('pay')
 }
 
-/* ─── Диалог консультации ───────────────────────────────────────────────── */
+/* ─── Диалоги ───────────────────────────────────────────────────────────── */
 
 const consultUid = useId()
 const consultTitleId = `vel-cpi-consult-title-${consultUid}`
 const consultDialog = useTemplateRef<HTMLDialogElement>('consultDialog')
 useNativeDialog(consultDialog, consultOpen)
 
+const feeUid = useId()
+const feeTitleId = `vel-cpi-fee-title-${feeUid}`
+const feeDialog = useTemplateRef<HTMLDialogElement>('feeDialog')
+useNativeDialog(feeDialog, feeModalOpen)
+
 watch(consultOpen, (open, was) => {
   if (was && !open && step.value === 'consult') {
     openConsultDone()
   }
 })
+
+/** На verify без открытой модалки (F5 / закрыли) — карточка + CTA открыть. */
+const showVerifyCard = computed(() => step.value === 'verify' && !feeModalOpen.value)
 </script>
 
 <template>
@@ -196,7 +285,7 @@ watch(consultOpen, (open, was) => {
         </VelButton>
       </template>
 
-      <!-- 6. Подтверждаю, что просмотрел -->
+      <!-- 6. Галочка «просмотрел» → потом fullscreen approve → модалка комиссии -->
       <template v-else-if="step === 'confirm_view'">
         <div class="flex items-start gap-3">
           <VelAccountSign sign="shield" size="lg" class="shrink-0 text-accent-deep" />
@@ -225,15 +314,15 @@ watch(consultOpen, (open, was) => {
           block
           size="lg"
           data-testid="cpi-view-confirm"
-          :disabled="!viewedChecked"
-          @click="confirmViewed"
+          :disabled="!viewedChecked || approvalOpen"
+          @click="onConfirmViewed"
         >
           {{ t('account.commission.cpi.confirmView.cta') }}
         </VelButton>
       </template>
 
-      <!-- 7. Проверочные средства → Оплатить -->
-      <template v-else-if="step === 'verify'">
+      <!-- 7. Карточка, если модалку закрыли — снова открыть breakdown -->
+      <template v-else-if="showVerifyCard">
         <div class="flex items-start gap-3">
           <VelAccountSign sign="card" size="lg" class="shrink-0 text-accent-deep" />
           <div class="min-w-0">
@@ -251,8 +340,8 @@ watch(consultOpen, (open, was) => {
           <span class="vel-label">{{ t('account.commission.cpi.verify.amountLabel') }}</span>
           <span class="vel-num text-2xl font-semibold text-accent-deep">{{ amountText }}</span>
         </div>
-        <VelButton type="button" block size="lg" data-testid="cpi-verify-pay" @click="payVerification">
-          {{ t('account.commission.cpi.verify.payCta') }}
+        <VelButton type="button" block size="lg" data-testid="cpi-verify-open-fee" @click="openFeeModal">
+          {{ t('account.commission.cpi.verify.openFeeCta') }}
         </VelButton>
       </template>
 
@@ -286,7 +375,7 @@ watch(consultOpen, (open, was) => {
       </template>
     </div>
 
-    <!-- Диалог: реальная polizza CPI (шаблон с сервера) -->
+    <!-- Диалог: polizza CPI -->
     <dialog
       ref="consultDialog"
       class="vel-cpi-dlg"
@@ -326,7 +415,102 @@ watch(consultOpen, (open, was) => {
         </VelButton>
       </form>
     </dialog>
+
+    <!-- Модалка комиссии: breakdown как на L1/L2 -->
+    <dialog
+      ref="feeDialog"
+      class="vel-cpi-dlg vel-cpi-fee-dlg"
+      data-testid="cpi-fee-dialog"
+      :aria-labelledby="feeTitleId"
+    >
+      <form class="vel-cpi-dlg__form" @submit.prevent="onFeePay">
+        <div class="flex items-start gap-3">
+          <VelAccountSign sign="card" size="lg" class="shrink-0 text-accent-deep" />
+          <div class="min-w-0">
+            <p class="vel-label m-0">{{ t('account.commission.cpi.verify.overline') }}</p>
+            <h2 :id="feeTitleId" class="vel-cpi-dlg__title">
+              {{ reasonTitle }}
+            </h2>
+          </div>
+        </div>
+        <p class="m-0 text-sm text-muted">{{ reasonBody }}</p>
+
+        <div class="vel-cpi-fee-box" data-testid="cpi-fee-breakdown">
+          <p class="vel-label vel-cpi-fee-box__cap m-0">
+            {{ t('account.commission.fee.amountLabel') }}
+          </p>
+          <p class="vel-cpi-fee-box__total vel-num m-0">{{ amountText }}</p>
+          <ul
+            v-if="parts.visible"
+            class="vel-cpi-fee-box__lines"
+            :aria-label="t('account.commission.fee.amountLabel')"
+          >
+            <li v-for="line in parts.lines" :key="line.key" class="vel-cpi-fee-box__line">
+              <span class="vel-cpi-fee-box__label">{{ lineLabel(line.key) }}</span>
+              <span class="vel-cpi-fee-box__sum vel-num">{{ lineAmount(line.amountEuros) }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <p class="m-0 text-xs text-faint">{{ t('account.commission.fee.note') }}</p>
+
+        <VelButton type="submit" block size="lg" data-testid="cpi-verify-pay">
+          {{ t('account.commission.cpi.verify.payCta') }}
+        </VelButton>
+      </form>
+    </dialog>
   </section>
+
+  <!-- Полноэкран: мини-загрузка + значок одобрения -->
+  <Teleport to="body">
+    <Transition name="vel-cpi-appr">
+      <div
+        v-if="approvalOpen"
+        class="vel-cpi-appr"
+        role="status"
+        aria-live="polite"
+        data-testid="cpi-approval-overlay"
+        :aria-label="
+          approvalPhase === 'loading'
+            ? t('account.commission.cpi.approval.loadingAria')
+            : t('account.commission.cpi.approval.okAria')
+        "
+      >
+        <div class="vel-cpi-appr__bg" aria-hidden="true">
+          <span class="vel-cpi-appr__glow" />
+        </div>
+        <div class="vel-cpi-appr__stage">
+          <div
+            class="vel-cpi-appr__icon"
+            :class="approvalPhase === 'ok' ? 'vel-cpi-appr__icon--ok' : 'vel-cpi-appr__icon--load'"
+          >
+            <template v-if="approvalPhase === 'loading'">
+              <span class="vel-cpi-appr__spinner" />
+            </template>
+            <template v-else>
+              <span class="vel-cpi-appr__check" aria-hidden="true">
+                <VelAccountSign sign="shield-check" size="lg" />
+              </span>
+            </template>
+          </div>
+          <p class="vel-cpi-appr__title m-0">
+            {{
+              approvalPhase === 'loading'
+                ? t('account.commission.cpi.approval.loading')
+                : t('account.commission.cpi.approval.ok')
+            }}
+          </p>
+          <p class="vel-cpi-appr__sub m-0">
+            {{
+              approvalPhase === 'loading'
+                ? t('account.commission.cpi.approval.loadingHint')
+                : t('account.commission.cpi.approval.okHint')
+            }}
+          </p>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -379,11 +563,6 @@ watch(consultOpen, (open, was) => {
   height: auto;
 }
 
-/*
- * ФИО в «Cliente / Contraente:» (policy-template.png 876×1238):
- * строка ~23.6–24.2% top, label ends ~28.4% → left 29.5%.
- * Старые 43%/35.4% уезжали в блок «1. Tipo di Assicurazione».
- */
 .vel-cpi-dlg__name {
   position: absolute;
   left: 29.5%;
@@ -422,6 +601,185 @@ watch(consultOpen, (open, was) => {
   margin: 0;
   font-size: 1.15rem;
   font-weight: 600;
+  line-height: 1.25;
+}
+
+/* Breakdown — как VelCommissionFeeStep */
+.vel-cpi-fee-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.25rem 1.25rem 1.15rem;
+  border: 1px solid color-mix(in oklab, var(--color-accent) 28%, var(--color-line));
+  border-radius: var(--radius-panel);
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in oklab, var(--color-accent) 10%, var(--color-surface)) 0%,
+      color-mix(in oklab, var(--color-accent) 3%, var(--color-surface)) 55%,
+      var(--color-surface) 100%
+    );
+  box-shadow:
+    0 0.35rem 1.1rem color-mix(in oklab, var(--color-accent-deep) 6%, transparent),
+    inset 0 1px 0 color-mix(in oklab, #fff 70%, transparent);
+}
+
+.vel-cpi-fee-box__cap {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.vel-cpi-fee-box__total {
+  font-size: clamp(2.5rem, 11vw, 3.4rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+  color: var(--color-accent-deep);
+  font-variant-numeric: tabular-nums;
+  text-wrap: nowrap;
+  text-shadow: 0 1px 0 color-mix(in oklab, #fff 55%, transparent);
+}
+
+.vel-cpi-fee-box__lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0.15rem 0 0;
+  padding: 0.75rem 0 0;
+  border-block-start: 1px solid color-mix(in oklab, var(--color-accent) 18%, var(--color-line));
+  list-style: none;
+}
+
+.vel-cpi-fee-box__line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.75rem 1rem;
+}
+
+.vel-cpi-fee-box__label {
+  min-inline-size: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vel-cpi-fee-box__sum {
+  color: var(--color-accent-deep);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Fullscreen approval */
+.vel-cpi-appr {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: color-mix(in oklab, #0a162c 92%, transparent);
+  color: #fff;
+  text-align: center;
+  backdrop-filter: blur(10px);
+}
+
+.vel-cpi-appr__bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.vel-cpi-appr__glow {
+  position: absolute;
+  inset-block-start: 28%;
+  inset-inline-start: 50%;
+  width: min(22rem, 70vw);
+  height: min(22rem, 70vw);
+  translate: -50% -40%;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-accent) 45%, transparent);
+  filter: blur(48px);
+  opacity: 0.65;
+  animation: vel-cpi-appr-pulse 2s ease-in-out infinite;
+}
+
+.vel-cpi-appr__stage {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  max-inline-size: 20rem;
+}
+
+.vel-cpi-appr__icon {
+  display: grid;
+  place-items: center;
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, #fff 28%, transparent);
+  background: color-mix(in oklab, #fff 8%, transparent);
+  box-shadow: 0 0 0 8px color-mix(in oklab, var(--color-accent) 18%, transparent);
+}
+
+.vel-cpi-appr__icon--ok {
+  border-color: color-mix(in oklab, var(--color-success) 55%, #fff);
+  background: color-mix(in oklab, var(--color-success) 22%, transparent);
+  box-shadow:
+    0 0 0 10px color-mix(in oklab, var(--color-success) 18%, transparent),
+    0 0 32px color-mix(in oklab, var(--color-success) 35%, transparent);
+  animation: vel-cpi-appr-pop 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.vel-cpi-appr__spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid color-mix(in oklab, #fff 25%, transparent);
+  border-top-color: #fff;
+  border-radius: 999px;
+  animation: vel-cpi-spin 0.75s linear infinite;
+}
+
+.vel-cpi-appr__check {
+  display: inline-flex;
+  color: #fff;
+  filter: drop-shadow(0 0 10px color-mix(in oklab, var(--color-success) 50%, transparent));
+}
+
+.vel-cpi-appr__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.vel-cpi-appr__sub {
+  color: color-mix(in oklab, #fff 72%, transparent);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.vel-cpi-appr-enter-active,
+.vel-cpi-appr-leave-active {
+  transition: opacity 280ms ease;
+}
+
+.vel-cpi-appr-enter-from,
+.vel-cpi-appr-leave-to {
+  opacity: 0;
 }
 
 @keyframes vel-cpi-spin {
@@ -434,9 +792,42 @@ watch(consultOpen, (open, was) => {
   }
 }
 
+@keyframes vel-cpi-appr-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    scale: 1;
+  }
+
+  50% {
+    opacity: 0.75;
+    scale: 1.06;
+  }
+}
+
+@keyframes vel-cpi-appr-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .vel-cpi-mark {
+  .vel-cpi-mark,
+  .vel-cpi-appr__spinner,
+  .vel-cpi-appr__glow,
+  .vel-cpi-appr__icon--ok {
     animation: none;
+  }
+
+  .vel-cpi-appr-enter-active,
+  .vel-cpi-appr-leave-active {
+    transition: none;
   }
 }
 </style>
