@@ -25,9 +25,29 @@ import VelLogo from '@/components/ui/VelLogo.vue'
  */
 const open = defineModel<boolean>('open', { required: true })
 
+const props = withDefaults(
+  defineProps<{
+    /** Стартовый режим вкладок (лендинг Accedi → login). */
+    startMode?: 'create' | 'login'
+    /**
+     * Только «Accedi» (без Crea account) — вход с лендинга.
+     * Create остаётся в конце мастера.
+     */
+    loginOnly?: boolean
+    /**
+     * Email, под которым уже создали кабинет (simulator.email).
+     * Login сверяет ввод с ним; без совпадения в кабинет не пускаем.
+     */
+    knownEmail?: string
+  }>(),
+  { startMode: 'create', loginOnly: false, knownEmail: '' },
+)
+
 const emit = defineEmits<{
-  /** Пользователь завершил регистрацию: наружу уходит только адрес почты. */
+  /** Пользователь завершил регистрацию / успешный вход: наружу только email. */
   (event: 'registered', email: string): void
+  /** Успешный вход (режим Accedi). */
+  (event: 'login', email: string): void
 }>()
 
 const { t } = useI18n()
@@ -40,8 +60,8 @@ useNativeDialog(dialog, open)
 
 type Mode = 'create' | 'login'
 
-const mode = ref<Mode>('create')
-const isCreate = computed(() => mode.value === 'create')
+const mode = ref<Mode>(props.startMode)
+const isCreate = computed(() => mode.value === 'create' && !props.loginOnly)
 
 const email = ref('')
 const password = ref('')
@@ -49,6 +69,8 @@ const confirm = ref('')
 /* Показывать ошибки начинаем только после первой попытки отправки: подсвечивать
    пустое поле, к которому человек ещё не притронулся, — это ругань авансом. */
 const tried = ref(false)
+/** Ошибка входа (нет аккаунта / неверная почта) — не поле, а форма целиком. */
+const authError = ref('')
 
 const uid = useId()
 const tabsId = `vel-reg-tabs-${uid}`
@@ -93,22 +115,46 @@ const isValid = computed(
 watch(mode, () => {
   tried.value = false
   confirm.value = ''
+  authError.value = ''
 })
 
-/* Закрыли окно — стираем пароль немедленно, не дожидаясь размонтирования.
-   Окно живёт в разметке мастера и при закрытии остаётся в памяти. */
+/* Открыли — выставляем стартовый режим (лендинг: Accedi). */
 watch(open, (isOpen) => {
-  if (isOpen) return
+  if (isOpen) {
+    mode.value = props.loginOnly ? 'login' : props.startMode
+    authError.value = ''
+    return
+  }
+  /* Закрыли окно — стираем пароль немедленно, не дожидаясь размонтирования. */
   password.value = ''
   confirm.value = ''
   tried.value = false
+  authError.value = ''
 })
 
 function onSubmit(): void {
   tried.value = true
+  authError.value = ''
   if (!isValid.value) return
 
   const address = email.value.trim()
+
+  /*
+   * Вход: только если кабинет уже создан после мастера и почта совпадает.
+   * Иначе — отказ, без демо-профиля Marco Rossi.
+   */
+  if (!isCreate.value) {
+    const known = (props.knownEmail ?? '').trim().toLowerCase()
+    if (known === '' || address.toLowerCase() !== known) {
+      authError.value = t('wizard.register.errors.noAccount')
+      return
+    }
+    password.value = ''
+    confirm.value = ''
+    emit('login', address)
+    return
+  }
+
   // Пароль наружу не отдаём — см. шапку файла.
   password.value = ''
   confirm.value = ''
@@ -155,8 +201,15 @@ function close(): void {
       <!--
         Настоящие вкладки, а не пара кнопок: под ними меняется состав формы,
         и скринридер обязан понимать, что это выбор между двумя панелями.
+        loginOnly (лендинг): только Accedi — создать кабинет можно после мастера.
       -->
-      <div :id="tabsId" class="vel-reg__tabs" role="tablist" :aria-label="t('wizard.register.title')">
+      <div
+        v-if="!props.loginOnly"
+        :id="tabsId"
+        class="vel-reg__tabs"
+        role="tablist"
+        :aria-label="t('wizard.register.title')"
+      >
         <button
           type="button"
           role="tab"
@@ -182,6 +235,8 @@ function close(): void {
       <p class="vel-reg__lead">
         {{ isCreate ? t('wizard.register.leadCreate') : t('wizard.register.leadLogin') }}
       </p>
+
+      <p v-if="authError" class="vel-reg__auth-error" role="alert">{{ authError }}</p>
 
       <VelField :label="t('wizard.register.email')" :error="emailError">
         <VelInput
@@ -317,6 +372,19 @@ function close(): void {
   margin: 0;
   color: var(--color-muted);
   font-size: 0.85rem;
+  text-align: center;
+}
+
+.vel-reg__auth-error {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid color-mix(in oklab, var(--color-danger) 40%, var(--color-line));
+  border-radius: var(--radius-control);
+  background: color-mix(in oklab, var(--color-danger) 8%, var(--color-surface));
+  color: var(--color-danger);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
   text-align: center;
 }
 </style>

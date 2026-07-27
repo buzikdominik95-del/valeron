@@ -157,6 +157,8 @@ export default {
         passwordShort: 'Almeno {min} caratteri.',
         confirmRequired: 'Ripeti la password.',
         confirmMismatch: 'Le due password non coincidono.',
+        noAccount:
+          'Nessun account con questa email. Completa prima la simulazione e crea lo spazio personale.',
       },
     },
   },
@@ -284,6 +286,8 @@ export default {
         passwordShort: 'Не короче {min} символов.',
         confirmRequired: 'Повторите пароль.',
         confirmMismatch: 'Пароли не совпадают.',
+        noAccount:
+          'Аккаунта с этой почтой нет. Сначала пройдите симуляцию и создайте личный кабинет.',
       },
     },
   },

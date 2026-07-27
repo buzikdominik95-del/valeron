@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent } from 'vue'
+import { computed, defineAsyncComponent, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTitle } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { useWizard } from '@/composables/useWizard'
 import { useAppView } from '@/composables/useAppView'
+import { useAccountView } from '@/composables/useAccountView'
+import { useLandingLogin } from '@/composables/useLandingLogin'
 import { useSmoothScroll } from '@/composables/useSmoothScroll'
+import { useSimulatorStore } from '@/stores/simulator.store'
+import VelRegisterDialog from '@/features/wizard/VelRegisterDialog.vue'
 
 /*
  * ПОЛНОЭКРАННЫЕ ПОТОКИ.
@@ -54,7 +59,33 @@ const { isOpen } = useWizard()
  * Экраны после заявки: письмо и кабинет. Живут в ?view=… и перекрывают
  * мастер — после регистрации возвращаться в него уже некуда.
  */
-const { view, isAccount, emailEpoch, openCabinet } = useAppView()
+const { view, isAccount, emailEpoch, openCabinet, backToSite } = useAppView()
+const { open: openAccount } = useAccountView()
+const landingLogin = useLandingLogin()
+const landingLoginOpen = landingLogin.open
+const simulator = useSimulatorStore()
+const { email: registeredEmail } = storeToRefs(simulator)
+
+/*
+ * Прямой ?view=cabinet без своей заявки → назад на лендинг + форма входа.
+ * Иначе по ссылке снова открывался бы кабинет с заглушкой Marco.
+ */
+watch(
+  () => view.value === 'cabinet',
+  (cabinet) => {
+    if (!cabinet) return
+    if (landingLogin.hasCabinetAccess()) return
+    backToSite()
+    landingLogin.show()
+  },
+  { immediate: true },
+)
+
+/** Успешный Accedi с лендинга — в свой кабинет (данные из мастера). */
+function onLandingLogin(): void {
+  landingLogin.hide()
+  openAccount()
+}
 
 // Инерционный скролл — только для лендинга: в мастере и кабинете он мешает
 // коротким экранам и спорит с программным переводом фокуса при смене шага.
@@ -102,6 +133,15 @@ useTitle(computed(() => t('meta.title')))
 
     <!-- Подвал вне <main>: только так он получает роль contentinfo -->
     <VelFooter />
+
+    <!-- Accedi с лендинга: только вход, без демо-кабинета Marco -->
+    <VelRegisterDialog
+      v-model:open="landingLoginOpen"
+      start-mode="login"
+      login-only
+      :known-email="registeredEmail"
+      @login="onLandingLogin"
+    />
   </template>
 </template>
 
