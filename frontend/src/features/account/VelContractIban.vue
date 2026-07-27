@@ -173,13 +173,16 @@ function backToEntry(): void {
 function confirmSave(): void {
   if (!ready.value) return
 
-  /* Полный IBAN + маска: иначе Preleva не сможет автозаполнить поле. */
+  /* Полный IBAN + маска: иначе Preleva не сможет автозаполнить поле.
+     setIbanFromRaw сразу ставит ibanProvided=true → Firma разблокируется. */
   accountStore.setIbanFromRaw(raw.value)
   /* Полный номер стираем СРАЗУ после сохранения: на последнем шаге показывается
      маска из стора, и держать полную копию в памяти вкладки больше незачем. */
   value.value = ''
   step.value = 'done'
   emit('saved')
+  /* После «Fatto» сразу закрываем — человек видит активную Firma на карточке. */
+  open.value = false
 }
 
 function close(): void {

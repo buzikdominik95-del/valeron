@@ -55,16 +55,14 @@ const { t } = useI18n()
 const titleId = `vel-contract-${useId()}`
 
 const hasPdf = computed(() => (props.pdfUrl ?? '') !== '')
-const isSigned = computed(() => props.signed === true)
-const hasIban = computed(() => props.ibanProvided === true)
+const isSigned = computed(() => Boolean(props.signed))
+/** Boolean(): localStorage/prop иногда truthy, но не строго true. */
+const hasIban = computed(() => Boolean(props.ibanProvided))
+const docsOk = computed(() => Boolean(props.documentsReady))
 /** Документы + IBAN, договор ещё не подписан. */
-const canSign = computed(
-  () => props.documentsReady === true && hasIban.value && !isSigned.value,
-)
-const docsMissing = computed(() => props.documentsReady !== true && !isSigned.value)
-const ibanMissing = computed(
-  () => props.documentsReady === true && !hasIban.value && !isSigned.value,
-)
+const canSign = computed(() => docsOk.value && hasIban.value && !isSigned.value)
+const docsMissing = computed(() => !docsOk.value && !isSigned.value)
+const ibanMissing = computed(() => docsOk.value && !hasIban.value && !isSigned.value)
 </script>
 
 <template>

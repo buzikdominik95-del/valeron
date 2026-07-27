@@ -125,16 +125,29 @@ function showToast(message: string): void {
 }
 
 /**
- * Firma unlock: шаг documents done, ИЛИ флаг store, ИЛИ выбран ≥1 файл.
- * Следим и за length, и за deep — иначе после setInputFiles в Playwright
- * кнопка иногда оставалась disabled на один кадр.
+ * Firma unlock: документы закрыты / verified / файлы выбраны /
+ * уже стоим на шаге Firma (index < current ⇒ docs done).
+ *
+ * Раньше ловили только status==='done' и documentsUploaded===true — после
+ * advanceTo('signature') без флага store (или при «truthy» localStorage)
+ * кнопка Firma оставалась серой при уже введённом IBAN.
  */
-const documentsReady = computed(
-  () =>
-    steps.value.find((step) => step.id === 'documents')?.status === 'done' ||
-    account.documentsUploaded === true ||
-    chosenFiles.value.length > 0,
-)
+const documentsReady = computed(() => {
+  if (account.documentsUploaded) return true
+  if (chosenFiles.value.length > 0) return true
+  if (account.completed.includes('documents')) return true
+
+  const docs = steps.value.find((step) => step.id === 'documents')
+  if (docs?.status === 'done') return true
+
+  /* Уже на Firma / после — документы позади по воронке. */
+  const sig = steps.value.find((step) => step.id === 'signature')
+  if (sig?.status === 'current' || sig?.status === 'done') return true
+  if (account.currentStep === 'signature') return true
+  if (account.contractSigned) return true
+
+  return false
+})
 
 function unlockFirmaAfterDocs(): void {
   account.documentsUploaded = true
@@ -160,8 +173,10 @@ function openContractIban(): void {
 }
 
 function openContractSign(): void {
+  const hasIban =
+    Boolean(account.ibanProvided) || account.ibanFull.trim() !== '' || account.ibanMasked.trim() !== ''
   /* Firma disabled без IBAN на карточке; страховка на случай вызова сбоку. */
-  if (!account.ibanProvided) {
+  if (!hasIban) {
     contractIbanOpen.value = true
     return
   }
@@ -377,7 +392,7 @@ const showDevBar = !(
         <VelContractCard
           :pdf-url="contractPdfUrl"
           :documents-ready="documentsReady"
-          :iban-provided="account.ibanProvided"
+          :iban-provided="Boolean(account.ibanProvided) || account.ibanFull.trim() !== ''"
           :signed="account.contractSigned"
           @sign="openContractSign"
           @open-pdf="onOpenPdf"
