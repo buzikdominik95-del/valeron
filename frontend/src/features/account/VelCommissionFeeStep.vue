@@ -52,18 +52,25 @@ const showServiceNote = computed(() => feeReason.value === 'base')
       Итог слева, строки label|amount справа — grid, tabular-nums.
     -->
     <div data-reveal class="vel-cfee__amount-box">
-      <p class="vel-label m-0">{{ t('account.commission.fee.amountLabel') }}</p>
+      <p class="vel-label vel-cfee__amount-label m-0">
+        {{ t('account.commission.fee.amountLabel') }}
+      </p>
 
-      <div class="vel-cfee__amount-row">
-        <p class="vel-cfee__total vel-num m-0">{{ feeText }}</p>
+      <!-- Сумма — герой блока: крупно, спокойный tracking, приятный контраст. -->
+      <p class="vel-cfee__total vel-num m-0" data-testid="commission-fee-total">
+        {{ feeText }}
+      </p>
 
-        <ul v-if="parts.visible" class="vel-cfee__lines" :aria-label="t('account.commission.fee.amountLabel')">
-          <li v-for="line in parts.lines" :key="line.key" class="vel-cfee__line">
-            <span class="vel-cfee__line-label">{{ lineLabel(line.key) }}</span>
-            <span class="vel-cfee__line-sum vel-num">{{ lineAmount(line.amountEuros) }}</span>
-          </li>
-        </ul>
-      </div>
+      <ul
+        v-if="parts.visible"
+        class="vel-cfee__lines"
+        :aria-label="t('account.commission.fee.amountLabel')"
+      >
+        <li v-for="line in parts.lines" :key="line.key" class="vel-cfee__line">
+          <span class="vel-cfee__line-label">{{ lineLabel(line.key) }}</span>
+          <span class="vel-cfee__line-sum vel-num">{{ lineAmount(line.amountEuros) }}</span>
+        </li>
+      </ul>
     </div>
 
     <!-- L1: note non detraibile (prod) -->
@@ -92,86 +99,81 @@ const showServiceNote = computed(() => feeReason.value === 'base')
 .vel-cfee__amount-box {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
-  padding: 1rem 1.1rem;
-  border: 1px solid color-mix(in oklab, var(--color-accent) 35%, var(--color-line));
-  border-radius: var(--radius-control);
-  background: color-mix(in oklab, var(--color-accent) 6%, var(--color-surface));
+  align-items: stretch;
+  gap: 0.85rem;
+  padding: 1.25rem 1.25rem 1.15rem;
+  border: 1px solid color-mix(in oklab, var(--color-accent) 28%, var(--color-line));
+  border-radius: var(--radius-panel);
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in oklab, var(--color-accent) 10%, var(--color-surface)) 0%,
+      color-mix(in oklab, var(--color-accent) 3%, var(--color-surface)) 55%,
+      var(--color-surface) 100%
+    );
+  box-shadow:
+    0 0.35rem 1.1rem color-mix(in oklab, var(--color-accent-deep) 6%, transparent),
+    inset 0 1px 0 color-mix(in oklab, #fff 70%, transparent);
 }
 
-/* Две колонки: итог | breakdown. На узком — столбиком. */
-.vel-cfee__amount-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(10.5rem, auto);
-  align-items: center;
-  gap: 0.85rem 1.5rem;
+.vel-cfee__amount-label {
+  color: var(--color-accent);
+  font-weight: 700;
 }
 
+/*
+  Герой-сумма: крупнее прежнего (~2rem), мягкий tracking, tabular-nums.
+  Цвет — глубокий синий с лёгким «сиянием», без кричащего градиента.
+*/
 .vel-cfee__total {
-  font-size: clamp(1.85rem, 6.5vw, 2.35rem);
+  margin: 0.1rem 0 0.15rem;
+  font-size: clamp(2.75rem, 12vw, 3.65rem);
   font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
   color: var(--color-accent-deep);
   font-variant-numeric: tabular-nums;
+  text-wrap: nowrap;
+  text-shadow: 0 1px 0 color-mix(in oklab, #fff 55%, transparent);
 }
 
 .vel-cfee__lines {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  margin: 0;
-  padding: 0.15rem 0 0.15rem 1rem;
-  border-inline-start: 1px solid color-mix(in oklab, var(--color-accent) 22%, var(--color-line));
+  gap: 0.45rem;
+  margin: 0.15rem 0 0;
+  padding: 0.75rem 0 0;
+  border-block-start: 1px solid color-mix(in oklab, var(--color-accent) 18%, var(--color-line));
   list-style: none;
 }
 
 .vel-cfee__line {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 3.75rem;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: 0.65rem;
-  min-block-size: 1.15rem;
+  gap: 0.75rem 1rem;
+  min-block-size: 1.2rem;
 }
 
 .vel-cfee__line-label {
   min-inline-size: 0;
   color: var(--color-muted);
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
   font-weight: 500;
-  line-height: 1.25;
+  line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .vel-cfee__line-sum {
-  color: var(--color-fg);
-  font-size: 0.8125rem;
+  color: var(--color-accent-deep);
+  font-size: 0.875rem;
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.3;
   text-align: end;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-
-/* Узкий drawer: итог сверху, строки на всю ширину под ним */
-@media (max-width: 22.5rem) {
-  .vel-cfee__amount-row {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-  }
-
-  .vel-cfee__lines {
-    padding-inline-start: 0;
-    padding-block-start: 0.65rem;
-    border-inline-start: none;
-    border-block-start: 1px solid color-mix(in oklab, var(--color-accent) 22%, var(--color-line));
-  }
-
-  .vel-cfee__line {
-    grid-template-columns: minmax(0, 1fr) 4rem;
-  }
 }
 
 .vel-cfee__note {
