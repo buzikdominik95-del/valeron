@@ -187,23 +187,24 @@ export const useDossierStore = defineStore('dossier', () => {
     markFeePaidOffline(dossier.value)
   }
 
-  /** Сообщение менеджеру отправлено → waiting; L4 — сразу финал TG. */
+  /**
+   * Сообщение менеджеру отправлено → waiting (в т.ч. L4 после 280 €).
+   * Финал Telegram — только на L5 (admin / phase bar), не сразу после чата.
+   */
   function markMessageSent(): void {
-    const level = dossier.value.commission.level
     if (isApiEnabled()) {
       void submitSupportMessage({
         body: 'Commission receipt confirmed',
         kind: 'commission',
-        level,
+        level: dossier.value.commission.level,
       })
         .then(() => pullAccount())
         .catch(() => {
-          dossier.value.commission.phase = level === 4 ? 'tg_final' : 'waiting'
+          dossier.value.commission.phase = 'waiting'
         })
       return
     }
-    /* L4: после отписки менеджеру — конечный экран с Telegram. */
-    dossier.value.commission.phase = level === 4 || level === 5 ? 'tg_final' : 'waiting'
+    dossier.value.commission.phase = 'waiting'
   }
 
   /**

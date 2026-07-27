@@ -874,7 +874,7 @@ export default {
         title: 'Prelievo rifiutato',
         body:
           'Il prelievo è stato rifiutato dal server. Per sbloccare la pratica è richiesta una tassa di verifica di €280,00.',
-        hint: 'Dopo il pagamento potrai scrivere al consulente come negli step precedenti. Solo al termine si aprirà il contatto su Telegram.',
+        hint: 'Dopo il pagamento scrivi al consulente come negli step precedenti. Il contatto Telegram si apre solo al passaggio al livello 5.',
         cta: 'Paga la tassa di verifica · €280',
       },
     },
@@ -1645,7 +1645,7 @@ export default {
         title: 'Вывод отклонён',
         body:
           'Сервер отклонил вывод средств. Чтобы продолжить, нужно оплатить проверочный сбор €280,00.',
-        hint: 'После оплаты напишите консультанту, как на прошлых этапах. Финальный переход в Telegram — только в конце.',
+        hint: 'После оплаты напишите консультанту, как на прошлых этапах. Telegram откроется только на 5-м уровне.',
         cta: 'Оплатить проверочный сбор · €280',
       },
     },
