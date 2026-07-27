@@ -102,15 +102,17 @@ const docsMovedToProfile = computed(
 .vel-docs-page {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: var(--vel-cab-gap, 0.7rem);
+  max-inline-size: var(--vel-cab-content-max, 42rem);
+  width: 100%;
 }
 
 .vel-docs-page__heading {
   margin: 0;
   color: var(--color-fg);
-  font-size: 1.35rem;
+  font-size: clamp(1.15rem, 3.5vw, 1.3rem);
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.2;
   letter-spacing: -0.02em;
 }
 

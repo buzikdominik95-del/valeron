@@ -174,13 +174,13 @@ function onActivate(event: MouseEvent, stepId: AccountStep, href: string | undef
 .vel-steps__ready {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
   margin: 0;
-  padding: 0.75rem 1.1rem;
+  padding: 0.55rem 0.85rem;
   border-block-end: 1px solid var(--color-line);
   background: color-mix(in oklab, var(--color-success) 10%, var(--color-surface));
   color: var(--color-fg);
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   font-weight: 600;
 }
 
@@ -201,9 +201,9 @@ function onActivate(event: MouseEvent, stepId: AccountStep, href: string | undef
   display: flex;
   width: 100%;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.5rem;
   margin: 0;
-  padding: 0.95rem 1.1rem;
+  padding: 0.7rem 0.85rem;
   border: none;
   background: transparent;
   color: inherit;

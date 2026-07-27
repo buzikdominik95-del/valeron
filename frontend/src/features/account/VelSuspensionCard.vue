@@ -27,7 +27,7 @@ function onDetails(): void {
 <template>
   <section
     ref="root"
-    class="flex flex-col gap-3 rounded-panel border border-line bg-surface p-5 sm:p-6"
+    class="vel-susp flex flex-col rounded-panel border border-line bg-surface"
     data-testid="suspension-card"
   >
     <div
@@ -61,6 +61,12 @@ function onDetails(): void {
 </template>
 
 <style scoped>
+.vel-susp {
+  gap: 0.65rem;
+  min-inline-size: 0;
+  padding: var(--vel-cab-card-pad, 1rem);
+}
+
 .vel-susp-badge {
   animation: vel-susp-attn 2s ease-in-out infinite;
 }
