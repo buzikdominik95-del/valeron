@@ -53,12 +53,14 @@ const {
   isSuspended,
   isPolicyBuild,
   isFailed,
+  isTgFinal,
   isRejectAnim,
   isReady,
   phase,
   level,
   beginWithdraw,
   openFeeFromSuspension,
+  openFeeFromFailure,
 } = useCommission()
 const { select: selectTab } = useCabinetTab()
 const notices = useNotices()
@@ -426,8 +428,8 @@ const showClassicBank = computed(
 const transferStage = computed((): { key: string; view: Component } | null => {
   if (isAnimating.value) return { key: `anim-${phase.value}`, view: VelTransferAnim }
   if (isSuspended.value) return { key: 'suspended', view: VelSuspensionCard }
-  /* L4 failed: карточка «Rifiuto» убрана — fullscreen freeze-modal + freeze-сцена */
-  if (isFailed.value) return null
+  /* L4 failed / tg_final: UI в freeze-modal, не карточка на Home */
+  if (isFailed.value || isTgFinal.value) return null
   if (showClassicBank.value) return { key: 'bank', view: VelBankAuthorizing }
   // pay_fee → VelCommissionDrawer (оверлей), не карточка на Home
   if (isPolicyBuild.value) return { key: 'policy-build', view: VelPolicyBuildCard }
@@ -435,13 +437,26 @@ const transferStage = computed((): { key: string; view: Component } | null => {
   return null
 })
 
-/** L4 lock: только модалка; dismiss игнорируем. */
+/**
+ * L4 failed (ещё не pay_fee) → модалка «оплати 280 €».
+ * tg_final / L5 → конечный экран Telegram.
+ * Во время pay_fee / messenger модалка закрыта — работает drawer + чат.
+ */
 const freezeOpen = computed({
-  get: () => isFailed.value,
+  get: () => isTgFinal.value || (isFailed.value && !isPayFee.value),
   set: () => {
     /* нельзя закрыть */
   },
 })
+
+const freezeMode = computed<'reject' | 'telegram'>(() =>
+  isTgFinal.value ? 'telegram' : 'reject',
+)
+
+function onFreezePay(): void {
+  openFeeFromFailure()
+  openCommissionPayment()
+}
 
 /*
  * Переключатель фаз L1–L4 — всегда на экране (демо + стенд + прод-сборка).
@@ -547,7 +562,7 @@ const showDevBar = !(
   <!-- Полноэкранный финал перевода: сам уходит по таймеру, закрывается по Esc -->
   <VelTransferSuccess v-model:open="successOpen" />
 
-  <VelDevCommissionBar v-if="showDevBar && !isFailed" />
+  <VelDevCommissionBar v-if="showDevBar && !isTgFinal" />
 
   <VelAccountToast :text="toastText" />
 
@@ -560,8 +575,12 @@ const showDevBar = !(
   <!-- L2/L4: крестик на весь экран → сам закрывается -->
   <VelRejectFlash v-model:open="rejectFlashOpen" />
 
-  <!-- L4: после анимации — сайт заблокирован, только Telegram менеджера -->
-  <VelAccountFreezeModal v-model:open="freezeOpen" />
+  <!-- L4 reject → pay 280; L5 / tg_final → Telegram -->
+  <VelAccountFreezeModal
+    v-model:open="freezeOpen"
+    :mode="freezeMode"
+    @pay="onFreezePay"
+  />
 </template>
 
 <style scoped>

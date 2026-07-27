@@ -24,6 +24,7 @@ const {
   isAnimating,
   isSuspended,
   isFailed,
+  isTgFinal,
   isPolicyBuild,
 } = useCommission()
 
@@ -37,6 +38,7 @@ const transferTakesOver = computed(
     isAuthorizing.value ||
     isSuspended.value ||
     isFailed.value ||
+    isTgFinal.value ||
     isPolicyBuild.value,
 )
 
@@ -48,6 +50,7 @@ const showTracker = computed(
 const stageKey = computed(() => {
   if (showTracker.value) return 'tracker'
   if (isPolicyBuild.value) return 'policy-build'
+  if (isTgFinal.value) return 'tg-final'
   if (isFailed.value) return 'failed'
   if (isSuspended.value) return 'suspended'
   if (isAnimating.value) return `anim-${level.value}`
