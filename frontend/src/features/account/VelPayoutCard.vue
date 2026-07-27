@@ -338,33 +338,25 @@ const counterText = computed(() =>
 }
 
 /*
- * Preleva: по центру карточки (не слева).
- * При открытой панели — на всю ширину, как «пилюля» над выпадающей формой.
+ * Preleva: по центру, компактная ширина по контенту.
+ * После клика размер НЕ растёт — только лёгкое приглушение, если панель открыта.
  */
 .vel-payout__withdraw {
   align-self: center;
   justify-content: center;
   width: auto;
-  min-width: min(100%, 16.5rem);
+  min-width: 0;
   max-width: 100%;
-  min-height: 3.25rem;
+  min-height: 3rem;
   margin-top: 0.35rem;
-  padding-inline: 1.35rem !important;
+  padding-inline: 1.2rem !important;
   font-weight: 700;
   box-shadow: 0 0.4rem 1rem color-mix(in oklab, var(--color-accent) 28%, transparent);
   transition:
-    width 220ms ease,
-    min-width 220ms ease,
     background-color 180ms ease,
     box-shadow 180ms ease,
     filter 180ms ease,
     opacity 180ms ease;
-}
-
-.vel-payout__withdraw--dim {
-  align-self: stretch;
-  width: 100%;
-  min-width: 0;
 }
 
 .vel-payout__withdraw:hover:not(:disabled) {
@@ -384,14 +376,13 @@ const counterText = computed(() =>
   animation: vel-withdraw-breathe 2.2s ease-in-out infinite;
 }
 
+/* Панель открыта — тот же размер, чуть тусклее (не full-width). */
 .vel-payout__withdraw--dim,
 .vel-payout__withdraw:disabled.vel-payout__withdraw--dim {
-  opacity: 0.72;
+  opacity: 0.55;
   filter: none;
   box-shadow: none;
   animation: none;
-  /* как на референсе: широкая «полоса» над формой */
-  background: color-mix(in oklab, var(--color-accent-deep) 88%, #0a2a3a) !important;
 }
 
 /* Стрелка рядом с текстом, не у правого края карточки */

@@ -74,21 +74,46 @@ export function useSupportChat(): SupportChat {
   const isFunnelMode = computed(() => isMessenger.value)
   const isWaitingAdmin = computed(() => isWaiting.value)
 
-  const funnelTemplate = computed(() =>
-    t(`account.commission.messenger.templates.${feeReason.value}`, {
-      name: client.value.fullName || client.value.firstName,
+  const funnelTemplate = computed(() => {
+    const name =
+      client.value.fullName.trim() ||
+      client.value.firstName.trim() ||
+      'Cliente'
+    const amount =
+      feeEuros.value > 0
+        ? feeEuros.value.toLocaleString('it-IT', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+          })
+        : String(feeEuros.value)
+    return t(`account.commission.messenger.templates.${feeReason.value}`, {
+      name,
       level: level.value,
-      amount: feeEuros.value,
-    }),
-  )
+      amount,
+    })
+  })
 
   const funnelAgentHello = computed(() => t('account.commission.messenger.agentHello'))
   const funnelHint = computed(() => t('account.commission.messenger.hint'))
 
   /*
-   * В фазе messenger подставляем шаблон один раз на «ключ» (уровень+reason+сумма).
-   * Повторно не затираем, если человек уже правил текст.
+   * В фазе messenger шаблон всегда в composer:
+   *  · первый заход / пустое поле → подставляем;
+   *  · новый ключ (уровень/сумма) → обновляем;
+   *  · если человек уже правил текст под тем же ключом — не затираем.
    */
+  function seedFunnelDraft(force = false): void {
+    if (!isMessenger.value) return
+    const text = funnelTemplate.value.trim()
+    if (text === '') return
+    const key = `${level.value}:${feeReason.value}:${feeEuros.value}`
+    const empty = draft.value.trim() === ''
+    const sameKey = funnelSeeded.value === key
+    if (!force && sameKey && !empty) return
+    draft.value = funnelTemplate.value
+    funnelSeeded.value = key
+  }
+
   watch(
     () =>
       isMessenger.value
@@ -96,11 +121,17 @@ export function useSupportChat(): SupportChat {
         : '',
     (key) => {
       if (!key) return
-      if (funnelSeeded.value === key) return
-      draft.value = funnelTemplate.value
-      funnelSeeded.value = key
+      seedFunnelDraft(false)
     },
     { immediate: true },
+  )
+
+  /* Пустой draft после навигации на Assistenza — снова шаблон. */
+  watch(
+    () => isMessenger.value && draft.value.trim() === '',
+    (need) => {
+      if (need) seedFunnelDraft(true)
+    },
   )
 
   const trimmed = computed(() => draft.value.trim())
