@@ -73,6 +73,22 @@ const showElaborazione = computed(
     isPolicyBuild.value,
 )
 
+/**
+ * Жёсткая блокировка Preleva — только пока нельзя ничего сделать:
+ * анимация / policy_build / отказ. pay_fee / messenger / waiting / suspended
+ * оставляем кликабельными: повторный вход после 1-й попытки (фотка 0E9A…).
+ */
+const withdrawLocked = computed(
+  () =>
+    isAnimating.value ||
+    isPolicyBuild.value ||
+    isFailed.value,
+)
+
+/**
+ * Подсказка «воронка идёт» — можно показать текст, но кнопка при этом
+ * остаётся активной (см. withdrawLocked).
+ */
 const funnelBusy = computed(
   () =>
     isAnimating.value ||
@@ -81,19 +97,18 @@ const funnelBusy = computed(
     isWaiting.value ||
     isPolicyBuild.value ||
     isFailed.value ||
-    isAuthorizing.value,
+    isAuthorizing.value ||
+    isSuspended.value,
 )
 
-const disabled = computed(
-  () => !canWithdraw.value || funnelBusy.value || isSuspended.value,
-)
+const disabled = computed(() => !canWithdraw.value || withdrawLocked.value)
 
-/** Кнопка «живая» — усиливаем визуально, когда можно вывести (панель закрыта). */
+/** Кнопка «живая» — усиливаем, когда можно вывести / продолжить. */
 const withdrawReady = computed(() => !disabled.value && !props.panelOpen)
 
 const reasonId = computed(() => {
   if (!canWithdraw.value) return lockedId
-  if (funnelBusy.value || isSuspended.value) return busyId
+  if (funnelBusy.value) return busyId
   return undefined
 })
 
@@ -184,7 +199,7 @@ const counterText = computed(() =>
     </div>
 
     <p
-      v-else-if="funnelBusy || isSuspended"
+      v-else-if="funnelBusy"
       :id="busyId"
       ref="busyNote"
       tabindex="-1"
