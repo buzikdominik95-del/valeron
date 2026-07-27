@@ -103,16 +103,6 @@ const rateText = computed(() =>
   t('account.payout.tan', { rate: n(ratePercent.value / 100, RATE_FORMAT) }),
 )
 
-const showElaborazione = computed(
-  () =>
-    isAuthorizing.value ||
-    isAnimating.value ||
-    isPayFee.value ||
-    isMessenger.value ||
-    isWaiting.value ||
-    isPolicyBuild.value,
-)
-
 /**
  * Preleva заперт на анимации, policy, L4 fail и L2 suspended —
  * внимание на «Paga la copertura», не на вывод.
@@ -126,17 +116,22 @@ const withdrawLocked = computed(
     isSuspended.value,
 )
 
-/** Busy-плашка: без suspended — там снова «Credito approvato», не Erogazione. */
+/**
+ * Busy-плашка (спиннер + «In elaborazione»).
+ * Без isFailed / tg_final: отказ уже badge «Trasferimento rifiutato» — без дубля.
+ * Без suspended — там снова «Credito approvato».
+ */
 const funnelBusy = computed(
   () =>
-    isAnimating.value ||
-    isPayFee.value ||
-    isMessenger.value ||
-    isWaiting.value ||
-    isPolicyBuild.value ||
-    isFailed.value ||
-    isTgFinal.value ||
-    isAuthorizing.value,
+    !isFailed.value &&
+    !isTgFinal.value &&
+    !isSuspended.value &&
+    (isAnimating.value ||
+      isPayFee.value ||
+      isMessenger.value ||
+      isWaiting.value ||
+      isPolicyBuild.value ||
+      isAuthorizing.value),
 )
 
 const disabled = computed(() => !canWithdraw.value || withdrawLocked.value)
@@ -181,9 +176,7 @@ const busyDetail = computed(() => {
   return t('account.payout.inProgress')
 })
 
-const busyText = computed(() =>
-  isFailed.value ? t('account.payout.status.failed') : t('account.payout.busyShort'),
-)
+const busyText = computed(() => t('account.payout.busyShort'))
 
 const busyNote = useTemplateRef<HTMLElement>('busyNote')
 
@@ -222,17 +215,11 @@ function onOpenLoan(): void {
   <section class="vel-payout" data-testid="payout-balance" :class="{ 'vel-payout--ready': withdrawReady }">
     <div class="flex flex-wrap items-center gap-2">
       <h2 class="vel-payout__balance-label">{{ t('account.payout.balanceLabel') }}</h2>
-      <!-- L4 fail — отказ; L2 suspended без red-badge: остаётся Approvato. -->
+      <!-- L4 fail — один badge в шапке (busy-плашка при failed скрыта). -->
       <VelBadge v-if="isFailed" data-testid="badge-failed">
         {{ t('account.payout.status.failed') }}
       </VelBadge>
-      <span
-        v-else-if="showElaborazione && !isSuspended"
-        class="vel-payout__elab"
-        data-testid="badge-elaborazione"
-      >
-        {{ t('account.payout.status.processing') }}
-      </span>
+      <!-- «In elaborazione» только в busy-плашке со спиннером — не дубль в шапке. -->
     </div>
 
     <!-- Зелёный Approvato: и на L2 suspended (вместо Erogazione sospesa). -->
@@ -388,22 +375,6 @@ function onOpenLoan(): void {
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-}
-
-/* Тихий статус «In elaborazione» — меньше и менее заметный. */
-.vel-payout__elab {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.15rem 0.45rem;
-  border: 1px solid color-mix(in oklab, var(--color-line-strong) 55%, transparent);
-  border-radius: var(--radius-control);
-  background: color-mix(in oklab, var(--color-raised) 70%, var(--color-surface));
-  color: var(--color-faint);
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  line-height: 1.2;
-  text-transform: none;
 }
 
 /* Зелёный «Credito approvato» — статичный, заметный (фотка 2). */

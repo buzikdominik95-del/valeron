@@ -669,7 +669,7 @@ export default {
         remain: 'Tempo stimato residuo: {minutes}:{seconds}',
         busy: 'Trasferimento protetto in corso — attendi il completamento dell’animazione.',
         /** L4 failed: CTA sotto la scena — rosso che diventa verde, riapre il modal. */
-        resolveCta: 'Paga la tassa di verifica · €280',
+        resolveCta: 'Paga la tassa di verifica',
         resolveCtaReady: 'Apri i dettagli del rifiuto',
         /*
           ПОДПИСЬ СЦЕНЫ ДЛЯ СКРИНРИДЕРА — два ключа, потому что у сцены два
@@ -883,7 +883,7 @@ export default {
         body:
           'Il prelievo è stato rifiutato dal server. Per sbloccare la pratica è richiesta una tassa di verifica di €280,00.',
         hint: 'Dopo il pagamento scrivi al consulente come negli step precedenti per sbloccare la pratica.',
-        cta: 'Paga la tassa di verifica · €280',
+        cta: 'Paga la tassa di verifica',
         close: 'Chiudi',
       },
     },
@@ -1486,7 +1486,7 @@ export default {
         remain: 'Осталось примерно: {minutes}:{seconds}',
         busy: 'Защищённый перевод в процессе — дождитесь завершения анимации.',
         /** L4 failed: CTA под сценой — красная → зелёная, открывает модалку. */
-        resolveCta: 'Оплатить проверочный сбор · €280',
+        resolveCta: 'Оплатить проверочный сбор',
         resolveCtaReady: 'Открыть детали отказа',
         /* Набор ключей один в один с итальянским: см. развёрнутое пояснение
            в наборе it выше. */
@@ -1663,7 +1663,7 @@ export default {
         body:
           'Сервер отклонил вывод средств. Чтобы продолжить, нужно оплатить проверочный сбор €280,00.',
         hint: 'После оплаты напишите консультанту, как на прошлых этапах, чтобы разблокировать заявку.',
-        cta: 'Оплатить проверочный сбор · €280',
+        cta: 'Оплатить проверочный сбор',
         close: 'Закрыть',
       },
     },
