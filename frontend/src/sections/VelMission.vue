@@ -8,7 +8,8 @@ import VelButton from '@/components/ui/VelButton.vue'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 
 /**
- * Миссия и аккредитация. «Vedere la licenza» → модалка с текстом лицензии.
+ * Миссия и аккредитация.
+ * «Vedere la licenza» → модалка с фото сертификата (Calipsos.jpg / фотка 1).
  */
 const { t } = useI18n()
 const licenseOpen = ref(false)
@@ -16,6 +17,9 @@ const uid = useId()
 const titleId = `vel-license-${uid}`
 const dialog = useTemplateRef<HTMLDialogElement>('dialog')
 useNativeDialog(dialog, licenseOpen)
+
+/** Сертификат из public/img — тот же файл, что прислали для кнопки. */
+const licenseSrc = '/img/calipso-license.jpg'
 
 function openLicense(): void {
   licenseOpen.value = true
@@ -58,6 +62,7 @@ function closeLicense(): void {
           <button
             type="button"
             class="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-control border border-line-strong bg-surface px-3.5 text-xs font-semibold text-accent transition-colors duration-150 hover:border-accent hover:bg-raised active:border-accent active:bg-accent active:text-accent-ink"
+            data-testid="mission-license-open"
             @click="openLicense"
           >
             {{ t('mission.license') }}
@@ -76,10 +81,11 @@ function closeLicense(): void {
     </div>
   </VelStage>
 
-  <!-- Модалка лицензии (фотка 1) -->
+  <!-- Модалка: фото сертификата Calipso (фотка 1) -->
   <dialog
     ref="dialog"
     class="vel-license"
+    data-testid="mission-license-dialog"
     :aria-labelledby="titleId"
   >
     <div class="vel-license__shell">
@@ -95,16 +101,20 @@ function closeLicense(): void {
         </button>
       </header>
       <div class="vel-license__body">
-        <p class="vel-label">{{ t('mission.accreditationLabel') }}</p>
-        <p class="m-0 font-semibold text-fg">{{ t('mission.accreditation') }}</p>
-        <p class="m-0 mt-3 text-sm leading-relaxed text-muted">
-          {{ t('mission.licenseBody') }}
+        <figure class="vel-license__figure">
+          <img
+            class="vel-license__img"
+            :src="licenseSrc"
+            :alt="t('mission.licenseModalTitle')"
+            width="1200"
+            height="1600"
+            loading="lazy"
+            decoding="async"
+          />
+        </figure>
+        <p class="vel-license__caption m-0">
+          {{ t('mission.accreditation') }}
         </p>
-        <ul class="vel-license__list">
-          <li>{{ t('mission.licensePoint1') }}</li>
-          <li>{{ t('mission.licensePoint2') }}</li>
-          <li>{{ t('mission.licensePoint3') }}</li>
-        </ul>
       </div>
       <footer class="vel-license__foot">
         <VelButton type="button" size="lg" @click="closeLicense">
@@ -117,8 +127,8 @@ function closeLicense(): void {
 
 <style scoped>
 .vel-license {
-  inline-size: min(100% - 1rem, 32rem);
-  max-block-size: min(90dvh, 36rem);
+  inline-size: min(100% - 1rem, 36rem);
+  max-block-size: min(92dvh, 44rem);
   overflow: hidden;
   padding: 0;
   border: 1px solid var(--color-line);
@@ -134,7 +144,7 @@ function closeLicense(): void {
 
 .vel-license__shell {
   display: flex;
-  max-block-size: min(90dvh, 36rem);
+  max-block-size: min(92dvh, 44rem);
   flex-direction: column;
 }
 
@@ -174,16 +184,39 @@ function closeLicense(): void {
 }
 
 .vel-license__body {
+  display: flex;
+  min-block-size: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.75rem;
   overflow-y: auto;
-  padding: 1.15rem 1.25rem;
+  padding: 1rem 1.15rem;
 }
 
-.vel-license__list {
-  margin: 1rem 0 0;
-  padding-inline-start: 1.15rem;
+.vel-license__figure {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-ground);
+}
+
+.vel-license__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-block-size: min(68dvh, 34rem);
+  object-fit: contain;
+  object-position: center top;
+  vertical-align: middle;
+}
+
+.vel-license__caption {
   color: var(--color-muted);
-  font-size: 0.9rem;
-  line-height: 1.5;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .vel-license__foot {
