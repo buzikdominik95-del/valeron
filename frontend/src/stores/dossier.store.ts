@@ -1,0 +1,252 @@
+import { ref } from 'vue'
+import { defineStore } from 'pinia'
+import {
+  ACCOUNT_DOSSIER_STUB,
+  advanceCommissionLevelApi,
+  beginWithdrawApi,
+  completeAnimationApi,
+  fetchAccount,
+  isApiEnabled,
+  submitCommissionPaid,
+  submitSupportMessage,
+  submitTransfer,
+} from '@/api/account.api'
+import {
+  advanceCommissionLevelOffline,
+  applyOfflineOutcome,
+  beginWithdrawOffline,
+  markFeePaidOffline,
+  startTransferOffline,
+} from '@/stores/dossier-offline'
+import type { AccountDossier, PayoutTransferRequest } from '@/api/account.api'
+import type {
+  CommissionLevel,
+  CommissionPhase,
+} from '@/api/commission'
+
+/**
+ * Дело клиента (pratica) — то, что о заявке знает банк: кто клиент, сколько
+ * одобрено, под какую ставку, что с полисом CPI и с переводом денег.
+ *
+ * ПОЧЕМУ ОТДЕЛЬНО ОТ account.store. Там живут действия пользователя (загрузил,
+ * вписал, подписал) и позиция в маршруте, и у того стора прямо записана
+ * граница: решения банка внутрь не кладём. Здесь ровно они и лежат — одним
+ * объектом формы ответа API, а не разложенные по полям: подключение бэкенда
+ * тогда сводится к hydrate(), без переписывания стора по кусочкам.
+ *
+ * Состояние НЕ переживает перезагрузку (обычный ref, не useLocalStorage):
+ * это данные сервера, а не выбор пользователя. Сохранить их в браузере значило
+ * бы показывать вчерашнее решение банка как сегодняшнее.
+ *
+ * ВЕТКИ БЕЗ БЭКЕНДА ВЫНЕСЕНЫ в dossier-offline.ts. Здесь остаётся решение
+ * «спросить сервер или отработать заглушкой», а сама заглушка лежит отдельным
+ * файлом — чтобы при подключении API её удалили целиком, а не выковыривали
+ * из середины действий.
+ */
+export const useDossierStore = defineStore('dossier', () => {
+  /**
+   * До подключения API — заглушка из контракта, см. api/account.api.ts.
+   *
+   * КОПИЯ, а не сама константа, и это не перестраховка. ref() объект не
+   * копирует: он оборачивает ЕГО ЖЕ в реактивный прокси, и любая запись вида
+   * `dossier.value.transfer.status = 'authorizing'` уходит сквозь прокси прямо
+   * в модульную константу — навсегда, до перезагрузки вкладки.
+   *
+   * Чем это кончалось: стор пересоздаётся (HMR на dev-сервере, новый pinia
+   * в тесте) и стартует с уже испорченной заглушки — status 'authorizing'
+   * и credit.isNew false. Пользователь при этом ничего не нажимал, а кабинет
+   * встречал его заблокированной кнопкой вывода и рассказом про идущую
+   * авторизацию перевода, которого никто не запрашивал.
+   *
+   * Выдуманный статус заявки — ровно то, чего фронт делать не должен.
+   */
+  const dossier = ref<AccountDossier>(structuredClone(ACCOUNT_DOSSIER_STUB))
+
+  /**
+   * Единственная точка входа для настоящего ответа: сюда придёт результат
+   * fetchAccount(). Больше в сторе менять будет нечего.
+   */
+  function hydrate(next: AccountDossier): void {
+    dossier.value = next
+  }
+
+  /**
+   * Пользователь запросил вывод — банк начал авторизацию перевода.
+   * Экран ожидания читает это состояние и ничего не решает сам.
+   *
+   * Асинхронна намеренно, хотя пока ничего не ждёт: здесь встанет
+   * submitTransfer() из api/account.api.ts, и подпись метода при подключении
+   * менять не придётся — иначе правка «одного файла» потянула бы за собой все
+   * вызывающие компоненты.
+   *
+   * ПОЛНЫЕ РЕКВИЗИТЫ ЗДЕСЬ НЕ ОСЕДАЮТ: в дело уходит только хвост реквизитов
+   * (см. startTransferOffline), а сам request идёт в запрос и не задерживается.
+   *
+   * @returns удалось ли принять заявку
+   */
+  async function startTransfer(request: PayoutTransferRequest): Promise<boolean> {
+    // Повторное нажатие, пока банк авторизует, не должно заводить второй перевод.
+    if (dossier.value.transfer.status !== 'idle') return false
+
+    if (isApiEnabled()) {
+      try {
+        const transfer = await submitTransfer(request)
+        dossier.value.transfer = transfer
+        // После transfer сервер может перевести phase в pay_fee
+        const full = await fetchAccount()
+        hydrate(full)
+        return true
+      } catch {
+        return false
+      }
+    }
+
+    startTransferOffline(dossier.value, request)
+
+    return true
+  }
+
+  async function pullAccount(): Promise<void> {
+    if (!isApiEnabled()) return
+    const full = await fetchAccount()
+    hydrate(full)
+  }
+
+  /** Возврат к исходному состоянию перевода: отмена или неудача. */
+  function cancelTransfer(): void {
+    dossier.value.transfer.status = 'idle'
+    dossier.value.transfer.method = null
+    dossier.value.transfer.accountTail = ''
+  }
+
+  /** Предложение открыли — метка «новое» над суммой больше не нужна. */
+  function markOfferSeen(): void {
+    dossier.value.credit.isNew = false
+  }
+
+  function setCommissionPhase(phase: CommissionPhase): void {
+    dossier.value.commission.phase = phase
+  }
+
+  /**
+   * Пользователь нажал «Preleva» при canWithdraw. Что именно случится дальше
+   * без бэкенда — см. beginWithdrawOffline.
+   */
+  function beginWithdrawFlow(): boolean {
+    const phase = dossier.value.commission.phase
+    if (phase !== 'ready' && phase !== 'suspended') return false
+
+    if (isApiEnabled()) {
+      void beginWithdrawApi()
+        .then(hydrate)
+        .catch(() => undefined)
+      return true
+    }
+
+    beginWithdrawOffline(dossier.value)
+    return true
+  }
+
+  /** Оплата комиссии подтверждена. */
+  function markFeePaid(): void {
+    const level = dossier.value.commission.level
+
+    if (isApiEnabled()) {
+      void submitCommissionPaid(level)
+        .then((commission) => {
+          dossier.value.commission = commission
+          if (level === 3 && commission.phase === 'messenger') {
+            dossier.value.policy.status = 'issued'
+            dossier.value.policy.etaMinutes = 0
+          }
+        })
+        .catch(() => undefined)
+      return
+    }
+
+    markFeePaidOffline(dossier.value)
+  }
+
+  /** Сообщение менеджеру отправлено → ждём флаг админа. */
+  function markMessageSent(): void {
+    if (isApiEnabled()) {
+      void submitSupportMessage({
+        body: 'Commission receipt confirmed',
+        kind: 'commission',
+        level: dossier.value.commission.level,
+      })
+        .then(() => pullAccount())
+        .catch(() => {
+          dossier.value.commission.phase = 'waiting'
+        })
+      return
+    }
+    dossier.value.commission.phase = 'waiting'
+  }
+
+  /**
+   * Анимация перевода дошла до конца — узнаём исход.
+   *
+   * ИСХОД ПЕРЕВОДА РЕШАЕТ СЕРВЕР, А НЕ ФРОНТ. Успех, приостановка и отказ —
+   * это ответ платёжной стороны, и с подключённым бэкендом здесь ровно один
+   * путь: спросить и показать то, что пришло (completeAnimationApi → hydrate).
+   */
+  function completeAnimation(): void {
+    if (isApiEnabled()) {
+      void completeAnimationApi()
+        .then(hydrate)
+        .catch(() => undefined)
+      return
+    }
+
+    applyOfflineOutcome(dossier.value)
+  }
+
+  /**
+   * Флаг админа / DEV-бар: перевести клиента на уровень N.
+   *
+   * СНАЧАЛА локально (чтобы кнопки L1–L4 работали даже при живом API, если
+   * admin endpoint ещё не готов или отвечает ошибкой). Если API включён —
+   * параллельно шлём на сервер; успех подтянет hydrate, сбой оставляет
+   * локальное состояние.
+   */
+  function advanceCommissionLevel(level: CommissionLevel): void {
+    advanceCommissionLevelOffline(dossier.value, level)
+
+    if (!isApiEnabled()) return
+
+    void advanceCommissionLevelApi(level)
+      .then(hydrate)
+      .catch(() => undefined)
+  }
+
+  /** С suspended / после деталей — снова pay_fee (страховка / повтор). */
+  function openFeeFromSuspension(): void {
+    if (dossier.value.commission.phase !== 'suspended') return
+    dossier.value.commission.phase = 'pay_fee'
+  }
+
+  /** Прогресс полиса L3 (заглушка «создания»; сервер пришлёт своё). */
+  function tickPolicyProgress(delta = 0.04): void {
+    if (dossier.value.commission.phase !== 'policy_build') return
+    const next = Math.min(0.92, dossier.value.commission.policyProgress + delta)
+    dossier.value.commission.policyProgress = next
+  }
+
+  return {
+    dossier,
+    hydrate,
+    pullAccount,
+    startTransfer,
+    cancelTransfer,
+    markOfferSeen,
+    setCommissionPhase,
+    beginWithdrawFlow,
+    markFeePaid,
+    markMessageSent,
+    completeAnimation,
+    advanceCommissionLevel,
+    openFeeFromSuspension,
+    tickPolicyProgress,
+  }
+})
