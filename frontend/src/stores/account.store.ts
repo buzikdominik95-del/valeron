@@ -143,6 +143,13 @@ export const useAccountStore = defineStore('account', () => {
   const docsParkedInProfile = useLocalStorage<boolean>('velora:docs:parkedProfile', false)
 
   /**
+   * До какого уровня commission уже «посмотрели» Prestito после перехода.
+   * 0 — пульс не гасили; 2/3 — после L1→L2 / L2→L3 открывали Prestito.
+   * Кнопка мигает, пока currentLevel > prestitoPulseSeenLevel (для 2 и 3).
+   */
+  const prestitoPulseSeenLevel = useLocalStorage<number>('velora:account:prestitoSeen', 0)
+
+  /**
    * Подтверждена ли почта. Стоит рядом с contractSigned и по той же причине:
    * это действие пользователя, а не решение банка — он открыл письмо и ввёл код.
    *
@@ -327,6 +334,11 @@ export const useAccountStore = defineStore('account', () => {
     hasUnreadNotices.value = false
     supportUnreadCount.value = 0
     emailVerified.value = false
+    prestitoPulseSeenLevel.value = 0
+  }
+
+  function markPrestitoSeen(level: number): void {
+    prestitoPulseSeenLevel.value = Math.max(prestitoPulseSeenLevel.value, Math.floor(level))
   }
 
   return {
@@ -337,6 +349,7 @@ export const useAccountStore = defineStore('account', () => {
     steps,
     documentsUploaded,
     docsParkedInProfile,
+    prestitoPulseSeenLevel,
     ibanProvided,
     ibanMasked,
     ibanFull,
@@ -359,6 +372,7 @@ export const useAccountStore = defineStore('account', () => {
     bumpSupportUnread,
     clearSupportUnread,
     setSupportUnread,
+    markPrestitoSeen,
     reset,
   }
 })

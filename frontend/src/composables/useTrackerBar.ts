@@ -42,6 +42,8 @@ export interface TrackerStepItem {
   canOpen: boolean
   goLabel: string
   statusLabel: string
+  /** Сильный пульс — следующий шаг онбординга (docs / firma). */
+  callToAction: boolean
 }
 
 export interface TrackerBar {
@@ -77,6 +79,23 @@ export function useTrackerBar(root: Ref<HTMLElement | null>): TrackerBar {
     return allDone.value ? total : Math.min(total, doneCount.value + 1)
   })
 
+  /*
+   * Онбординг без coach-оверлея: пульс на step bar.
+   * 1) documents пока не verified
+   * 2) signature (IBAN + firma) после docs, пока не signed
+   */
+  const onboardingCall = computed<'documents' | 'signature' | null>(() => {
+    const docsDone =
+      useAccountStore().documentsUploaded === true ||
+      steps.value.find((s) => s.id === 'documents')?.status === 'done'
+    if (!docsDone) return 'documents'
+    const sigDone =
+      useAccountStore().contractSigned === true ||
+      steps.value.find((s) => s.id === 'signature')?.status === 'done'
+    if (!sigDone) return 'signature'
+    return null
+  })
+
   /* Все строки шага собираются здесь и уходят в кружок уже переведёнными:
      ключи i18n знает полоса, а кружок — только свою разметку. */
   const items = computed<TrackerStepItem[]>(() =>
@@ -90,6 +109,9 @@ export function useTrackerBar(root: Ref<HTMLElement | null>): TrackerBar {
         step.id === 'simulation' ||
         step.id === 'approval'
 
+      const callToAction =
+        onboardingCall.value !== null && step.id === onboardingCall.value
+
       return {
         ...step,
         title,
@@ -98,6 +120,7 @@ export function useTrackerBar(root: Ref<HTMLElement | null>): TrackerBar {
         canOpen,
         goLabel: t('account.progress.goStep', { step: title }),
         statusLabel: t(`account.tracker.status.${step.status}`),
+        callToAction,
       }
     }),
   )

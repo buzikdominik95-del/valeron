@@ -3,8 +3,10 @@ import { computed, ref, useId, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useAccount } from '@/composables/useAccount'
+import { useCommission } from '@/composables/useCommission'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import { useSimulatorStore } from '@/stores/simulator.store'
+import { COMMISSION_FEE_BY_LEVEL } from '@/api/commission'
 import { buildLoanPlan } from '@/lib/loan-schedule'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelPersonalData from '@/features/account/VelPersonalData.vue'
@@ -19,6 +21,7 @@ const open = defineModel<boolean>('open', { default: false })
 
 const { t, n } = useI18n()
 const { approvedAmount, ratePercent } = useAccount()
+const { level } = useCommission()
 const { termMonths, purpose } = storeToRefs(useSimulatorStore())
 
 const uid = useId()
@@ -37,13 +40,16 @@ const firstDate = computed(() => {
   return d.toISOString().slice(0, 10)
 })
 
+/** Та же сумма, что на карточке баланса: одобрено + оплаченные комиссии. */
+const loanPrincipalCents = computed(() => {
+  let cents = Math.round(approvedAmount.value * 100)
+  if (level.value >= 2) cents += COMMISSION_FEE_BY_LEVEL[1].amountCents
+  if (level.value >= 3) cents += COMMISSION_FEE_BY_LEVEL[2].amountCents
+  return cents
+})
+
 const plan = computed(() =>
-  buildLoanPlan(
-    Math.round(approvedAmount.value * 100),
-    ratePercent.value,
-    months.value,
-    firstDate.value,
-  ),
+  buildLoanPlan(loanPrincipalCents.value, ratePercent.value, months.value, firstDate.value),
 )
 
 const purposeLabel = computed(() => {

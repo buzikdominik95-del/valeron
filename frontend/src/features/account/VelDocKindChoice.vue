@@ -39,7 +39,12 @@ const groupName = `vel-doc-kind-${useId()}`
     <legend class="vel-label vel-dockind__legend">{{ t('account.docs.kindLegend') }}</legend>
 
     <div class="vel-dockind__rows">
-      <label v-for="option in DOC_KINDS" :key="option" class="vel-dockind__row">
+      <label
+        v-for="option in DOC_KINDS"
+        :key="option"
+        class="vel-dockind__row"
+        :class="{ 'vel-dockind__row--call': model === null }"
+      >
         <input v-model="model" class="sr-only" type="radio" :name="groupName" :value="option" />
 
         <span class="vel-dockind__mark" aria-hidden="true">
@@ -102,6 +107,27 @@ const groupName = `vel-doc-kind-${useId()}`
 
 .vel-dockind__row:hover {
   border-color: var(--color-accent);
+}
+
+/* Пока вид не выбран — строки пульсируют (онбординг: куда жать). */
+.vel-dockind__row--call {
+  border-color: color-mix(in oklab, var(--color-accent) 55%, var(--color-line));
+  animation: vel-dockind-call 1.15s ease-in-out infinite;
+}
+
+@keyframes vel-dockind-call {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-accent) 40%, transparent);
+    filter: brightness(1);
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 8px color-mix(in oklab, var(--color-accent) 0%, transparent),
+      0 0 14px 2px color-mix(in oklab, var(--color-accent) 32%, transparent);
+    filter: brightness(1.06);
+  }
 }
 
 /* Круглая подложка знака. Круг здесь по прямой просьбе владельца продукта — значение
@@ -198,6 +224,11 @@ const groupName = `vel-doc-kind-${useId()}`
      источником движения — снимаем его целиком. */
   .vel-dockind__row {
     transition: none;
+  }
+
+  .vel-dockind__row--call {
+    animation: none;
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent) 30%, transparent);
   }
 }
 </style>

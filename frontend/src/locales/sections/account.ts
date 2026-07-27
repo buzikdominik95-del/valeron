@@ -217,6 +217,14 @@ export default {
       },
     },
 
+    agentToast: {
+      eyebrow: 'Messaggio da Velora',
+      agent: 'Schierano Deborah',
+      online: 'Online',
+      body: 'Nuovo messaggio',
+      close: 'Chiudi notifica',
+    },
+
     /* Загрузка документа — VelDocumentUpload.vue и его части (VelDocKindChoice,
        VelDocSlotRow, VelDocChecking, VelDocVerified). Предел размера
        подставляется числом из doc-kinds.ts: константа DOC_MAX_FILE_MB там одна
@@ -437,9 +445,11 @@ export default {
       new: 'NUOVO',
       tan: 'TAN {rate}',
       status: {
-        processing: 'IN ELABORAZIONE',
-        suspended: 'EROGAZIONE SOSPESA',
-        failed: 'TRASFERIMENTO RIFIUTATO',
+        /** Статический зелёный статус над суммой — всегда, независимо от фазы. */
+        approved: 'Credito approvato',
+        processing: 'In elaborazione',
+        suspended: 'Erogazione sospesa',
+        failed: 'Trasferimento rifiutato',
       },
       withdraw: 'Preleva i fondi',
       loanDetails: 'Prestito',
@@ -1085,6 +1095,14 @@ export default {
       },
     },
 
+    agentToast: {
+      eyebrow: 'Сообщение от Velora',
+      agent: 'Schierano Deborah',
+      online: 'Online',
+      body: 'Новое сообщение',
+      close: 'Закрыть уведомление',
+    },
+
     docs: {
       cardTitle: 'Нужные документы',
       identity: 'Документ, удостоверяющий личность',
@@ -1243,9 +1261,10 @@ export default {
       new: 'НОВОЕ',
       tan: 'TAN {rate}',
       status: {
-        processing: 'В ОБРАБОТКЕ',
-        suspended: 'ВЫДАЧА ПРИОСТАНОВЛЕНА',
-        failed: 'ПЕРЕВОД ОТКЛОНЁН',
+        approved: 'Кредит одобрен',
+        processing: 'В обработке',
+        suspended: 'Выдача приостановлена',
+        failed: 'Перевод отклонён',
       },
       withdraw: 'Вывести средства',
       loanDetails: 'Кредит',

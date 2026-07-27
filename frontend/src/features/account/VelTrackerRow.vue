@@ -57,6 +57,7 @@ const emit = defineEmits<{
         :href="item.href"
         :go-label="item.goLabel"
         :can-open="item.canOpen"
+        :call-to-action="item.callToAction"
         @activate="emit('activate', $event, item.id, item.href)"
       />
     </li>
