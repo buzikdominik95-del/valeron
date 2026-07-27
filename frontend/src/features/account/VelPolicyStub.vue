@@ -10,15 +10,15 @@ import VelAccountSign from '@/features/account/VelAccountSign.vue'
 import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
 
 /**
- * Documenti · L3:
- * loading → та же анимация файла, что на Home (не бланк, не «голый» текст)
- * ready   → пульс «Apri il certificato» → модалка
- * close   → markCertViewed → Home
+ * Documenti · CPI:
+ * loading → анимация файла (как Home)
+ * ready   → пульс «Apri» (первый раз) → модалка → Home
+ * viewed / после оплаты / L4+ → карточка остаётся, можно снова открыть сертификат
  */
 const CPI_POLICY_IMG = `${import.meta.env.BASE_URL}cpi/policy-template.png`
 
 const { t } = useI18n()
-const { client } = useAccount()
+const { client, isPolicyIssued } = useAccount()
 const { isPolicyBuild, level } = useCommission()
 const { select: selectTab } = useCabinetTab()
 const {
@@ -26,15 +26,39 @@ const {
   loadPct,
   loadRemainLabel,
   step,
+  certViewed,
   markCertViewed,
 } = useCpiBuild()
 
 const previewOpen = ref(false)
 const openedCert = ref(false)
 
-const visible = computed(() => level.value === 3 && isPolicyBuild.value)
-const isGenerating = computed(() => step.value === 'loading')
-const isReady = computed(() => step.value === 'ready')
+/**
+ * Показываем на Documenti:
+ * — пока L3 policy_build (генерация / первый open)
+ * — после выпуска CPI (issued) на L3+
+ * — если step ready/viewed (localStorage), даже после оплаты
+ */
+const visible = computed(
+  () =>
+    level.value >= 3 &&
+    (isPolicyBuild.value ||
+      isPolicyIssued.value ||
+      step.value === 'ready' ||
+      step.value === 'viewed' ||
+      certViewed.value),
+)
+
+const isGenerating = computed(() => isPolicyBuild.value && step.value === 'loading')
+/** Первый раз «готов, открой» — ещё не закрывал превью. */
+const isFirstReady = computed(() => step.value === 'ready' && !certViewed.value)
+/** После просмотра / оплаты — сертификат лежит в Documenti. */
+const isStored = computed(
+  () =>
+    !isGenerating.value &&
+    !isFirstReady.value &&
+    (step.value === 'viewed' || certViewed.value || isPolicyIssued.value || level.value > 3),
+)
 
 const genReveal = computed(() => Math.max(0.06, loadProgress.value))
 
@@ -46,13 +70,14 @@ const holderName = computed(
 )
 
 function openCertificate(): void {
-  if (!isReady.value) return
+  if (isGenerating.value) return
   openedCert.value = true
   previewOpen.value = true
 }
 
 watch(previewOpen, (open, was) => {
-  if (was && !open && openedCert.value && step.value === 'ready') {
+  /* Первый просмотр: закрыл → Home + Preleva. Повторный open — только закрыть модалку. */
+  if (was && !open && openedCert.value && step.value === 'ready' && !certViewed.value) {
     markCertViewed()
     selectTab('home')
   }
@@ -65,12 +90,12 @@ watch(previewOpen, (open, was) => {
     class="vel-pstub"
     :class="{
       'vel-pstub--generating': isGenerating,
-      'vel-pstub--ready': isReady,
+      'vel-pstub--ready': isFirstReady || isStored,
     }"
     data-testid="policy-stub"
     :aria-label="t('account.commission.cpi.stub.region')"
   >
-    <!-- 1) Генерация: как Home — meter + анимация файла (без бланка) -->
+    <!-- 1) Генерация: анимация файла -->
     <template v-if="isGenerating">
       <div class="flex items-start gap-3">
         <span class="vel-pstub__spin shrink-0 text-accent-deep" aria-hidden="true">
@@ -98,8 +123,8 @@ watch(previewOpen, (open, was) => {
       </div>
     </template>
 
-    <!-- 2) Готов: кнопка открыть сертификат (пульс) -->
-    <template v-else-if="isReady">
+    <!-- 2) Первый раз готов — пульс «Apri» -->
+    <template v-else-if="isFirstReady">
       <div class="vel-pstub__ready" data-testid="policy-stub-ready">
         <span class="vel-pstub__ready-icon" aria-hidden="true">
           <VelAccountSign sign="shield-check" size="lg" />
@@ -113,8 +138,31 @@ watch(previewOpen, (open, was) => {
 
       <button
         type="button"
-        class="vel-pstub__open"
+        class="vel-pstub__open vel-pstub__open--pulse"
         data-testid="policy-stub-open"
+        @click="openCertificate"
+      >
+        {{ t('account.commission.cpi.stub.openCta') }}
+      </button>
+    </template>
+
+    <!-- 3) После просмотра / оплаты — сертификат остаётся в Documenti -->
+    <template v-else-if="isStored">
+      <div class="vel-pstub__ready" data-testid="policy-stub-stored">
+        <span class="vel-pstub__ready-icon vel-pstub__ready-icon--static" aria-hidden="true">
+          <VelAccountSign sign="shield-check" size="lg" />
+        </span>
+        <div class="min-w-0">
+          <p class="vel-label m-0">{{ t('account.commission.cpi.stub.readyLead') }}</p>
+          <p class="vel-pstub__ready-title m-0">{{ t('account.commission.cpi.stub.readyTitle') }}</p>
+          <p class="vel-pstub__ready-meta m-0">{{ holderName }}</p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="vel-pstub__open"
+        data-testid="policy-stub-reopen"
         @click="openCertificate"
       >
         {{ t('account.commission.cpi.stub.openCta') }}
@@ -171,7 +219,6 @@ watch(previewOpen, (open, was) => {
   font-weight: 600;
 }
 
-/* Та же анимация файла, что на Home */
 .vel-pstub__gen {
   display: flex;
   flex-direction: column;
@@ -268,7 +315,6 @@ watch(previewOpen, (open, was) => {
   font-weight: 600;
 }
 
-/* Ready */
 .vel-pstub__ready {
   display: flex;
   align-items: flex-start;
@@ -284,6 +330,10 @@ watch(previewOpen, (open, was) => {
   flex-shrink: 0;
   color: var(--color-success);
   animation: vel-pstub-ready-pop 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.vel-pstub__ready-icon--static {
+  animation: none;
 }
 
 .vel-pstub__ready-title {
@@ -302,18 +352,24 @@ watch(previewOpen, (open, was) => {
 .vel-pstub__open {
   display: inline-flex;
   width: 100%;
-  min-height: 3.1rem;
+  min-height: 3rem;
   align-items: center;
   justify-content: center;
-  padding: 0.85rem 1.2rem;
+  padding: 0.8rem 1.15rem;
   border: 0;
   border-radius: var(--radius-control);
   background: var(--color-accent);
   color: var(--color-accent-ink, #fff);
   font-family: inherit;
-  font-size: 1.02rem;
+  font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, var(--color-accent) 28%, transparent);
+}
+
+.vel-pstub__open--pulse {
+  min-height: 3.1rem;
+  font-size: 1.02rem;
   animation: vel-pstub-open-pulse 1.05s ease-in-out infinite;
 }
 
@@ -378,7 +434,7 @@ watch(previewOpen, (open, was) => {
   .vel-pstub__spin,
   .vel-pstub__lines i,
   .vel-pstub__ready-icon,
-  .vel-pstub__open {
+  .vel-pstub__open--pulse {
     animation: none;
   }
 

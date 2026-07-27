@@ -25,7 +25,7 @@ import VelButton from '@/components/ui/VelButton.vue'
  */
 const { t } = useI18n()
 const slots = useSlots()
-const { documents, steps } = useAccount()
+const { documents, steps, isPolicyIssued } = useAccount()
 const { documentsUploaded } = storeToRefs(useAccountStore())
 const { level, isPolicyBuild } = useCommission()
 const { select } = useCabinetTab()
@@ -33,8 +33,14 @@ const { select } = useCabinetTab()
 const hasDocs = computed(() => documents.value.length > 0)
 const hasUpload = computed(() => typeof slots.upload === 'function')
 
-/** L3: пока идёт получение CPI — заготовка полиса на Documenti. */
-const showPolicyStub = computed(() => level.value === 3 && isPolicyBuild.value)
+/**
+ * CPI на Documenti:
+ * — во время L3 policy_build (генерация)
+ * — после выпуска (issued) — карточка остаётся и после оплаты / L4+
+ */
+const showPolicyStub = computed(
+  () => level.value >= 3 && (isPolicyBuild.value || isPolicyIssued.value),
+)
 
 /** После accept секция ID уехала в Profilo — короткая подсказка. */
 const docsMovedToProfile = computed(
