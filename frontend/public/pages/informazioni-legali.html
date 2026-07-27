@@ -1,25 +1,117 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Informazioni legali · Velora</title>
-  <style>
-    body{margin:0;font-family:Inter,system-ui,sans-serif;background:#f4f7fb;color:#0f1b2d}
-    main{max-width:40rem;margin:0 auto;padding:2rem 1.25rem}
-    a{color:#1f6feb;font-weight:600;text-decoration:none}
-    .card{background:#fff;border:1px solid #e4e9ef;border-radius:14px;padding:1.5rem}
-    h1{margin:0 0 .75rem;font-size:1.6rem}
-    p{color:#5b6b7c;line-height:1.55}
-  </style>
+  <meta name="description" content="Informazioni legali di Velora: dati societari, ruolo nella distribuzione del credito, note su trasparenza e reclami." />
+  <link rel="icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/pages/assets/page.css" />
 </head>
 <body>
-  <main>
-    <p><a href="/">← Velora</a></p>
-    <article class="card">
+  <header class="site-head">
+    <div class="site-head__inner">
+      <a class="logo" href="/"><svg class="logo__mark" viewBox="0 0 32 32" role="img" aria-label="Velora"><path class="logo__base" d="M4 6 L14.5 26.5"/><path class="logo__rise" d="M14.5 26.5 L28 3.5"/></svg><span class="logo__word">Velora</span></a>
+      <a class="back" href="/">← Torna al sito</a>
+    </div>
+  </header>
+
+  <nav class="crumbs" aria-label="Percorso">
+    <a href="/">Home</a> › <a href="/#informazioni">Informazioni</a> › <span aria-current="page">Informazioni legali</span>
+  </nav>
+
+  <section class="hero">
+    <div class="hero__inner">
+      <p class="eyebrow">Informazioni · Note legali</p>
       <h1>Informazioni legali</h1>
-      <p>Pagina informativa Velora. I contenuti completi saranno aggiornati con il team legale. Per assistenza: canale Assistenza nel account.</p>
-    </article>
+      <p class="lead">
+        Chi siamo, quale ruolo abbiamo nel percorso del credito e a chi rivolgerti.
+        Questa pagina raccoglie i riferimenti principali; i testi contrattuali completi
+        sono forniti nel prospetto informativo di ogni pratica.
+      </p>
+    </div>
+  </section>
+
+  <main>
+    <section class="band">
+      <div class="wrap wrap--narrow">
+        <div class="section-head">
+          <p class="label">Dati societari</p>
+          <h2>Titolare del sito</h2>
+        </div>
+        <dl class="deflist">
+          <div><dt>Denominazione</dt><dd>Velora — marchio dimostrativo</dd></div>
+          <div><dt>Sede</dt><dd>Italia (indirizzo dimostrativo)</dd></div>
+          <div><dt>P. IVA / C.F.</dt><dd>00000000000 <span class="fineprint">(valore dimostrativo)</span></dd></div>
+          <div><dt>PEC</dt><dd>velora@pec.example <span class="fineprint">(indirizzo dimostrativo)</span></dd></div>
+        </dl>
+        <p class="note" style="margin-top:1.25rem">
+          <strong>Avviso.</strong> Velora è un progetto dimostrativo. I dati identificativi qui
+          riportati sono segnaposto e verranno completati con i riferimenti reali e con
+          le iscrizioni ai registri competenti prima di qualsiasi uso in produzione.
+        </p>
+      </div>
+    </section>
+
+    <section class="band band--tint">
+      <div class="wrap wrap--narrow">
+        <div class="section-head">
+          <p class="label">Ruolo di Velora</p>
+          <h2>Cosa facciamo e cosa non facciamo</h2>
+        </div>
+        <ul class="check">
+          <li>Raccogliamo la richiesta e assistiamo il cliente lungo la pratica.</li>
+          <li>Trasmettiamo il fascicolo alla rete di banche partner per la valutazione.</li>
+          <li>Non eroghiamo direttamente il credito: l’erogazione spetta agli istituti.</li>
+          <li>Non decidiamo il merito creditizio, valutato dagli istituti partner.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap wrap--narrow">
+        <div class="section-head">
+          <p class="label">Trasparenza</p>
+          <h2>Condizioni economiche</h2>
+          <p>
+            Prima della firma ricevi il prospetto informativo con TAN, TAEG, importo,
+            durata e ogni costo applicato. Il messaggio pubblicitario ha finalità
+            promozionale: le condizioni definitive sono quelle del contratto.
+          </p>
+        </div>
+        <div class="section-head" style="margin-top:1.5rem">
+          <p class="label">Reclami</p>
+          <h2>Come segnalare un problema</h2>
+          <p>
+            Puoi inoltrare un reclamo tramite il canale Assistenza dell’area personale o
+            agli indirizzi indicati nella pagina Contatti. I reclami sono gestiti secondo
+            tempi e modalità comunicati al cliente.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <div class="cta-band">
+          <h2>Hai bisogno di un chiarimento?</h2>
+          <p>Il nostro team è a disposizione per ogni domanda su condizioni, documenti e pratica.</p>
+          <a class="btn btn-primary" href="/pages/contatti.html">Vai ai contatti →</a>
+        </div>
+      </div>
+    </section>
   </main>
+
+  <footer class="page-foot">
+    <div class="page-foot__inner">
+      <span>© Velora — informazioni legali. Contenuti dimostrativi.</span>
+      <nav>
+        <a href="/pages/privacy.html">Privacy</a>
+        <a href="/pages/governance.html">Governance</a>
+        <a href="/pages/garanzia.html">Regole di garanzia</a>
+        <a href="/pages/mappa-sito.html">Mappa del sito</a>
+      </nav>
+    </div>
+  </footer>
 </body>
 </html>
