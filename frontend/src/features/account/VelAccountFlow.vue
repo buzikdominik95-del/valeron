@@ -113,6 +113,8 @@ const chosenFiles = ref<File[]>([])
 const toastText = ref<string | null>(null)
 
 const TOAST_MS = 2800
+/** Toast консультанта сверху: 7 с, потом сам закрывается. */
+const AGENT_TOAST_MS = 7000
 
 /*
  * Таймер из VueUse, а не голый setTimeout: useTimeoutFn снимает его сам при
@@ -130,6 +132,14 @@ const { start: hideToastLater } = useTimeoutFn(
     toastText.value = null
   },
   TOAST_MS,
+  { immediate: false },
+)
+
+const { start: hideAgentToastLater } = useTimeoutFn(
+  () => {
+    agentToastOpen.value = false
+  },
+  AGENT_TOAST_MS,
   { immediate: false },
 )
 
@@ -169,10 +179,11 @@ function unlockFirmaAfterDocs(): void {
   account.advanceTo('signature')
 }
 
-/** Toast консультанта сверху + badge на чате (как после docs / после step bar). */
+/** Toast консультанта сверху + badge на чате; через 7 с сам закрывается. */
 function showAgentMessageToast(): void {
   account.bumpSupportUnread(1)
   agentToastOpen.value = true
+  hideAgentToastLater()
 }
 
 /** Только после verify (не при выборе файла) — unlock firma + toast + chat badge. */
