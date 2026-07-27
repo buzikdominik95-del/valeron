@@ -42,7 +42,7 @@ import { useNotices } from '@/composables/useNotices'
 const { t } = useI18n()
 const account = useAccountStore()
 const dossier = useDossierStore()
-const { steps, canWithdraw, isAuthorizing } = useAccount()
+const { steps, canWithdraw, isAuthorizing, allDone } = useAccount()
 const {
   isPayFee,
   isMessenger,
@@ -159,12 +159,17 @@ function unlockFirmaAfterDocs(): void {
   account.advanceTo('signature')
 }
 
+/** Toast консультанта сверху + badge на чате (как после docs / после step bar). */
+function showAgentMessageToast(): void {
+  account.bumpSupportUnread(1)
+  agentToastOpen.value = true
+}
+
 /** Только после verify (не при выборе файла) — unlock firma + toast + chat badge. */
 function onDocumentsVerified(): void {
   unlockFirmaAfterDocs()
   notices.push('documentVerified')
-  account.bumpSupportUnread(1)
-  agentToastOpen.value = true
+  showAgentMessageToast()
   showToast(t('account.docs.toastReady'))
 }
 
@@ -183,6 +188,17 @@ function onContractSignConfirm(dataUrl: string): void {
   account.markDone('signature')
   showToast(t('account.contract.toastSigned'))
 }
+
+/*
+ * Все 5 шагов step bar закрыты (обычно после Firma) → такой же toast
+ * «Nuovo messaggio», badge на Assistenza и колокольчике.
+ * Только переход false → true: не дублируем при reload с уже готовым ЛК.
+ * Notice «contractSigned» уже пушит useNotices при markContractSigned.
+ */
+watch(allDone, (done, wasDone) => {
+  if (!done || wasDone !== false) return
+  showAgentMessageToast()
+})
 
 function openContractIban(): void {
   contractIbanOpen.value = true
