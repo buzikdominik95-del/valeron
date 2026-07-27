@@ -22,18 +22,32 @@ export function useMessengerDraft() {
   const sending = ref(false)
   const sent = ref(false)
 
-  const templateBody = computed(() =>
-    t(`account.commission.messenger.templates.${feeReason.value}`, {
-      name: client.value.fullName || client.value.firstName,
+  const templateBody = computed(() => {
+    const name =
+      client.value.fullName.trim() ||
+      client.value.firstName.trim() ||
+      'Cliente'
+    const amount =
+      feeEuros.value > 0
+        ? feeEuros.value.toLocaleString('it-IT', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+          })
+        : String(feeEuros.value)
+    return t(`account.commission.messenger.templates.${feeReason.value}`, {
+      name,
       level: level.value,
-      amount: feeEuros.value,
-    }),
-  )
+      amount,
+    })
+  })
 
   watch(
     templateBody,
     (text) => {
-      if (!sent.value) draft.value = text
+      if (sent.value) return
+      if (text.trim() === '') return
+      /* Пока не отправили — в поле всегда заготовка (как на эталоне). */
+      draft.value = text
     },
     { immediate: true },
   )
