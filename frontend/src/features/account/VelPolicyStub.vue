@@ -3,22 +3,29 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
+import { useCpiBuild } from '@/composables/useCpiBuild'
 
 /**
  * Заготовка полиса CPI на вкладке Documenti (L3 · policy_build).
- * Пока сертификат «готовится» на Home — здесь формируется визуальная
- * bozza: шаблон policy-template.png проявляется по progress.
+ * Прогресс тот же, что meter на Home (useCpiBuild) — не обнуляется.
  */
 const CPI_POLICY_IMG = `${import.meta.env.BASE_URL}cpi/policy-template.png`
 
 const { t } = useI18n()
 const { client } = useAccount()
-const { policyProgress, isPolicyBuild, level } = useCommission()
+const { isPolicyBuild, level } = useCommission()
+const { loadProgress, step } = useCpiBuild()
 
 const visible = computed(() => level.value === 3 && isPolicyBuild.value)
 
-/** 0…1, не ниже 0.06 чтобы лист уже был чуть виден. */
-const reveal = computed(() => Math.min(1, Math.max(0.06, policyProgress.value)))
+/**
+ * 0…1: loading — loadProgress; после ready — лист почти полный.
+ * min 0.06 — чтобы рамка уже была видна.
+ */
+const reveal = computed(() => {
+  if (step.value === 'loading') return Math.min(1, Math.max(0.06, loadProgress.value))
+  return 1
+})
 
 const pct = computed(() => Math.round(reveal.value * 100))
 
