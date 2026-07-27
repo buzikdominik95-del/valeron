@@ -823,12 +823,22 @@ export default {
           checkbox: 'Confermo di aver consultato il contratto',
           cta: 'Conferma',
         },
+        /* После Conferma: fullscreen loading → ok → modale commissione */
+        approval: {
+          loadingAria: 'Verifica in corso',
+          okAria: 'Verifica approvata',
+          loading: 'Verifica in corso…',
+          loadingHint: 'Stiamo controllando la conferma di lettura.',
+          ok: 'Conferma approvata',
+          okHint: 'Apriamo il dettaglio della commissione.',
+        },
         verify: {
           overline: 'Fondi di verifica',
           title: 'Fondi di verifica',
           body: 'Per proseguire paga i fondi di verifica. Dopo il pagamento passerai alla chat con il consulente.',
           amountLabel: 'Importo da versare',
           payCta: 'Paga',
+          openFeeCta: 'Apri dettaglio commissione',
         },
         payConfirm: {
           overline: 'Conferma',
@@ -1576,12 +1586,23 @@ export default {
           checkbox: 'Подтверждаю, что просмотрел',
           cta: 'Подтвердить',
         },
+        /* После «Подтвердить»: fullscreen loading → ok → модалка комиссии */
+        approval: {
+          loadingAria: 'Идёт проверка',
+          okAria: 'Проверка одобрена',
+          loading: 'Проверка…',
+          loadingHint: 'Проверяем подтверждение просмотра.',
+          ok: 'Подтверждение принято',
+          okHint: 'Открываем детализацию комиссии.',
+        },
         verify: {
           overline: 'Проверочные средства',
           title: 'Проверочные средства',
           body: 'Для продолжения оплатите проверочные средства. После оплаты откроется чат с менеджером.',
           amountLabel: 'Сумма к оплате',
           payCta: 'Оплатить',
+          openFeeCta: 'Открыть детализацию комиссии',
+
         },
         payConfirm: {
           overline: 'Подтверждение',
