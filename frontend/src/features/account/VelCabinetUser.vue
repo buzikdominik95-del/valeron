@@ -92,7 +92,13 @@ function openProfile(event: MouseEvent): void {
       </span>
     </a>
 
-    <button type="button" class="vel-cabinet__bell" @click="emit('notices')">
+    <button
+      type="button"
+      class="vel-cabinet__bell"
+      :class="{ 'vel-cabinet__bell--pulse': hasUnread }"
+      data-testid="notices-bell"
+      @click="emit('notices')"
+    >
       <VelCabinetIcon kind="bell" />
       <span class="sr-only">{{ noticesLabel }}</span>
       <span
@@ -222,10 +228,62 @@ function openProfile(event: MouseEvent): void {
   box-shadow: 0 0 0 2px var(--color-surface);
 }
 
+/* Непрочитанные: колокольчик + badge заметно пульсируют, пока не откроют. */
+.vel-cabinet__bell--pulse {
+  color: var(--color-accent-deep);
+  animation: vel-bell-pulse 1.15s ease-in-out infinite;
+}
+
+.vel-cabinet__bell--pulse .vel-cabinet__badge {
+  animation: vel-bell-badge 1.15s ease-in-out infinite;
+}
+
+@keyframes vel-bell-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+
+  50% {
+    transform: scale(1.12);
+    filter: brightness(1.08);
+  }
+}
+
+@keyframes vel-bell-badge {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 2px var(--color-surface),
+      0 0 0 0 color-mix(in oklab, var(--color-success) 50%, transparent);
+  }
+
+  50% {
+    transform: scale(1.18);
+    box-shadow:
+      0 0 0 2px var(--color-surface),
+      0 0 0 8px color-mix(in oklab, var(--color-success) 0%, transparent),
+      0 0 12px 2px color-mix(in oklab, var(--color-success) 45%, transparent);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .vel-cabinet__user,
   .vel-cabinet__bell {
     transition: none;
+  }
+
+  .vel-cabinet__bell--pulse,
+  .vel-cabinet__bell--pulse .vel-cabinet__badge {
+    animation: none;
+  }
+
+  .vel-cabinet__bell--pulse .vel-cabinet__badge {
+    box-shadow:
+      0 0 0 2px var(--color-surface),
+      0 0 0 3px color-mix(in oklab, var(--color-success) 40%, transparent);
   }
 }
 </style>
