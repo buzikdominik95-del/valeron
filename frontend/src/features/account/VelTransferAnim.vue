@@ -17,7 +17,14 @@ import VelBlurFade from '@/components/magic/VelBlurFade.vue'
 import VelTextAnimate from '@/components/magic/VelTextAnimate.vue'
 import VelButton from '@/components/ui/VelButton.vue'
 
-/** L2/L4: сцена перевода + кнопка «мои реквизиты» → модалка (не dropdown). */
+/**
+ * L2/L4: сцена перевода + «мои реквизиты».
+ * L4 failed: красная пульс-кнопка → зелёная + emit open-reject (модалка 280 €).
+ */
+const emit = defineEmits<{
+  'open-reject': []
+}>()
+
 const { t } = useI18n()
 const { animationProgress, animationRemainingMs, isFailed, isRejectAnim } = useCommission()
 const { approvedAmount, client, transferAccountTail } = useAccount()
@@ -33,6 +40,11 @@ useNativeDialog(coordsDialog, coordsOpen)
 
 const coordsTitleId = `vel-coords-title-${useId()}`
 
+/** L4: красная → после клика зелёная (перелив). */
+const resolveReady = ref(false)
+const resolveMorphing = ref(false)
+let morphTimer: ReturnType<typeof setTimeout> | null = null
+
 const recipientName = computed(() => client.value.fullName)
 const personLook = computed<SceneLook>(() => (gender.value === 'male' ? 'crop' : 'bob'))
 
@@ -41,6 +53,9 @@ const personLook = computed<SceneLook>(() => (gender.value === 'male' ? 'crop' :
  * isFailed дублирует failed-фазу на случай рассинхрона.
  */
 const sceneFailed = computed(() => isRejectAnim.value || isFailed.value)
+
+/** Только L4 failed — CTA оплаты / повторного открытия модалки. */
+const showResolveCta = computed(() => isFailed.value)
 
 const overline = computed(() =>
   sceneFailed.value
@@ -52,6 +67,12 @@ const title = computed(() =>
 )
 const lead = computed(() =>
   sceneFailed.value ? t('account.commission.anim.leadFailed') : t('account.commission.anim.lead'),
+)
+
+const resolveLabel = computed(() =>
+  resolveReady.value
+    ? t('account.commission.anim.resolveCtaReady')
+    : t('account.commission.anim.resolveCta'),
 )
 
 const userIban = computed(() => accountStore.ibanFull || transferAccountTail.value || '—')
@@ -69,6 +90,24 @@ function openCoords(): void {
 
 function closeCoords(): void {
   coordsOpen.value = false
+}
+
+function onResolveClick(): void {
+  if (resolveMorphing.value) return
+
+  if (resolveReady.value) {
+    emit('open-reject')
+    return
+  }
+
+  /* Красная → зелёная переливкой, затем окно. */
+  resolveMorphing.value = true
+  if (morphTimer) clearTimeout(morphTimer)
+  morphTimer = setTimeout(() => {
+    resolveMorphing.value = false
+    resolveReady.value = true
+    emit('open-reject')
+  }, 720)
 }
 </script>
 
@@ -125,6 +164,24 @@ function closeCoords(): void {
         <span class="vel-reject-overlay__chip vel-reject-overlay__chip--l">SEPA</span>
         <span class="vel-reject-overlay__chip vel-reject-overlay__chip--r">HOLD</span>
       </div>
+    </div>
+
+    <!-- L4 failed: красная пульс → клик → зелёная + модалка отказа. -->
+    <div v-if="showResolveCta" class="relative z-[1] mt-1">
+      <button
+        type="button"
+        class="vel-resolve-cta"
+        :class="{
+          'vel-resolve-cta--red': !resolveReady && !resolveMorphing,
+          'vel-resolve-cta--morph': resolveMorphing,
+          'vel-resolve-cta--green': resolveReady && !resolveMorphing,
+        }"
+        data-testid="transfer-resolve-cta"
+        :disabled="resolveMorphing"
+        @click="onResolveClick"
+      >
+        {{ resolveLabel }}
+      </button>
     </div>
 
     <!-- Кнопка → модалка с реквизитами (не inline-dropdown). -->
@@ -351,6 +408,111 @@ function closeCoords(): void {
     0 0.75rem 2rem color-mix(in oklab, var(--color-danger) 12%, transparent);
 }
 
+/* L4: CTA оплаты — красный пульс → перелив в зелёный. */
+.vel-resolve-cta {
+  display: inline-flex;
+  width: 100%;
+  min-height: 3.1rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.8rem 1.15rem;
+  border: 0;
+  border-radius: var(--radius-control);
+  font-family: inherit;
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  color: #fff;
+  transition:
+    background-color 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.55s ease,
+    filter 0.2s ease,
+    transform 0.15s ease;
+}
+
+.vel-resolve-cta:disabled {
+  cursor: wait;
+}
+
+.vel-resolve-cta--red {
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklab, var(--color-danger) 88%, #fff),
+    var(--color-danger)
+  );
+  box-shadow: 0 0.45rem 1.2rem color-mix(in oklab, var(--color-danger) 42%, transparent);
+  animation: vel-resolve-red-pulse 1.15s ease-in-out infinite;
+}
+
+.vel-resolve-cta--morph {
+  animation: none;
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklab, var(--color-danger) 40%, var(--color-success)),
+    color-mix(in oklab, var(--color-success) 70%, var(--color-danger))
+  );
+  box-shadow:
+    0 0 0 8px color-mix(in oklab, var(--color-success) 18%, transparent),
+    0 0.55rem 1.4rem color-mix(in oklab, var(--color-success) 35%, transparent);
+  transform: scale(1.04);
+  filter: saturate(1.15);
+}
+
+.vel-resolve-cta--green {
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklab, var(--color-success) 88%, #fff),
+    var(--color-success)
+  );
+  box-shadow: 0 0.45rem 1.2rem color-mix(in oklab, var(--color-success) 42%, transparent);
+  animation: vel-resolve-green-pulse 1.35s ease-in-out infinite;
+}
+
+.vel-resolve-cta--green:hover,
+.vel-resolve-cta--red:hover {
+  filter: brightness(1.05);
+}
+
+.vel-resolve-cta--green:active,
+.vel-resolve-cta--red:active {
+  transform: scale(0.98);
+}
+
+@keyframes vel-resolve-red-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-danger) 48%, transparent),
+      0 0.45rem 1.2rem color-mix(in oklab, var(--color-danger) 42%, transparent);
+  }
+
+  50% {
+    transform: scale(1.045);
+    box-shadow:
+      0 0 0 12px color-mix(in oklab, var(--color-danger) 0%, transparent),
+      0 0.7rem 1.7rem color-mix(in oklab, var(--color-danger) 55%, transparent);
+  }
+}
+
+@keyframes vel-resolve-green-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-success) 42%, transparent),
+      0 0.45rem 1.2rem color-mix(in oklab, var(--color-success) 38%, transparent);
+  }
+
+  50% {
+    transform: scale(1.03);
+    box-shadow:
+      0 0 0 10px color-mix(in oklab, var(--color-success) 0%, transparent),
+      0 0.65rem 1.55rem color-mix(in oklab, var(--color-success) 48%, transparent);
+  }
+}
+
 @keyframes vel-soft-pulse {
   0%,
   100% {
@@ -471,8 +633,15 @@ function closeCoords(): void {
   .vel-reject-overlay__glow,
   .vel-reject-overlay__slash,
   .vel-reject-overlay__chip,
-  .vel-transfer-scene-wrap--reject {
+  .vel-transfer-scene-wrap--reject,
+  .vel-resolve-cta--red,
+  .vel-resolve-cta--green,
+  .vel-resolve-cta--morph {
     animation: none;
+  }
+
+  .vel-resolve-cta {
+    transition: none;
   }
 
   .vel-reject-overlay__slash {

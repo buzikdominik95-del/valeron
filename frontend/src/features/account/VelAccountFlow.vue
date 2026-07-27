@@ -434,14 +434,22 @@ const transferStage = computed((): { key: string; view: Component } | null => {
 })
 
 /**
- * L4 failed (ещё не pay_fee) → модалка «оплати 280 €».
- * tg_final / L5 → конечный экран Telegram.
- * Во время pay_fee / messenger модалка закрыта — работает drawer + чат.
+ * L4 failed → модалка «оплати 280 €» (можно закрыть крестиком, снова открыть
+ * красной→зелёной кнопкой на анимации).
+ * tg_final / L5 → Telegram, без закрытия.
+ * pay_fee / messenger → модалка закрыта (drawer + чат).
  */
+const freezeDismissed = ref(false)
 const freezeOpen = computed({
-  get: () => isTgFinal.value || (isFailed.value && !isPayFee.value),
-  set: () => {
-    /* нельзя закрыть */
+  get: () => {
+    if (isTgFinal.value) return true
+    if (!isFailed.value || isPayFee.value) return false
+    return !freezeDismissed.value
+  },
+  set: (next) => {
+    /* Telegram нельзя закрыть. Reject — X / Esc. */
+    if (isTgFinal.value) return
+    freezeDismissed.value = !next
   },
 })
 
@@ -449,9 +457,23 @@ const freezeMode = computed<'reject' | 'telegram'>(() =>
   isTgFinal.value ? 'telegram' : 'reject',
 )
 
+watch(isFailed, (failed) => {
+  /* Новый отказ — снова показать модалку. */
+  if (failed) freezeDismissed.value = false
+})
+
+watch(isPayFee, (paying) => {
+  if (paying) freezeDismissed.value = true
+})
+
 function onFreezePay(): void {
   openFeeFromFailure()
   openCommissionPayment()
+}
+
+function openFreezeReject(): void {
+  if (!isFailed.value || isPayFee.value) return
+  freezeDismissed.value = false
 }
 
 /*
@@ -487,10 +509,14 @@ const showDevBar = !(
       </VelStageSwitch>
 
       <!--
-        L4 failed → freeze-сцена под блокирующей модалкой;
+        L4 failed → сцена + CTA (красная→зелёная) → модалка 280 €;
         L2 suspended → карточка страховки + freeze-сцена.
       -->
-      <VelTransferAnim v-if="isFailed || isSuspended" class="mt-4" />
+      <VelTransferAnim
+        v-if="isFailed || isSuspended"
+        class="mt-4"
+        @open-reject="openFreezeReject"
+      />
     </template>
 
     <template #policy>
