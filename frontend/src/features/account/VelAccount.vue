@@ -205,15 +205,28 @@ watch(tab, async (next) => {
             На Home от них остались строки списка шагов со ссылками «Vai» —
             они и ведут сюда, так что путь не потерялся.
           -->
-          <VelStageSwitch :stage-key="tab">
-            <VelCabinetHome v-if="tab === 'home'">
+          <!--
+            Home держим смонтированным (v-show), а не v-if: после отказа L2/L4
+            сцена freeze + карточка должны ОСТАВАТЬСЯ при уходе в Assistenza
+            и возврате на Home. v-if + VelStageSwitch уничтожали DOM → анимация
+            «пропадала».
+          -->
+          <div
+            v-show="tab === 'home'"
+            class="vel-cabinet__page"
+            :inert="tab !== 'home' || undefined"
+            :aria-hidden="tab !== 'home' || undefined"
+          >
+            <VelCabinetHome>
               <template #summary><slot name="summary" /></template>
               <template #transfer><slot name="transfer" /></template>
               <template #policy><slot name="policy" /></template>
               <template #side><slot name="side" /></template>
             </VelCabinetHome>
+          </div>
 
-            <VelCabinetProfile v-else-if="tab === 'profile'">
+          <VelStageSwitch v-if="tab !== 'home'" :stage-key="tab">
+            <VelCabinetProfile v-if="tab === 'profile'">
               <!-- После verify + ухода с Documenti — карточка с анимацией здесь -->
               <template v-if="showDocsOnProfile" #documents>
                 <slot name="documents" />
@@ -303,6 +316,11 @@ watch(tab, async (next) => {
   display: grid;
   flex: 1 1 auto;
   grid-template-columns: minmax(0, 1fr);
+}
+
+.vel-cabinet__page {
+  display: block;
+  width: 100%;
 }
 
 .vel-cabinet__main {

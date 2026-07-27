@@ -84,7 +84,14 @@ function createCommission(): CommissionApi {
     return level.value === 4 ? FAST_L4_MS : FAST_L2_MS
   })
 
-  const animationProgress = ref(0)
+  /**
+   * Прогресс 0…1. После отказа (failed / suspended) всегда 1 — иначе при
+   * remount / F5 сцена «отката» рисовалась бы с нуля без freeze.
+   */
+  const terminalReject =
+    dossier.value.commission.phase === 'failed' ||
+    dossier.value.commission.phase === 'suspended'
+  const animationProgress = ref(terminalReject ? 1 : 0)
   /**
    * После 100% прогресса — короткая «отказная» фаза сцены (красная/застывшая),
    * потом suspended (L2) или failed (L4). Красивый переход, не мгновенный jump.
@@ -93,6 +100,10 @@ function createCommission(): CommissionApi {
   let rejectTimer: ReturnType<typeof setTimeout> | null = null
 
   const REJECT_HOLD_MS = wantsFastAnim() ? 900 : 2800
+
+  function pinRejectProgress(): void {
+    animationProgress.value = 1
+  }
 
   function recomputeAnimProgress(): void {
     const started = dossier.value.commission.animationStartedAt
@@ -106,11 +117,13 @@ function createCommission(): CommissionApi {
     animationProgress.value = ratio
     if (ratio >= 1 && !rejectHold.value) {
       rejectHold.value = true
+      pinRejectProgress()
       pause()
       if (rejectTimer) clearTimeout(rejectTimer)
       rejectTimer = setTimeout(() => {
         rejectHold.value = false
         rejectTimer = null
+        pinRejectProgress()
         dossierStore.completeAnimation()
       }, REJECT_HOLD_MS)
     }
@@ -131,9 +144,13 @@ function createCommission(): CommissionApi {
         }
         recomputeAnimProgress()
         resume()
-      } else {
-        pause()
-        rejectHold.value = false
+        return
+      }
+      pause()
+      rejectHold.value = false
+      /* L2 suspended / L4 failed: freeze на 100% — сцена при возврате на Home. */
+      if (p === 'failed' || p === 'suspended') {
+        pinRejectProgress()
       }
     },
     { immediate: true },
