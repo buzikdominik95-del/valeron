@@ -160,10 +160,13 @@ function createCommission(): CommissionApi {
     if (rejectTimer) clearTimeout(rejectTimer)
   })
 
-  // L3: медленный «прогресс создания полиса», пока на policy_build.
+  /*
+   * L3: прогресс bozza polizza (Documenti + Home).
+   * ~5 мин до ~98% без fastAnim; с ?fastAnim=1 — быстрее для стенда.
+   */
   const { pause: pausePolicy, resume: resumePolicy } = useIntervalFn(
-    () => dossierStore.tickPolicyProgress(0.015),
-    800,
+    () => dossierStore.tickPolicyProgress(wantsFastAnim() ? 0.045 : 0.004),
+    wantsFastAnim() ? 250 : 500,
     { immediate: false },
   )
 

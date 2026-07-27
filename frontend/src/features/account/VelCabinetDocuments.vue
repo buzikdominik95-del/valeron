@@ -4,13 +4,18 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useAccount } from '@/composables/useAccount'
 import { useAccountStore } from '@/stores/account.store'
+import { useCommission } from '@/composables/useCommission'
 import { CABINET_HEADING_ID, useCabinetTab } from '@/composables/useCabinetTab'
 import VelDocumentCard from '@/features/account/VelDocumentCard.vue'
+import VelPolicyStub from '@/features/account/VelPolicyStub.vue'
 import VelButton from '@/components/ui/VelButton.vue'
 
 /**
  * Раздел «Documenti»: загрузка удостоверения (пока не accepted), договор и
  * список уже принятых сервером файлов.
+ *
+ * L3 policy_build: «Vai ai documenti» → здесь формируется bozza polizza CPI
+ * (VelPolicyStub), параллельно с прогрессом на Home.
  *
  * Фотка 20: секция паспорта (VelDocumentUpload) живёт здесь ТОЛЬКО до verify.
  * После accept слот #upload пуст — карточка переезжает во вкладку Profilo
@@ -22,10 +27,14 @@ const { t } = useI18n()
 const slots = useSlots()
 const { documents, steps } = useAccount()
 const { documentsUploaded } = storeToRefs(useAccountStore())
+const { level, isPolicyBuild } = useCommission()
 const { select } = useCabinetTab()
 
 const hasDocs = computed(() => documents.value.length > 0)
 const hasUpload = computed(() => typeof slots.upload === 'function')
+
+/** L3: пока идёт получение CPI — заготовка полиса на Documenti. */
+const showPolicyStub = computed(() => level.value === 3 && isPolicyBuild.value)
 
 /** После accept секция ID уехала в Profilo — короткая подсказка. */
 const docsMovedToProfile = computed(
@@ -66,6 +75,9 @@ const docsMovedToProfile = computed(
         {{ t('account.pages.documents.openProfile') }}
       </VelButton>
     </div>
+
+    <!-- L3: заготовка полиса CPI, пока сертификат формируется (фотка Documenti). -->
+    <VelPolicyStub v-if="showPolicyStub" />
 
     <section id="vel-account-signature" class="vel-docs-page__panel">
       <slot name="contract" />

@@ -242,10 +242,10 @@ export const useDossierStore = defineStore('dossier', () => {
     dossier.value.commission.phase = 'pay_fee'
   }
 
-  /** Прогресс полиса L3 (заглушка «создания»; сервер пришлёт своё). */
+  /** Прогресс полиса L3 (bozza su Documenti + meter Home; сервер пришлёт своё). */
   function tickPolicyProgress(delta = 0.04): void {
     if (dossier.value.commission.phase !== 'policy_build') return
-    const next = Math.min(0.92, dossier.value.commission.policyProgress + delta)
+    const next = Math.min(0.98, dossier.value.commission.policyProgress + delta)
     dossier.value.commission.policyProgress = next
   }
 
