@@ -81,9 +81,21 @@ function goToPay(): void {
   step.value = 3
 }
 
+/** Аккуратная «назад»: 3→2, 2→1 (если IBAN-шаг нужен) или закрыть. */
 function goBack(): void {
-  if (step.value === 3) step.value = 2
-  else if (step.value === 2) step.value = 1
+  if (step.value === 3) {
+    step.value = 2
+    return
+  }
+  if (step.value === 2) {
+    if (hasIban.value) {
+      onDismiss()
+      return
+    }
+    step.value = 1
+    return
+  }
+  onDismiss()
 }
 
 function onConfirm(): void {
@@ -96,6 +108,8 @@ function onDismiss(): void {
   open.value = false
   emit('close')
 }
+
+const showBack = computed(() => step.value > 1 || !hasIban.value)
 </script>
 
 <template>
@@ -107,9 +121,23 @@ function onDismiss(): void {
   >
     <form class="vel-cdraw__form" @submit.prevent>
       <header class="flex items-start justify-between gap-3">
-        <div class="min-w-0">
-          <p class="vel-label m-0">{{ t('account.commissionDrawer.overline', { level }) }}</p>
-          <h2 :id="titleId" class="m-0 text-xl font-semibold text-fg">{{ stepTitle }}</h2>
+        <div class="flex min-w-0 items-start gap-2">
+          <!-- Аккуратная кнопка назад (фотка 11) -->
+          <button
+            v-if="showBack"
+            type="button"
+            class="vel-cdraw__back"
+            :aria-label="t('account.commissionDrawer.back')"
+            @click="goBack"
+          >
+            <svg class="vel-cdraw__back-ico" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15 6 9 12l6 6" />
+            </svg>
+          </button>
+          <div class="min-w-0">
+            <p class="vel-label m-0">{{ t('account.commissionDrawer.overlinePlain') }}</p>
+            <h2 :id="titleId" class="m-0 text-xl font-semibold text-fg">{{ stepTitle }}</h2>
+          </div>
         </div>
         <button
           type="button"
@@ -168,7 +196,6 @@ function onDismiss(): void {
           :reason-title="reasonTitle"
           :reason-body="reasonBody"
           :fee-text="feeText"
-          @back="goBack"
           @next="goToPay"
         />
         <VelCommissionPayStep
@@ -177,7 +204,6 @@ function onDismiss(): void {
           :iban="sepaIban"
           :swift="coords.swift"
           :fee-text="feeText"
-          @back="goBack"
           @confirm="onConfirm"
         />
       </div>
@@ -214,6 +240,47 @@ function onDismiss(): void {
   min-block-size: 1px;
 }
 
+/* Назад: круглая мягкая стрелка без тяжёлой рамки */
+.vel-cdraw__back {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-block-start: 0.1rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-round);
+  background: var(--color-raised);
+  color: var(--color-accent-deep);
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.vel-cdraw__back:hover {
+  background: color-mix(in oklab, var(--color-accent) 14%, var(--color-raised));
+  color: var(--color-accent);
+}
+
+.vel-cdraw__back:active {
+  transform: translateX(-1px);
+}
+
+.vel-cdraw__back-ico {
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Крестик без обводки — только иконка */
 .vel-cdraw__x {
   display: inline-flex;
   flex-shrink: 0;
@@ -221,13 +288,21 @@ function onDismiss(): void {
   justify-content: center;
   width: 2.75rem;
   height: 2.75rem;
-  border: 1px solid var(--color-line);
+  border: none;
   border-radius: var(--radius-round);
-  background: var(--color-ground);
-  color: var(--color-fg);
-  font-size: 1.35rem;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 1.45rem;
   line-height: 1;
   cursor: pointer;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease;
+}
+
+.vel-cdraw__x:hover {
+  background: var(--color-raised);
+  color: var(--color-fg);
 }
 
 .vel-cdraw__seg {

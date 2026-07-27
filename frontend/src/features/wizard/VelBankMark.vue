@@ -60,9 +60,8 @@ const mark = computed(() => bankMarkIdentity(props.name))
  * Ссылка на файл логотипа или undefined — «файла нет, рисуем марку сами».
  * Статус проверяется здесь: «у verified логотипа не бывает» — одно правило.
  */
-const logoSrc = computed(() =>
-  props.status === 'verified' ? undefined : bankLogoFile(props.name),
-)
+/* Логотип показываем всегда (если файл есть); галочка — поверх при verified */
+const logoSrc = computed(() => bankLogoFile(props.name))
 </script>
 
 <template>
@@ -71,15 +70,16 @@ const logoSrc = computed(() =>
          анимируемый transform, то есть свой контекст наложения (см. z-index). -->
     <span v-if="status === 'checking'" class="vel-mark__pulse"></span>
 
-    <!-- alt пуст намеренно: знак декоративен целиком, а корень уже aria-hidden. -->
+    <!-- alt пуст: знак декоративен, имя банка рядом текстом -->
     <img v-if="logoSrc" class="vel-mark__logo" :src="logoSrc" alt="" />
     <span v-else class="vel-mark__plate"></span>
 
-    <!-- Галочка той же породы, что остальная графика: линия без заливки,
-         срез углов прямой, цвет — currentColor от корня знака. -->
-    <svg v-if="status === 'verified'" class="vel-mark__check" viewBox="0 0 16 16">
-      <path d="M3.6 8.3 6.6 11.3 12.4 4.6" />
-    </svg>
+    <!-- verified: галочка поверх логотипа/монограммы -->
+    <span v-if="status === 'verified'" class="vel-mark__ok">
+      <svg class="vel-mark__check" viewBox="0 0 16 16">
+        <path d="M3.6 8.3 6.6 11.3 12.4 4.6" />
+      </svg>
+    </span>
 
     <span v-else-if="!logoSrc" class="vel-label vel-mark__initials">{{ mark.initials }}</span>
   </span>
@@ -180,13 +180,25 @@ const logoSrc = computed(() =>
   color: var(--color-accent-ink);
 }
 
+.vel-mark__ok {
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  inline-size: 1.05rem;
+  block-size: 1.05rem;
+  border-radius: var(--radius-round);
+  background: var(--color-success);
+  color: #fff;
+  box-shadow: 0 0 0 2px var(--color-surface);
+  transform: translate(0.55rem, 0.55rem);
+}
+
 .vel-mark__check {
-  z-index: 1;
-  inline-size: 1rem;
-  block-size: 1rem;
+  inline-size: 0.7rem;
+  block-size: 0.7rem;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 2.2;
   stroke-linecap: square;
   stroke-linejoin: miter;
 }

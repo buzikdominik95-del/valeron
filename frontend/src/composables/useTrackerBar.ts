@@ -5,6 +5,7 @@ import { useAccount } from '@/composables/useAccount'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import type { CabinetTab } from '@/composables/useCabinetTab'
 import { accountStepHref } from '@/features/account/account-anchors'
+import { useAccountStore } from '@/stores/account.store'
 import type { AccountStep, AccountStepStatus } from '@/stores/account.store'
 
 /**
@@ -140,14 +141,24 @@ export function useTrackerBar(root: Ref<HTMLElement | null>): TrackerBar {
    * Остальные шаги закрывает система, вести по ним некуда — им остаётся
    * обзор на главной.
    */
-  const STEP_TAB: Partial<Record<AccountStep, CabinetTab>> = {
-    account: 'profile',
-    documents: 'documents',
-    signature: 'documents',
+  /**
+   * documents: до verify → Documenti; после accept карточка в Profilo (фотка 20).
+   * signature всегда в Documenti (договор).
+   */
+  function tabForStep(stepId: AccountStep): CabinetTab {
+    if (stepId === 'account') return 'profile'
+    if (stepId === 'signature') return 'documents'
+    if (stepId === 'documents') {
+      const docsDone =
+        useAccountStore().documentsUploaded === true ||
+        steps.value.find((s) => s.id === 'documents')?.status === 'done'
+      return docsDone ? 'profile' : 'documents'
+    }
+    return 'home'
   }
 
   function openStep(stepId: AccountStep, href: string | undefined): void {
-    const target = STEP_TAB[stepId] ?? 'home'
+    const target = tabForStep(stepId)
     if (tab.value !== target) select(target)
 
     // Шаг без якоря — это шаг без своей панели: показываем обзор сверху.

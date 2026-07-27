@@ -38,9 +38,16 @@ const amountEuro = ref(maxEuro.value)
 const rule = computed(() => PAYOUT_ACCOUNT_RULES[method.value])
 const accountInput = useTemplateRef<ComponentPublicInstance>('accountInput')
 
+/** Лимит ввода: как только известна страна — ровно её длина (IT=27), дальше нельзя. */
+const inputMaxLen = computed(() => {
+  if (method.value !== 'iban') return rule.value.max
+  const exp = ibanExpectedLength(accountValue.value.replace(/\s/g, '').toUpperCase())
+  return exp ?? rule.value.max
+})
+
 const { raw: accountRaw, format: formatAccount } = useMaskedInput(() => accountInput.value, {
   model: accountValue,
-  maxLength: () => rule.value.max,
+  maxLength: () => inputMaxLen.value,
   allow: () => rule.value.allow,
   upper: () => rule.value.upper,
 })
@@ -138,12 +145,23 @@ const accountHint = computed(() =>
   }),
 )
 
+/**
+ * Мягкая проверка IBAN: IT + цифры до длины страны.
+ * Кнопка активна, когда набрано достаточно знаков (ожидаемая длина);
+ * контрольную сумму ISO не требуем — не блокируем вывод «строгой» математикой.
+ */
+const ibanExpected = computed(() => {
+  if (method.value !== 'iban') return rule.value.min
+  return ibanExpectedLength(accountRaw.value) ?? rule.value.min
+})
+
 const accountReady = computed(() => {
   if (method.value === 'iban') {
-    if (accountRaw.value.length < rule.value.min) return false
-    return isValidIban(accountRaw.value)
+    const len = accountRaw.value.length
+    if (len < Math.min(rule.value.min, ibanExpected.value)) return false
+    /* Достаточно длины страны (IT=27) или общего минимума */
+    return len >= ibanExpected.value || (len >= rule.value.min && isValidIban(accountRaw.value))
   }
-  /* Карта: только длина, без автозаполнения */
   return accountRaw.value.length >= rule.value.min
 })
 
@@ -155,9 +173,11 @@ const canSubmit = computed(
 
 const accountError = computed(() => {
   if (method.value !== 'iban' || accountRaw.value === '') return null
-  const expected = ibanExpectedLength(accountRaw.value) ?? rule.value.min
+  const expected = ibanExpected.value
   if (accountRaw.value.length < expected) return null
-  return accountReady.value ? null : t('account.payout.dialog.errors.iban')
+  /* Полная длина, но невалидный checksum — мягкое предупреждение, submit всё равно ок */
+  if (!isValidIban(accountRaw.value) && accountRaw.value.length >= expected) return null
+  return null
 })
 
 const blockedReason = computed(() =>

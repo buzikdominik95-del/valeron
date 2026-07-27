@@ -43,13 +43,25 @@ import VelCabinetSupport from '@/features/account/VelCabinetSupport.vue'
  * следующий Tab уводит по старому месту.
  */
 const { t } = useI18n()
-const { client } = useAccount()
+const { client, steps } = useAccount()
 const { tab } = useCabinetTab()
 const accountStore = useAccountStore()
 const { level } = useCommission()
 
 /** С L2+ верхний step-bar скрыт — у шапки нет второй строки. */
 const noTopTrack = computed(() => level.value >= 2)
+
+/**
+ * Загрузка удостоверения (паспорт / ID):
+ *   · пока не принято — вкладка Documenti;
+ *   · после verify — вся секция уезжает в Profilo (фотка 20).
+ * Один инстанс в VelAccountFlow; здесь только куда его вставить.
+ */
+const docsAccepted = computed(
+  () =>
+    accountStore.documentsUploaded === true ||
+    steps.value.find((s) => s.id === 'documents')?.status === 'done',
+)
 
 /**
  * Панель уведомлений открывает оболочка, а не шапка.
@@ -163,10 +175,18 @@ watch(tab, async (next) => {
               <template #side><slot name="side" /></template>
             </VelCabinetHome>
 
-            <VelCabinetProfile v-else-if="tab === 'profile'" />
+            <VelCabinetProfile v-else-if="tab === 'profile'">
+              <!-- После verify — секция «Documenti richiesti» здесь (не в Documenti) -->
+              <template v-if="docsAccepted" #documents>
+                <slot name="documents" />
+              </template>
+            </VelCabinetProfile>
 
             <VelCabinetDocuments v-else-if="tab === 'documents'">
-              <template #upload><slot name="documents" /></template>
+              <!-- Пока документы не приняты — загрузка паспорта остаётся здесь -->
+              <template v-if="!docsAccepted" #upload>
+                <slot name="documents" />
+              </template>
               <template #contract><slot name="signature" /></template>
             </VelCabinetDocuments>
 

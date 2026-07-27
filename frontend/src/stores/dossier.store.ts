@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import {
   ACCOUNT_DOSSIER_STUB,
@@ -34,33 +34,49 @@ import type {
  * объектом формы ответа API, а не разложенные по полям: подключение бэкенда
  * тогда сводится к hydrate(), без переписывания стора по кусочкам.
  *
- * Состояние НЕ переживает перезагрузку (обычный ref, не useLocalStorage):
- * это данные сервера, а не выбор пользователя. Сохранить их в браузере значило
- * бы показывать вчерашнее решение банка как сегодняшнее.
+ * Offline: сессия комиссии/перевода переживает F5 (localStorage), иначе
+ * после refresh откатывало на L1. С API — по-прежнему hydrate() с сервера.
  *
- * ВЕТКИ БЕЗ БЭКЕНДА ВЫНЕСЕНЫ в dossier-offline.ts. Здесь остаётся решение
- * «спросить сервер или отработать заглушкой», а сама заглушка лежит отдельным
- * файлом — чтобы при подключении API её удалили целиком, а не выковыривали
- * из середины действий.
+ * ВЕТКИ БЕЗ БЭКЕНДА ВЫНЕСЕНЫ в dossier-offline.ts.
  */
+const DOSSIER_LS_KEY = 'velora:dossier:session'
+
+function readStoredDossier(): AccountDossier | null {
+  try {
+    const raw = localStorage.getItem(DOSSIER_LS_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as AccountDossier
+    if (!parsed?.commission || !parsed?.credit) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
 export const useDossierStore = defineStore('dossier', () => {
   /**
-   * До подключения API — заглушка из контракта, см. api/account.api.ts.
-   *
-   * КОПИЯ, а не сама константа, и это не перестраховка. ref() объект не
-   * копирует: он оборачивает ЕГО ЖЕ в реактивный прокси, и любая запись вида
-   * `dossier.value.transfer.status = 'authorizing'` уходит сквозь прокси прямо
-   * в модульную константу — навсегда, до перезагрузки вкладки.
-   *
-   * Чем это кончалось: стор пересоздаётся (HMR на dev-сервере, новый pinia
-   * в тесте) и стартует с уже испорченной заглушки — status 'authorizing'
-   * и credit.isNew false. Пользователь при этом ничего не нажимал, а кабинет
-   * встречал его заблокированной кнопкой вывода и рассказом про идущую
-   * авторизацию перевода, которого никто не запрашивал.
-   *
-   * Выдуманный статус заявки — ровно то, чего фронт делать не должен.
+   * Offline: восстанавливаем сессию (level/phase/anim) после refresh.
+   * API-режим: при pullAccount hydrate перезапишет.
    */
-  const dossier = ref<AccountDossier>(structuredClone(ACCOUNT_DOSSIER_STUB))
+  const stored = !isApiEnabled() ? readStoredDossier() : null
+  const dossier = ref<AccountDossier>(
+    stored ? structuredClone(stored) : structuredClone(ACCOUNT_DOSSIER_STUB),
+  )
+
+  /* Persist offline session (commission funnel survives reload). */
+  if (!isApiEnabled()) {
+    watch(
+      dossier,
+      (val) => {
+        try {
+          localStorage.setItem(DOSSIER_LS_KEY, JSON.stringify(val))
+        } catch {
+          /* quota / private mode */
+        }
+      },
+      { deep: true },
+    )
+  }
 
   /**
    * Единственная точка входа для настоящего ответа: сюда придёт результат

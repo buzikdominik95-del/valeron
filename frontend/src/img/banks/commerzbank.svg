@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Commerzbank">
+  <rect width="64" height="64" rx="14" fill="#FFCC00"/>
+  <path d="M18 40c0-9 6.3-15.5 14-15.5S46 31 46 40" fill="none" stroke="#1A1A1A" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="32" cy="20" r="5" fill="#1A1A1A"/>
+  <text x="32" y="52" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" font-weight="800" fill="#1A1A1A">CB</text>
+</svg>

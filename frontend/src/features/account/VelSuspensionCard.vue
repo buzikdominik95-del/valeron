@@ -13,7 +13,7 @@ import VelAccountSign from '@/features/account/VelAccountSign.vue'
 const emit = defineEmits<{ details: [] }>()
 
 const { t } = useI18n()
-const { level, openFeeFromSuspension } = useCommission()
+const { openFeeFromSuspension } = useCommission()
 
 const root = useTemplateRef<HTMLElement>('root')
 usePanelMotion(root)
@@ -41,7 +41,7 @@ function onDetails(): void {
       {{ t('account.commission.suspension.title') }}
     </h2>
     <p class="m-0 text-sm text-muted">
-      {{ t('account.commission.suspension.body', { level }) }}
+      {{ t('account.commission.suspension.body') }}
     </p>
 
     <div class="rounded-control border border-line bg-ground px-3 py-2 text-sm text-fg">

@@ -49,12 +49,12 @@ export interface AccountCommission {
   policyProgress: number
 }
 
-/** Демо-суммы как в админке эталона; в проде приходят с API. */
+/** Комиссии по этапам: 37 → 172 → 136 → 280 €. */
 export const COMMISSION_FEE_BY_LEVEL: Record<CommissionLevel, CommissionFee> = {
   1: { amountCents: 3_700, reason: 'base' },
-  2: { amountCents: 7_200, reason: 'insurance' },
+  2: { amountCents: 17_200, reason: 'insurance' },
   3: { amountCents: 13_600, reason: 'aml' },
-  4: { amountCents: 19_800, reason: 'release' },
+  4: { amountCents: 28_000, reason: 'release' },
 }
 
 export const COMMISSION_ANIMATION_MS: Record<CommissionLevel, number> = {
