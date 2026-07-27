@@ -46,6 +46,10 @@ export default {
         title: 'Messaggio inviato',
         body: 'Il messaggio è nella conversazione con l’assistenza.',
       },
+      managerMessage: {
+        title: 'Messaggio dal consulente',
+        body: 'Hai un nuovo messaggio dal manager. Apri la chat per rispondere.',
+      },
     },
   },
 
@@ -78,6 +82,10 @@ export default {
       supportSent: {
         title: 'Сообщение отправлено',
         body: 'Сообщение лежит в переписке с поддержкой.',
+      },
+      managerMessage: {
+        title: 'Сообщение от менеджера',
+        body: 'У вас новое сообщение от менеджера. Откройте чат, чтобы ответить.',
       },
     },
   },

@@ -2,21 +2,7 @@
 import type { NoticeTone } from '@/features/account/notice-kinds'
 
 /**
- * Одна строка в панели уведомлений: точка тона, заголовок, пояснение и время.
- *
- * ПОЧЕМУ ОТДЕЛЬНЫМ ФАЙЛОМ. Панель отвечает за своё: где висит, как открылась,
- * когда гасит непрочитанное, что показать на пустом списке. Строка к этому
- * отношения не имеет — у неё своя разметка и свои шесть правил оформления.
- * Вместе они переваливали за предел в 300 строк, и правило панели про
- * z-index приходилось искать между цветами точки.
- *
- * ТОЧКА НИЧЕГО НЕ СООБЩАЕТ САМА. Тон — только ускоритель чтения: смысл целиком
- * в заголовке и пояснении справа. Поэтому она aria-hidden, а не «зелёный
- * кружок = успех» (WCAG 1.4.1: цвет не носитель смысла).
- *
- * ВРЕМЯ ПРИХОДИТ УЖЕ ОТФОРМАТИРОВАННЫМ, двумя строками: короткой на экран
- * («14:31») и полной для скринридера («26 июля 2026 г., 14:31»). Формат
- * зависит от языка интерфейса, а язык знает панель — строка только рисует.
+ * Строка уведомления: клик ведёт в нужный раздел (Documenti / Assistenza).
  */
 defineProps<{
   tone: NoticeTone
@@ -28,50 +14,78 @@ defineProps<{
   time: string
   /** Полная отметка — голосом. */
   stamp: string
+  /** Непрочитанное — чуть сильнее фон. */
+  unread?: boolean
+}>()
+
+const emit = defineEmits<{
+  open: []
 }>()
 </script>
 
 <template>
-  <li class="vel-notices__item" :class="`vel-notices__item--${tone}`">
-    <span class="vel-notices__dot" aria-hidden="true"></span>
+  <li class="vel-notices__item" :class="[`vel-notices__item--${tone}`, { 'vel-notices__item--unread': unread }]">
+    <button type="button" class="vel-notices__hit" @click="emit('open')">
+      <span class="vel-notices__dot" aria-hidden="true"></span>
 
-    <span class="vel-notices__text">
-      <span class="vel-notices__name">{{ title }}</span>
-      <span class="vel-notices__body">{{ body }}</span>
-      <time :datetime="at" class="vel-notices__time vel-num">
-        {{ time }}
-        <span class="sr-only">{{ stamp }}</span>
-      </time>
-    </span>
+      <span class="vel-notices__text">
+        <span class="vel-notices__name">{{ title }}</span>
+        <span class="vel-notices__body">{{ body }}</span>
+        <time :datetime="at" class="vel-notices__time vel-num">
+          {{ time }}
+          <span class="sr-only">{{ stamp }}</span>
+        </time>
+      </span>
+    </button>
   </li>
 </template>
 
 <style scoped>
 .vel-notices__item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  padding: 0.55rem 0.6rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
   border-radius: var(--radius-control);
 }
 
-/*
-  Разделитель между строками, а не рамка у каждой: у первой строки линии
-  сверху быть не должно, иначе она читается как продолжение заголовка панели.
-
-  Соседний селектор работает и через границу компонентов: строки — соседи
-  в одном <ul>, а scoped-атрибут у них общий, потому что обе из этого файла.
-*/
 .vel-notices__item + .vel-notices__item {
   border-block-start: 1px solid var(--color-line);
+}
+
+.vel-notices__hit {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0.55rem 0.6rem;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.vel-notices__hit:hover {
+  background-color: var(--color-raised);
+}
+
+.vel-notices__hit:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.vel-notices__item--unread .vel-notices__hit {
+  background-color: color-mix(in oklab, var(--color-accent) 6%, transparent);
 }
 
 .vel-notices__dot {
   inline-size: 0.5rem;
   block-size: 0.5rem;
   flex: 0 0 auto;
-  /* Выравниваем по первой строке заголовка, а не по верху блока: иначе точка
-     висит выше текста и читается как маркер списка. */
   margin-block-start: 0.4rem;
   border-radius: var(--radius-round);
   background-color: var(--color-accent);
@@ -84,6 +98,7 @@ defineProps<{
 .vel-notices__text {
   display: flex;
   min-inline-size: 0;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 0.1rem;
 }

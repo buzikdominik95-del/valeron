@@ -3,35 +3,19 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onClickOutside, onKeyStroke } from '@vueuse/core'
 import { useNotices } from '@/composables/useNotices'
-import { NOTICE_TONE } from '@/features/account/notice-kinds'
+import { useCabinetTab } from '@/composables/useCabinetTab'
+import { NOTICE_TAB, NOTICE_TONE, type NoticeKind } from '@/features/account/notice-kinds'
 import VelNoticeRow from '@/features/account/VelNoticeRow.vue'
 
 /**
- * Панель уведомлений: то, что открывается по колокольчику в шапке.
- *
- * ПОЧЕМУ НЕ МОДАЛЬНОЕ ОКНО. Уведомления — справка, а не задача: человек
- * заглядывает в них и возвращается к тому, чем занимался. Модальное окно
- * гасит всю страницу и требует осознанного закрытия, то есть обращается с
- * беглым взглядом как с делом. Выпадающая панель закрывается сама — по Esc
- * и по щелчку мимо.
- *
- * ПРОЧИТАННЫМИ ПОМЕЧАЕМ ПРИ ОТКРЫТИИ, а не по нажатию на каждую строку. Здесь
- * нечего открывать: у уведомления нет своей страницы, весь его смысл — две
- * строки, которые человек уже увидел. Кнопка «прочитать» под таким списком
- * заставляла бы подтверждать очевидное.
- *
- * ФОКУС ЗАБИРАЕТ САМА ПАНЕЛЬ. Открылась — фокус на её заголовке, закрылась —
- * возвращается на колокольчик. Без этого с клавиатуры панель открывается
- * «где-то», и следующий Tab уводит по старому месту в шапке.
- *
- * ГРАНИЦА. В списке только то, что фронт наблюдал сам (см. notice-kinds).
- * Строк «банк рассмотрел заявку» здесь нет: сервера нет, и такое уведомление
- * было бы выдумкой о решении, которого никто не принимал.
+ * Панель уведомлений (колокольчик).
+ * Клик по строке → нужная вкладка (Documenti / Assistenza) и закрытие панели.
  */
 const open = defineModel<boolean>('open', { required: true })
 
 const { t, d } = useI18n()
-const { items, unread, markAllRead } = useNotices()
+const { items, unread, markAllRead, markRead } = useNotices()
+const { select: selectTab } = useCabinetTab()
 
 const root = ref<HTMLElement | null>(null)
 const heading = ref<HTMLElement | null>(null)
@@ -47,18 +31,19 @@ const list = computed(() =>
   })),
 )
 
-/*
- * Гасим непрочитанное с задержкой в кадр после открытия: пометь мы их в тот же
- * тик, точка на колокольчике исчезла бы ДО того, как панель появилась на
- * экране, и человек не увидел бы, что именно было новым.
- */
 watch(open, (isOpen) => {
   if (!isOpen) return
   requestAnimationFrame(() => {
     heading.value?.focus()
-    markAllRead()
   })
 })
+
+function openNotice(id: number, kind: NoticeKind): void {
+  markRead(id)
+  const tab = NOTICE_TAB[kind]
+  open.value = false
+  selectTab(tab)
+}
 
 onClickOutside(root, () => {
   if (open.value) open.value = false
@@ -104,6 +89,8 @@ onKeyStroke('Escape', () => {
           :at="notice.at"
           :time="notice.time"
           :stamp="notice.stamp"
+          :unread="!notice.read"
+          @open="openNotice(notice.id, notice.kind)"
         />
       </ul>
 
