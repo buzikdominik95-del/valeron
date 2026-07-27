@@ -211,6 +211,10 @@ function onContractSignConfirm(dataUrl: string): void {
   /* Подпись сразу в стор → лист договора рисует PNG. */
   account.markContractSigned(new Date(), dataUrl)
   account.markDone('signature')
+  /* Все 5 кружков step bar → done (каскад галочек в VelTrackerRow). */
+  for (const id of ['simulation', 'approval', 'account', 'documents', 'signature'] as const) {
+    account.markDone(id)
+  }
   showToast(t('account.contract.toastSigned'))
 }
 
