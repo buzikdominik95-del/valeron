@@ -43,7 +43,7 @@ import { useNotices } from '@/composables/useNotices'
 const { t } = useI18n()
 const account = useAccountStore()
 const dossier = useDossierStore()
-const { steps, canWithdraw, isAuthorizing, allDone, approvedAmount, client } = useAccount()
+const { steps, canWithdraw, isAuthorizing, allDone, approvedAmount } = useAccount()
 const {
   isPayFee,
   isMessenger,
@@ -91,7 +91,8 @@ onMounted(() => {
 /** Contratto template / preview (BASE_URL только в script — в template import.meta ломает prod build). */
 const contractPdfTemplate = `${import.meta.env.BASE_URL}cpi/cpi-contract.pdf`
 const contractPdfUrl = contractPdfTemplate
-const contractPolicyImg = `${import.meta.env.BASE_URL}cpi/policy-template.png`
+/** Превью «Apri PDF» — бланк контракта (не CPI). */
+const contractPreviewImg = `${import.meta.env.BASE_URL}cpi/contract-preview.png`
 /* payoutOpen убран: форма — выпадающая VelPayoutPanel под балансом */
 /** Этап 2: «данные в банк, 5–10 мин» до 7-минутной анимации. */
 const bankNoticeOpen = ref(false)
@@ -541,12 +542,11 @@ const showDevBar = !(
   <VelContractIban v-model:open="contractIbanOpen" />
   <VelSignaturePad v-model:open="contractSignOpen" @confirm="onContractSignConfirm" />
 
-  <!-- Contratto PDF con dati cliente (overlay come policy-pdf.php) -->
+  <!-- Contratto: превью бланка (данные уже на листе) -->
   <VelPdfDialog
     v-model:open="pdfOpen"
-    :preview-image="contractPolicyImg"
-    :holder-name="client.fullName"
-    :signature-url="account.signatureDataUrl"
+    :preview-image="contractPreviewImg"
+    name-mode="none"
     :title="t('contract.card.title')"
   />
 
