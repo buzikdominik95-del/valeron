@@ -39,7 +39,7 @@ import { useCabinetTab } from '@/composables/useCabinetTab'
 const { t } = useI18n()
 const account = useAccountStore()
 const dossier = useDossierStore()
-const { steps, canWithdraw, isAuthorizing, approvedAmount } = useAccount()
+const { steps, canWithdraw, isAuthorizing } = useAccount()
 const {
   isPayFee,
   isMessenger,
