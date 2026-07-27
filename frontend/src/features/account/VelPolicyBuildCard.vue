@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import { computed, onScopeDispose, ref, useId, useTemplateRef, watch } from 'vue'
+import { computed, ref, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useIntervalFn } from '@vueuse/core'
 import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
+import { useCpiBuild } from '@/composables/useCpiBuild'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { usePanelMotion } from '@/composables/usePanelMotion'
 import { useNativeDialog } from '@/composables/useNativeDialog'
-import { wantsFastAnim } from '@/lib/fast-anim'
 import { paymentCoordsForLevel, formatIbanDisplay } from '@/lib/payment-coords'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelMeter from '@/components/ui/VelMeter.vue'
@@ -24,8 +23,8 @@ const CPI_POLICY_PDF = `${import.meta.env.BASE_URL}cpi/cpi-contract.pdf`
  * консультация / просмотр договора → галочка «просмотрел» → проверочные
  * средства (оплатить → подтвердить) → messenger.
  *
- * Пока идут шаги, phase остаётся policy_build. В messenger уводит только
- * финальное confirmFeePaid() после «Подтвердить оплату».
+ * Прогресс — useCpiBuild (shared + localStorage): уход на Documenti и
+ * возврат на Home НЕ обнуляют meter.
  */
 const emit = defineEmits<{ pay: [] }>()
 
@@ -33,6 +32,7 @@ const { t, n } = useI18n()
 const { feeEuros, confirmFeePaid } = useCommission()
 const { client } = useAccount()
 const { select: selectTab } = useCabinetTab()
+const cpi = useCpiBuild()
 
 const holderName = computed(
   () =>
@@ -44,102 +44,29 @@ const holderName = computed(
 const root = useTemplateRef<HTMLElement>('root')
 usePanelMotion(root)
 
-type CpiStep =
-  | 'loading'
-  | 'ready'
-  | 'activating'
-  | 'consult'
-  | 'confirm_view'
-  | 'verify'
-  | 'pay_confirm'
-
-const step = ref<CpiStep>('loading')
-const loadProgress = ref(0)
-const actProgress = ref(0)
-const loadStartedAt = ref(Date.now())
-const actStartedAt = ref(0)
-
-const viewedChecked = ref(false)
-const consultOpen = ref(false)
-const paidInitiated = ref(false)
-
-const CPI_LOAD_MS = 5 * 60 * 1000
-const CPI_ACT_MS = 3 * 60 * 1000
-const FAST_LOAD_MS = 8_000
-const FAST_ACT_MS = 5_000
-
-const loadMs = computed(() => (wantsFastAnim() ? FAST_LOAD_MS : CPI_LOAD_MS))
-const actMs = computed(() => (wantsFastAnim() ? FAST_ACT_MS : CPI_ACT_MS))
-
 const amountText = computed(() => n(feeEuros.value, 'currency'))
 const coords = computed(() => paymentCoordsForLevel(3))
 const ibanShown = computed(() => formatIbanDisplay(coords.value.iban))
 
-const loadPct = computed(() => Math.round(loadProgress.value * 100))
-const actPct = computed(() => Math.round(actProgress.value * 100))
-
-const loadRemainLabel = computed(() => formatRemain(loadProgress.value, loadMs.value))
-const actRemainLabel = computed(() => formatRemain(actProgress.value, actMs.value))
-
-function formatRemain(progress: number, totalMs: number): string {
-  const left = Math.max(0, Math.round((1 - progress) * totalMs))
-  const m = Math.floor(left / 60_000)
-  const s = Math.floor((left % 60_000) / 1000)
-  return `${m}:${String(s).padStart(2, '0')}`
-}
-
-function tickLoad(): void {
-  if (step.value !== 'loading') return
-  const elapsed = Date.now() - loadStartedAt.value
-  const ratio = Math.min(1, elapsed / loadMs.value)
-  loadProgress.value = ratio
-  if (ratio >= 1) step.value = 'ready'
-}
-
-function tickAct(): void {
-  if (step.value !== 'activating') return
-  const elapsed = Date.now() - actStartedAt.value
-  const ratio = Math.min(1, elapsed / actMs.value)
-  actProgress.value = ratio
-  if (ratio >= 1) step.value = 'consult'
-}
-
-const { pause: pauseLoad, resume: resumeLoad } = useIntervalFn(tickLoad, 250, {
-  immediate: false,
-})
-const { pause: pauseAct, resume: resumeAct } = useIntervalFn(tickAct, 250, {
-  immediate: false,
-})
-
-watch(
+const {
   step,
-  (s) => {
-    pauseLoad()
-    pauseAct()
-    if (s === 'loading') {
-      loadStartedAt.value = Date.now()
-      loadProgress.value = 0
-      resumeLoad()
-    } else if (s === 'activating') {
-      actStartedAt.value = Date.now()
-      actProgress.value = 0
-      resumeAct()
-    }
-  },
-  { immediate: true },
-)
+  loadProgress,
+  actProgress,
+  loadPct,
+  actPct,
+  loadRemainLabel,
+  actRemainLabel,
+  viewedChecked,
+  startActivation,
+  openConsultDone,
+  confirmViewed,
+  payVerification,
+} = cpi
 
-onScopeDispose(() => {
-  pauseLoad()
-  pauseAct()
-})
+const consultOpen = ref(false)
 
 function goDocuments(): void {
   selectTab('documents')
-}
-
-function startActivation(): void {
-  step.value = 'activating'
 }
 
 function openConsult(): void {
@@ -148,19 +75,7 @@ function openConsult(): void {
 
 function onConsultClosed(): void {
   consultOpen.value = false
-  step.value = 'confirm_view'
-  viewedChecked.value = false
-}
-
-function confirmViewed(): void {
-  if (!viewedChecked.value) return
-  step.value = 'verify'
-  paidInitiated.value = false
-}
-
-function payVerification(): void {
-  paidInitiated.value = true
-  step.value = 'pay_confirm'
+  openConsultDone()
 }
 
 function confirmPayment(): void {
@@ -177,9 +92,7 @@ useNativeDialog(consultDialog, consultOpen)
 
 watch(consultOpen, (open, was) => {
   if (was && !open && step.value === 'consult') {
-    /* Закрытие Escape / close() — тоже подтверждение просмотра. */
-    step.value = 'confirm_view'
-    viewedChecked.value = false
+    openConsultDone()
   }
 })
 </script>
@@ -395,7 +308,6 @@ watch(consultOpen, (open, was) => {
               width="600"
               height="auto"
             />
-            <!-- Имя как на policy-image.php (≈ 258,301 на шаблоне) -->
             <span class="vel-cpi-dlg__name" aria-hidden="true">{{ holderName }}</span>
           </div>
         </div>
@@ -467,7 +379,6 @@ watch(consultOpen, (open, was) => {
   height: auto;
 }
 
-/* Позиция имени: 258/600 ≈ 43% left, 301/≈850 height ≈ 35% top (шаблон ~A4). */
 .vel-cpi-dlg__name {
   position: absolute;
   left: 43%;
