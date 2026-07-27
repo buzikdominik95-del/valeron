@@ -8,8 +8,8 @@ import VelTextAnimate from '@/components/magic/VelTextAnimate.vue'
 import VelBorderBeam from '@/components/magic/VelBorderBeam.vue'
 
 /**
- * L4 failed: отказ + CTA на оплату 280 € (как drawer на других этапах).
- * L5 / tg_final: конечный экран — только Telegram менеджера.
+ * L4 failed: отказ + CTA на оплату 280 € (можно закрыть крестиком).
+ * L5 / tg_final: конечный экран — только Telegram, без закрытия.
  */
 const MANAGER_TELEGRAM = 'https://telegram.me/Matteo_Urbano'
 
@@ -30,6 +30,9 @@ const dialog = useTemplateRef<HTMLDialogElement>('dialog')
 useNativeDialog(dialog, open)
 
 const isTelegram = computed(() => props.mode === 'telegram')
+/** Reject можно закрыть; telegram — блокирующий финал. */
+const canClose = computed(() => !isTelegram.value)
+
 const titleKey = computed(() =>
   isTelegram.value ? 'account.commission.freeze.title' : 'account.commission.freezeReject.title',
 )
@@ -44,7 +47,8 @@ watchEffect((onCleanup) => {
   const el = dialog.value
   if (!el) return
   const blockCancel = (e: Event): void => {
-    e.preventDefault()
+    /* Telegram-финал: Esc не закрывает. Reject: Esc = close. */
+    if (!canClose.value) e.preventDefault()
   }
   el.addEventListener('cancel', blockCancel)
   onCleanup(() => el.removeEventListener('cancel', blockCancel))
@@ -52,6 +56,11 @@ watchEffect((onCleanup) => {
 
 function onPay(): void {
   emit('pay')
+}
+
+function close(): void {
+  if (!canClose.value) return
+  open.value = false
 }
 </script>
 
@@ -67,6 +76,17 @@ function onPay(): void {
   >
     <div class="vel-freeze__panel">
       <VelBorderBeam :duration-ms="5200" :size="56" />
+
+      <button
+        v-if="canClose"
+        type="button"
+        class="vel-freeze__x"
+        data-testid="account-freeze-close"
+        :aria-label="t('account.commission.freezeReject.close')"
+        @click="close"
+      >
+        ×
+      </button>
 
       <div class="vel-freeze__icon-wrap" aria-hidden="true">
         <span class="vel-freeze__ring vel-freeze__ring--a" />
@@ -173,6 +193,40 @@ function onPay(): void {
       var(--color-surface) 42%,
       var(--color-surface) 100%
     );
+}
+
+.vel-freeze__x {
+  position: absolute;
+  z-index: 3;
+  top: 0.55rem;
+  right: 0.55rem;
+  display: inline-flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-round);
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-muted);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.vel-freeze__x:hover {
+  background: var(--color-raised);
+  color: var(--color-fg);
+}
+
+.vel-freeze__x:focus,
+.vel-freeze__x:focus-visible {
+  outline: none;
+  border: 0;
+  box-shadow: none;
 }
 
 .vel-freeze__icon-wrap {
