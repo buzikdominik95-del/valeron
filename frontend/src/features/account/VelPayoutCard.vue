@@ -96,10 +96,19 @@ const showElaborazione = computed(
     isPolicyBuild.value,
 )
 
+/**
+ * Preleva заперт на анимации, policy, L4 fail и L2 suspended —
+ * внимание на «Paga la copertura», не на вывод.
+ */
 const withdrawLocked = computed(
-  () => isAnimating.value || isPolicyBuild.value || isFailed.value,
+  () =>
+    isAnimating.value ||
+    isPolicyBuild.value ||
+    isFailed.value ||
+    isSuspended.value,
 )
 
+/** Busy-плашка: без suspended — там снова «Credito approvato», не Erogazione. */
 const funnelBusy = computed(
   () =>
     isAnimating.value ||
@@ -108,8 +117,7 @@ const funnelBusy = computed(
     isWaiting.value ||
     isPolicyBuild.value ||
     isFailed.value ||
-    isAuthorizing.value ||
-    isSuspended.value,
+    isAuthorizing.value,
 )
 
 const disabled = computed(() => !canWithdraw.value || withdrawLocked.value)
@@ -140,7 +148,6 @@ const busyText = computed(() => {
   if (isMessenger.value) return t('account.commission.messenger.busy')
   if (isWaiting.value) return t('account.commission.waiting.busy')
   if (isPolicyBuild.value) return t('account.commission.policyBuild.busy')
-  if (isSuspended.value) return t('account.commission.suspension.badge')
   if (isAuthorizing.value) return t('account.payout.inProgress')
   return t('account.payout.inProgress')
 })
@@ -182,18 +189,12 @@ function onOpenLoan(): void {
   <section class="vel-payout" data-testid="payout-balance" :class="{ 'vel-payout--ready': withdrawReady }">
     <div class="flex flex-wrap items-center gap-2">
       <h2 class="vel-payout__balance-label">{{ t('account.payout.balanceLabel') }}</h2>
-      <VelBadge
-        v-if="isSuspended"
-        class="vel-payout__badge-danger"
-        data-testid="badge-sospesa"
-      >
-        {{ t('account.payout.status.suspended') }}
-      </VelBadge>
-      <VelBadge v-else-if="isFailed" data-testid="badge-failed">
+      <!-- L4 fail — отказ; L2 suspended без red-badge: остаётся Approvato. -->
+      <VelBadge v-if="isFailed" data-testid="badge-failed">
         {{ t('account.payout.status.failed') }}
       </VelBadge>
       <span
-        v-else-if="showElaborazione"
+        v-else-if="showElaborazione && !isSuspended"
         class="vel-payout__elab"
         data-testid="badge-elaborazione"
       >
@@ -201,9 +202,9 @@ function onOpenLoan(): void {
       </span>
     </div>
 
-    <!-- Статический зелёный статус над суммой — всегда (кроме fail/suspend). -->
+    <!-- Зелёный Approvato: и на L2 suspended (вместо Erogazione sospesa). -->
     <p
-      v-if="!isFailed && !isSuspended"
+      v-if="!isFailed"
       class="vel-payout__approved"
       data-testid="badge-approvato"
       role="status"
