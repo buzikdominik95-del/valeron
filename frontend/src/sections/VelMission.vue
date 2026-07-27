@@ -81,7 +81,7 @@ function closeLicense(): void {
     </div>
   </VelStage>
 
-  <!-- Модалка: фото сертификата Calipso (фотка 1) -->
+  <!-- Модалка: полный сертификат без обрезки (весь документ) -->
   <dialog
     ref="dialog"
     class="vel-license"
@@ -112,9 +112,6 @@ function closeLicense(): void {
             decoding="async"
           />
         </figure>
-        <p class="vel-license__caption m-0">
-          {{ t('mission.accreditation') }}
-        </p>
       </div>
       <footer class="vel-license__foot">
         <VelButton type="button" size="lg" @click="closeLicense">
@@ -126,9 +123,15 @@ function closeLicense(): void {
 </template>
 
 <style scoped>
+/*
+  Модалка на почти весь viewport — документ не обрезается.
+  Картинка во всю ширину, полная высота, скролл по body если не влезает.
+*/
 .vel-license {
-  inline-size: min(100% - 1rem, 36rem);
-  max-block-size: min(92dvh, 44rem);
+  inline-size: min(100% - 1rem, 56rem);
+  max-inline-size: calc(100vw - 1rem);
+  max-block-size: min(96dvh, 100dvh - 0.75rem);
+  margin: auto;
   overflow: hidden;
   padding: 0;
   border: 1px solid var(--color-line);
@@ -144,23 +147,26 @@ function closeLicense(): void {
 
 .vel-license__shell {
   display: flex;
-  max-block-size: min(92dvh, 44rem);
+  max-block-size: min(96dvh, 100dvh - 0.75rem);
   flex-direction: column;
+  min-block-size: 0;
 }
 
 .vel-license__head {
   display: flex;
-  align-items: flex-start;
+  flex: 0 0 auto;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 1.1rem 1.2rem 0.85rem;
+  padding: 0.85rem 1rem;
   border-block-end: 1px solid var(--color-line);
 }
 
 .vel-license__title {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 700;
+  line-height: 1.25;
 }
 
 .vel-license__x {
@@ -188,41 +194,55 @@ function closeLicense(): void {
   min-block-size: 0;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: 0.75rem;
-  overflow-y: auto;
-  padding: 1rem 1.15rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 0.65rem 0.75rem;
+  background: var(--color-ground);
+  -webkit-overflow-scrolling: touch;
 }
 
 .vel-license__figure {
-  margin: 0;
-  overflow: hidden;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 52rem;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-control);
-  background: var(--color-ground);
+  background: #fff;
+  box-shadow: 0 0.25rem 1rem color-mix(in oklab, var(--color-fg) 8%, transparent);
 }
 
+/* Полный документ: без max-height, без object-fit crop — вся картинка целиком */
 .vel-license__img {
   display: block;
   width: 100%;
   height: auto;
-  max-block-size: min(68dvh, 34rem);
+  max-width: 100%;
   object-fit: contain;
-  object-position: center top;
-  vertical-align: middle;
-}
-
-.vel-license__caption {
-  color: var(--color-muted);
-  font-size: 0.8rem;
-  font-weight: 600;
-  line-height: 1.4;
-  text-align: center;
+  vertical-align: top;
 }
 
 .vel-license__foot {
   display: flex;
+  flex: 0 0 auto;
   justify-content: flex-end;
-  padding: 0.85rem 1.15rem 1.1rem;
+  padding: 0.75rem 1rem;
   border-block-start: 1px solid var(--color-line);
+  background: var(--color-surface);
+}
+
+@media (max-width: 40rem) {
+  .vel-license {
+    inline-size: calc(100% - 0.5rem);
+    max-block-size: 98dvh;
+    border-radius: var(--radius-control);
+  }
+
+  .vel-license__shell {
+    max-block-size: 98dvh;
+  }
+
+  .vel-license__body {
+    padding: 0.4rem;
+  }
 }
 </style>
