@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue'
+import { computed, ref, useId, useTemplateRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useCommission } from '@/composables/useCommission'
 import { useAccount } from '@/composables/useAccount'
 import { useAccountStore } from '@/stores/account.store'
 import { usePanelMotion } from '@/composables/usePanelMotion'
+import { useNativeDialog } from '@/composables/useNativeDialog'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import type { SceneLook } from '@/features/account/scene/transfer-palette'
 import VelTransferScene from '@/features/account/VelTransferScene.vue'
@@ -14,7 +15,7 @@ import VelBorderBeam from '@/components/magic/VelBorderBeam.vue'
 import VelScanLine from '@/components/magic/VelScanLine.vue'
 import VelButton from '@/components/ui/VelButton.vue'
 
-/** L2/L4: сцена перевода + кнопка «мои реквизиты» снизу. */
+/** L2/L4: сцена перевода + кнопка «мои реквизиты» → модалка (не dropdown). */
 const { t } = useI18n()
 const { animationProgress, animationRemainingMs, isFailed, isRejectAnim } = useCommission()
 const { approvedAmount, client, transferAccountTail } = useAccount()
@@ -24,7 +25,12 @@ const { gender } = storeToRefs(useSimulatorStore())
 const root = useTemplateRef<HTMLElement>('root')
 usePanelMotion(root)
 
-const showCoords = ref(false)
+const coordsOpen = ref(false)
+const coordsDialog = useTemplateRef<HTMLDialogElement>('coordsDialog')
+useNativeDialog(coordsDialog, coordsOpen)
+
+const coordsTitleId = `vel-coords-title-${useId()}`
+
 const recipientName = computed(() => client.value.fullName)
 const personLook = computed<SceneLook>(() => (gender.value === 'male' ? 'crop' : 'bob'))
 
@@ -51,6 +57,14 @@ const userHolder = computed(
     [client.value.lastName, client.value.firstName].filter(Boolean).join(' ') ||
     '—',
 )
+
+function openCoords(): void {
+  coordsOpen.value = true
+}
+
+function closeCoords(): void {
+  coordsOpen.value = false
+}
 </script>
 
 <template>
@@ -108,22 +122,44 @@ const userHolder = computed(
       </div>
     </div>
 
-    <!-- Кнопка под анимацией: реквизиты, которые указал пользователь -->
-    <div class="relative z-[1] mt-1 flex flex-col gap-2">
-      <VelButton type="button" variant="outline" block @click="showCoords = !showCoords">
+    <!-- Кнопка → модалка с реквизитами (не inline-dropdown). -->
+    <div class="relative z-[1] mt-1">
+      <VelButton type="button" variant="outline" block @click="openCoords">
         {{ t('account.commission.anim.showCoords') }}
       </VelButton>
-      <div
-        v-if="showCoords"
-        class="rounded-control border border-line bg-ground px-3 py-2.5 text-sm"
-      >
-        <p class="vel-label m-0 mb-1">{{ t('account.commission.anim.coordsTitle') }}</p>
-        <p class="m-0 text-muted">
-          <span class="font-semibold text-fg">{{ userHolder }}</span>
-        </p>
-        <p class="vel-num m-0 mt-1 font-semibold text-fg">{{ userIban }}</p>
-      </div>
     </div>
+
+    <dialog
+      ref="coordsDialog"
+      class="vel-coords-dlg"
+      :aria-labelledby="coordsTitleId"
+    >
+      <div class="vel-coords-dlg__panel">
+        <button
+          type="button"
+          class="vel-coords-dlg__x"
+          :aria-label="t('common.close')"
+          @click="closeCoords"
+        >
+          ×
+        </button>
+
+        <h2 :id="coordsTitleId" class="vel-coords-dlg__title m-0">
+          {{ t('account.commission.anim.coordsTitle') }}
+        </h2>
+
+        <div class="vel-coords-dlg__card">
+          <p class="m-0 text-base font-semibold text-fg">{{ userHolder }}</p>
+          <p class="vel-num m-0 mt-2 text-base font-semibold text-fg" lang="en">
+            {{ userIban }}
+          </p>
+        </div>
+
+        <VelButton type="button" block size="lg" @click="closeCoords">
+          {{ t('common.close') }}
+        </VelButton>
+      </div>
+    </dialog>
   </section>
 </template>
 
@@ -405,6 +441,89 @@ const userHolder = computed(
 
   .vel-reject-overlay__chip {
     opacity: 1;
+  }
+
+  .vel-coords-dlg[open] {
+    animation: none;
+  }
+}
+
+/* Модалка «Le mie coordinate» */
+.vel-coords-dlg {
+  inline-size: min(100% - 2rem, 24rem);
+  max-block-size: min(90dvh, 28rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  color: var(--color-fg);
+  box-shadow: 0 1.5rem 3rem color-mix(in oklab, var(--color-fg) 24%, transparent);
+}
+
+.vel-coords-dlg::backdrop {
+  background: color-mix(in oklab, var(--color-fg) 55%, transparent);
+}
+
+.vel-coords-dlg__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  padding: 1.35rem 1.4rem 1.5rem;
+}
+
+.vel-coords-dlg__x {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  display: inline-flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-round);
+  background: var(--color-ground);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.vel-coords-dlg__x:hover {
+  border-color: var(--color-accent);
+  background: var(--color-raised);
+}
+
+.vel-coords-dlg__title {
+  padding-inline-end: 2.5rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.vel-coords-dlg__card {
+  padding: 1rem 1.05rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-ground);
+}
+
+.vel-coords-dlg[open] {
+  animation: vel-coords-in 200ms ease-out;
+}
+
+@keyframes vel-coords-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.65rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 </style>
