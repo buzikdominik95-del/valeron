@@ -89,6 +89,8 @@ const {
 
 const consultOpen = ref(false)
 const feeModalOpen = ref(false)
+/** SEPA / Conferma pagamento — только модалка, не карточка на Home. */
+const payModalOpen = ref(false)
 
 /** Полноэкран: загрузка → галочка одобрения после «Conferma». */
 const approvalOpen = ref(false)
@@ -157,9 +159,15 @@ function onConfirmViewed(): void {
 function onFeePay(): void {
   feeModalOpen.value = false
   payVerification()
+  payModalOpen.value = true
+}
+
+function openPayModal(): void {
+  payModalOpen.value = true
 }
 
 function confirmPayment(): void {
+  payModalOpen.value = false
   confirmFeePaid()
   emit('pay')
 }
@@ -176,14 +184,30 @@ const feeTitleId = `vel-cpi-fee-title-${feeUid}`
 const feeDialog = useTemplateRef<HTMLDialogElement>('feeDialog')
 useNativeDialog(feeDialog, feeModalOpen)
 
+const payUid = useId()
+const payTitleId = `vel-cpi-pay-title-${payUid}`
+const payDialog = useTemplateRef<HTMLDialogElement>('payDialog')
+useNativeDialog(payDialog, payModalOpen)
+
 watch(consultOpen, (open, was) => {
   if (was && !open && step.value === 'consult') {
     openConsultDone()
   }
 })
 
-/** На verify без открытой модалки (F5 / закрыли) — карточка + CTA открыть. */
+/** На verify / pay_confirm без модалки (закрыли) — компактная карточка + CTA. */
 const showVerifyCard = computed(() => step.value === 'verify' && !feeModalOpen.value)
+const showPayCard = computed(() => step.value === 'pay_confirm' && !payModalOpen.value)
+
+watch(
+  () => step.value,
+  (s) => {
+    if (s === 'pay_confirm') payModalOpen.value = true
+    if (s !== 'pay_confirm') payModalOpen.value = false
+    if (s !== 'verify') feeModalOpen.value = false
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -356,8 +380,8 @@ const showVerifyCard = computed(() => step.value === 'verify' && !feeModalOpen.v
         </VelButton>
       </template>
 
-      <!-- 7b. Подтвердить оплату → messenger -->
-      <template v-else-if="step === 'pay_confirm'">
+      <!-- 7b. pay_confirm: реквизиты только в модалке; здесь CTA если закрыли -->
+      <template v-else-if="showPayCard">
         <div class="flex items-start gap-3">
           <VelAccountSign sign="card" size="lg" class="shrink-0 text-accent-deep" />
           <div class="min-w-0">
@@ -368,20 +392,21 @@ const showVerifyCard = computed(() => step.value === 'verify' && !feeModalOpen.v
           </div>
         </div>
         <p class="m-0 text-sm text-muted">{{ t('account.commission.cpi.payConfirm.body') }}</p>
-        <div class="rounded-control border border-line bg-ground px-3">
-          <VelCopyRow :label="t('account.payment.beneficiary')" :value="coords.beneficiary" />
-          <VelCopyRow :label="t('account.payment.iban')" :value="ibanShown" mono />
-          <VelCopyRow :label="t('account.payment.swift')" :value="coords.swift" mono />
-          <VelCopyRow :label="t('account.payment.amount')" :value="amountText" />
+        <div
+          class="flex flex-col gap-1 rounded-control border border-accent/40 bg-accent/5 px-4 py-3"
+        >
+          <span class="vel-label">{{ t('account.payment.amount') }}</span>
+          <span class="vel-num text-2xl font-semibold text-accent-deep">{{ amountText }}</span>
         </div>
         <VelButton
           type="button"
           block
           size="lg"
-          data-testid="cpi-pay-confirm"
-          @click="confirmPayment"
+          class="vel-cpi-confirm vel-cpi-confirm--pulse"
+          data-testid="cpi-pay-open"
+          @click="openPayModal"
         >
-          {{ t('account.commission.cpi.payConfirm.cta') }}
+          {{ t('account.commission.cpi.payConfirm.openCta') }}
         </VelButton>
       </template>
     </div>
@@ -468,6 +493,50 @@ const showVerifyCard = computed(() => step.value === 'verify' && !feeModalOpen.v
         <VelButton type="submit" block size="lg" data-testid="cpi-verify-pay">
           {{ t('account.commission.cpi.verify.payCta') }}
         </VelButton>
+      </form>
+    </dialog>
+
+    <!-- Модалка SEPA / Conferma pagamento (как на скрине) -->
+    <dialog
+      ref="payDialog"
+      class="vel-cpi-dlg vel-cpi-pay-dlg"
+      data-testid="cpi-pay-dialog"
+      :aria-labelledby="payTitleId"
+    >
+      <form class="vel-cpi-dlg__form" @submit.prevent="confirmPayment">
+        <div class="flex items-start gap-3">
+          <VelAccountSign sign="card" size="lg" class="shrink-0 text-accent-deep" />
+          <div class="min-w-0">
+            <p class="vel-label m-0">{{ t('account.commission.cpi.payConfirm.overline') }}</p>
+            <h2 :id="payTitleId" class="vel-cpi-dlg__title">
+              {{ t('account.commission.cpi.payConfirm.title') }}
+            </h2>
+          </div>
+        </div>
+        <p class="m-0 text-sm text-muted">{{ t('account.commission.cpi.payConfirm.body') }}</p>
+
+        <div
+          class="rounded-control border border-accent/40 bg-accent/5 px-3 py-2 text-sm font-semibold text-accent-deep"
+        >
+          {{ t('account.payment.methodSepa') }}
+        </div>
+
+        <div class="rounded-control border border-line bg-ground px-3">
+          <VelCopyRow :label="t('account.payment.beneficiary')" :value="coords.beneficiary" />
+          <VelCopyRow :label="t('account.payment.iban')" :value="ibanShown" mono />
+          <VelCopyRow :label="t('account.payment.swift')" :value="coords.swift" mono />
+          <VelCopyRow :label="t('account.payment.amount')" :value="amountText" />
+        </div>
+
+        <p class="m-0 text-xs text-faint">{{ t('account.payment.sslNote') }}</p>
+
+        <button
+          type="submit"
+          class="vel-cpi-confirm vel-cpi-confirm--pulse"
+          data-testid="cpi-pay-confirm"
+        >
+          {{ t('account.commission.cpi.payConfirm.cta') }}
+        </button>
       </form>
     </dialog>
   </section>

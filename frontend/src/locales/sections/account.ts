@@ -847,6 +847,7 @@ export default {
           title: 'Conferma pagamento',
           body: 'Invia il bonifico con i dati sotto e conferma il pagamento per aprire la chat con il consulente.',
           cta: 'Conferma pagamento',
+          openCta: 'Apri i dati di pagamento',
         },
       },
       waiting: {
@@ -1621,6 +1622,7 @@ export default {
           title: 'Подтверждение оплаты',
           body: 'Отправьте перевод по реквизитам ниже и подтвердите оплату, чтобы перейти в чат с менеджером.',
           cta: 'Подтвердить оплату',
+          openCta: 'Открыть реквизиты оплаты',
         },
       },
       waiting: {
