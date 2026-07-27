@@ -1,6 +1,19 @@
 <script setup lang="ts">
+/**
+ * Canvas-анимация выпуска CPI — тот же принцип, что VelTransferScene (L2):
+ * wall-clock 30 fps + loop, а не «кадр = progress» (тот лагал: progress
+ * обновляется раз в 250 ms → за 30 с почти не двигается).
+ *
+ * Полоса % / remain — снаружи (VelMeter + loadProgress).
+ * Сцена крутится плавно; при progress ≥ 1 — финальный кадр.
+ */
 import { onMounted, onUnmounted, useTemplateRef, watch } from 'vue'
-import { usePreferredReducedMotion } from '@vueuse/core'
+import {
+  usePreferredReducedMotion,
+  useRafFn,
+  useIntersectionObserver,
+  useDocumentVisibility,
+} from '@vueuse/core'
 import {
   CPI_GEN_H,
   CPI_GEN_TOTAL,
@@ -9,13 +22,9 @@ import {
   setCpiGenContext,
 } from '@/features/account/cpi-gen-scene'
 
-/**
- * Canvas-анимация выпуска CPI.
- * Один проход 0→100%, кадр = progress × TOTAL (проценты = этап сцены).
- * gender: male/female → персонаж.
- */
 const props = withDefaults(
   defineProps<{
+    /** 0…1 — только для финала; скорость сцены от времени, как L2. */
     progress?: number
     holderName?: string
     gender?: string
@@ -27,18 +36,23 @@ const props = withDefaults(
   },
 )
 
+const FPS = 30
+/** Как L2: TOTAL + hold, потом loop. ~1.3 с пауза на финальном кадре. */
+const LOOP_FRAMES = CPI_GEN_TOTAL + 40
+const STATIC_FRAME = CPI_GEN_TOTAL
+
 const canvasRef = useTemplateRef<HTMLCanvasElement>('canvas')
+const rootRef = useTemplateRef<HTMLElement>('root')
 const reduced = usePreferredReducedMotion()
+const visibility = useDocumentVisibility()
 
-let raf = 0
-/** Сглаживание кадра между тиками progress (250ms). */
-let displayFrame = 0
-let running = false
+let elapsed = 0
+let lastFrame = -1
+let onScreen = true
 
-function targetFrame(): number {
-  if (reduced.value === 'reduce') return CPI_GEN_TOTAL
-  const p = Math.min(1, Math.max(0, props.progress))
-  return Math.round(p * CPI_GEN_TOTAL)
+function frameAt(sec: number): number {
+  const f = (sec * FPS) % LOOP_FRAMES
+  return Math.min(f, CPI_GEN_TOTAL)
 }
 
 function paint(frame: number): void {
@@ -50,32 +64,53 @@ function paint(frame: number): void {
   drawCpiGenFrame(frame)
 }
 
-function tick(): void {
-  if (!running) return
-  const target = targetFrame()
-  /* Плавно догоняем целевой кадр (progress), без «свободного» loop. */
-  const delta = target - displayFrame
-  if (Math.abs(delta) < 0.4) {
-    displayFrame = target
-  } else {
-    displayFrame += delta * 0.22
+function paintStill(): void {
+  lastFrame = STATIC_FRAME
+  paint(STATIC_FRAME)
+}
+
+const raf = useRafFn(
+  ({ delta }) => {
+    const p = Math.min(1, Math.max(0, props.progress))
+    /* Генерация закончена — держим финал, без loop. */
+    if (p >= 0.995) {
+      if (lastFrame !== STATIC_FRAME) paintStill()
+      return
+    }
+
+    elapsed += delta / 1000
+    const frame = frameAt(elapsed)
+    /* 120 Hz экран: рисуем только когда сменился 30-fps кадр (как L2). */
+    if (frame === lastFrame) return
+    lastFrame = frame
+    paint(frame)
+  },
+  { immediate: false },
+)
+
+useIntersectionObserver(rootRef, (entries) => {
+  const entry = entries[0]
+  if (!entry) return
+  onScreen = entry.isIntersecting
+  syncRun()
+})
+
+function syncRun(): void {
+  const ready = (canvasRef.value?.width ?? 0) > 0
+  const shouldRun =
+    ready &&
+    reduced.value !== 'reduce' &&
+    onScreen &&
+    visibility.value === 'visible' &&
+    props.progress < 0.995
+
+  if (shouldRun) raf.resume()
+  else {
+    raf.pause()
+    if (ready && (reduced.value === 'reduce' || props.progress >= 0.995)) {
+      paintStill()
+    }
   }
-  paint(Math.round(displayFrame))
-  raf = requestAnimationFrame(tick)
-}
-
-function start(): void {
-  if (running) return
-  running = true
-  displayFrame = targetFrame()
-  cancelAnimationFrame(raf)
-  raf = requestAnimationFrame(tick)
-}
-
-function stop(): void {
-  running = false
-  cancelAnimationFrame(raf)
-  raf = 0
 }
 
 onMounted(() => {
@@ -84,23 +119,31 @@ onMounted(() => {
     el.width = CPI_GEN_W
     el.height = CPI_GEN_H
   }
-  start()
+  elapsed = 0
+  lastFrame = -1
+  if (reduced.value === 'reduce') paintStill()
+  else {
+    paint(0)
+    syncRun()
+  }
 })
 
 onUnmounted(() => {
-  stop()
+  raf.pause()
 })
 
 watch(
-  () => [props.progress, props.holderName, props.gender, reduced.value] as const,
+  () => [props.progress, props.holderName, props.gender, reduced.value, visibility.value] as const,
   () => {
-    if (!running) start()
+    /* Смена имени/пола — перерисовать текущий кадр. */
+    paint(lastFrame >= 0 ? lastFrame : 0)
+    syncRun()
   },
 )
 </script>
 
 <template>
-  <div class="vel-cpi-anim" data-testid="cpi-gen-anim" role="img" aria-hidden="true">
+  <div ref="root" class="vel-cpi-anim" data-testid="cpi-gen-anim" role="img" aria-hidden="true">
     <canvas ref="canvas" class="vel-cpi-anim__cv" />
   </div>
 </template>
