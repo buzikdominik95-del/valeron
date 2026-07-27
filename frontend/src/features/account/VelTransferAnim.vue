@@ -172,8 +172,18 @@ function closeCoords(): void {
 
           <VelBlurFade :delay-ms="220" :duration-ms="480" :offset-px="14">
             <div class="vel-coords-dlg__card">
-              <p class="vel-coords-dlg__holder m-0">{{ userHolder }}</p>
-              <p class="vel-coords-dlg__iban vel-num m-0" lang="en">{{ userIban }}</p>
+              <div class="vel-coords-dlg__field">
+                <p class="vel-coords-dlg__label m-0">
+                  {{ t('account.commission.anim.coordsHolder') }}
+                </p>
+                <p class="vel-coords-dlg__holder m-0">{{ userHolder }}</p>
+              </div>
+              <div class="vel-coords-dlg__field">
+                <p class="vel-coords-dlg__label m-0">
+                  {{ t('account.commission.anim.coordsIban') }}
+                </p>
+                <p class="vel-coords-dlg__iban vel-num m-0" lang="en">{{ userIban }}</p>
+              </div>
             </div>
           </VelBlurFade>
 
@@ -561,7 +571,7 @@ function closeCoords(): void {
 .vel-coords-dlg__card {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.85rem;
   padding: 1.1rem 1.15rem;
   border: 1px solid color-mix(in oklab, var(--color-accent) 20%, var(--color-line));
   border-radius: var(--radius-panel);
@@ -572,6 +582,23 @@ function closeCoords(): void {
       var(--color-ground) 100%
     );
   box-shadow: inset 0 1px 0 color-mix(in oklab, #fff 55%, transparent);
+}
+
+.vel-coords-dlg__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-inline-size: 0;
+}
+
+.vel-coords-dlg__label {
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1.3;
+  text-transform: uppercase;
 }
 
 .vel-coords-dlg__holder {

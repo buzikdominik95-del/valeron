@@ -662,6 +662,8 @@ export default {
         /* Bottone sotto l’animazione: aprire le coordinate dell’utente */
         showCoords: 'Le mie coordinate',
         coordsTitle: 'Coordinate di ricezione',
+        coordsHolder: 'Nome e cognome',
+        coordsIban: 'IBAN',
         remain: 'Tempo stimato residuo: {minutes}:{seconds}',
         busy: 'Trasferimento protetto in corso — attendi il completamento dell’animazione.',
         /*
@@ -1442,6 +1444,8 @@ export default {
         leadFailed: 'Схема остаётся на экране и показывает точку остановки. Здесь ничего делать не нужно.',
         showCoords: 'Мои реквизиты',
         coordsTitle: 'Реквизиты для зачисления',
+        coordsHolder: 'Имя и фамилия',
+        coordsIban: 'IBAN',
         remain: 'Осталось примерно: {minutes}:{seconds}',
         busy: 'Защищённый перевод в процессе — дождитесь завершения анимации.',
         /* Набор ключей один в один с итальянским: см. развёрнутое пояснение
