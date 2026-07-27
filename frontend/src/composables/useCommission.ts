@@ -70,6 +70,14 @@ function createCommission(): CommissionApi {
       if (isCommissionLevel(n)) {
         urlLevelApplied = true
         dossierStore.advanceCommissionLevel(n)
+        if (n === 3) {
+          /* lazy: useCpiBuild не импортируем наверху (shared composable order) */
+          queueMicrotask(() => {
+            void import('@/composables/useCpiBuild').then(({ useCpiBuild }) => {
+              useCpiBuild().restartGeneration()
+            })
+          })
+        }
       }
     }
   }
@@ -227,7 +235,16 @@ function createCommission(): CommissionApi {
     confirmMessageSent: () => dossierStore.markMessageSent(),
     openFeeFromSuspension: () => dossierStore.openFeeFromSuspension(),
     openFeeFromFailure: () => dossierStore.openFeeFromFailure(),
-    applyAdminLevel: (next) => dossierStore.advanceCommissionLevel(next),
+    applyAdminLevel: (next) => {
+      dossierStore.advanceCommissionLevel(next)
+      if (next === 3) {
+        queueMicrotask(() => {
+          void import('@/composables/useCpiBuild').then(({ useCpiBuild }) => {
+            useCpiBuild().restartGeneration()
+          })
+        })
+      }
+    },
   }
 }
 
