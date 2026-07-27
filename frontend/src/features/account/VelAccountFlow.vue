@@ -44,7 +44,7 @@ import { useNotices } from '@/composables/useNotices'
 const { t } = useI18n()
 const account = useAccountStore()
 const dossier = useDossierStore()
-const { steps, canWithdraw, isAuthorizing, allDone } = useAccount()
+const { steps, canWithdraw, isAuthorizing, allDone, approvedAmount } = useAccount()
 const {
   isPayFee,
   isMessenger,
@@ -259,6 +259,23 @@ function startWithdrawFunnel(): void {
 }
 
 /**
+ * Сумма для drawer: после L2-анимации ref может быть 0 (F5 / другой вход).
+ * Берём одобренный кредит — не гоняем снова в Preleva.
+ */
+function ensureWithdrawAmount(): void {
+  if (withdrawAmount.value > 0) return
+  const approved = Math.round(approvedAmount.value)
+  if (approved > 0) withdrawAmount.value = approved
+}
+
+/** pay_fee / «Paga la copertura»: сразу drawer комиссии, без Preleva. */
+function openCommissionPayment(): void {
+  ensureWithdrawAmount()
+  payoutPanelOpen.value = false
+  commissionOpen.value = true
+}
+
+/**
  * Preleva — повторный вход после 1-й попытки (pay_fee / messenger / suspended).
  * Раньше кнопка гасла навсегда: phase ≠ ready, а onWithdraw выходил сразу.
  */
@@ -267,11 +284,7 @@ function onWithdraw(): void {
 
   /* Уже в оплате комиссии — снова drawer (закрыли без оплаты). */
   if (isPayFee.value) {
-    if (withdrawAmount.value <= 0) {
-      payoutPanelOpen.value = true
-      return
-    }
-    commissionOpen.value = true
+    openCommissionPayment()
     return
   }
 
@@ -281,14 +294,10 @@ function onWithdraw(): void {
     return
   }
 
-  /* L2 страховка: снова pay_fee. */
+  /* L2 страховка: pay_fee → сразу комиссия (не Preleva). */
   if (isSuspended.value) {
     openFeeFromSuspension()
-    if (withdrawAmount.value <= 0) {
-      payoutPanelOpen.value = true
-      return
-    }
-    commissionOpen.value = true
+    openCommissionPayment()
     return
   }
 
@@ -343,18 +352,17 @@ function onCommissionConfirmed(): void {
   selectTab('support')
 }
 
-/** Комиссия в pay_fee → drawer (не инлайн-карточка). */
+/**
+ * Комиссия в pay_fee → drawer (не инлайн-карточка).
+ * L2 «перевод заморожен» → Paga: openFeeFromSuspension → pay_fee → сразу оплата,
+ * без повторного Preleva (сумма из approved, если ref сброшен).
+ */
 watch(isPayFee, (on) => {
   if (!on) {
     commissionOpen.value = false
     return
   }
-  // Сумма уже из Preleva-панели; если нет — снова выпадающая форма.
-  if (withdrawAmount.value <= 0) {
-    payoutPanelOpen.value = true
-    return
-  }
-  commissionOpen.value = true
+  openCommissionPayment()
 })
 
 /** Messenger / waiting: уходим с Home на Assistenza, чат не на главной. */
