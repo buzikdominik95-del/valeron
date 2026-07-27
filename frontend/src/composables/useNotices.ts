@@ -39,6 +39,8 @@ interface NoticesApi {
   hasUnread: ComputedRef<boolean>
   /** Пометить всё прочитанным — зовёт панель при открытии. */
   markAllRead: () => void
+  /** Одно уведомление (после клика по строке). */
+  markRead: (id: number) => void
   clear: () => void
   /** Завести уведомление вручную. Нужен там, где события нет в сторе. */
   push: (kind: NoticeKind) => void
@@ -86,6 +88,12 @@ function createNotices(): NoticesApi {
     stored.value = stored.value.map((notice) => ({ ...notice, read: true }))
   }
 
+  function markRead(id: number): void {
+    stored.value = stored.value.map((notice) =>
+      notice.id === id ? { ...notice, read: true } : notice,
+    )
+  }
+
   function clear(): void {
     stored.value = []
   }
@@ -108,7 +116,7 @@ function createNotices(): NoticesApi {
   onceOnTrue(() => account.contractSigned, 'contractSigned')
   onceOnTrue(() => account.ibanProvided, 'ibanAdded')
 
-  return { items, unread, hasUnread, markAllRead, clear, push }
+  return { items, unread, hasUnread, markAllRead, markRead, clear, push }
 }
 
 export const useNotices = createSharedComposable(createNotices)

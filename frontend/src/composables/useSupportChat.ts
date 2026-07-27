@@ -181,6 +181,10 @@ export function useSupportChat(): SupportChat {
     confirmMessageSent()
     account.setSupportUnread(2)
     account.hasUnreadNotices = true
+    /* Ответ менеджера (демо) — уведомление ведёт в чат. */
+    void import('@/composables/useNotices').then(({ useNotices }) => {
+      useNotices().push('managerMessage')
+    })
   }
 
   function send(): void {
@@ -191,6 +195,10 @@ export function useSupportChat(): SupportChat {
     sending.value = true
     justSent.value = true
     clearJustSent()
+
+    void import('@/composables/useNotices').then(({ useNotices }) => {
+      useNotices().push('supportSent')
+    })
 
     if (funnel && isApiEnabled()) {
       void submitSupportMessage({

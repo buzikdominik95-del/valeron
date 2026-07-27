@@ -182,9 +182,10 @@ function unlockFirmaAfterDocs(): void {
   account.advanceTo('signature')
 }
 
-/** Toast консультанта сверху + badge на чате; через 7 с сам закрывается. */
+/** Toast консультанта сверху + badge на чате + уведомление «менеджер»; через 7 с сам закрывается. */
 function showAgentMessageToast(): void {
   account.bumpSupportUnread(1)
+  notices.push('managerMessage')
   agentToastOpen.value = true
   hideAgentToastLater()
 }
