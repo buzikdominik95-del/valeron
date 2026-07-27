@@ -85,7 +85,12 @@ provide(PAYOUT_PANEL_KEY, payoutPanelOpen)
    написано в шапке VelContractIban.vue. */
 /** IBAN + подпись в одной модалке */
 const contractSignOpen = ref(false)
+/** Prestito → модалка Dati personali + Piano di ammortamento */
 const loanOpen = ref(false)
+
+function openLoan(): void {
+  loanOpen.value = true
+}
 const chosenFiles = ref<File[]>([])
 /** Короткий toast «messaggio inviato» / «documenti pronti». */
 const toastText = ref<string | null>(null)
@@ -334,7 +339,7 @@ const showDevBar = !(
       <VelPayoutCard
         :panel-open="payoutPanelOpen"
         @withdraw="onWithdraw"
-        @open-loan="loanOpen = true"
+        @open-loan="openLoan"
       />
       <!-- Выпадающая форма метода (шаг 1 после Preleva) — не модалка -->
       <VelPayoutPanel
@@ -355,7 +360,6 @@ const showDevBar = !(
         банка и идут, до получателя не доходят.
       -->
       <VelTransferAnim v-if="isFailed" class="mt-4" />
-      <VelLoanDetails v-model:open="loanOpen" class="mt-4" />
     </template>
 
     <template #policy>
@@ -412,6 +416,9 @@ const showDevBar = !(
     :loading="pdfFilling"
     :error="pdfError"
   />
+
+  <!-- Prestito: модалка с 2 блоками (Dati personali + ammortamento) -->
+  <VelLoanDetails v-model:open="loanOpen" />
 
   <VelCoachGuide />
 
