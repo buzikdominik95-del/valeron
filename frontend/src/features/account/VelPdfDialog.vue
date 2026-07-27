@@ -233,14 +233,13 @@ function close(): void {
 /*
  * ФИО на бланке: цвет/вес как основной текст.
  * policy-template.png 875×1238 — ink «Cliente / Contraente:»:
- *   top 287px (23.18%), right 249px (28.46%), height 14px.
- * Шрифт (pixel-match 20+ serif): Times New Roman ≫ Palatino ≫ Georgia.
- * Кегль 19px @ 875 → 2.17cqw (см. font_match_cpi.py).
+ *   label top ~287px (23.18%); имя −2px вверх → 23.02% (baseline в линию).
+ * Шрифт: Times New Roman; кегль 19px @ 875 → 2.17cqw.
  */
 .vel-pdf-dlg__name {
   position: absolute;
   left: 29.15%;
-  top: 23.18%;
+  top: 23.02%;
   max-width: 52%;
   overflow: hidden;
   color: #1f2022; /* median ink policy-template */
