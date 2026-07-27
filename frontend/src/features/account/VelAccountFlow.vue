@@ -25,6 +25,7 @@ import VelContractSignDialog from '@/features/account/VelContractSignDialog.vue'
 import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
 import { useFilledContractPdf } from '@/composables/useFilledContractPdf'
 import VelCoachGuide from '@/features/account/VelCoachGuide.vue'
+import VelLevelTransition from '@/features/account/VelLevelTransition.vue'
 import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
 import VelPayoutFailed from '@/features/account/VelPayoutFailed.vue'
@@ -78,6 +79,8 @@ const bankNoticeOpen = ref(false)
 const amountOpen = ref(false)
 const withdrawAmount = ref(0)
 const commissionOpen = ref(false)
+/** Прогрузка с логотипом Velora при смене этапа (L1→L2…). */
+const levelTransitionOpen = ref(false)
 /** Выпадающая панель метода (не модалка) под Preleva. */
 const payoutPanelOpen = ref(false)
 provide(PAYOUT_PANEL_KEY, payoutPanelOpen)
@@ -410,6 +413,9 @@ const showDevBar = !(
   <VelLoanDetails v-model:open="loanOpen" />
 
   <VelCoachGuide />
+
+  <!-- L1→L2 (и дальше): полноэкранная прогрузка с логотипом Velora -->
+  <VelLevelTransition v-model:open="levelTransitionOpen" :level="level" />
 
   <!-- Полноэкранный финал перевода: сам уходит по таймеру, закрывается по Esc -->
   <VelTransferSuccess v-model:open="successOpen" />

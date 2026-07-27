@@ -294,6 +294,12 @@ export default {
     },
 
     /* Streлки-инструкция при первом заходе — VelCoachGuide.vue */
+    /* Прогрузка между этапами воронки (L1→L2…) — VelLevelTransition.vue */
+    levelTransition: {
+      aria: 'Aggiornamento pratica in corso',
+      text: 'Stiamo aggiornando la tua pratica…',
+    },
+
     coach: {
       title: 'Guida rapida',
       go: 'Vai al passo',
@@ -1112,6 +1118,11 @@ export default {
       signStep: '2 · Ваша подпись',
       ibanPlaceholder: 'IT60 X054 0123 4567 8901 2345 6',
       confirm: 'Подтвердить IBAN и подпись',
+    },
+
+    levelTransition: {
+      aria: 'Обновление заявки',
+      text: 'Обновляем вашу заявку…',
     },
 
     coach: {
