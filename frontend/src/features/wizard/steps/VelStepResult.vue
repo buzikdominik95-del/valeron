@@ -110,23 +110,12 @@ const tickerValue = computed(() => (amountRevealed.value ? approvedAmount.value 
         {{ t('wizard.result.notice') }}
       </p>
 
-      <p
-        class="flex w-full items-center gap-3 rounded-control bg-raised px-4 py-3 text-left text-sm text-fg"
-      >
-        <span class="size-1.5 shrink-0 bg-accent" aria-hidden="true"></span>
-        {{ t('wizard.result.available') }}
-      </p>
-
+      <!-- available + footnote убраны по брифу (зачёркнутые строки на фотке 5). -->
       <div class="flex w-full flex-col gap-3">
         <VelButton type="button" size="lg" block @click="emit('cta')">
           {{ t('wizard.result.cta') }}
           <span aria-hidden="true">→</span>
         </VelButton>
-
-        <!-- mx-auto обязателен рядом с мерой: обёртка тянет детей на всю ширину,
-             и суженный абзац иначе прижался бы к левому краю посреди
-             выровненной по центру карточки. -->
-        <p class="vel-measure mx-auto text-xs text-faint">{{ t('wizard.result.footnote') }}</p>
       </div>
     </section>
     <VelBorderBeam :duration-ms="9000" />

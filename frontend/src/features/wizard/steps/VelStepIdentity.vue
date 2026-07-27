@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { computed, useId, useTemplateRef, watch } from 'vue'
+import { computed, ref, useId, useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useWizard } from '@/composables/useWizard'
 import { useStaggerReveal } from '@/composables/useStaggerReveal'
 import { useAutoAnimate } from '@/composables/useAutoAnimate'
 import { useSimulatorStore } from '@/stores/simulator.store'
+import {
+  docNumberExample,
+  docNumberProblem,
+  isDocNumberValid,
+  normalizeDocNumber,
+} from '@/features/wizard/doc-number'
 import VelField from '@/components/ui/VelField.vue'
 import VelInput from '@/components/ui/VelInput.vue'
 import VelSelect from '@/components/ui/VelSelect.vue'
@@ -82,17 +88,47 @@ const hasDocType = computed(() => docType.value !== '')
 // Сменили тип документа — прежний номер к нему уже не относится.
 watch(docType, () => {
   docNumber.value = ''
+  docTouched.value = false
 })
 
-/** Валидация шага: все поля обязательны, пробелы за значение не считаются. */
-const isValid = computed(
-  () =>
-    [surname, givenName, docType, docNumber].every((field) => field.value.trim() !== '') &&
-    (GENDERS as readonly string[]).includes(gender.value),
+/** Показать ошибку номера только после blur / submit — не кричать на каждом символе. */
+const docTouched = ref(false)
+
+const docError = computed(() => {
+  if (!hasDocType.value || !docTouched.value) return null
+  const problem = docNumberProblem(docType.value, docNumber.value)
+  if (problem === null) return null
+  return t(`wizard.identity.docErrors.${problem}`, {
+    example: docNumberExample(docType.value),
+  })
+})
+
+const docPlaceholder = computed(() =>
+  hasDocType.value
+    ? t('wizard.identity.docNumberHint', { example: docNumberExample(docType.value) })
+    : t('wizard.identity.docNumberPlaceholder'),
 )
 
+/** Валидация: обязательные поля + форма номера документа по типу. */
+const isValid = computed(
+  () =>
+    surname.value.trim() !== '' &&
+    givenName.value.trim() !== '' &&
+    (GENDERS as readonly string[]).includes(gender.value) &&
+    docType.value.trim() !== '' &&
+    isDocNumberValid(docType.value, docNumber.value),
+)
+
+function onDocBlur(): void {
+  docTouched.value = true
+  const cleaned = normalizeDocNumber(docNumber.value)
+  if (cleaned !== docNumber.value) docNumber.value = cleaned
+}
+
 function onSubmit(): void {
+  docTouched.value = true
   if (!isValid.value) return
+  docNumber.value = normalizeDocNumber(docNumber.value)
   next()
 }
 </script>
@@ -158,14 +194,18 @@ function onSubmit(): void {
         </VelField>
       </div>
 
-      <!-- Новый инпут: появляется только после выбора типа документа -->
+      <!-- Новый инпут: появляется только после выбора типа; форма по типу документа. -->
       <div v-if="hasDocType" key="doc-number" data-reveal class="vel-identity__doc-num">
-        <VelField :label="t('wizard.identity.docNumber')">
+        <VelField
+          :label="t('wizard.identity.docNumber')"
+          :error="docError ?? undefined"
+        >
           <VelInput
             v-model="docNumber"
-            :placeholder="t('wizard.identity.docNumberPlaceholder')"
+            :placeholder="docPlaceholder"
             autocomplete="off"
             spellcheck="false"
+            @blur="onDocBlur"
           />
         </VelField>
       </div>

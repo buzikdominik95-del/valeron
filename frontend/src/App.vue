@@ -7,31 +7,30 @@ import { useAppView } from '@/composables/useAppView'
 import { useSmoothScroll } from '@/composables/useSmoothScroll'
 
 /*
- * ПОЛНОЭКРАННЫЕ ПОТОКИ ГРУЗЯТСЯ ОТДЕЛЬНО.
+ * ПОЛНОЭКРАННЫЕ ПОТОКИ.
  *
- * Письмо и кабинет лежат в самом конце пути: до них доходит тот, кто уже
- * заполнил мастер и зарегистрировался. Держать их в общем файле значит отдавать
- * их код КАЖДОМУ, кто просто открыл главную, — а таких большинство, и до
- * кабинета из них не дойдёт почти никто.
+ * VelEmailSent — СИНХРОННЫЙ импорт. Раньше chunk грузился lazy и на 2–3-й
+ * регистрации (повторный ?view=email) падал 404 / Failed to fetch dynamically
+ * imported module → белый экран вместо анимации письма (бриф, фотка 6).
+ * Экран письма небольшой; надёжность важнее split.
  *
- * Мастер теперь тоже отдельным куском. Прошлая правка оставляла его обычным
- * импортом из-за паузы на нажатии «рассчитать» — возражение верное, но лечится
- * не размером общего файла, а предзагрузкой: калькулятор прогревает кусок по
- * первому касанию формы, задолго до нажатия. Подробности и замеры — в
- * @/features/wizard/lazy-wizard.ts.
+ * Кабинет остаётся lazy: он тяжёлый и открывается один раз в конце пути.
  *
- * GSAP из этой схемы исключён намеренно и остаётся в общем файле: и заголовок
- * первого экрана (VelHeroTitle), и появления секций (useRevealStage) прячут
- * содержимое САМИМ СКРИПТОМ, в CSS скрытого состояния нет. Ленивый GSAP
- * означал бы кадр с уже видимым текстом, который затем скачком гаснет и
- * выезжает заново, — ровно та вспышка, ради которой это и проверялось.
+ * Мастер — lazy-wizard.ts с предзагрузкой. GSAP в общем бандле (см. ниже).
  */
-const VelEmailSent = defineAsyncComponent(
-  () => import('@/features/account/VelEmailSent.vue'),
-)
-const VelAccountFlow = defineAsyncComponent(
-  () => import('@/features/account/VelAccountFlow.vue'),
-)
+import VelEmailSent from '@/features/account/VelEmailSent.vue'
+const VelAccountFlow = defineAsyncComponent({
+  loader: () => import('@/features/account/VelAccountFlow.vue'),
+  /* Повтор при сбое сети / смене hash после деплоя. */
+  onError(error, retry, fail, attempts) {
+    if (attempts <= 2) {
+      window.setTimeout(retry, 400 * attempts)
+      return
+    }
+    console.error(error)
+    fail()
+  },
+})
 import VelHeader from '@/layout/VelHeader.vue'
 import VelFooter from '@/layout/VelFooter.vue'
 import VelHero from '@/sections/VelHero.vue'
@@ -55,7 +54,7 @@ const { isOpen } = useWizard()
  * Экраны после заявки: письмо и кабинет. Живут в ?view=… и перекрывают
  * мастер — после регистрации возвращаться в него уже некуда.
  */
-const { view, isAccount, openCabinet } = useAppView()
+const { view, isAccount, emailEpoch, openCabinet } = useAppView()
 
 // Инерционный скролл — только для лендинга: в мастере и кабинете он мешает
 // коротким экранам и спорит с программным переводом фокуса при смене шага.
@@ -70,7 +69,11 @@ useTitle(computed(() => t('meta.title')))
 <template>
   <!-- Порядок ветвей: кабинет перекрывает мастер, мастер — лендинг.
        Ровно один полноэкранный поток на экране, и ровно один <main>. -->
-  <VelEmailSent v-if="view === 'email'" @open-cabinet="openCabinet" />
+  <VelEmailSent
+    v-if="view === 'email'"
+    :key="emailEpoch"
+    @open-cabinet="openCabinet"
+  />
 
   <!-- Кабинет целиком: оболочка и все её панели по слотам собраны
        в VelAccountFlow.vue — App.vue знает только «показать кабинет». -->

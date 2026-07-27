@@ -122,10 +122,11 @@ onMounted(start)
 
 <template>
   <div class="flex flex-col gap-8">
-    <div class="flex flex-col gap-2">
+    <!-- Заголовок + подзаголовок: по одной строке каждый (бриф, фотка 3). -->
+    <div class="vel-analysis-head flex flex-col gap-2">
       <p class="vel-label">{{ t('wizard.analysis.lead') }}</p>
-      <h1 class="text-2xl sm:text-3xl">{{ t('wizard.analysis.title') }}</h1>
-      <p class="vel-measure text-sm text-muted">{{ t('wizard.analysis.subtitle') }}</p>
+      <h1 class="vel-analysis-head__title">{{ t('wizard.analysis.title') }}</h1>
+      <p class="vel-analysis-head__sub">{{ t('wizard.analysis.subtitle') }}</p>
     </div>
 
     <div
@@ -182,6 +183,28 @@ onMounted(start)
 </template>
 
 <style scoped>
+.vel-analysis-head__title {
+  margin: 0;
+  color: var(--color-fg);
+  font-size: clamp(1.25rem, 4.2vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vel-analysis-head__sub {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .vel-analysis {
   /* Доля заполнения полосы 0…1. Пишется из скрипта; значение по умолчанию
      нужно на первый кадр, пока watchEffect ещё не отработал. */
