@@ -272,29 +272,36 @@ useAutoAnimate(slotList)
   text-align: center;
 }
 
-/* CTA загрузки: мягкое «дыхание», как у Preleva (фотка 2 брифа). */
+/* CTA загрузки: сильный пульс + мигание (как step bar онбординга). */
 .vel-docup__submit--pulse {
-  animation: vel-docup-breathe 2.2s ease-in-out infinite;
+  animation: vel-docup-call 1.15s ease-in-out infinite;
 }
 
-@keyframes vel-docup-breathe {
+@keyframes vel-docup-call {
   0%,
   100% {
     transform: scale(1);
-    box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, var(--color-accent) 24%, transparent);
+    opacity: 1;
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-accent) 55%, transparent),
+      0 0.35rem 0.9rem color-mix(in oklab, var(--color-accent) 28%, transparent);
+    filter: brightness(1);
   }
 
   50% {
-    transform: scale(1.03);
+    transform: scale(1.06);
+    opacity: 0.78;
     box-shadow:
-      0 0 0 7px color-mix(in oklab, var(--color-accent) 18%, transparent),
-      0 0.55rem 1.4rem color-mix(in oklab, var(--color-accent) 42%, transparent);
+      0 0 0 12px color-mix(in oklab, var(--color-accent) 0%, transparent),
+      0 0 20px 4px color-mix(in oklab, var(--color-accent) 48%, transparent);
+    filter: brightness(1.12);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .vel-docup__submit--pulse {
     animation: none;
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-accent) 40%, transparent);
   }
 }
 </style>

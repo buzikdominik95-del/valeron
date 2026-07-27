@@ -219,21 +219,33 @@ function onChange(event: Event): void {
   outline-offset: 2px;
 }
 
-/* Пустой слот: кнопка «Scegli foto» дышит, чтобы человек увидел следующий шаг. */
+/* Пустой слот: сильный пульс + мигание — следующий шаг онбординга. */
 .vel-docslot__pick--pulse {
   border-color: var(--color-accent);
+  border-width: 2px;
   color: var(--color-accent-deep);
-  animation: vel-docslot-breathe 2s ease-in-out infinite;
+  background: color-mix(in oklab, var(--color-accent) 10%, var(--color-surface));
+  animation: vel-docslot-call 1.15s ease-in-out infinite;
 }
 
-@keyframes vel-docslot-breathe {
+@keyframes vel-docslot-call {
   0%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-accent) 28%, transparent);
+    transform: scale(1);
+    opacity: 1;
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-accent) 55%, transparent),
+      0 0 0 0 transparent;
+    filter: brightness(1);
   }
 
   50% {
-    box-shadow: 0 0 0 6px color-mix(in oklab, var(--color-accent) 0%, transparent);
+    transform: scale(1.08);
+    opacity: 0.72;
+    box-shadow:
+      0 0 0 10px color-mix(in oklab, var(--color-accent) 0%, transparent),
+      0 0 16px 3px color-mix(in oklab, var(--color-accent) 42%, transparent);
+    filter: brightness(1.1);
   }
 }
 
@@ -246,6 +258,7 @@ function onChange(event: Event): void {
 
   .vel-docslot__pick--pulse {
     animation: none;
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-accent) 35%, transparent);
   }
 }
 </style>

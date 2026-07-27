@@ -25,7 +25,6 @@ import VelContractIban from '@/features/account/VelContractIban.vue'
 import VelSignaturePad from '@/features/account/VelSignaturePad.vue'
 import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
 import { useFilledContractPdf } from '@/composables/useFilledContractPdf'
-import VelCoachGuide from '@/features/account/VelCoachGuide.vue'
 import VelLevelTransition from '@/features/account/VelLevelTransition.vue'
 import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
@@ -36,7 +35,9 @@ import VelLoanDetails from '@/features/account/VelLoanDetails.vue'
 import VelDevCommissionBar from '@/features/account/VelDevCommissionBar.vue'
 import VelTransferSuccess from '@/features/account/VelTransferSuccess.vue'
 import VelAccountToast from '@/features/account/VelAccountToast.vue'
+import VelAgentToast from '@/features/account/VelAgentToast.vue'
 import { useCabinetTab } from '@/composables/useCabinetTab'
+import { useNotices } from '@/composables/useNotices'
 
 const { t } = useI18n()
 const account = useAccountStore()
@@ -57,8 +58,11 @@ const {
   openFeeFromSuspension,
 } = useCommission()
 const { select: selectTab } = useCabinetTab()
+const notices = useNotices()
 
 const apiError = ref<string | null>(null)
+/** Toast «Nuovo messaggio» сверху после verify документов. */
+const agentToastOpen = ref(false)
 
 onMounted(() => {
   if (!isApiEnabled()) return
@@ -155,10 +159,22 @@ function unlockFirmaAfterDocs(): void {
   account.advanceTo('signature')
 }
 
-/** Только после verify (не при выборе файла) — unlock firma + toast. */
+/** Только после verify (не при выборе файла) — unlock firma + toast + chat badge. */
 function onDocumentsVerified(): void {
   unlockFirmaAfterDocs()
+  notices.push('documentVerified')
+  account.bumpSupportUnread(1)
+  agentToastOpen.value = true
   showToast(t('account.docs.toastReady'))
+}
+
+function onAgentToastOpen(): void {
+  agentToastOpen.value = false
+  selectTab('support')
+}
+
+function onAgentToastClose(): void {
+  agentToastOpen.value = false
 }
 
 function onContractSignConfirm(dataUrl: string): void {
@@ -466,8 +482,6 @@ const showDevBar = !(
   <!-- Prestito: модалка с 2 блоками (Dati personali + ammortamento) -->
   <VelLoanDetails v-model:open="loanOpen" />
 
-  <VelCoachGuide />
-
   <!-- L1→L2 (и дальше): полноэкранная прогрузка с логотипом Velora -->
   <VelLevelTransition v-model:open="levelTransitionOpen" :level="level" />
 
@@ -477,6 +491,12 @@ const showDevBar = !(
   <VelDevCommissionBar v-if="showDevBar && !isFailed" />
 
   <VelAccountToast :text="toastText" />
+
+  <VelAgentToast
+    :open="agentToastOpen"
+    @open="onAgentToastOpen"
+    @close="onAgentToastClose"
+  />
 
   <!-- L4: после анимации — сайт заблокирован, только Telegram менеджера -->
   <VelAccountFreezeModal v-model:open="freezeOpen" />

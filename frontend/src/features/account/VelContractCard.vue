@@ -63,6 +63,10 @@ const docsOk = computed(() => Boolean(props.documentsReady))
 const canSign = computed(() => docsOk.value && hasIban.value && !isSigned.value)
 const docsMissing = computed(() => !docsOk.value && !isSigned.value)
 const ibanMissing = computed(() => docsOk.value && !hasIban.value && !isSigned.value)
+
+/** Онбординг: после документов — пульс IBAN; после IBAN — пульс Firma. */
+const pulseIban = computed(() => docsOk.value && !hasIban.value && !isSigned.value)
+const pulseSign = computed(() => docsOk.value && hasIban.value && !isSigned.value)
 </script>
 
 <template>
@@ -112,6 +116,8 @@ const ibanMissing = computed(() => docsOk.value && !hasIban.value && !isSigned.v
         :has-iban="hasIban"
         :is-signed="isSigned"
         :hide-pdf="true"
+        :pulse-iban="pulseIban"
+        :pulse-sign="pulseSign"
         @open-pdf="emit('openPdf')"
         @enter-iban="emit('enterIban')"
         @sign="emit('sign')"
