@@ -211,18 +211,19 @@ export async function fillContractPdf(
   const ink = rgb(0.08, 0.12, 0.22)
 
   /*
-   * policy-grid.png (876×1238) → page 210×297:
-   *   Cliente / Contraente: ~ y_px 290 → 69.5 mm from top, name after label ~ x 62 mm
+   * policy-template.png (876×1238) / page 210×297 mm:
+   *   Cliente / Contraente: y_px ≈ 292–300 → ~70.2 mm from top
+   *   label ends ~28.4% → name x ≈ 62 mm (29.5%)
    *   Firma / stamp zone:   ~ y_px 1050–1120 → 252–269 mm
    *
-   * Как policy-pdf.php: только ФИО в поле Cliente — без мусора поверх пунктов.
+   * Только ФИО в поле Cliente — baseline на строке метки, не в Condizioni.
    */
   const name = toPdfText(fields.fullName)
   if (name !== '') {
-    const size = scale === 1 ? 4.2 : 12.5
+    const size = scale === 1 ? 3.6 : 11
     page.drawText(name, {
       x: xMm(62, scale),
-      y: yFromTop(height, 69.5, scale, size),
+      y: yFromTop(height, 70.2, scale, size),
       size,
       font: fontBold,
       color: ink,

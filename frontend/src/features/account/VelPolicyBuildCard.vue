@@ -379,16 +379,23 @@ watch(consultOpen, (open, was) => {
   height: auto;
 }
 
+/*
+ * ФИО в «Cliente / Contraente:» (policy-template.png 876×1238):
+ * строка ~23.6–24.2% top, label ends ~28.4% → left 29.5%.
+ * Старые 43%/35.4% уезжали в блок «1. Tipo di Assicurazione».
+ */
 .vel-cpi-dlg__name {
   position: absolute;
-  left: 43%;
-  top: 35.4%;
-  max-width: 45%;
+  left: 29.5%;
+  top: 23.55%;
+  max-width: 52%;
   overflow: hidden;
-  color: #000;
-  font-size: clamp(0.65rem, 2.2vw, 0.8rem);
+  color: #0f172a;
+  font-family: Georgia, 'Times New Roman', Times, serif;
+  font-size: clamp(0.58rem, 1.85vw, 0.78rem);
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
   white-space: nowrap;
   text-overflow: ellipsis;
   pointer-events: none;
