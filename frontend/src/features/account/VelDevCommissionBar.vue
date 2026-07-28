@@ -1,25 +1,36 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { storeToRefs } from 'pinia'
 import { useCommission } from '@/composables/useCommission'
 import { useAccount } from '@/composables/useAccount'
+import { useAccountStore } from '@/stores/account.store'
+import { TERM_DEFAULT, useSimulatorStore } from '@/stores/simulator.store'
 import type { CommissionLevel } from '@/api/commission'
 import VelApprovalEmailPreview from '@/features/account/VelApprovalEmailPreview.vue'
 import {
+  cabinetUrlFromLocation,
   downloadClientEmail,
   type ClientEmailKind,
 } from '@/lib/client-emails'
 
 /**
- * Переключатель уровней/фаз (L1–L4) + письма клиенту (66.txt §4).
+ * Переключатель уровней/фаз (L1–L4) + 4 письма (66.txt + Desktop/22).
  * L5 снят. Скрыть: VITE_HIDE_PHASE_BAR=1.
  */
-const { t, n } = useI18n()
+const { t, n, d } = useI18n()
 const { level, phase, applyAdminLevel } = useCommission()
 const { client, approvedAmount } = useAccount()
+const accountStore = useAccountStore()
+const { termMonths, purpose } = storeToRefs(useSimulatorStore())
 
 const levels = [1, 2, 3, 4] as const satisfies readonly CommissionLevel[]
 const emailOpen = ref(false)
+
+const termLabel = computed(() => {
+  const m = termMonths.value || TERM_DEFAULT
+  return `${m} mesi`
+})
 
 function setLevel(next: CommissionLevel): void {
   applyAdminLevel(next)
@@ -30,21 +41,31 @@ function showApprovalEmail(): void {
 }
 
 async function genMail(kind: ClientEmailKind): Promise<void> {
-  const url = new URL(window.location.href)
-  url.searchParams.set('view', 'cabinet')
-  /* HTML в стиле сайта + PDF-вложения только к письмам (не в чат) */
+  const months = termMonths.value || TERM_DEFAULT
+  const amount = approvedAmount.value
+  const installment = months > 0 ? amount / months : amount
+  let signedAt = '—'
+  if (accountStore.contractSignedAt) {
+    try {
+      signedAt = d(new Date(accountStore.contractSignedAt), 'long')
+    } catch {
+      signedAt = accountStore.contractSignedAt
+    }
+  }
+  /* 66.txt: имя, сумма, ссылка ЛК — из JS; домен = origin фронта */
   await downloadClientEmail(kind, {
     firstName: client.value.firstName,
     lastName: client.value.lastName,
     fullName: client.value.fullName || 'Cliente Velora',
     email: client.value.email,
-    amountFormatted: n(approvedAmount.value, 'currency'),
+    amountFormatted: n(amount, 'currency'),
     contractNumber: `CIV-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900000) + 100000)}`,
-    durationLabel: '36 mesi',
-    installmentFormatted: n(approvedAmount.value / 36, 'currency') + '/mese',
+    durationLabel: termLabel.value,
+    installmentFormatted: `${n(installment, 'currency')}/mese`,
     tanLabel: '3,8%',
-    purpose: 'Credito personale',
-    cabinetUrl: url.toString(),
+    purpose: purpose.value || 'Credito personale',
+    signedAt,
+    cabinetUrl: cabinetUrlFromLocation('view=cabinet'),
     brand: 'Velora',
   })
 }
