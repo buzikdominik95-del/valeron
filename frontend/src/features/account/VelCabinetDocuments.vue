@@ -107,8 +107,9 @@ const docsMovedToProfile = computed(
   display: flex;
   flex-direction: column;
   gap: var(--vel-cab-gap, 0.7rem);
-  max-inline-size: var(--vel-cab-content-max, 42rem);
+  /* На всю ширину main — как «бровь» */
   width: 100%;
+  max-inline-size: none;
 }
 
 .vel-docs-page__heading {

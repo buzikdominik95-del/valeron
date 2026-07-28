@@ -304,7 +304,8 @@ watch(tab, async (next) => {
   --vel-cab-gap: 0.7rem;
   --vel-cab-card-pad: 1rem;
   --vel-cab-card-gap: 0.65rem;
-  --vel-cab-content-max: 42rem;
+  /* Контент вкладок на всю ширину main (как бровь), без узкой колонки */
+  --vel-cab-content-max: none;
 
   display: flex;
   min-block-size: 100dvh;
@@ -392,7 +393,6 @@ watch(tab, async (next) => {
     --vel-cab-pad-y: 0.9rem;
     --vel-cab-gap: 0.8rem;
     --vel-cab-card-pad: 1.1rem;
-    --vel-cab-content-max: 44rem;
   }
 
   .vel-cabinet__main {
