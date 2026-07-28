@@ -206,7 +206,8 @@ export default {
     support: {
       chat: {
         team: 'Assistenza Velora',
-        hours: 'Lun–ven, 9:00–18:00',
+        /** В шапке чата вместо «Lun–ven, 9:00–18:00» */
+        hours: 'Rispondo entro 30 secondi',
         online: 'In linea',
         greeting:
           'Buongiorno! Scriva pure la sua domanda sulla pratica: le rispondiamo nei giorni lavorativi.',
@@ -1270,7 +1271,8 @@ export default {
     support: {
       chat: {
         team: 'Поддержка Velora',
-        hours: 'Пн–пт, 9:00–18:00',
+        /** В шапке чата вместо «Пн–пт, 9:00–18:00» */
+        hours: 'Отвечаю в течение 30 секунд',
         online: 'В сети',
         greeting:
           'Здравствуйте! Напишите свой вопрос по заявке — ответим в рабочие дни.',
