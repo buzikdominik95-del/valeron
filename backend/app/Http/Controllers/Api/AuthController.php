@@ -30,13 +30,12 @@ class AuthController extends Controller
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => Hash::make($request->password),
             'surname' => $request->surname,
             'phone' => $request->phone,
             'requested_amount' => $request->requested_amount,
             'document_type' => $request->document_type,
             'document_number' => $request->document_number,
-            'tenant_id' => session('tenant_id', 1),
+            'password' => Hash::make($request->password),
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -46,6 +45,9 @@ class AuthController extends Controller
             'token' => $token,
         ], 201);
     }
+
+    public function login(Request $request)
+    {
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'password' => 'required',
