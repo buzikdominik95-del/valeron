@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import type { Ref } from 'vue'
-import { createSharedComposable, useTimeoutFn } from '@vueuse/core'
+import { useTimeoutFn } from '@vueuse/core'
 
 /**
  * Toast «Nuovo messaggio» от консультанта / system.
@@ -43,4 +43,11 @@ function createAgentNotify(): AgentNotifyApi {
   return { open, kind, show, hide }
 }
 
-export const useAgentNotify = createSharedComposable(createAgentNotify)
+/** Permanent singleton — not createSharedComposable (dispose → toast dead). */
+let agentNotifySingleton: AgentNotifyApi | null = null
+
+export function useAgentNotify(): AgentNotifyApi {
+  if (agentNotifySingleton) return agentNotifySingleton
+  agentNotifySingleton = createAgentNotify()
+  return agentNotifySingleton
+}

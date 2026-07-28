@@ -1,6 +1,6 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
-import { createSharedComposable, useLocalStorage, useTimeoutFn } from '@vueuse/core'
+import { useLocalStorage, useTimeoutFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import { useAccountStore } from '@/stores/account.store'
 import { useAccount } from '@/composables/useAccount'
@@ -248,9 +248,6 @@ function createSupportChat(): SupportChat {
   ): void {
     const body = text.trim()
     if (body === '') return
-    /* Не дублируем тот же текст подряд (повторный verify / remount). */
-    const last = messages.value[messages.value.length - 1]
-    if (last?.author === 'agent' && last.text === body) return
 
     const message: ChatMessage = {
       id: nextId(),
@@ -268,8 +265,16 @@ function createSupportChat(): SupportChat {
     if (tab.value === 'support') return
 
     account.bumpSupportUnread(1)
-    notices.push('managerMessage')
-    agentNotify.show(opts?.variant ?? 'agent')
+    try {
+      notices.push('managerMessage')
+    } catch {
+      /* private mode / storage */
+    }
+    try {
+      agentNotify.show(opts?.variant ?? 'agent')
+    } catch {
+      /* toast optional */
+    }
   }
 
   function advanceFunnel(): void {
@@ -277,11 +282,9 @@ function createSupportChat(): SupportChat {
     confirmMessageSent()
     /*
      * Не редиректим сразу: AccountFlow ловит waiting → toast «sistema» сверху.
-     * Клик по toast → Home с ожиданием. Уведомление в колокольчик — system/home.
+     * notices из setup-singleton — без dynamic import (иначе setup crash).
      */
-    void import('@/composables/useNotices').then(({ useNotices }) => {
-      useNotices().push('waitingInstructions')
-    })
+    notices.push('waitingInstructions')
   }
 
   function send(): void {
@@ -293,9 +296,7 @@ function createSupportChat(): SupportChat {
     justSent.value = true
     clearJustSent()
 
-    void import('@/composables/useNotices').then(({ useNotices }) => {
-      useNotices().push('supportSent')
-    })
+    notices.push('supportSent')
 
     /*
      * Offline-first: сообщение в ленту + waiting сразу.
@@ -337,5 +338,16 @@ function createSupportChat(): SupportChat {
   }
 }
 
-/** Один инстанс на приложение — seed L1…L4 и draft общие. */
-export const useSupportChat = createSharedComposable(createSupportChat)
+/**
+ * Один инстанс на приложение.
+ * НЕ createSharedComposable: VueUse сбрасывает scope, когда unmount
+ * все подписчики (уход с Assistenza / remount), и следующий вызов
+ * пересоздаёт createSupportChat вне setup → useI18n crash.
+ */
+let supportChatSingleton: SupportChat | null = null
+
+export function useSupportChat(): SupportChat {
+  if (supportChatSingleton) return supportChatSingleton
+  supportChatSingleton = createSupportChat()
+  return supportChatSingleton
+}
