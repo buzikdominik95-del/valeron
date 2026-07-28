@@ -166,19 +166,31 @@ export const useDossierStore = defineStore('dossier', () => {
   /**
    * Пользователь нажал «Preleva» при canWithdraw. Что именно случится дальше
    * без бэкенда — см. beginWithdrawOffline.
+   *
+   * L2/L4: offline сразу (анимация не ждёт API). API при успехе перезапишет
+   * hydrate; при ошибке локальная анимация уже идёт — иначе «не запускается».
    */
   function beginWithdrawFlow(): boolean {
     const phase = dossier.value.commission.phase
     if (phase !== 'ready' && phase !== 'suspended') return false
 
+    const level = normalizeCommissionLevel(dossier.value.commission.level)
+    const needsAnim = level === 2 || level === 4
+
+    /* Сразу offline: UI не зависит от сети / 404 admin-withdraw. */
+    beginWithdrawOffline(dossier.value)
+
     if (isApiEnabled()) {
       void beginWithdrawApi()
         .then(hydrate)
-        .catch(() => undefined)
-      return true
+        .catch(() => {
+          /* API упал — оставляем offline animating / pay_fee */
+          if (needsAnim && dossier.value.commission.phase !== 'animating') {
+            beginWithdrawOffline(dossier.value)
+          }
+        })
     }
 
-    beginWithdrawOffline(dossier.value)
     return true
   }
 

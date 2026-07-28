@@ -321,12 +321,14 @@ function onPolicyConfirm(): void {
 
 /**
  * Старт воронки после суммы.
- * L2 ready → банк-уведомление → анимация.
+ * L2: сразу animating + информационное окно банка (раньше анимация ждала
+ * «Continua» — если dialog не открылся, L2 «не запускался»).
  * L1 / fee → beginWithdraw → pay_fee → drawer комиссии.
  * L4 → анимация отказа.
  */
 function startWithdrawFunnel(): void {
-  if (level.value === 2 && isReady.value) {
+  if (level.value === 2) {
+    beginWithdraw()
     bankNoticeOpen.value = true
     return
   }
@@ -431,7 +433,10 @@ function onAmountConfirm(): void {
 
 function onBankNoticeContinue(): void {
   bankNoticeOpen.value = false
-  beginWithdraw()
+  /* Анимация уже должна идти (startWithdrawFunnel); страховка если begin сбойнул */
+  if (!isAnimating.value && (isReady.value || phase.value === 'ready')) {
+    beginWithdraw()
+  }
 }
 
 function onCommissionConfirmed(): void {
