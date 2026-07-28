@@ -246,18 +246,13 @@ function goVerify(): void {
 
 <style scoped>
 /*
-  5 колонок: who · email · iban · status · verify
-  (sesso e saldo rimossi)
+  5 колонок равной ширины (1fr): who · email · iban · status · verify.
+  Раньше 1.4fr / 1.3fr / 0.85… — слева «воздух», справа всё сжато.
 */
 .vel-brow {
   position: relative;
   display: grid;
-  grid-template-columns:
-    minmax(0, 1.4fr) /* who */
-    minmax(0, 1.3fr) /* email */
-    minmax(4.2rem, 0.85fr) /* iban */
-    minmax(4.6rem, 0.9fr) /* status */
-    minmax(5rem, 0.95fr); /* verify */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: center;
   column-gap: 0;
   box-sizing: border-box;
@@ -265,7 +260,7 @@ function goVerify(): void {
   max-width: 100%;
   min-block-size: 4.5rem;
   margin: 0 0 0.45rem;
-  padding: 0.4rem 0.55rem;
+  padding: 0.4rem 0.35rem;
   overflow: hidden;
   border: 1px solid color-mix(in oklab, var(--color-accent) 22%, var(--color-line));
   border-radius: 1rem;
@@ -304,7 +299,8 @@ function goVerify(): void {
   min-width: 0;
   max-width: 100%;
   margin: 0;
-  padding: 0.25rem 0.65rem;
+  /* Одинаковые боковые поля — визуальный шаг между секциями ровный */
+  padding: 0.25rem 0.55rem;
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;
@@ -324,8 +320,7 @@ function goVerify(): void {
 .vel-brow__col--who {
   flex-direction: row;
   align-items: center;
-  gap: 0.55rem;
-  padding-inline-start: 0.2rem;
+  gap: 0.5rem;
   border-inline-start: 0;
 }
 
@@ -531,13 +526,8 @@ function goVerify(): void {
 
 @media (max-width: 56rem) {
   .vel-brow {
-    grid-template-columns:
-      minmax(0, 1.35fr)
-      minmax(0, 1.2fr)
-      minmax(3.8rem, 0.75fr)
-      minmax(4rem, 0.8fr)
-      minmax(4.4rem, 0.85fr);
-    padding: 0.35rem 0.4rem;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    padding: 0.35rem 0.28rem;
     min-block-size: 4.15rem;
   }
 
@@ -582,14 +572,9 @@ function goVerify(): void {
 
 @media (max-width: 40rem) {
   .vel-brow {
-    grid-template-columns:
-      minmax(0, 1.3fr)
-      minmax(0, 1.15fr)
-      minmax(3.2rem, 0.65fr)
-      minmax(3.4rem, 0.75fr)
-      minmax(3.6rem, 0.8fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     min-block-size: 3.7rem;
-    padding: 0.28rem 0.3rem;
+    padding: 0.28rem 0.2rem;
     border-radius: 0.75rem;
   }
 
@@ -600,7 +585,6 @@ function goVerify(): void {
 
   .vel-brow__col--who {
     gap: 0.35rem;
-    padding-inline-start: 0.1rem;
   }
 
   .vel-brow__ava {
