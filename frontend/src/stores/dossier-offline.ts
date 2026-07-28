@@ -73,7 +73,10 @@ export function beginWithdrawOffline(dossier: AccountDossier): void {
 
 /** Оплата комиссии подтверждена. */
 export function markFeePaidOffline(dossier: AccountDossier): void {
-  const level = dossier.commission.level
+  const level = normalizeCommissionLevel(dossier.commission.level)
+  dossier.commission.level = level
+  /* fee должен совпадать с уровнем — иначе seed L1 без reason/base. */
+  dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[level]
 
   /*
    * L3: после CPI пользователь платит 136 € как на L1 → messenger.

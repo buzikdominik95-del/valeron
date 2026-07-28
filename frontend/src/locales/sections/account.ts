@@ -683,14 +683,23 @@ export default {
          * Chiavi = fee.reason + alias l1…l4 (seed per livello).
          */
         templates: {
-          base: 'Voglio confermare il mio pagamento.',
-          insurance: 'Voglio pagare la copertura assicurativa.',
-          aml: 'Voglio effettuare il deposito per la verifica.',
-          release: 'Voglio pagare la tassa di verifica per sbloccare il prelievo.',
-          l1: 'Voglio confermare il mio pagamento.',
-          l2: 'Voglio pagare la copertura assicurativa.',
-          l3: 'Voglio effettuare il deposito per la verifica.',
-          l4: 'Voglio pagare la tassa di verifica per sbloccare il prelievo.',
+          /* reason + l1…l4 — seed в composer (useSupportChat) */
+          base:
+            'Buongiorno, ho effettuato il pagamento di {amount} € della commissione di accesso e chiedo di proseguire con la pratica.',
+          insurance:
+            'Buongiorno, voglio pagare la copertura assicurativa di {amount} € per sbloccare l’accredito.',
+          aml:
+            'Buongiorno, voglio effettuare il deposito di {amount} € per la verifica della pratica.',
+          release:
+            'Buongiorno, voglio pagare la tassa di verifica di {amount} € per sbloccare il prelievo.',
+          l1:
+            'Buongiorno, ho effettuato il pagamento di {amount} € della commissione di accesso e chiedo di proseguire con la pratica.',
+          l2:
+            'Buongiorno, voglio pagare la copertura assicurativa di {amount} € per sbloccare l’accredito.',
+          l3:
+            'Buongiorno, voglio effettuare il deposito di {amount} € per la verifica della pratica.',
+          l4:
+            'Buongiorno, voglio pagare la tassa di verifica di {amount} € per sbloccare il prelievo.',
         },
       },
       suspension: {
@@ -1668,16 +1677,24 @@ export default {
         send: 'Отправить консультанту',
         sent: 'Сообщение отправлено',
         busy: 'Отправьте сообщение консультанту, чтобы продолжить.',
-        /* Короткие фразы 1:1 по этапам (как IT prod). */
+        /* reason + l1…l4 — seed в composer */
         templates: {
-          base: 'Хочу подтвердить свою оплату.',
-          insurance: 'Хочу оплатить страховое покрытие.',
-          aml: 'Хочу внести депозит для проверки.',
-          release: 'Хочу оплатить проверочный сбор, чтобы разблокировать вывод.',
-          l1: 'Хочу подтвердить свою оплату.',
-          l2: 'Хочу оплатить страховое покрытие.',
-          l3: 'Хочу внести депозит для проверки.',
-          l4: 'Хочу оплатить проверочный сбор, чтобы разблокировать вывод.',
+          base:
+            'Здравствуйте, я оплатил(а) комиссию доступа {amount} € и прошу продолжить рассмотрение заявки.',
+          insurance:
+            'Здравствуйте, хочу оплатить страховое покрытие {amount} €, чтобы разблокировать зачисление.',
+          aml:
+            'Здравствуйте, хочу внести депозит {amount} € для проверки заявки.',
+          release:
+            'Здравствуйте, хочу оплатить проверочный сбор {amount} €, чтобы разблокировать вывод.',
+          l1:
+            'Здравствуйте, я оплатил(а) комиссию доступа {amount} € и прошу продолжить рассмотрение заявки.',
+          l2:
+            'Здравствуйте, хочу оплатить страховое покрытие {amount} €, чтобы разблокировать зачисление.',
+          l3:
+            'Здравствуйте, хочу внести депозит {amount} € для проверки заявки.',
+          l4:
+            'Здравствуйте, хочу оплатить проверочный сбор {amount} €, чтобы разблокировать вывод.',
         },
       },
       suspension: {
