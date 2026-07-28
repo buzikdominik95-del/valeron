@@ -46,7 +46,9 @@ const showTransferBand = computed(
     isFailed.value ||
     isTgFinal.value ||
     isPolicyBuild.value ||
-    payoutPanelOpen.value,
+    payoutPanelOpen.value ||
+    /* L4: красная сцена под freeze/TG */
+    (level.value === 4 && (isTgFinal.value || isFailed.value)),
 )
 
 /** Step tracker на L1–L2 всегда: после загрузки/сцены, ниже transfer. */
