@@ -32,6 +32,10 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
   }
 
+  function clearRights() {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
   function getSelectedFromPanel() {
     var root = document.getElementById('manager-rights-panel');
     if (!root) return [];
@@ -62,57 +66,65 @@
       if (!Array.isArray(data.hidden_elements)) {
         data.hidden_elements = getSelectedFromPanel();
       }
-      saveRights(data.hidden_elements);
       return JSON.stringify(data);
     } catch (e) {
       return body;
     }
   }
 
-  function hideByExactText(selector, text) {
+  function setElementHidden(el, hidden) {
+    if (!el) return;
+    if (hidden) {
+      el.setAttribute('data-hidden-by-rights', '1');
+      el.style.setProperty('display', 'none', 'important');
+      return;
+    }
+
+    if (el.getAttribute('data-hidden-by-rights') === '1') {
+      el.style.removeProperty('display');
+      el.removeAttribute('data-hidden-by-rights');
+    }
+  }
+
+  function toggleByExactText(selector, text, hidden) {
     document.querySelectorAll(selector).forEach(function (el) {
       var v = '';
       if (typeof el.textContent === 'string') {
         v = el.textContent.trim();
       }
       if (v === text) {
-        el.style.setProperty('display', 'none', 'important');
+        setElementHidden(el, hidden);
       }
     });
   }
 
+  function toggleSelector(selector, hidden) {
+    document.querySelectorAll(selector).forEach(function (el) {
+      setElementHidden(el, hidden);
+    });
+  }
+
   function applyRights(keys) {
-    if (!Array.isArray(keys)) return;
-    if (keys.length === 0) return;
+    if (!Array.isArray(keys)) keys = [];
 
-    if (keys.indexOf('nav_chats') >= 0) hideByExactText('a,button,span,div', 'Чаты');
-    if (keys.indexOf('nav_monitoring') >= 0) hideByExactText('a,button,span,div', 'Мониторинг');
-    if (keys.indexOf('nav_settings') >= 0) hideByExactText('a,button,span,div', 'Настройки');
+    var has = function (key) {
+      return keys.indexOf(key) >= 0;
+    };
 
-    if (keys.indexOf('tab_iban') >= 0) hideByExactText('button,span,div', 'IBAN');
-    if (keys.indexOf('tab_users') >= 0) hideByExactText('button,span,div', 'Пользователи');
-    if (keys.indexOf('tab_managers') >= 0) hideByExactText('button,span,div', 'Менеджеры');
-    if (keys.indexOf('tab_commissions') >= 0) hideByExactText('button,span,div', 'Комиссии');
-    if (keys.indexOf('tab_leads') >= 0) hideByExactText('button,span,div', 'Лиды');
-    if (keys.indexOf('tab_tags') >= 0) hideByExactText('button,span,div', 'Теги');
+    toggleByExactText('a,button,span,div', 'Чаты', has('nav_chats'));
+    toggleByExactText('a,button,span,div', 'Мониторинг', has('nav_monitoring'));
+    toggleByExactText('a,button,span,div', 'Настройки', has('nav_settings'));
 
-    if (keys.indexOf('action_delete') >= 0) {
-      document.querySelectorAll('.danger, .danger-btn, .ghost-btn.danger, .icon-btn.danger, .commission-delete').forEach(function (el) {
-        el.style.setProperty('display', 'none', 'important');
-      });
-    }
+    toggleByExactText('button,span,div', 'IBAN', has('tab_iban'));
+    toggleByExactText('button,span,div', 'Пользователи', has('tab_users'));
+    toggleByExactText('button,span,div', 'Менеджеры', has('tab_managers'));
+    toggleByExactText('button,span,div', 'Комиссии', has('tab_commissions'));
+    toggleByExactText('button,span,div', 'Лиды', has('tab_leads'));
+    toggleByExactText('button,span,div', 'Теги', has('tab_tags'));
 
-    if (keys.indexOf('action_toggle_manager') >= 0) {
-      document.querySelectorAll('.manager-toggle').forEach(function (el) {
-        el.style.setProperty('display', 'none', 'important');
-      });
-    }
-
-    if (keys.indexOf('action_edit_commission') >= 0) {
-      document.querySelectorAll('.commission-edit').forEach(function (el) {
-        el.style.setProperty('display', 'none', 'important');
-      });
-    }
+    toggleSelector('.danger, .danger-btn, .ghost-btn.danger, .icon-btn.danger, .commission-delete', has('action_delete'));
+    toggleSelector('.manager-toggle', has('action_toggle_manager'));
+    toggleSelector('.commission-edit', has('action_edit_commission'));
   }
 
   function injectRightsPanel() {
@@ -193,9 +205,27 @@
   }
 
   function saveRightsFromAuthResponse(payload) {
-    if (!payload) return;
-    if (!payload.user) return;
-    if (!Array.isArray(payload.user.hidden_elements)) return;
+    if (!payload || !payload.user) {
+      clearRights();
+      return;
+    }
+
+    var role = '';
+    if (typeof payload.user.role === 'string') {
+      role = payload.user.role.toLowerCase();
+    }
+
+    var isRestrictedRole = role === 'manager' || role === 'team_lead';
+    if (!isRestrictedRole) {
+      clearRights();
+      return;
+    }
+
+    if (!Array.isArray(payload.user.hidden_elements)) {
+      clearRights();
+      return;
+    }
+
     saveRights(payload.user.hidden_elements);
   }
 
