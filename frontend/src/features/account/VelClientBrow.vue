@@ -88,15 +88,16 @@ function shellHeadOffsetPx(): number {
   return 56
 }
 
+/** Сильная пульсация блока Verifica email после скролла. */
 function pulseEl(el: HTMLElement): void {
-  el.classList.remove('vel-brow-zoom')
+  el.classList.remove('vel-brow-zoom-strong')
   void el.offsetWidth
-  el.classList.add('vel-brow-zoom')
+  el.classList.add('vel-brow-zoom-strong')
   if (pulseTimer) window.clearTimeout(pulseTimer)
   pulseTimer = window.setTimeout(() => {
-    el.classList.remove('vel-brow-zoom')
+    el.classList.remove('vel-brow-zoom-strong')
     pulseTimer = 0
-  }, 1400)
+  }, 2400)
 }
 
 /**
@@ -659,35 +660,85 @@ function goVerify(): void {
 </style>
 
 <style>
-/* Soft pulse target (security-verify / payout) after smooth scroll */
-@keyframes vel-brow-balance-zoom {
+/*
+  Сильная пульсация блока Verifica email (#vel-security-verify)
+  после клика «?» на брови — 3 удара, яркое кольцо, заметный scale.
+*/
+@keyframes vel-brow-verify-pulse {
   0% {
     transform: scale(1);
-    box-shadow: none;
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-accent) 0%, transparent),
+      0 0 0 0 color-mix(in oklab, var(--color-accent) 0%, transparent);
+    background-color: transparent;
   }
 
-  35% {
-    transform: scale(1.008);
+  12% {
+    transform: scale(1.035);
     box-shadow:
-      0 0 0 2px color-mix(in oklab, var(--color-accent) 22%, transparent),
-      0 0.75rem 1.6rem color-mix(in oklab, var(--color-accent) 12%, transparent);
+      0 0 0 4px color-mix(in oklab, var(--color-accent) 45%, transparent),
+      0 0 0 12px color-mix(in oklab, var(--color-accent) 18%, transparent),
+      0 1rem 2.25rem color-mix(in oklab, var(--color-accent) 28%, transparent);
+    background-color: color-mix(in oklab, var(--color-accent) 12%, transparent);
+  }
+
+  28% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-accent) 0%, transparent),
+      0 0 0 0 color-mix(in oklab, var(--color-accent) 0%, transparent);
+    background-color: transparent;
+  }
+
+  42% {
+    transform: scale(1.04);
+    box-shadow:
+      0 0 0 5px color-mix(in oklab, var(--color-accent) 52%, transparent),
+      0 0 0 14px color-mix(in oklab, var(--color-accent) 22%, transparent),
+      0 1.1rem 2.5rem color-mix(in oklab, var(--color-accent) 32%, transparent);
+    background-color: color-mix(in oklab, var(--color-accent) 14%, transparent);
+  }
+
+  58% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 transparent,
+      0 0 0 0 transparent;
+    background-color: transparent;
+  }
+
+  72% {
+    transform: scale(1.028);
+    box-shadow:
+      0 0 0 3px color-mix(in oklab, var(--color-accent) 40%, transparent),
+      0 0 0 10px color-mix(in oklab, var(--color-accent) 14%, transparent),
+      0 0.85rem 1.85rem color-mix(in oklab, var(--color-accent) 22%, transparent);
+    background-color: color-mix(in oklab, var(--color-accent) 10%, transparent);
   }
 
   100% {
     transform: scale(1);
-    box-shadow: none;
+    box-shadow:
+      0 0 0 0 transparent,
+      0 0 0 0 transparent;
+    background-color: transparent;
   }
 }
 
-.vel-brow-zoom {
-  animation: vel-brow-balance-zoom 1.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+.vel-brow-zoom-strong {
+  position: relative;
+  z-index: 2;
   border-radius: var(--radius-panel, 0.85rem);
+  animation: vel-brow-verify-pulse 2.2s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vel-brow-zoom {
+  .vel-brow-zoom-strong {
     animation: none;
-    box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-accent) 22%, transparent);
+    box-shadow:
+      0 0 0 3px color-mix(in oklab, var(--color-accent) 40%, transparent),
+      0 0.75rem 1.5rem color-mix(in oklab, var(--color-accent) 18%, transparent);
+    background-color: color-mix(in oklab, var(--color-accent) 10%, transparent);
   }
 }
 </style>
