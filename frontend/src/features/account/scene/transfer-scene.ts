@@ -40,6 +40,8 @@ export interface SceneFrame {
   look: SceneLook
   /** Ширина канваса в CSS-пикселях; от неё зависит ярус интерфейсного слоя. */
   cssWidth: number
+  /** Высота канваса в CSS-пикселях — для contain-scale (не срезать 16:9). */
+  cssHeight: number
   /** Плотность экрана. */
   ratio: number
   /** Тексты слоя и надпись на банке — целиком из локали. */
@@ -204,18 +206,23 @@ export function drawTransferFrame(
   if (frame.cssWidth <= 0) return
 
   /*
-   * Одна матрица на весь кадр: плотность экрана × отношение ширины канваса к
-   * ширине эталона. Дальше все координаты внутри draw-* — единицы эталона
-   * 1920×1080, и ни один модуль о размере контейнера не знает.
-   *
-   * Тени (shadowBlur, shadowOffset) преобразуются той же матрицей, поэтому
-   * размытия уменьшаются пропорционально — это правильно, и подгонять их
-   * вручную не нужно.
+   * Масштаб — min(ширина, высота) / эталон, letterbox по центру.
+   * Раньше scale = cssWidth / DESIGN_W: при max-height < 16:9 низ
+   * (банк/человек) срезался overflow. С contain-масштабом кадр всегда
+   * целиком. Координаты draw-* — 1920×1080.
    */
-  const scale = frame.cssWidth / DESIGN_W
   const density = frame.ratio || 1
-  ctx.setTransform(density * scale, 0, 0, density * scale, 0, 0)
-  ctx.clearRect(0, 0, DESIGN_W, DESIGN_H)
+  const cssH =
+    frame.cssHeight > 0
+      ? frame.cssHeight
+      : frame.cssWidth * (DESIGN_H / DESIGN_W)
+  const scale = Math.min(frame.cssWidth / DESIGN_W, cssH / DESIGN_H)
+  const ox = ((frame.cssWidth - DESIGN_W * scale) / 2) * density
+  const oy = ((cssH - DESIGN_H * scale) / 2) * density
+  /* Чистим весь буфер в device-пикселях, не только design-rect */
+  ctx.setTransform(1, 0, 0, 1, 0, 0)
+  ctx.clearRect(0, 0, element.width, element.height)
+  ctx.setTransform(density * scale, 0, 0, density * scale, ox, oy)
 
   const state = stateColors(palette, frame.failed)
 
