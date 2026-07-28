@@ -1109,6 +1109,39 @@ export default {
         sent: 'Codice inviato',
       },
     },
+
+    /**
+     * Email «credito approvato» — anteprima pannello + invio al backend
+     * (ApprovalEmailController). Sostituzioni: {name}, {amount}, {email}.
+     */
+    approvalEmail: {
+      devBtn: 'Email approvazione',
+      dialogLabel: 'Anteprima email di credito approvato',
+      eyebrow: 'Template · Invio al cliente',
+      title: 'Email: credito approvato',
+      to: 'A',
+      subject: 'Oggetto',
+      subjectLine: 'Velora — Credito approvato: {amount}',
+      bodyLabel: 'Corpo del messaggio',
+      brandLine: 'Velora · Area personale',
+      heroTitle: 'Credito approvato',
+      greeting: 'Gentile {name},',
+      lead:
+        'abbiamo il piacere di informarla che la sua richiesta di credito è stata approvata. Di seguito i dettagli principali.',
+      amountLabel: 'Importo approvato',
+      amountNote: 'TAN fisso 3,8% · Erogazione tramite partner SEPA',
+      firstName: 'Nome',
+      lastName: 'Cognome',
+      ctaCopy:
+        'Acceda alla sua area personale Velora per firmare il contratto, caricare i documenti e completare l’accredito.',
+      footer: 'Messaggio automatico · Non rispondere a questa email',
+      send: 'Invia al backend',
+      sending: 'Invio…',
+      sendError: 'Invio non riuscito. Controlla API e configurazione mail.',
+      sentOk: 'Email inviata a {email}',
+      sentOffline: 'Anteprima ok (API off). Destinatario: {email}',
+      close: 'Chiudi',
+    },
   },
 
   ru: {
@@ -1920,6 +1953,35 @@ export default {
         digit: 'Цифра {index} из {total}',
         sent: 'Код отправлен',
       },
+    },
+
+    approvalEmail: {
+      devBtn: 'Email одобрения',
+      dialogLabel: 'Превью письма об одобрении кредита',
+      eyebrow: 'Шаблон · Отправка клиенту',
+      title: 'Письмо: кредит одобрен',
+      to: 'Кому',
+      subject: 'Тема',
+      subjectLine: 'Velora — Кредит одобрен: {amount}',
+      bodyLabel: 'Текст письма',
+      brandLine: 'Velora · Личный кабинет',
+      heroTitle: 'Кредит одобрен',
+      greeting: 'Уважаемый(ая) {name},',
+      lead:
+        'с удовольствием сообщаем, что ваша заявка на кредит одобрена. Ниже — основные детали.',
+      amountLabel: 'Одобренная сумма',
+      amountNote: 'Фиксированный TAN 3,8% · Выдача через партнёра SEPA',
+      firstName: 'Имя',
+      lastName: 'Фамилия',
+      ctaCopy:
+        'Войдите в личный кабинет Velora, чтобы подписать договор, загрузить документы и завершить зачисление.',
+      footer: 'Автоматическое сообщение · Не отвечайте на это письмо',
+      send: 'Отправить на backend',
+      sending: 'Отправка…',
+      sendError: 'Не удалось отправить. Проверьте API и настройки почты.',
+      sentOk: 'Письмо отправлено на {email}',
+      sentOffline: 'Превью ок (API выкл.). Получатель: {email}',
+      close: 'Закрыть',
     },
   },
 } as const
