@@ -60,10 +60,12 @@ export function beginWithdrawOffline(dossier: AccountDossier): void {
   if (level === 2 || level === 4) {
     dossier.commission.phase = 'animating'
     /* Всегда табличное значение — битый animationMs:0 из storage залипал на 0%. */
-    dossier.commission.animationMs = COMMISSION_ANIMATION_MS[level]
+    dossier.commission.animationMs =
+      COMMISSION_ANIMATION_MS[level] > 0 ? COMMISSION_ANIMATION_MS[level] : level === 2 ? 7 * 60_000 : 3 * 60_000
     dossier.commission.animationStartedAt = new Date().toISOString()
     dossier.transfer.status = 'authorizing'
     dossier.transfer.method = dossier.transfer.method ?? 'iban'
+    dossier.transfer.etaMinutes = dossier.transfer.etaMinutes || 60
     return
   }
 

