@@ -126,7 +126,7 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
 }
 
 .vel-csign__box--filled {
-  min-block-size: 7.5rem;
+  min-block-size: 9rem;
 }
 
 .vel-csign__placeholder-line {
@@ -139,25 +139,25 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
   position: relative;
   display: flex;
   width: 100%;
-  min-block-size: 6.75rem;
+  min-block-size: 8.25rem;
   align-items: flex-end;
   background: transparent;
 }
 
-/* Печать крупнее и ПОВЕРХ подписи (66.txt §7) */
+/* Печать (фото 5) — крупнее, поверх подписи Prestatore */
 .vel-csign__stamp {
   position: absolute;
-  left: 0.15rem;
-  bottom: -0.15rem;
+  left: -0.15rem;
+  bottom: -0.35rem;
   z-index: 3;
-  width: 7.25rem;
-  height: 7.25rem;
+  width: 9.75rem;
+  height: 9.75rem;
   object-fit: contain;
   object-position: left bottom;
   background: transparent;
-  opacity: 0.95;
+  opacity: 0.97;
   mix-blend-mode: multiply;
-  filter: contrast(1.06) saturate(1.08);
+  filter: contrast(1.08) saturate(1.1);
   pointer-events: none;
   animation: vel-csign-pop 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }

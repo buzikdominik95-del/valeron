@@ -29,10 +29,11 @@ function showApprovalEmail(): void {
   emailOpen.value = true
 }
 
-function genMail(kind: ClientEmailKind): void {
+async function genMail(kind: ClientEmailKind): Promise<void> {
   const url = new URL(window.location.href)
   url.searchParams.set('view', 'cabinet')
-  downloadClientEmail(kind, {
+  /* HTML в стиле сайта + PDF-вложения только к письмам (не в чат) */
+  await downloadClientEmail(kind, {
     firstName: client.value.firstName,
     lastName: client.value.lastName,
     fullName: client.value.fullName || 'Cliente Velora',
