@@ -1,4 +1,4 @@
-import { request } from '@/api/http'
+import { ApiError, request } from '@/api/http'
 import type { AccountDocument, AccountStep } from '@/stores/account.store'
 import { defaultCommission } from '@/api/commission'
 import type { AccountCommission, CommissionLevel } from '@/api/commission'
@@ -235,15 +235,27 @@ export interface SupportMessageRequest {
   name?: string
 }
 
-export function submitSupportMessage(
+export async function submitSupportMessage(
   payload: SupportMessageRequest,
   signal?: AbortSignal,
 ): Promise<{ ok: true }> {
-  return request<{ ok: true }>('/account/messages-test', {
-    method: 'POST',
-    body: payload,
-    signal,
-  })
+  try {
+    return await request<{ ok: true }>('/account/messages', {
+      method: 'POST',
+      body: payload,
+      signal,
+    })
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 401 || error.status === 419)) {
+      return request<{ ok: true }>('/account/messages-test', {
+        method: 'POST',
+        body: payload,
+        signal,
+      })
+    }
+
+    throw error
+  }
 }
 
 /**
