@@ -51,14 +51,19 @@ const holderName = computed(
 )
 
 const isLoading = computed(() => step.value === 'loading')
-const isReady = computed(() => step.value === 'ready')
+/** Первый раз «готов» — ещё без галочки. */
+const isFirstReady = computed(() => step.value === 'ready')
+/** После галочки — сертификат остаётся, можно открыть снова. */
+const isViewed = computed(() => step.value === 'viewed')
+/** Карточка «сертификат готов» / «просмотрен» (не генерация). */
+const showCertReady = computed(() => isFirstReady.value || isViewed.value)
 
 function goDocuments(): void {
   selectTab('documents')
 }
 
 function openCertificate(): void {
-  if (!isReady.value) return
+  if (isLoading.value) return
   openedCert.value = true
   previewOpen.value = true
 }
@@ -74,8 +79,6 @@ function onConfirmViewed(): void {
   markCertViewed()
   selectTab('home')
 }
-
-/* Если step ушёл в viewed — карточка размонтируется (phase ≠ policy_build). */
 </script>
 
 <template>
@@ -127,10 +130,14 @@ function onConfirmViewed(): void {
         </VelButton>
       </template>
 
-      <!-- 2. Сертификат готов → сильный пульс «показать» -->
-      <template v-else-if="isReady">
+      <!-- 2. Сертификат готов / после галочки — карточка остаётся, Preleva активен -->
+      <template v-else-if="showCertReady">
         <div class="vel-cpi-ready-hero" data-testid="cpi-ready">
-          <span class="vel-cpi-ready-hero__ring" aria-hidden="true">
+          <span
+            class="vel-cpi-ready-hero__ring"
+            :class="{ 'vel-cpi-ready-hero__ring--static': isViewed }"
+            aria-hidden="true"
+          >
             <VelAccountSign sign="shield-check" size="lg" />
           </span>
           <div class="min-w-0">
@@ -146,6 +153,7 @@ function onConfirmViewed(): void {
         <button
           type="button"
           class="vel-cpi-open-cert"
+          :class="{ 'vel-cpi-open-cert--pulse': isFirstReady }"
           data-testid="cpi-open-cert"
           @click="openCertificate"
         >
@@ -200,7 +208,7 @@ function onConfirmViewed(): void {
   font-weight: 600;
 }
 
-/* Сильный пульс «Apri il certificato» */
+/* «Apri il certificato» — пульс только до первого просмотра */
 .vel-cpi-open-cert {
   display: inline-flex;
   width: 100%;
@@ -217,7 +225,15 @@ function onConfirmViewed(): void {
   font-weight: 700;
   letter-spacing: -0.01em;
   cursor: pointer;
+}
+
+.vel-cpi-open-cert--pulse {
   animation: vel-cpi-open-pulse 1.05s ease-in-out infinite;
+}
+
+.vel-cpi-ready-hero__ring--static {
+  animation: none;
+  box-shadow: none;
 }
 
 .vel-cpi-open-cert:hover {

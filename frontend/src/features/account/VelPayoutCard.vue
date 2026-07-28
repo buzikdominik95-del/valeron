@@ -62,7 +62,7 @@ const {
   isRejectAnim,
 } = useCommission()
 
-const { prelevaPulse, clearPrelevaPulse } = useCpiBuild()
+const { prelevaPulse, clearPrelevaPulse, certViewed, step: cpiStep } = useCpiBuild()
 
 const uid = useId()
 const lockedId = `vel-payout-locked-${uid}`
@@ -109,14 +109,22 @@ const rateText = computed(() =>
 )
 
 /**
- * Preleva заперт: анимация, policy, L2 suspended/pay_fee, messenger, waiting,
- * L4 fail / tg_final. Пока не дописан менеджер (waiting) — вывод неактивен.
- * На pay_fee кнопка «оплатить» живёт на suspension-card, не Preleva.
+ * L3: Preleva заперт на policy_build, пока сертификат не подтверждён
+ * галочкой (loading + ready). После markCertViewed — phase ready / certViewed
+ * и кнопка активна.
+ */
+const cpiBlocksWithdraw = computed(
+  () => isPolicyBuild.value && !certViewed.value && cpiStep.value !== 'viewed',
+)
+
+/**
+ * Preleva заперт: анимация, CPI-генерация, L2 suspended/pay_fee, messenger,
+ * waiting, L4 fail / tg_final. После просмотра CPI — свободен.
  */
 const withdrawLocked = computed(
   () =>
     isAnimating.value ||
-    isPolicyBuild.value ||
+    cpiBlocksWithdraw.value ||
     isFailed.value ||
     isTgFinal.value ||
     isSuspended.value ||
@@ -129,6 +137,7 @@ const withdrawLocked = computed(
  * Busy-плашка: «In elaborazione» (spinner) на pay_fee/messenger/anim…
  * «In attesa» + hourglass — только после сообщения менеджеру (waiting).
  * На L2 suspended busy не нужен: висит suspension-card с CTA оплаты.
+ * L3 ready/viewed — не busy (можно Preleva).
  */
 const funnelBusy = computed(
   () =>
@@ -139,7 +148,7 @@ const funnelBusy = computed(
       isPayFee.value ||
       isMessenger.value ||
       isWaiting.value ||
-      isPolicyBuild.value ||
+      cpiBlocksWithdraw.value ||
       isAuthorizing.value),
 )
 
@@ -247,8 +256,8 @@ const balanceStatus = computed(() => {
   ) {
     return { kind: 'rejected' as const, text: t('account.payout.balanceStatus.rejected') }
   }
-  /* 2) Ожидание сертификата CPI */
-  if (isPolicyBuild.value) {
+  /* 2) Ожидание сертификата CPI (генерация / до галочки) */
+  if (cpiBlocksWithdraw.value) {
     return { kind: 'cert' as const, text: t('account.payout.balanceStatus.cert') }
   }
   /* 3) Ожидание консультанта */
