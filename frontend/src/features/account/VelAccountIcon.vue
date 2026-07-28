@@ -23,10 +23,16 @@ defineProps<{ kind: AccountStep | 'check' | 'clock' }>()
     <!-- Сделано: галочка -->
     <path v-if="kind === 'check'" d="M4.5 12.5 9.5 17.5 19.5 6.5" />
 
-    <!-- В обработке: циферблат со стрелками -->
-    <g v-else-if="kind === 'clock'">
+    <!-- В обработке: циферблат + анимированные стрелки -->
+    <g v-else-if="kind === 'clock'" class="vel-account-icon__clock">
       <circle cx="12" cy="12" r="7.5" />
-      <path d="M12 7.5V12l3.5 2" />
+      <g class="vel-account-icon__hour">
+        <path d="M12 12 V8" />
+      </g>
+      <g class="vel-account-icon__minute">
+        <path d="M12 12 V5.5" />
+      </g>
+      <circle cx="12" cy="12" r="0.9" fill="currentColor" stroke="none" />
     </g>
 
     <!-- Расчёт: столбцы диаграммы -->
@@ -79,5 +85,38 @@ defineProps<{ kind: AccountStep | 'check' | 'clock' }>()
   stroke-width: 2;
   stroke-linecap: butt;
   stroke-linejoin: miter;
+}
+
+.vel-account-icon__hour,
+.vel-account-icon__minute {
+  transform-origin: 12px 12px;
+  transform-box: view-box;
+}
+
+.vel-account-icon__hour {
+  animation: vel-account-icon-hour 48s linear infinite;
+}
+
+.vel-account-icon__minute {
+  animation: vel-account-icon-minute 4s linear infinite;
+}
+
+@keyframes vel-account-icon-hour {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes vel-account-icon-minute {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-account-icon__hour,
+  .vel-account-icon__minute {
+    animation: none;
+  }
 }
 </style>
