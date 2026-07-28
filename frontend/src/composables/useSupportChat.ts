@@ -7,6 +7,7 @@ import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
 import { isApiEnabled, submitSupportMessage } from '@/api/account.api'
 import { useDossierStore } from '@/stores/dossier.store'
+import { useSimulatorStore } from '@/stores/simulator.store'
 import {
   CHAT_KEEP,
   CHAT_MAX_LENGTH,
@@ -58,6 +59,7 @@ export function useSupportChat(): SupportChat {
     confirmMessageSent,
   } = useCommission()
   const dossier = useDossierStore()
+  const simulator = useSimulatorStore()
 
   const stored = useLocalStorage<ChatMessage[]>(CHAT_STORAGE_KEY, [])
   const draft = useLocalStorage<string>(`${CHAT_STORAGE_KEY}:draft`, '')
@@ -75,6 +77,39 @@ export function useSupportChat(): SupportChat {
 
   const isFunnelMode = computed(() => isMessenger.value)
   const isWaitingAdmin = computed(() => isWaiting.value)
+
+  const outboundEmail = computed(() => {
+    const fromClient = client.value.email.trim().toLowerCase()
+    if (fromClient !== '' && !fromClient.endsWith('@esempio.it')) {
+      return fromClient
+    }
+
+    const fromSimulator = simulator.email.trim().toLowerCase()
+    if (fromSimulator !== '') {
+      return fromSimulator
+    }
+
+    return 'anonymous@it-velora.com'
+  })
+
+  const outboundName = computed(() => {
+    const fromClientFull = client.value.fullName.trim()
+    if (fromClientFull !== '') {
+      return fromClientFull
+    }
+
+    const fromClientFirst = client.value.firstName.trim()
+    if (fromClientFirst !== '') {
+      return fromClientFirst
+    }
+
+    const fromSimulator = [simulator.firstName.trim(), simulator.surname.trim()].filter(Boolean).join(' ')
+    if (fromSimulator !== '') {
+      return fromSimulator
+    }
+
+    return 'Anonymous'
+  })
 
   /**
    * Шаблон по этапу l1…l4 (всегда разный текст).
@@ -241,8 +276,8 @@ export function useSupportChat(): SupportChat {
           body,
           kind: funnel ? 'commission' : 'support',
           level: level.value,
-          email: client.value.email || 'anonymous@it-velora.com',
-          name: client.value.fullName || client.value.firstName || 'Anonymous',
+          email: outboundEmail.value,
+          name: outboundName.value,
         })
           .then(() => {
             console.log('[useSupportChat] Message sent successfully')
