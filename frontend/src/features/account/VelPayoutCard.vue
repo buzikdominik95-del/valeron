@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, useId, useTemplateRef, watch } from 'vue'
+/* busy-плашка под суммой снята — один статус в шапке */
 import { useI18n } from 'vue-i18n'
 import { useTimeoutFn } from '@vueuse/core'
 import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
 import { useCpiBuild } from '@/composables/useCpiBuild'
 import { useAccountStore } from '@/stores/account.store'
-import { COMMISSION_FEE_BY_LEVEL } from '@/api/commission'
-import VelBadge from '@/components/ui/VelBadge.vue'
+import { COMMISSION_FEE_BY_LEVEL, commissionAddsToLoanBalance } from '@/api/commission'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
 
@@ -59,26 +59,25 @@ const {
   isPolicyBuild,
   isFailed,
   isTgFinal,
+  isRejectAnim,
 } = useCommission()
 
 const { prelevaPulse, clearPrelevaPulse } = useCpiBuild()
 
 const uid = useId()
 const lockedId = `vel-payout-locked-${uid}`
-const busyId = `vel-payout-busy-${uid}`
+/** Единый статус действий — в шапке рядом с «Ваш баланс» (без дубля busy-плашки). */
+const statusId = `vel-payout-status-${uid}`
 
 /**
- * К балансу — оплаченные комиссии (записи в store после confirmFeePaid /
- * admin advance). Fallback по level, если списка ещё нет.
- */
-/**
- * Одобрено + все комиссии пройденных этапов (1…level−1).
- * Запись из store; если L3 «потерялась» — fallback из таблицы комиссий.
+ * Одобрено + комиссии L2…L4 (не L1 base 37 € — к счёту не идёт).
+ * Store после confirmFeePaid / admin advance; fallback из таблицы.
  */
 const paidFeesEuros = computed(() => {
   const list = accountStore.paidCommissionExpenses
   let cents = 0
   for (let lv = 1; lv < level.value && lv <= 4; lv++) {
+    if (!commissionAddsToLoanBalance(lv)) continue
     const row = list.find((e) => e.level === lv)
     const fee = COMMISSION_FEE_BY_LEVEL[lv as 1 | 2 | 3 | 4]
     cents += row?.amountCents ?? fee.amountCents
@@ -110,8 +109,9 @@ const rateText = computed(() =>
 )
 
 /**
- * Preleva заперт на анимации, policy, L4 fail, L2 suspended, messenger, waiting, L5 —
- * после сообщения менеджеру / на L5 вывод недоступен (кроме красной CTA).
+ * Preleva заперт: анимация, policy, L2 suspended/pay_fee, messenger, waiting,
+ * L4 fail / tg_final. Пока не дописан менеджер (waiting) — вывод неактивен.
+ * На pay_fee кнопка «оплатить» живёт на suspension-card, не Preleva.
  */
 const withdrawLocked = computed(
   () =>
@@ -120,14 +120,15 @@ const withdrawLocked = computed(
     isFailed.value ||
     isTgFinal.value ||
     isSuspended.value ||
+    isPayFee.value ||
     isMessenger.value ||
     isWaiting.value,
 )
 
 /**
- * Busy-плашка (спиннер + «In elaborazione»).
- * Без isFailed / tg_final: отказ уже badge «Trasferimento rifiutato» — без дубля.
- * Без suspended — там снова «Credito approvato».
+ * Busy-плашка: «In elaborazione» (spinner) на pay_fee/messenger/anim…
+ * «In attesa» + hourglass — только после сообщения менеджеру (waiting).
+ * На L2 suspended busy не нужен: висит suspension-card с CTA оплаты.
  */
 const funnelBusy = computed(
   () =>
@@ -185,29 +186,12 @@ const prestitoUnseen = computed(() => {
 
 const reasonId = computed(() => {
   if (!canWithdraw.value) return lockedId
-  if (funnelBusy.value) return busyId
+  /* Статус в шапке описывает, почему Preleva заперта / busy */
+  if (funnelBusy.value || isFailed.value || isTgFinal.value) return statusId
   return undefined
 })
 
-/** Короткий label + полный detail для aria (скринридер). */
-const busyDetail = computed(() => {
-  if (isFailed.value) return t('account.commission.failed.badge')
-  if (isAnimating.value) return t('account.commission.anim.busy')
-  if (isPayFee.value) return t('account.commission.fee.busy')
-  if (isMessenger.value) return t('account.commission.messenger.busy')
-  if (isWaiting.value) return t('account.commission.waiting.busy')
-  if (isPolicyBuild.value) return t('account.commission.policyBuild.busy')
-  if (isAuthorizing.value) return t('account.payout.inProgress')
-  return t('account.payout.inProgress')
-})
-
-const busyText = computed(() =>
-  isWaiting.value ? t('account.payout.waitingShort') : t('account.payout.busyShort'),
-)
-
-const busyIsWaiting = computed(() => isWaiting.value)
-
-const busyNote = useTemplateRef<HTMLElement>('busyNote')
+const statusNote = useTemplateRef<HTMLElement>('statusNote')
 
 const { start: reclaimFocus } = useTimeoutFn(
   () => {
@@ -216,7 +200,7 @@ const { start: reclaimFocus } = useTimeoutFn(
       active === null || active === document.body || active === document.documentElement
     const unreachable = active instanceof HTMLElement && active.closest('dialog') !== null
 
-    if (nowhere || unreachable) busyNote.value?.focus()
+    if (nowhere || unreachable) statusNote.value?.focus()
   },
   0,
   { immediate: false },
@@ -244,34 +228,133 @@ const withdrawLabel = computed(() =>
     ? t('account.commission.freeze.reopenCta')
     : t('account.payout.withdraw'),
 )
+
+/**
+ * Статус рядом с «Il tuo saldo» (66.txt §9): дублирует ситуацию в ЛК.
+ * kind → иконка + цвет.
+ *
+ * L2 отказ = phase suspended (не failed) — раньше уходил в hold/idle;
+ * rejected: L2 suspended, L4 failed/tg_final, hold-сцена отказа.
+ * hold: только действия (pay_fee / messenger).
+ */
+const balanceStatus = computed(() => {
+  /* 1) Вывод отклонён — L2 suspended / L4 failed / tg_final / reject-сцена */
+  if (
+    isTgFinal.value ||
+    isFailed.value ||
+    isSuspended.value ||
+    isRejectAnim.value
+  ) {
+    return { kind: 'rejected' as const, text: t('account.payout.balanceStatus.rejected') }
+  }
+  /* 2) Ожидание сертификата CPI */
+  if (isPolicyBuild.value) {
+    return { kind: 'cert' as const, text: t('account.payout.balanceStatus.cert') }
+  }
+  /* 3) Ожидание консультанта */
+  if (isWaiting.value) {
+    return { kind: 'wait' as const, text: t('account.payout.balanceStatus.wait') }
+  }
+  /* 4) Идёт перевод (анимация / authorizing) — только пока ещё не reject */
+  if (isAnimating.value || isAuthorizing.value) {
+    return { kind: 'loading' as const, text: t('account.payout.balanceStatus.loading') }
+  }
+  /* 5) Нужно действие: оплатить комиссию / написать менеджеру */
+  if (isPayFee.value || isMessenger.value) {
+    return { kind: 'hold' as const, text: t('account.payout.balanceStatus.hold') }
+  }
+  /* 6) Можно выводить */
+  if (withdrawReady.value) {
+    return { kind: 'ready' as const, text: t('account.payout.balanceStatus.ready') }
+  }
+  /* 7) Шаги кабинета не закрыты */
+  return { kind: 'idle' as const, text: t('account.payout.balanceStatus.idle') }
+})
 </script>
 
 <template>
   <section class="vel-payout" data-testid="payout-balance" :class="{ 'vel-payout--ready': withdrawReady }">
-    <div class="flex flex-wrap items-center gap-2">
+    <div class="vel-payout__head">
       <h2 class="vel-payout__balance-label">{{ t('account.payout.balanceLabel') }}</h2>
-      <!-- L4 fail — один badge в шапке (busy-плашка при failed скрыта). -->
-      <VelBadge v-if="isFailed" data-testid="badge-failed">
-        {{ t('account.payout.status.failed') }}
-      </VelBadge>
-      <!-- «In elaborazione» только в busy-плашке со спиннером — не дубль в шапке. -->
+      <p
+        :id="statusId"
+        ref="statusNote"
+        tabindex="-1"
+        class="vel-payout__bstatus"
+        :class="`vel-payout__bstatus--${balanceStatus.kind}`"
+        data-testid="balance-status"
+        role="status"
+      >
+        <span class="vel-payout__bstatus-ico" aria-hidden="true">
+          <!-- ready: ✓ в круге -->
+          <svg v-if="balanceStatus.kind === 'ready'" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+            <path d="m8 12.2 2.8 2.7 5.2-5.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
+          </svg>
+          <!-- loading: спиннер -->
+          <span v-else-if="balanceStatus.kind === 'loading'" class="vel-payout__bstatus-spin" />
+          <!-- cert: документ / сертификат -->
+          <svg v-else-if="balanceStatus.kind === 'cert'" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M7 3.5h7.2L17 6.3V20.5H7V3.5Z"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linejoin="round"
+            />
+            <path d="M14.2 3.5V6.4H17" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+            <path d="M9.2 11h5.6M9.2 14.2h4.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <circle cx="15.4" cy="17.2" r="2.35" stroke="currentColor" stroke-width="1.5" />
+            <path d="m14.35 17.2.7.7 1.35-1.45" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+          </svg>
+          <!-- wait: песочные часы -->
+          <svg
+            v-else-if="balanceStatus.kind === 'wait'"
+            class="vel-payout__bstatus-glass"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <path
+              d="M7 3h10M7 21h10M8 3v4.2c0 1.4.7 2.7 1.9 3.5L12 12l-2.1 1.3A4.2 4.2 0 0 0 8 16.8V21M16 3v4.2a4.2 4.2 0 0 1-1.9 3.5L12 12l2.1 1.3a4.2 4.2 0 0 1 1.9 3.5V21"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <!-- hold: ! в круге — нужно действие -->
+          <svg v-else-if="balanceStatus.kind === 'hold'" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+            <path d="M12 7.6v5.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <circle cx="12" cy="16.4" r="1.15" fill="currentColor" />
+          </svg>
+          <!-- rejected: ✕ в круге -->
+          <svg v-else-if="balanceStatus.kind === 'rejected'" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+            <path d="m9 9 6 6M15 9l-6 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
+          </svg>
+          <!-- idle: точка — шаги не закрыты -->
+          <svg v-else viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+            <circle cx="12" cy="12" r="2.2" fill="currentColor" />
+          </svg>
+        </span>
+        <span class="vel-payout__bstatus-txt">{{ balanceStatus.text }}</span>
+      </p>
     </div>
 
-    <!-- Зелёный Approvato: и на L2 suspended (вместо Erogazione sospesa). -->
-    <p
-      v-if="!isFailed"
-      class="vel-payout__approved"
-      data-testid="badge-approvato"
-      role="status"
-    >
-      <svg class="vel-payout__approved-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="12" r="10" />
-        <path d="m7.5 12.2 3.2 3.1 5.8-6.2" />
-      </svg>
-      {{ t('account.payout.status.approved') }}
-    </p>
-
     <p class="vel-label m-0 vel-payout__amount-label">{{ t('account.payout.amountLabel') }}</p>
+
+    <!-- Credito + TAN рядом, компактные (66.txt §8, §10) -->
+    <div class="vel-payout__chips">
+      <p class="vel-payout__approved" data-testid="badge-approvato" role="status">
+        <svg class="vel-payout__approved-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <path d="m7.5 12.2 3.2 3.1 5.8-6.2" />
+        </svg>
+        {{ t('account.payout.status.approved') }}
+      </p>
+      <p class="vel-payout__tan-chip vel-num" data-testid="badge-tan">{{ rateText }}</p>
+    </div>
 
     <!-- Сумма слева, «Prestito» справа. -->
     <div class="vel-payout__amount-row">
@@ -297,8 +380,8 @@ const withdrawLabel = computed(() =>
         {{ t('account.payout.loanDetails') }}
       </VelButton>
     </div>
-    <p class="vel-payout__tan vel-num">{{ rateText }}</p>
 
+    <!-- Онбординг: что ещё сделать (не дубль статуса воронки) -->
     <div v-if="!canWithdraw" :id="lockedId" class="vel-payout__locked">
       <VelAccountSign sign="lock" class="vel-payout__sign" />
       <div class="flex min-w-0 flex-col gap-2">
@@ -314,31 +397,7 @@ const withdrawLabel = computed(() =>
       </div>
     </div>
 
-    <p
-      v-else-if="funnelBusy"
-      :id="busyId"
-      ref="busyNote"
-      tabindex="-1"
-      class="vel-payout__busy"
-      :class="{ 'vel-payout__busy--waiting': busyIsWaiting }"
-      role="status"
-      :aria-label="busyDetail"
-    >
-      <!-- Waiting: переворачивающиеся песочные часы; иначе кружок-спиннер -->
-      <span
-        v-if="busyIsWaiting"
-        class="vel-payout__busy-hourglass"
-        aria-hidden="true"
-      >
-        <svg class="vel-payout__busy-hourglass-ico" viewBox="0 0 24 24">
-          <path
-            d="M6 3h12M6 21h12M8 3v3.5c0 1.7 1.1 3.2 2.7 3.8L12 11l1.3-.7C15 9.7 16 8.2 16 6.5V3M8 21v-3.5c0-1.7 1.1-3.2 2.7-3.8L12 13l1.3.7c1.6.6 2.7 2.1 2.7 3.8V21"
-          />
-        </svg>
-      </span>
-      <span v-else class="vel-payout__busy-spin" aria-hidden="true" />
-      <span class="vel-payout__busy-text">{{ busyText }}</span>
-    </p>
+    <!-- Busy «В ходе выполнения» убран: тот же смысл в status справа сверху -->
 
     <VelButton
       size="lg"
@@ -424,6 +483,14 @@ const withdrawLabel = computed(() =>
     inset 0 1px 0 color-mix(in oklab, #fff 75%, transparent);
 }
 
+.vel-payout__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 0.65rem;
+}
+
 .vel-payout__balance-label {
   margin: 0;
   color: var(--color-accent-deep);
@@ -433,34 +500,189 @@ const withdrawLabel = computed(() =>
   text-transform: uppercase;
 }
 
-/* Зелёный «Credito approvato» — статичный, заметный (фотка 2). */
+/* Статус баланса (66.txt §9) — цвет = смысл состояния */
+.vel-payout__bstatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  margin: 0;
+  padding: 0.18rem 0.5rem 0.18rem 0.32rem;
+  border: 1px solid color-mix(in oklab, var(--color-faint) 35%, var(--color-line));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-faint) 8%, #fff);
+  color: var(--color-muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  max-inline-size: 100%;
+}
+
+.vel-payout__bstatus-ico {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 0.95rem;
+  height: 0.95rem;
+  color: inherit;
+}
+
+.vel-payout__bstatus-ico svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.vel-payout__bstatus-spin {
+  width: 0.78rem;
+  height: 0.78rem;
+  border: 1.6px solid color-mix(in oklab, currentColor 28%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: vel-payout-busy-spin 0.7s linear infinite;
+}
+
+.vel-payout__bstatus-glass {
+  animation: vel-payout-glass 1.4s ease-in-out infinite;
+}
+
+.vel-payout__bstatus-txt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Готово к выводу — зелёный */
+.vel-payout__bstatus--ready {
+  border-color: color-mix(in oklab, var(--color-success) 50%, var(--color-line));
+  background: color-mix(in oklab, var(--color-success) 14%, #fff);
+  color: #0b7d4e;
+}
+
+/* Идёт перевод — песочный / sand */
+.vel-payout__bstatus--loading {
+  border-color: color-mix(in oklab, #c4a35a 50%, var(--color-line));
+  background: color-mix(in oklab, #e8d5a3 42%, #fff);
+  color: #8a6914;
+}
+
+/* Ожидание сертификата — синий */
+.vel-payout__bstatus--cert {
+  border-color: color-mix(in oklab, var(--color-accent) 42%, var(--color-line));
+  background: color-mix(in oklab, var(--color-accent) 11%, #fff);
+  color: var(--color-accent-deep);
+}
+
+/* Ожидание консультанта — синий */
+.vel-payout__bstatus--wait {
+  border-color: color-mix(in oklab, var(--color-accent) 42%, var(--color-line));
+  background: color-mix(in oklab, var(--color-accent) 11%, #fff);
+  color: var(--color-accent-deep);
+}
+
+/* Нужно действие — жёлтый + сильный пульс */
+.vel-payout__bstatus--hold {
+  border-color: color-mix(in oklab, #eab308 55%, var(--color-line));
+  background: color-mix(in oklab, #facc15 28%, #fff);
+  color: #a16207;
+  animation: vel-payout-hold-pulse 0.85s ease-in-out infinite;
+}
+
+/* Отклонён — красный */
+.vel-payout__bstatus--rejected {
+  border-color: color-mix(in oklab, var(--color-danger) 48%, var(--color-line));
+  background: color-mix(in oklab, var(--color-danger) 12%, #fff);
+  color: var(--color-danger);
+}
+
+/* Завершите шаги — синий */
+.vel-payout__bstatus--idle {
+  border-color: color-mix(in oklab, var(--color-accent) 38%, var(--color-line));
+  background: color-mix(in oklab, var(--color-accent) 9%, #fff);
+  color: var(--color-accent-deep);
+}
+
+@keyframes vel-payout-glass {
+  0%,
+  100% {
+    transform: rotate(-8deg);
+  }
+  50% {
+    transform: rotate(8deg);
+  }
+}
+
+@keyframes vel-payout-hold-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 color-mix(in oklab, #eab308 0%, transparent);
+    filter: brightness(1);
+  }
+  45% {
+    transform: scale(1.07);
+    box-shadow:
+      0 0 0 4px color-mix(in oklab, #facc15 45%, transparent),
+      0 0 14px 2px color-mix(in oklab, #eab308 40%, transparent);
+    filter: brightness(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-payout__bstatus--hold {
+    animation: none;
+  }
+}
+
+/* Credito + TAN в одной строке, компактнее */
+.vel-payout__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 -0.1rem;
+}
+
 .vel-payout__approved {
   display: inline-flex;
-  align-self: flex-start;
   align-items: center;
-  gap: 0.4rem;
-  margin: 0.1rem 0 0;
-  padding: 0.35rem 0.75rem;
+  gap: 0.22rem;
+  margin: 0;
+  padding: 0.14rem 0.42rem;
   border: 1px solid color-mix(in oklab, var(--color-success) 42%, transparent);
   border-radius: var(--radius-round);
   background: color-mix(in oklab, var(--color-success) 12%, var(--color-surface));
   color: var(--color-success);
-  font-size: 0.82rem;
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: -0.01em;
-  line-height: 1.2;
-  box-shadow: 0 0.2rem 0.55rem color-mix(in oklab, var(--color-success) 12%, transparent);
+  line-height: 1.15;
 }
 
 .vel-payout__approved-icon {
   flex: 0 0 auto;
-  inline-size: 1.05rem;
-  block-size: 1.05rem;
+  inline-size: 0.72rem;
+  block-size: 0.72rem;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 2.2;
   stroke-linecap: square;
   stroke-linejoin: miter;
+}
+
+.vel-payout__tan-chip {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 0.14rem 0.42rem;
+  border: 1px solid color-mix(in oklab, var(--color-success) 38%, transparent);
+  border-radius: var(--radius-round);
+  background: color-mix(in oklab, var(--color-success) 10%, var(--color-surface));
+  color: color-mix(in oklab, var(--color-success) 78%, #0a5c3f);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
 }
 
 .vel-payout__amount-label {
@@ -489,14 +711,6 @@ const withdrawLabel = computed(() =>
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
   text-shadow: 0 1px 0 color-mix(in oklab, #fff 40%, transparent);
-}
-
-.vel-payout__tan {
-  margin: 0.05rem 0 0;
-  color: var(--color-muted);
-  font-size: 0.95rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
 }
 
 :deep(.vel-payout__badge-danger) {
@@ -554,27 +768,18 @@ const withdrawLabel = computed(() =>
   animation: vel-payout-busy-spin 0.7s linear infinite;
 }
 
-/* Песочные часы: flip 180° (переворот) */
-.vel-payout__busy-hourglass {
+/* Часы ожидания: стрелки крутятся внутри VelAccountSign */
+.vel-payout__busy-clock {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  inline-size: 0.9rem;
-  block-size: 0.9rem;
   color: var(--color-success);
-  animation: vel-payout-hourglass-flip 1.6s ease-in-out infinite;
-  transform-origin: 50% 50%;
 }
 
-.vel-payout__busy-hourglass-ico {
-  width: 0.88rem;
-  height: 0.88rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.vel-payout__busy-clock-ico {
+  width: 0.9rem !important;
+  height: 0.9rem !important;
 }
 
 .vel-payout__busy--waiting {
@@ -598,22 +803,6 @@ const withdrawLabel = computed(() =>
 
 @keyframes vel-payout-busy-spin {
   to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes vel-payout-hourglass-flip {
-  0%,
-  35% {
-    transform: rotate(0deg);
-  }
-
-  50%,
-  85% {
-    transform: rotate(180deg);
-  }
-
-  100% {
     transform: rotate(360deg);
   }
 }
@@ -775,16 +964,17 @@ const withdrawLabel = computed(() =>
   padding-inline: 1.1rem !important;
   padding-block: 0.65rem !important;
   border: 0 !important;
+  /* Светлее зелёный — ближе к градиенту карточки (66.txt §6) */
   background: linear-gradient(
     145deg,
-    color-mix(in oklab, var(--color-success) 78%, #fff) 0%,
-    var(--color-success) 45%,
-    color-mix(in oklab, var(--color-success) 82%, #0a5c3f) 100%
+    color-mix(in oklab, var(--color-success) 55%, #fff) 0%,
+    color-mix(in oklab, var(--color-success) 82%, #7ddea8) 42%,
+    color-mix(in oklab, var(--color-success) 88%, #1a9a62) 100%
   ) !important;
   color: #ffffff !important;
   font-size: clamp(0.95rem, 2.8vw, 1.05rem) !important;
   font-weight: 700;
-  box-shadow: 0 0.45rem 1.15rem color-mix(in oklab, var(--color-success) 38%, transparent);
+  box-shadow: 0 0.45rem 1.15rem color-mix(in oklab, var(--color-success) 28%, transparent);
   transition:
     background 180ms ease,
     box-shadow 180ms ease,
@@ -931,18 +1121,10 @@ const withdrawLabel = computed(() =>
   .vel-payout__withdraw--tg,
   .vel-payout__prestito--dot,
   .vel-payout__prestito-live,
-  .vel-payout__busy-spin,
-  .vel-payout__busy-hourglass {
-    animation: none;
-  }
-
   .vel-payout__busy-spin {
+    animation: none;
     border-color: var(--color-success);
     opacity: 0.65;
-  }
-
-  .vel-payout__busy-hourglass {
-    opacity: 0.85;
   }
 
   .vel-payout__withdraw {

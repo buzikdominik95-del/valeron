@@ -181,6 +181,8 @@ const borrowerSignature = computed(() => {
   border: 1px solid var(--color-line);
   border-radius: var(--radius-panel);
   background-color: var(--color-raised);
+  /* Печать в зоне подписей не должна резаться скруглением/containment */
+  overflow: visible;
 }
 
 .vel-csheet__paper {
@@ -190,11 +192,12 @@ const borrowerSignature = computed(() => {
   /* Отношение сторон A4 (1 : 1,414) как МИНИМУМ высоты — см. шапку файла. */
   min-block-size: 141.4cqi;
   min-inline-size: 0;
-  padding: 1.25rem 1rem;
+  padding: 1.25rem 1.1rem 1.4rem;
   border-radius: var(--radius-control);
   background-color: var(--color-surface);
   color: var(--color-fg);
   box-shadow: 0 0.5rem 1.5rem color-mix(in oklab, var(--color-fg) 10%, transparent);
+  overflow: visible;
 }
 
 .vel-csheet__head {

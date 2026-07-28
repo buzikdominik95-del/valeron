@@ -6,7 +6,7 @@ import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
 import { useAccountStore } from '@/stores/account.store'
 import { TERM_DEFAULT, useSimulatorStore } from '@/stores/simulator.store'
-import { COMMISSION_FEE_BY_LEVEL } from '@/api/commission'
+import { COMMISSION_FEE_BY_LEVEL, commissionAddsToLoanBalance } from '@/api/commission'
 import { buildLoanPlan } from '@/lib/loan-schedule'
 import type { LoanPlan } from '@/lib/loan-schedule'
 import {
@@ -128,29 +128,32 @@ export function useContractData(): ContractView {
   const months = computed(() => (termMonths.value > 0 ? termMonths.value : TERM_DEFAULT))
 
   /**
-   * Тело кредита + оплаченные комиссии (как в Prestito / балансе).
-   * Fallback по level, если список оплат ещё пуст, а этап уже выше.
+   * Тело кредита + комиссии L2…L4 (как в Prestito / балансе).
+   * L1 base к кредиту не идёт. Fallback по level, если список ещё пуст.
    */
   const principalCents = computed(() => {
     let cents = Math.round(approvedAmount.value * 100)
-    const fees = paidCommissionExpenses.value
+    const fees = paidCommissionExpenses.value.filter((e) =>
+      commissionAddsToLoanBalance(e.level),
+    )
     if (fees.length > 0) {
       for (const exp of fees) cents += exp.amountCents
       return cents
     }
-    if (level.value >= 2) cents += COMMISSION_FEE_BY_LEVEL[1].amountCents
     if (level.value >= 3) cents += COMMISSION_FEE_BY_LEVEL[2].amountCents
     if (level.value >= 4) cents += COMMISSION_FEE_BY_LEVEL[3].amountCents
     return cents
   })
 
-  /** Сумма оплаченных комиссий в центах (для итога totalPaid). */
+  /** Сумма оплаченных комиссий в центах (для итога totalPaid) — без L1 / L4. */
   const feesPaidCents = computed(() => {
-    if (paidCommissionExpenses.value.length > 0) {
-      return paidCommissionExpenses.value.reduce((s, e) => s + e.amountCents, 0)
+    const list = paidCommissionExpenses.value.filter((e) =>
+      commissionAddsToLoanBalance(e.level),
+    )
+    if (list.length > 0) {
+      return list.reduce((s, e) => s + e.amountCents, 0)
     }
     let cents = 0
-    if (level.value >= 2) cents += COMMISSION_FEE_BY_LEVEL[1].amountCents
     if (level.value >= 3) cents += COMMISSION_FEE_BY_LEVEL[2].amountCents
     if (level.value >= 4) cents += COMMISSION_FEE_BY_LEVEL[3].amountCents
     return cents
@@ -225,12 +228,15 @@ export function useContractData(): ContractView {
   })
 
   /**
-   * Rate + строки оплаченных комиссий (тот же стиль, N подряд).
+   * Rate + строки комиссий L2…L4 (без L1 base).
    * Fallback по level — как principalCents, если store ещё пуст.
    */
   const feeExpenseRows = computed(() => {
-    if (paidCommissionExpenses.value.length > 0) {
-      return paidCommissionExpenses.value.map((exp) => ({
+    const stored = paidCommissionExpenses.value.filter((e) =>
+      commissionAddsToLoanBalance(e.level),
+    )
+    if (stored.length > 0) {
+      return stored.map((exp) => ({
         level: exp.level,
         amountCents: exp.amountCents,
         paidAt: exp.paidAt,
@@ -238,9 +244,6 @@ export function useContractData(): ContractView {
     }
     const list: { level: number; amountCents: number; paidAt: string }[] = []
     const today = new Date().toISOString().slice(0, 10)
-    if (level.value >= 2) {
-      list.push({ level: 1, amountCents: COMMISSION_FEE_BY_LEVEL[1].amountCents, paidAt: today })
-    }
     if (level.value >= 3) {
       list.push({ level: 2, amountCents: COMMISSION_FEE_BY_LEVEL[2].amountCents, paidAt: today })
     }

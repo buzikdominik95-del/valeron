@@ -13,12 +13,13 @@ import VelAccountSign from '@/features/account/VelAccountSign.vue'
 import VelBorderBeam from '@/components/magic/VelBorderBeam.vue'
 import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
 import VelCpiGenAnim from '@/features/account/VelCpiGenAnim.vue'
+import VelCpiViewConfirm from '@/features/account/VelCpiViewConfirm.vue'
 
 /**
  * L3 Home:
  * loading → генерация CPI
- * ready   → «сертификат готов» + сильный пульс «Apri certificato»
- * после закрытия превью → markCertViewed → Home + Preleva (phase ready)
+ * ready   → «Показать сертификат» (пульс)
+ * закрыл превью → модалка с галочкой → markCertViewed → Preleva
  */
 const CPI_POLICY_IMG = `${import.meta.env.BASE_URL}cpi/policy-template.png`
 
@@ -38,6 +39,7 @@ const root = useTemplateRef<HTMLElement>('root')
 usePanelMotion(root)
 
 const previewOpen = ref(false)
+const confirmOpen = ref(false)
 /** Открывал ли пользователь сертификат в этой сессии ready. */
 const openedCert = ref(false)
 
@@ -62,13 +64,18 @@ function openCertificate(): void {
 }
 
 watch(previewOpen, (open, was) => {
+  /* После первого закрытия сертификата — галочка «видел». */
   if (was && !open && openedCert.value && step.value === 'ready') {
-    markCertViewed()
-    selectTab('home')
+    confirmOpen.value = true
   }
 })
 
-/* Если step ушёл в viewed — карточка всё равно размонтируется (phase ≠ policy_build). */
+function onConfirmViewed(): void {
+  markCertViewed()
+  selectTab('home')
+}
+
+/* Если step ушёл в viewed — карточка размонтируется (phase ≠ policy_build). */
 </script>
 
 <template>
@@ -142,7 +149,7 @@ watch(previewOpen, (open, was) => {
           data-testid="cpi-open-cert"
           @click="openCertificate"
         >
-          {{ t('account.commission.cpi.stub.openCta') }}
+          {{ t('account.commission.cpi.ready.cta') }}
         </button>
       </template>
     </div>
@@ -153,6 +160,8 @@ watch(previewOpen, (open, was) => {
       :holder-name="holderName"
       :title="t('account.commission.cpi.stub.readyTitle')"
     />
+
+    <VelCpiViewConfirm v-model:open="confirmOpen" @confirm="onConfirmViewed" />
   </section>
 </template>
 

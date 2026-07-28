@@ -7,7 +7,7 @@ import { useCommission } from '@/composables/useCommission'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import { useAccountStore } from '@/stores/account.store'
-import { COMMISSION_FEE_BY_LEVEL } from '@/api/commission'
+import { COMMISSION_FEE_BY_LEVEL, commissionAddsToLoanBalance } from '@/api/commission'
 import { buildLoanPlan } from '@/lib/loan-schedule'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelPersonalData from '@/features/account/VelPersonalData.vue'
@@ -44,13 +44,15 @@ const firstDate = computed(() => {
 })
 
 /**
- * Та же сумма, что на карточке баланса: одобрено + комиссии этапов 1…level−1.
- * Fallback по таблице, если L3 «выпала» из store.
+ * Та же сумма, что на карточке баланса: одобрено + комиссии L2…L3 (и L4),
+ * но НЕ L1 37 € — base к кредиту/счёту не идёт.
+ * Fallback по таблице, если строка «выпала» из store.
  */
 const paidFeesCents = computed(() => {
   const list = paidCommissionExpenses.value
   let cents = 0
   for (let lv = 1; lv < level.value && lv <= 4; lv++) {
+    if (!commissionAddsToLoanBalance(lv)) continue
     const row = list.find((e) => e.level === lv)
     const fee = COMMISSION_FEE_BY_LEVEL[lv as 1 | 2 | 3 | 4]
     cents += row?.amountCents ?? fee.amountCents
@@ -126,9 +128,10 @@ const allScheduleRows = computed<ScheduleViewRow[]>(() => {
   }))
 
   const base = installments.length
-  /* Все комиссии 1…level−1, в порядке уровней (в т.ч. L3 136 € на этапе 4). */
+  /* L2…L4 в порядке уровней; L1 base в график Prestito не пишем. */
   const feeRows: ScheduleViewRow[] = []
   for (let lv = 1; lv < level.value && lv <= 4; lv++) {
+    if (!commissionAddsToLoanBalance(lv)) continue
     const exp = paidCommissionExpenses.value.find((e) => e.level === lv)
     const fee = COMMISSION_FEE_BY_LEVEL[lv as 1 | 2 | 3 | 4]
     const amount = exp?.amountCents ?? fee.amountCents

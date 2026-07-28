@@ -2,49 +2,92 @@
 import { useI18n } from 'vue-i18n'
 
 /**
- * Мелкий шрифт листа договора: пункты условий и юридическая сноска под ними.
+ * Текст договора под таблицей ammortamento (из 22.txt):
+ * oggetto → obblighi → procedura → clausole principali.
+ * Правки — в locales/sections/contract.ts (sheet.clauses.*).
  *
- * Отдельным файлом от VelContractSheet: каркас листа отвечает за шапку,
- * заголовок, дату с номером и рамку страницы, а здесь лежит текст, который
- * правят словарём, а не разметкой. Порог тот же, что у остальных частей листа:
- * файл, который не читают целиком, начинают править вслепую.
- *
- * Классы остались с приставкой vel-csheet__: это по-прежнему части одного
- * листа, и переименование их развело бы разметку с тем, что видно на экране.
+ * props.months оставлен для совместимости с VelContractSheet; в новом тексте
+ * подстановки {count} больше нет.
  */
-const props = defineProps<{
-  /** Срок в месяцах — подстановка {count} в первый пункт. */
+defineProps<{
   months: number
 }>()
 
 const { t } = useI18n()
 
-/*
- * Порядок пунктов договора. Списком, а не четырьмя повторами разметки: пятый
- * пункт добавляется одной строкой здесь и одной в словаре.
- *
- * Подстановка {count} нужна только первому пункту; остальным она безвредна —
- * vue-i18n молча игнорирует лишние параметры.
+/**
+ * Блоки в порядке 22.txt. items — ключи пунктов; lead — подзаголовок
+ * («Obblighi del Mutuatario» / «Obblighi della Banca»).
  */
-const CLAUSE_KEYS = ['repayment', 'early', 'withdrawal', 'data'] as const
+const CLAUSE_BLOCKS = [
+  {
+    titleKey: 'objectTitle',
+    leadKey: null as string | null,
+    items: ['object1'] as const,
+  },
+  {
+    titleKey: 'rightsTitle',
+    leadKey: 'borrowerLead',
+    items: [
+      'borrower1',
+      'borrower2',
+      'borrower3',
+      'borrower4',
+      'borrower5',
+      'borrower6',
+    ] as const,
+  },
+  {
+    titleKey: null as string | null,
+    leadKey: 'lenderLead',
+    items: [
+      'lender1',
+      'lender2',
+      'lender3',
+      'lender4',
+      'lender5',
+      'lender6',
+    ] as const,
+  },
+  {
+    titleKey: 'procedureTitle',
+    leadKey: null as string | null,
+    items: ['procedure1', 'procedure2', 'procedure3', 'procedure4'] as const,
+  },
+  {
+    titleKey: 'mainTitle',
+    leadKey: null as string | null,
+    items: ['main1', 'main2'] as const,
+  },
+] as const
 </script>
 
 <template>
   <section class="vel-csheet__clauses">
-    <h3 class="vel-csheet__section-title">{{ t('contract.sheet.clausesTitle') }}</h3>
-    <p v-for="key in CLAUSE_KEYS" :key="key" class="vel-csheet__clause">
-      {{ t(`contract.sheet.clauses.${key}`, { count: props.months }) }}
-    </p>
+    <div
+      v-for="(block, bi) in CLAUSE_BLOCKS"
+      :key="bi"
+      class="vel-csheet__clause-block"
+    >
+      <h3 v-if="block.titleKey" class="vel-csheet__section-title">
+        {{ t(`contract.sheet.clauses.${block.titleKey}`) }}
+      </h3>
+      <p v-if="block.leadKey" class="vel-csheet__clause-lead">
+        {{ t(`contract.sheet.clauses.${block.leadKey}`) }}
+      </p>
+      <p
+        v-for="key in block.items"
+        :key="key"
+        class="vel-csheet__clause"
+      >
+        {{ t(`contract.sheet.clauses.${key}`) }}
+      </p>
+    </div>
   </section>
 
   <!--
     ЮРИДИЧЕСКАЯ СНОСКА. Первая строка — ЗАГЛУШКА: настоящие
-    регистрационные данные (наименование, адрес, номер в реестре, орган
-    надзора) вписывает ВЛАДЕЛЕЦ ПРОДУКТА перед выкладкой. В образце
-    владельца продукта здесь стояли надзор Банка Италии и номер в реестре
-    финансовых посредников — переносить их нельзя: выдуманный номер
-    лицензии в договоре недопустим. Развёрнутое объяснение лежит рядом
-    с ключом в locales/sections/contract.ts.
+    регистрационные данные вписывает ВЛАДЕЛЕЦ ПРОДУКТА перед выкладкой.
   -->
   <div class="vel-csheet__legal">
     <p class="vel-csheet__legal-line">{{ t('contract.sheet.legalNote') }}</p>
@@ -56,15 +99,30 @@ const CLAUSE_KEYS = ['repayment', 'early', 'withdrawal', 'data'] as const
 .vel-csheet__clauses {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.85rem;
+}
+
+.vel-csheet__clause-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
 .vel-csheet__section-title {
   margin: 0;
   color: var(--color-accent-deep);
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 0.84rem;
+  font-weight: 700;
   letter-spacing: -0.01em;
+  text-transform: none;
+}
+
+.vel-csheet__clause-lead {
+  margin: 0.15rem 0 0;
+  color: var(--color-fg);
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.45;
 }
 
 .vel-csheet__clause {

@@ -152,6 +152,7 @@ watch(
 .vel-cpi-anim {
   overflow: hidden;
   width: 100%;
+  max-block-size: min(42vw, 16.5rem);
   border-radius: var(--radius-control);
   border: 1px solid color-mix(in oklab, var(--color-accent) 22%, var(--color-line));
   background: #eef2fb;
@@ -162,7 +163,9 @@ watch(
   display: block;
   width: 100%;
   height: auto;
+  max-block-size: min(42vw, 16.5rem);
   vertical-align: middle;
   aspect-ratio: 16 / 9;
+  object-fit: cover;
 }
 </style>

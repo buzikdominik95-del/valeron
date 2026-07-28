@@ -375,6 +375,7 @@ export function drawOverlay(
     const glyphSize = 22 * (m.captionSub / 21)
     const caption = (x: number, title: string, sub: string, glyph: Glyph): void => {
       text(ctx, title, x, 780, m.caption, WEIGHT_BOLD, palette.mid, palette.font, 'center')
+      if (!sub.trim()) return
       const width = textWidth(ctx, sub, m.captionSub, WEIGHT_NORMAL, palette.font)
       ctx.strokeStyle = palette.faint
       ctx.lineWidth = 2 * (m.captionSub / 21)

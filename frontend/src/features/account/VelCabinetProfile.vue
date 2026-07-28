@@ -1,20 +1,61 @@
 <script setup lang="ts">
-import { computed, useSlots } from 'vue'
+import { computed, ref, useSlots } from 'vue'
+/* verifyFlash: success/fail animation for email OTP */
 import { useI18n } from 'vue-i18n'
 import { CABINET_HEADING_ID } from '@/composables/useCabinetTab'
+import { useAccountView } from '@/composables/useAccountView'
+import { useAccountStore } from '@/stores/account.store'
+import { logout as apiLogout } from '@/api/auth.api'
+import VelButton from '@/components/ui/VelButton.vue'
 import VelPersonalData from '@/features/account/VelPersonalData.vue'
 import VelSecurityPanel from '@/features/account/VelSecurityPanel.vue'
+import VelProfileEditDialog from '@/features/account/VelProfileEditDialog.vue'
+import type { ProfileEditKind } from '@/features/account/VelProfileEditDialog.vue'
 
 /**
- * Profilo: dati + (dopo verify) sezione documenti + sicurezza.
- *
- * Анимация verify живёт ВНУТРИ VelDocumentUpload (слот #documents),
- * а не отдельным блоком под карточкой.
+ * Profilo: dati + documenti + sicurezza + Esci.
+ * Modifica nome / email / password → VelProfileEditDialog.
+ * Verify email (OTP demo) → markEmailVerified.
  */
 const { t } = useI18n()
 const slots = useSlots()
+const { close: leaveCabinet } = useAccountView()
+const accountStore = useAccountStore()
 
 const hasDocsSlot = computed(() => typeof slots.documents === 'function')
+const loggingOut = ref(false)
+
+const editOpen = ref(false)
+const editKind = ref<ProfileEditKind>('name')
+
+function openEdit(kind: ProfileEditKind): void {
+  editKind.value = kind
+  editOpen.value = true
+}
+
+/**
+ * Верификация + анимация живут в VelSecurityPanel (overlay на блоке).
+ * Сюда — hook для API/логов; store.markEmailVerified() панель зовёт сама после ok-анимации.
+ */
+function onVerifyCode(_code: string): void {
+  /* reserved for API bridge */
+  void _code
+  void accountStore
+}
+
+async function onLogout(): Promise<void> {
+  if (loggingOut.value) return
+  loggingOut.value = true
+  try {
+    await apiLogout()
+  } catch {
+    /* exit landing anyway */
+  } finally {
+    leaveCabinet()
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    loggingOut.value = false
+  }
+}
 </script>
 
 <template>
@@ -24,7 +65,7 @@ const hasDocsSlot = computed(() => typeof slots.documents === 'function')
     </h2>
 
     <div class="vel-profile__stack">
-      <VelPersonalData />
+      <VelPersonalData @edit-name="openEdit('name')" />
 
       <!-- Карточка + анимация verify внутри (после accept) -->
       <section
@@ -36,7 +77,63 @@ const hasDocsSlot = computed(() => typeof slots.documents === 'function')
         <slot name="documents" />
       </section>
 
-      <VelSecurityPanel />
+      <VelSecurityPanel
+        @change-password="openEdit('password')"
+        @change-email="openEdit('email')"
+        @verify="onVerifyCode"
+      />
+
+      <VelProfileEditDialog v-model:open="editOpen" :kind="editKind" />
+
+      <!-- Esci: лендинг; повторный кредит → gate «hai già un account» -->
+      <section
+        class="vel-profile__logout rounded-panel border border-line bg-surface"
+        data-testid="profile-logout"
+        :aria-label="t('account.pages.profile.logoutSection')"
+      >
+        <div class="vel-profile__logout-copy">
+          <p class="vel-profile__logout-title m-0">
+            {{ t('account.pages.profile.logoutTitle') }}
+          </p>
+          <p class="vel-profile__logout-lead m-0">
+            {{ t('account.pages.profile.logoutLead') }}
+          </p>
+        </div>
+        <VelButton
+          type="button"
+          variant="outline"
+          class="vel-profile__logout-btn"
+          data-testid="profile-logout-btn"
+          :disabled="loggingOut"
+          @click="onLogout"
+        >
+          <svg
+            class="vel-profile__logout-ico"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M10 7V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-1"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+            />
+            <path
+              d="M15 12H4m0 0 3-3M4 12l3 3"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          {{
+            loggingOut
+              ? t('account.pages.profile.logoutBusy')
+              : t('account.pages.profile.logout')
+          }}
+        </VelButton>
+      </section>
     </div>
   </div>
 </template>
@@ -65,11 +162,61 @@ const hasDocsSlot = computed(() => typeof slots.documents === 'function')
   display: flex;
   flex-direction: column;
   gap: var(--vel-cab-gap, 0.7rem);
-  max-inline-size: var(--vel-cab-content-max, 42rem);
+  /* На всю ширину main — как «бровь» */
   width: 100%;
+  max-inline-size: none;
 }
 
 .vel-profile__docs:empty {
   display: none;
+}
+
+.vel-profile__logout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem 1rem;
+  padding: var(--vel-cab-card-pad, 1rem);
+}
+
+.vel-profile__logout-copy {
+  display: flex;
+  min-width: min(100%, 14rem);
+  flex: 1 1 12rem;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.vel-profile__logout-title {
+  color: var(--color-fg);
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.vel-profile__logout-lead {
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.vel-profile__logout-btn {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.45rem;
+  border-color: color-mix(in oklab, var(--color-danger) 35%, var(--color-line)) !important;
+  color: var(--color-danger) !important;
+}
+
+.vel-profile__logout-btn:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--color-danger) 8%, var(--color-surface)) !important;
+}
+
+.vel-profile__logout-ico {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: none;
 }
 </style>

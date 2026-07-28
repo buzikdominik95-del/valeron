@@ -5,9 +5,12 @@
  * Бэкенд: Laravel 12 · PostgreSQL (application_commissions) ·
  * Redis queue · Reverb event `.commission.updated` (см. BACKEND.md).
  * Level повышает только сервер/админ; фронт меняет phase после UX-действий.
+ *
+ * L5 снят: финал Telegram = конец L4 после отказной анимации (phase tg_final),
+ * без оплаты 280 €.
  */
 
-export const COMMISSION_LEVELS = [1, 2, 3, 4, 5] as const
+export const COMMISSION_LEVELS = [1, 2, 3, 4] as const
 export type CommissionLevel = (typeof COMMISSION_LEVELS)[number]
 
 export function isCommissionLevel(value: unknown): value is CommissionLevel {
@@ -19,11 +22,19 @@ export function isCommissionLevel(value: unknown): value is CommissionLevel {
 }
 
 /**
+ * Нормализация уровня (в т.ч. legacy L5 из localStorage / старого API → L4).
+ */
+export function normalizeCommissionLevel(value: unknown): CommissionLevel {
+  if (value === 5) return 4
+  if (isCommissionLevel(value)) return value
+  return 1
+}
+
+/**
  * ready → pay_fee → messenger → waiting
  * L2: ready → animating → suspended → pay_fee → messenger → waiting
  * L3: policy_build → … → messenger → waiting
- * L4: ready → animating → failed → pay_fee (280 €) → messenger → waiting
- * L5: tg_final (финал TG — только после перехода на 5-й уровень, не после чата)
+ * L4: ready → animating → tg_final (отказ вывода → Telegram, без fee 280 €)
  */
 export type CommissionPhase =
   | 'ready'
@@ -52,41 +63,39 @@ export interface AccountCommission {
   policyProgress: number
 }
 
-/** Комиссии: 37 → 172 → 136 → 280 €; L5 — только handoff (без новой суммы). */
+/** Комиссии: 37 → 172 → 136 €; L4 — без оплаты (финал TG после анимации). */
 export const COMMISSION_FEE_BY_LEVEL: Record<CommissionLevel, CommissionFee> = {
   1: { amountCents: 3_700, reason: 'base' },
   2: { amountCents: 17_200, reason: 'insurance' },
   3: { amountCents: 13_600, reason: 'aml' },
-  4: { amountCents: 28_000, reason: 'release' },
-  5: { amountCents: 0, reason: 'release' },
+  4: { amountCents: 0, reason: 'release' },
+}
+
+/**
+ * Комиссии, которые увеличивают Saldo / тело Prestito / строки графика.
+ * L1 (37 € base) — только «оплата доступа», к кредиту/счёту НЕ идёт.
+ * L2 insurance + L3 AML — да. L4 — без fee (финал TG).
+ */
+export function commissionAddsToLoanBalance(level: number): boolean {
+  return level === 2 || level === 3
 }
 
 export const COMMISSION_ANIMATION_MS: Record<CommissionLevel, number> = {
   1: 0,
   2: 7 * 60 * 1000,
   3: 0,
-  /** Этап 4: анимация вывода 6 минут → отказ → комиссия 280 € */
-  4: 6 * 60 * 1000,
-  5: 0,
+  /** Этап 4: анимация вывода 3 минуты → отказ → tg_final (Telegram) */
+  4: 3 * 60 * 1000,
 }
 
 export function defaultCommission(level: CommissionLevel = 1): AccountCommission {
-  if (level === 5) {
-    return {
-      level: 5,
-      phase: 'tg_final',
-      fee: COMMISSION_FEE_BY_LEVEL[5],
-      animationMs: 0,
-      animationStartedAt: null,
-      policyProgress: 0,
-    }
-  }
+  const lv = normalizeCommissionLevel(level)
   return {
-    level,
-    phase: level === 3 ? 'policy_build' : 'ready',
-    fee: COMMISSION_FEE_BY_LEVEL[level],
-    animationMs: COMMISSION_ANIMATION_MS[level],
+    level: lv,
+    phase: lv === 3 ? 'policy_build' : 'ready',
+    fee: COMMISSION_FEE_BY_LEVEL[lv],
+    animationMs: COMMISSION_ANIMATION_MS[lv],
     animationStartedAt: null,
-    policyProgress: level === 3 ? 0.05 : 0,
+    policyProgress: lv === 3 ? 0.05 : 0,
   }
 }
