@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\IbanSettingController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\CommissionLevelController;
+use App\Http\Controllers\Api\AuthController;
 
 // Test Sentry endpoint
 Route::get("/test-sentry", function() {
@@ -26,8 +27,6 @@ Route::prefix('admin')->group(function () {
     Route::put('commission-levels', [CommissionLevelController::class, 'update']);
 });
 
-// Auth routes
-use App\Http\Controllers\Api\AuthController;
 
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
