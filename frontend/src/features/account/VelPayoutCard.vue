@@ -542,39 +542,90 @@ function onOpenLoan(): void {
   background-color: var(--color-surface);
 }
 
-/* Prestito: зелёная точка «online», пока есть непросмотренные траты/изменения. */
+/*
+ * Prestito:
+ *  · без точки — белая outline (как VelButton outline);
+ *  · с точкой (есть непросмотренные изменения) — зелёный оттенок + сильный пульс
+ *    кнопки и точки; после markPrestitoSeen класс --dot снимается → снова белая.
+ */
 .vel-payout__prestito {
   position: relative;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
 }
 
 .vel-payout__prestito--dot {
-  border-color: color-mix(in oklab, var(--color-success) 55%, var(--color-line-strong)) !important;
+  border-color: color-mix(in oklab, var(--color-success) 72%, var(--color-line-strong)) !important;
+  background: color-mix(in oklab, var(--color-success) 16%, var(--color-surface)) !important;
+  color: color-mix(in oklab, var(--color-success) 55%, var(--color-fg)) !important;
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--color-success) 28%, transparent),
+    0 0.35rem 0.9rem color-mix(in oklab, var(--color-success) 22%, transparent);
+  animation: vel-prestito-btn-pulse 1.05s ease-in-out infinite;
+}
+
+.vel-payout__prestito--dot:hover {
+  background: color-mix(in oklab, var(--color-success) 24%, var(--color-surface)) !important;
+  border-color: var(--color-success) !important;
+  color: color-mix(in oklab, var(--color-success) 70%, var(--color-fg)) !important;
 }
 
 .vel-payout__prestito-live {
   flex: 0 0 auto;
-  inline-size: 0.55rem;
-  block-size: 0.55rem;
+  inline-size: 0.58rem;
+  block-size: 0.58rem;
   border-radius: var(--radius-round);
   background: var(--color-success);
-  box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-success) 55%, transparent);
-  animation: vel-prestito-live 1.5s ease-out infinite;
+  box-shadow:
+    0 0 0 0 color-mix(in oklab, var(--color-success) 70%, transparent),
+    0 0 8px 1px color-mix(in oklab, var(--color-success) 55%, transparent);
+  animation: vel-prestito-dot-pulse 0.9s ease-out infinite;
 }
 
-@keyframes vel-prestito-live {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-success) 55%, transparent);
+@keyframes vel-prestito-btn-pulse {
+  0%,
+  100% {
     transform: scale(1);
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-success) 42%, transparent),
+      0 0.35rem 0.9rem color-mix(in oklab, var(--color-success) 22%, transparent);
   }
 
-  70% {
-    box-shadow: 0 0 0 8px color-mix(in oklab, var(--color-success) 0%, transparent);
-    transform: scale(1.15);
+  50% {
+    transform: scale(1.06);
+    box-shadow:
+      0 0 0 10px color-mix(in oklab, var(--color-success) 0%, transparent),
+      0 0.55rem 1.35rem color-mix(in oklab, var(--color-success) 38%, transparent);
+  }
+}
+
+@keyframes vel-prestito-dot-pulse {
+  0% {
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-success) 75%, transparent),
+      0 0 6px 1px color-mix(in oklab, var(--color-success) 55%, transparent);
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  55% {
+    box-shadow:
+      0 0 0 12px color-mix(in oklab, var(--color-success) 0%, transparent),
+      0 0 14px 3px color-mix(in oklab, var(--color-success) 35%, transparent);
+    transform: scale(1.45);
+    opacity: 1;
   }
 
   100% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-success) 0%, transparent);
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-success) 0%, transparent),
+      0 0 6px 1px color-mix(in oklab, var(--color-success) 40%, transparent);
     transform: scale(1);
+    opacity: 0.9;
   }
 }
 
@@ -681,6 +732,7 @@ function onOpenLoan(): void {
 @media (prefers-reduced-motion: reduce) {
   .vel-payout__withdraw--pulse,
   .vel-payout__withdraw--boost,
+  .vel-payout__prestito--dot,
   .vel-payout__prestito-live,
   .vel-payout__busy-spin {
     animation: none;
@@ -695,8 +747,14 @@ function onOpenLoan(): void {
     transition: none;
   }
 
+  .vel-payout__prestito--dot {
+    box-shadow:
+      0 0 0 2px color-mix(in oklab, var(--color-success) 35%, transparent),
+      0 0.35rem 0.9rem color-mix(in oklab, var(--color-success) 18%, transparent);
+  }
+
   .vel-payout__prestito-live {
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-success) 40%, transparent);
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-success) 40%, transparent);
   }
 }
 </style>
