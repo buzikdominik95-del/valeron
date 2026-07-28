@@ -256,14 +256,15 @@ function backToMain(): void {
 }
 
 .vel-freeze::backdrop {
+  /* Меньше красного затемнения — лёгкий нейтральный dim + слабый blush */
   background:
     radial-gradient(
-      ellipse 85% 65% at 50% 40%,
-      color-mix(in oklab, #ef4444 38%, transparent),
-      color-mix(in oklab, #450a0a 78%, transparent) 72%
-    );
-  /* Сильнее размытие фона */
-  backdrop-filter: blur(12px) saturate(0.75);
+      ellipse 90% 70% at 50% 42%,
+      color-mix(in oklab, #ef4444 12%, transparent),
+      color-mix(in oklab, #1e1b1b 55%, transparent) 75%
+    ),
+    color-mix(in oklab, #0f172a 42%, transparent);
+  backdrop-filter: blur(8px) saturate(0.9);
   animation: vel-freeze-backdrop 0.55s ease-out both;
 }
 

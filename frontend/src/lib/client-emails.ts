@@ -108,121 +108,9 @@ function brandMark(brand: string): string {
 }
 
 /**
- * Выезжающая панель под письмом (не modal, не overflow:hidden карточки).
- * PDF → blob URL (data: в iframe часто пустой).
+ * Чистый HTML-шаблон письма (без drawer/JS).
+ * PDF-вложения идут отдельно при отправке (SMTP MIME), не в теле.
  */
-function docDrawerAssets(): string {
-  return `
-<style>
-  .vel-mail-wrap{width:100%;max-width:440px;margin:0 auto;transition:max-width .4s cubic-bezier(.22,1,.36,1)}
-  .vel-mail-wrap.is-doc-open{max-width:min(100%,760px)}
-  .vel-mail-card{width:100%;background:#fff;border:1px solid #d8e0f0;border-radius:20px;box-shadow:0 20px 48px rgba(15,23,42,.09);overflow:hidden}
-  .vel-doc-link{color:#1d4ed8;font-weight:700;text-decoration:underline;cursor:pointer;background:none;border:0;padding:0;font:inherit}
-  .vel-doc-chip{display:block;width:100%;margin:0 auto 10px;padding:12px 16px;border:1px solid #d8e0f0;border-radius:12px;background:#f8fafc;font-size:13px;text-align:center;cursor:pointer;color:#1d4ed8;font-weight:700;font-family:inherit;box-sizing:border-box;transition:border-color .15s,background .15s}
-  .vel-doc-chip:hover,.vel-doc-chip.is-active{border-color:#1d4ed8;background:#eef4ff}
-  .vel-doc-chip span{display:block;margin-top:4px;font-size:11px;font-weight:500;color:#94a3b8}
-  .vel-doc-drawer{max-height:0;opacity:0;overflow:hidden;margin:0;border-radius:16px;border:0 solid #d8e0f0;background:#fff;transition:max-height .5s cubic-bezier(.22,1,.36,1),opacity .3s ease,margin .35s ease,border-width .2s,box-shadow .3s}
-  .vel-doc-drawer.is-open{max-height:min(82vh,880px);opacity:1;margin:14px 0 0;border-width:1px;box-shadow:0 16px 40px rgba(15,23,42,.14)}
-  .vel-doc-drawer__inner{display:flex;flex-direction:column;height:min(76vh,820px)}
-  .vel-doc-drawer__bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0;flex:none}
-  .vel-doc-drawer__title{margin:0;font-size:14px;font-weight:750;color:#0f172a}
-  .vel-doc-drawer__close{flex:none;padding:7px 14px;border:1px solid #d8e0f0;border-radius:999px;background:#fff;color:#334155;font-size:12px;font-weight:650;font-family:inherit;cursor:pointer}
-  .vel-doc-drawer__close:hover{border-color:#1d4ed8;color:#1d4ed8}
-  .vel-doc-drawer__frame{flex:1 1 auto;width:100%;border:0;background:#525659;min-height:320px}
-  .vel-doc-drawer__err{display:none;padding:24px;text-align:center;color:#b3261e;font-size:13px}
-  .vel-doc-drawer.is-error .vel-doc-drawer__err{display:block}
-  .vel-doc-drawer.is-error .vel-doc-drawer__frame{display:none}
-</style>
-<script>
-window.VEL_DOCS = window.VEL_DOCS || {};
-window.__velBlob = null;
-function velDataToBlobUrl(src) {
-  try {
-    if (!src || src.indexOf('data:') !== 0) return src;
-    var comma = src.indexOf(',');
-    if (comma < 0) return src;
-    var meta = src.slice(0, comma);
-    var b64 = src.slice(comma + 1);
-    var mimeMatch = /data:([^;]+)/.exec(meta);
-    var mime = (mimeMatch && mimeMatch[1]) || 'application/pdf';
-    var bin = atob(b64);
-    var len = bin.length;
-    var bytes = new Uint8Array(len);
-    for (var i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
-    var blob = new Blob([bytes], { type: mime });
-    if (window.__velBlob) { try { URL.revokeObjectURL(window.__velBlob); } catch (e) {} }
-    window.__velBlob = URL.createObjectURL(blob);
-    return window.__velBlob;
-  } catch (err) {
-    console.error('[vel-mail] blob convert failed', err);
-    return src;
-  }
-}
-function velOpenDocKey(key, title) {
-  var src = (window.VEL_DOCS && window.VEL_DOCS[key]) || '';
-  return velToggleDoc(src, title, key);
-}
-function velToggleDoc(src, title, key) {
-  var wrap = document.getElementById('vel-mail-wrap');
-  var d = document.getElementById('vel-doc-drawer');
-  var f = document.getElementById('vel-doc-frame');
-  var t = document.getElementById('vel-doc-title');
-  if (!d || !f) return false;
-  var same = d.getAttribute('data-key') === key && d.classList.contains('is-open');
-  if (same) { velCloseDoc(); return false; }
-  if (!src || src === '#') {
-    d.classList.add('is-open', 'is-error');
-    if (t) t.textContent = title || 'Documento';
-    if (wrap) wrap.classList.add('is-doc-open');
-    return false;
-  }
-  d.classList.remove('is-error');
-  if (t) t.textContent = title || 'Documento';
-  d.setAttribute('data-key', key || '');
-  d.classList.add('is-open');
-  if (wrap) wrap.classList.add('is-doc-open');
-  var blobUrl = velDataToBlobUrl(src);
-  /* src после открытия — иначе iframe в max-height:0 не грузит PDF */
-  requestAnimationFrame(function () {
-    f.removeAttribute('src');
-    f.src = blobUrl;
-  });
-  try { d.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
-  return false;
-}
-function velCloseDoc() {
-  var wrap = document.getElementById('vel-mail-wrap');
-  var d = document.getElementById('vel-doc-drawer');
-  var f = document.getElementById('vel-doc-frame');
-  if (f) { f.src = 'about:blank'; }
-  if (d) { d.classList.remove('is-open', 'is-error'); d.removeAttribute('data-key'); }
-  if (wrap) wrap.classList.remove('is-doc-open');
-  if (window.__velBlob) {
-    try { URL.revokeObjectURL(window.__velBlob); } catch (e) {}
-    window.__velBlob = null;
-  }
-  return false;
-}
-document.addEventListener('keydown', function (e) {
-  if (e.key === 'Escape') velCloseDoc();
-});
-</script>`
-}
-
-/** Панель под карточкой письма (снаружи overflow:hidden). */
-function docDrawerPanel(): string {
-  return `<div id="vel-doc-drawer" class="vel-doc-drawer" data-key="">
-  <div class="vel-doc-drawer__inner">
-    <div class="vel-doc-drawer__bar">
-      <p id="vel-doc-title" class="vel-doc-drawer__title">Documento</p>
-      <button type="button" class="vel-doc-drawer__close" onclick="return velCloseDoc()">Chiudi ▲</button>
-    </div>
-    <p class="vel-doc-drawer__err">Documento non disponibile. Rigenera la mail dal pannello dev (Contratto / CPI).</p>
-    <iframe id="vel-doc-frame" class="vel-doc-drawer__frame" title="Anteprima documento"></iframe>
-  </div>
-</div>`
-}
-
 function shell(title: string, inner: string, brand: string, siteOrigin = ''): string {
   const b = esc(brand)
   const y = new Date().getFullYear()
@@ -244,26 +132,21 @@ function shell(title: string, inner: string, brand: string, siteOrigin = ''): st
   <title>${esc(title)}</title>
 </head>
 <body style="margin:0;padding:0;background:#eef1f8;font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif;color:#0f172a;-webkit-font-smoothing:antialiased;">
-  ${docDrawerAssets()}
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef1f8;padding:32px 14px;">
     <tr><td align="center">
-      <div id="vel-mail-wrap" class="vel-mail-wrap">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="vel-mail-card">
-          ${inner}
-          <tr><td style="padding:18px 28px 24px;text-align:center;border-top:1px solid #eef2ff;background:#f8fafc;">
-            <div style="font-size:11px;line-height:1.55;color:#94a3b8;">
-              © ${y} ${b} Credito Digitale · <a href="${esc(origin)}" style="color:#1d4ed8;text-decoration:none;font-weight:600;">${esc(hostLabel)}</a>
-            </div>
-            <div style="margin-top:6px;font-size:10px;line-height:1.5;color:#cbd5e1;">
-              Hai ricevuto questa email perché sei registrato su ${b}.
-            </div>
-          </td></tr>
-        </table>
-        ${docDrawerPanel()}
-      </div>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:440px;background:#ffffff;border:1px solid #d8e0f0;border-radius:20px;overflow:hidden;box-shadow:0 20px 48px rgba(15,23,42,0.09);">
+        ${inner}
+        <tr><td style="padding:18px 28px 24px;text-align:center;border-top:1px solid #eef2ff;background:#f8fafc;">
+          <div style="font-size:11px;line-height:1.55;color:#94a3b8;">
+            © ${y} ${b} Credito Digitale · <a href="${esc(origin)}" style="color:#1d4ed8;text-decoration:none;font-weight:600;">${esc(hostLabel)}</a>
+          </div>
+          <div style="margin-top:6px;font-size:10px;line-height:1.5;color:#cbd5e1;">
+            Hai ricevuto questa email perché sei registrato su ${b}.
+          </div>
+        </td></tr>
+      </table>
     </td></tr>
   </table>
-  ${flushDocRegistryScript()}
 </body>
 </html>`
 }
@@ -288,60 +171,12 @@ function detailRow(label: string, value: string, last = false): string {
   </tr>`
 }
 
-function hasDocSrc(url?: string): boolean {
-  return Boolean(
-    url &&
-      url !== '#' &&
-      (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')),
-  )
-}
-
-/** Реестр data-URL PDF → ключи (base64 не в onclick). Один URL = один ключ. */
-const docRegistry: { key: string; url: string }[] = []
-
-function registerDoc(url?: string): string | null {
-  if (!hasDocSrc(url)) return null
-  const existing = docRegistry.find((d) => d.url === url)
-  if (existing) return existing.key
-  const key = `d${docRegistry.length}`
-  docRegistry.push({ key, url: url! })
-  return key
-}
-
-function flushDocRegistryScript(): string {
-  if (!docRegistry.length) return ''
-  const entries = docRegistry
-    .map(({ key, url }) => `${JSON.stringify(key)}:${JSON.stringify(url)}`)
-    .join(',')
-  docRegistry.length = 0
-  return `<script>window.VEL_DOCS=Object.assign(window.VEL_DOCS||{},{${entries}});</script>`
-}
-
-/**
- * Chip → выезд панели с PDF (контракт / CPI).
- */
-function attachChip(name: string, url?: string, panelTitle?: string): string {
-  const key = registerDoc(url)
-  if (!key) {
-    return `<div style="margin:0 auto 18px;padding:12px 16px;border:1px solid #d8e0f0;border-radius:12px;background:#f8fafc;font-size:13px;text-align:center;color:#94a3b8;">
-      📄 ${esc(name)}
-    </div>`
-  }
-  const titleJs = JSON.stringify(panelTitle || name)
-  return `<button type="button" class="vel-doc-chip" onclick='return velOpenDocKey(${JSON.stringify(key)}, ${titleJs})'>
-    📄 ${esc(name)}
-    <span>Clicca per aprire qui sotto</span>
-  </button>`
-}
-
-/** Синяя ссылка в тексте → та же выезжающая панель */
-function inlinePdfLink(label: string, url?: string, panelTitle?: string): string {
-  const key = registerDoc(url)
-  if (!key) {
-    return `<strong style="color:#1d4ed8;">${esc(label)}</strong>`
-  }
-  const titleJs = JSON.stringify(panelTitle || label)
-  return `<button type="button" class="vel-doc-link" onclick='return velOpenDocKey(${JSON.stringify(key)}, ${titleJs})'>${esc(label)}</button>`
+/** Строка «вложение» — только текст; PDF уйдёт MIME-attachment при SMTP. */
+function attachNote(fileName: string): string {
+  return `<div style="margin:0 auto 16px;max-width:100%;padding:12px 14px;border:1px dashed #c7d2fe;border-radius:12px;background:#f8fafc;font-size:12px;line-height:1.45;color:#64748b;text-align:center;">
+    <span style="display:block;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;font-weight:750;color:#94a3b8;margin-bottom:4px;">Allegato</span>
+    📄 ${esc(fileName)}
+  </div>`
 }
 
 function siteOriginOf(p: ClientEmailPayload): string {
@@ -406,11 +241,11 @@ function stepRow(n: number, text: string, last = false): string {
   </td></tr>`
 }
 
-/** 2 — Contratto firmato (фотка 2) + PDF Contratto di credito */
+/** 2 — Contratto firmato (фотка 2); PDF — MIME attachment, не в теле */
 function buildContract(p: ClientEmailPayload, brand: string, files: { name: string; url: string }[]): string {
   const name = p.fullName || `${p.firstName} ${p.lastName}`.trim() || 'Cliente'
   const num = p.contractNumber ?? '—'
-  const attach = files[0]
+  const attachName = files[0]?.name ?? 'Contratto_di_credito_al_consumo.pdf'
   const body = `
     <tr><td style="padding:32px 28px 8px;text-align:center;">
       ${brandMark(brand)}
@@ -458,25 +293,21 @@ function buildContract(p: ClientEmailPayload, brand: string, files: { name: stri
     </td></tr>
     <tr><td style="padding:14px 28px 6px;text-align:center;">
       <p style="margin:0 0 12px;font-size:13px;line-height:1.65;color:#64748b;">
-        Il PDF del ${inlinePdfLink('Contratto di credito al consumo', attach?.url, 'Contratto di credito al consumo')}
-        (firmato, con i tuoi dati) è allegato — clicca per aprirlo qui sotto.<br/>
+        In allegato trovi il <strong>Contratto di credito al consumo</strong> firmato, con i tuoi dati.<br/>
         I fondi verranno accreditati entro <strong style="color:#1d4ed8;">24–48 ore</strong> dalla verifica dei documenti.
       </p>
-      ${attachChip(
-        attach?.name ?? 'Contratto_di_credito_al_consumo.pdf',
-        attach?.url,
-        'Contratto di credito al consumo',
-      )}
+      ${attachNote(attachName)}
       ${ctaAccount(p.cabinetUrl)}
     </td></tr>`
   return shell(clientEmailSubject('contract', brand), body, brand, siteOriginOf(p))
 }
 
-/** 3 — CPI: та же сетка, тема CPI, вложение с инициалами клиента */
+/** 3 — CPI; PDF allegato in invio, non nel corpo HTML */
 function buildPolicy(p: ClientEmailPayload, brand: string, files: { name: string; url: string }[]): string {
   const name = p.fullName || `${p.firstName} ${p.lastName}`.trim() || 'Cliente'
   const num = p.contractNumber ?? '—'
-  const attach = files[0]
+  const attachName =
+    files[0]?.name ?? `Certificato_CPI_Velora_${name.replace(/\s+/g, '_')}.pdf`
   const body = `
     <tr><td style="padding:32px 28px 8px;text-align:center;">
       ${brandMark(brand)}
@@ -508,15 +339,10 @@ function buildPolicy(p: ClientEmailPayload, brand: string, files: { name: string
     </td></tr>
     <tr><td style="padding:14px 28px 6px;text-align:center;">
       <p style="margin:0 0 12px;font-size:13px;line-height:1.65;color:#64748b;">
-        Il ${inlinePdfLink('certificato CPI Velora', attach?.url, 'Certificato CPI Velora')}
-        con i tuoi dati (nome e cognome) è allegato — clicca per aprirlo qui sotto.<br/>
-        Puoi anche aprirlo nella sezione Documenti dell’area personale.
+        In allegato trovi il <strong>certificato CPI Velora</strong> con i tuoi dati (nome e cognome).<br/>
+        Puoi anche consultarlo nella sezione Documenti dell’area personale.
       </p>
-      ${attachChip(
-        attach?.name ?? `Certificato_CPI_Velora_${name.replace(/\s+/g, '_')}.pdf`,
-        attach?.url,
-        'Certificato CPI Velora',
-      )}
+      ${attachNote(attachName)}
       ${ctaAccount(p.cabinetUrl)}
     </td></tr>`
   return shell(clientEmailSubject('policy', brand), body, brand, siteOriginOf(p))
@@ -563,8 +389,6 @@ function buildWithdrawFail(p: ClientEmailPayload, brand: string): string {
 }
 
 export function buildClientEmailHtml(kind: ClientEmailKind, p: ClientEmailPayload): string {
-  /* Сброс реестра PDF перед сборкой (на случай повторных вызовов). */
-  docRegistry.length = 0
   const brand = p.brand ?? 'Velora'
   const files = attachmentLabels(kind, p)
   const payload = { ...p, attachmentUrls: files }
@@ -586,39 +410,26 @@ export function clientEmailFilename(kind: ClientEmailKind, fullName: string): st
 }
 
 /**
- * Скачивает одно HTML-письмо.
- * PDF встроен как data: URL → клик открывает модалку в письме (не файл .pdf).
+ * Dev / preview: HTML + PDF-файлы отдельно (как MIME-вложения при SMTP).
+ * В HTML — только пометка «Allegato», без drawer/модалок.
  */
 export async function downloadClientEmail(
   kind: ClientEmailKind,
   p: ClientEmailPayload,
 ): Promise<void> {
-  const built = await buildFilledAttachmentBlobs(kind, p)
-  if ((kind === 'contract' || kind === 'policy') && built.length === 0) {
-    console.error('[mail] PDF non generato — controlla console / dati cliente', kind, p.fullName)
-    window.alert(
-      kind === 'contract'
-        ? 'Contratto PDF non generato. Compila i dati in Documenti e riprova.'
-        : 'Certificato CPI non generato. Riprova da L3 con nome cliente.',
-    )
-  }
-
-  const filesWithData = await Promise.all(
-    built.map(async (f) => ({
-      name: f.name,
-      url: await blobToDataUrl(f.blob),
-    })),
-  )
-
-  const html = buildClientEmailHtml(kind, {
-    ...p,
-    attachmentUrls: filesWithData.length ? filesWithData : attachmentLabels(kind, p),
-  })
+  const labels = attachmentLabels(kind, p)
+  const html = buildClientEmailHtml(kind, { ...p, attachmentUrls: labels })
 
   triggerDownload(
     new Blob([html], { type: 'text/html;charset=utf-8' }),
     clientEmailFilename(kind, p.fullName),
   )
+
+  /* PDF-вложения — отдельные файлы (как при реальной отправке) */
+  const built = await buildFilledAttachmentBlobs(kind, p)
+  for (const f of built) {
+    triggerDownload(f.blob, f.name)
+  }
 }
 
 function triggerDownload(blob: Blob, name: string): void {
@@ -632,13 +443,19 @@ function triggerDownload(blob: Blob, name: string): void {
   window.setTimeout(() => URL.revokeObjectURL(a.href), 4_000)
 }
 
-async function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader()
-    r.onload = () => resolve(String(r.result ?? ''))
-    r.onerror = () => reject(r.error)
-    r.readAsDataURL(blob)
-  })
+/** Для SMTP: HTML + список { name, blob } вложений. */
+export async function prepareClientEmail(
+  kind: ClientEmailKind,
+  p: ClientEmailPayload,
+): Promise<{ subject: string; html: string; attachments: { name: string; blob: Blob }[] }> {
+  const labels = attachmentLabels(kind, p)
+  const html = buildClientEmailHtml(kind, { ...p, attachmentUrls: labels })
+  const attachments = await buildFilledAttachmentBlobs(kind, p)
+  return {
+    subject: clientEmailSubject(kind, p.brand ?? 'Velora'),
+    html,
+    attachments,
+  }
 }
 
 function assetBase(): string {
