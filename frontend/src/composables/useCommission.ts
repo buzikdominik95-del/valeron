@@ -5,17 +5,18 @@ import { createSharedComposable, useIntervalFn, useUrlSearchParams } from '@vueu
 import { useDossierStore } from '@/stores/dossier.store'
 import { wantsFastAnim } from '@/lib/fast-anim'
 import type { CommissionLevel, CommissionPhase } from '@/api/commission'
-import { isCommissionLevel } from '@/api/commission'
+import { COMMISSION_ANIMATION_MS, isCommissionLevel } from '@/api/commission'
 
 /**
  * Воронка вывода: уровни 1…4, фазы, таймер анимации, демо-флаг админа.
  *
- * Level повышает только сервер (или ?commLevel= / advanceCommissionLevel
- * для стенда). Клиентские действия меняют phase: pay_fee → messenger → waiting
- * / animating → suspended|failed.
+ * L2: animating идёт по ТАЙМЕРУ 7 минут (не по «концу» canvas-loop).
+ *     Когда timer=0 → suspended (ошибка вывода) → pay_fee (комиссия) →
+ *     messenger (заготовки) → waiting → админ на L3.
+ * L4: таймер 3 мин → tg_final.
  *
- * Ускорение анимации: ?fastAnim=1 или localStorage velora:fastAnim=1 —
- * 7 мин (L2) → 12 с, 6 мин (L4) → 10 с. В проде без флага — длительности из API.
+ * ?fastAnim=1 / localStorage velora:fastAnim=1 — только для стенда
+ * (L2 → 12 с, L4 → 10 с). В проде без флага — полные 7 / 3 мин.
  */
 
 const FAST_L2_MS = 12_000
@@ -89,15 +90,24 @@ function createCommission(): CommissionApi {
   const feeReason = computed(() => dossier.value.commission.fee.reason)
   const policyProgress = computed(() => dossier.value.commission.policyProgress)
 
+  /**
+   * Длительность ТАЙМЕРА (не canvas): L2 = 7 мин, L4 = 3 мин из таблицы.
+   * Не берём битый animationMs из storage — иначе отказ срабатывает «сразу».
+   */
   const animationMs = computed(() => {
+    const lv = level.value
+    if (lv === 2 || lv === 4) {
+      if (wantsFastAnim()) return lv === 4 ? FAST_L4_MS : FAST_L2_MS
+      return COMMISSION_ANIMATION_MS[lv]
+    }
     const base = dossier.value.commission.animationMs
     if (!wantsFastAnim() || base === 0) return base
-    return level.value === 4 ? FAST_L4_MS : FAST_L2_MS
+    return base
   })
 
   /**
-   * Прогресс 0…1. После отказа (failed / suspended) всегда 1 — иначе при
-   * remount / F5 сцена «отката» рисовалась бы с нуля без freeze.
+   * Прогресс 0…1 = elapsed / timerMs (стенные часы).
+   * Canvas крутится в loop независимо; отказ — только когда timer дошёл до 0.
    */
   const terminalReject =
     dossier.value.commission.phase === 'failed' ||
@@ -105,13 +115,14 @@ function createCommission(): CommissionApi {
     dossier.value.commission.phase === 'tg_final'
   const animationProgress = ref(terminalReject ? 1 : 0)
   /**
-   * После 100% прогресса — короткая «отказная» фаза сцены (красная/застывшая),
-   * потом suspended (L2) или tg_final (L4). Красивый переход, не мгновенный jump.
+   * После timer=0: короткая красная «hold», затем completeAnimation
+   * (L2 suspended / L4 tg_final) — без запроса к API.
    */
   const rejectHold = ref(false)
   let rejectTimer: ReturnType<typeof setTimeout> | null = null
 
-  const REJECT_HOLD_MS = wantsFastAnim() ? 900 : 2800
+  /** Короткая пауза UI после 100% таймера, не часть 7 минут. */
+  const REJECT_HOLD_MS = wantsFastAnim() ? 900 : 2_000
 
   function pinRejectProgress(): void {
     animationProgress.value = 1
@@ -124,6 +135,7 @@ function createCommission(): CommissionApi {
       animationProgress.value = phase.value === 'animating' ? 0 : animationProgress.value
       return
     }
+    /* Стенные часы с animationStartedAt — единственный критерий «таймер вышел». */
     const elapsed = Date.now() - new Date(started).getTime()
     const ratio = Math.min(1, Math.max(0, elapsed / total))
     animationProgress.value = ratio
@@ -136,6 +148,7 @@ function createCommission(): CommissionApi {
         rejectHold.value = false
         rejectTimer = null
         pinRejectProgress()
+        /* L2 → suspended (оплати комиссию); L4 → tg_final */
         dossierStore.completeAnimation()
       }, REJECT_HOLD_MS)
     }

@@ -24,7 +24,7 @@ import type {
   CommissionLevel,
   CommissionPhase,
 } from '@/api/commission'
-import { normalizeCommissionLevel } from '@/api/commission'
+import { COMMISSION_FEE_BY_LEVEL, normalizeCommissionLevel } from '@/api/commission'
 import { useAccountStore } from '@/stores/account.store'
 
 /**
@@ -296,9 +296,15 @@ export const useDossierStore = defineStore('dossier', () => {
       .catch(() => undefined)
   }
 
-  /** С suspended / после деталей — снова pay_fee (страховка / повтор). */
+  /**
+   * L2 после таймера 7 мин: suspended → «Paga la copertura» → pay_fee.
+   * После оплаты markFeePaid → messenger (заготовки) → waiting → админ L3.
+   */
   function openFeeFromSuspension(): void {
     if (dossier.value.commission.phase !== 'suspended') return
+    const level = normalizeCommissionLevel(dossier.value.commission.level)
+    dossier.value.commission.level = level
+    dossier.value.commission.fee = COMMISSION_FEE_BY_LEVEL[level] ?? dossier.value.commission.fee
     dossier.value.commission.phase = 'pay_fee'
   }
 
