@@ -7,6 +7,9 @@ import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
 import { isApiEnabled, submitSupportMessage } from '@/api/account.api'
 import { useDossierStore } from '@/stores/dossier.store'
+import { useCabinetTab } from '@/composables/useCabinetTab'
+import { useNotices } from '@/composables/useNotices'
+import { useAgentNotify } from '@/composables/useAgentNotify'
 import {
   CHAT_KEEP,
   CHAT_MAX_LENGTH,
@@ -63,8 +66,14 @@ export interface SupportChat {
   funnelAgentHello: ComputedRef<string>
   funnelHint: ComputedRef<string>
   send: () => void
-  /** Реплика менеджера в ленту (после verify docs и т.п.). */
-  pushAgentMessage: (text: string) => void
+  /**
+   * Реплика менеджера / админа → лента + toast + badge (если не на chat).
+   * opts.variant: agent | welcome; silent: только лента.
+   */
+  pushAgentMessage: (
+    text: string,
+    opts?: { variant?: 'agent' | 'welcome'; silent?: boolean },
+  ) => void
   /** Принудительно положить заготовку messenger в composer (L1…L4). */
   seedFunnelDraft: (force?: boolean) => void
   threadEl: Ref<HTMLElement | null>
@@ -85,6 +94,9 @@ function createSupportChat(): SupportChat {
     confirmMessageSent,
   } = useCommission()
   const dossier = useDossierStore()
+  const { tab } = useCabinetTab()
+  const notices = useNotices()
+  const agentNotify = useAgentNotify()
 
   const stored = useLocalStorage<ChatMessage[]>(CHAT_STORAGE_KEY, [])
   const draft = useLocalStorage<string>(`${CHAT_STORAGE_KEY}:draft`, '')
@@ -224,10 +236,16 @@ function createSupportChat(): SupportChat {
   }
 
   /**
-   * Сообщение от менеджера (author=agent) — в ленту Assistenza.
-   * После verify документов: toast сверху + эта реплика в чате.
+   * Сообщение от менеджера / админа (author=agent) — в ленту Assistenza.
+   * Если пользователь не на вкладке чата:
+   *  · toast «Nuovo messaggio»
+   *  · notice в колокольчик
+   *  · badge + мигание кнопки Assistenza
    */
-  function pushAgentMessage(text: string): void {
+  function pushAgentMessage(
+    text: string,
+    opts?: { variant?: 'agent' | 'welcome'; silent?: boolean },
+  ): void {
     const body = text.trim()
     if (body === '') return
     /* Не дублируем тот же текст подряд (повторный verify / remount). */
@@ -242,9 +260,16 @@ function createSupportChat(): SupportChat {
       delivery: 'sent',
     }
     messages.value = [...messages.value, message].slice(-CHAT_KEEP)
-    /* Бейдж Assistenza + прыжок (66.txt §14–15): менеджер / backend → agent */
-    account.bumpSupportUnread(1)
     void scrollToEnd()
+
+    if (opts?.silent) return
+
+    /* Уже в чате — только лента, без badge/toast (прочитано). */
+    if (tab.value === 'support') return
+
+    account.bumpSupportUnread(1)
+    notices.push('managerMessage')
+    agentNotify.show(opts?.variant ?? 'agent')
   }
 
   function advanceFunnel(): void {

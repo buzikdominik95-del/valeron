@@ -42,6 +42,7 @@ import VelAgentToast from '@/features/account/VelAgentToast.vue'
 import VelWaitingAdmin from '@/features/account/VelWaitingAdmin.vue'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useNotices } from '@/composables/useNotices'
+import { useAgentNotify } from '@/composables/useAgentNotify'
 
 const { t } = useI18n()
 const account = useAccountStore()
@@ -66,11 +67,15 @@ const {
 const { certViewed, step: cpiStep } = useCpiBuild()
 const { select: selectTab } = useCabinetTab()
 const notices = useNotices()
+/** Toast менеджера / system — shared с pushAgentMessage (admin → toast + badge). */
+const {
+  open: agentToastOpen,
+  kind: agentToastKind,
+  show: showAgentNotify,
+  hide: hideAgentNotify,
+} = useAgentNotify()
 
 const apiError = ref<string | null>(null)
-/** Toast: agent (docs) | welcome (15 с после входа) | system (L4 → Home). */
-const agentToastOpen = ref(false)
-const agentToastKind = ref<'agent' | 'system' | 'welcome'>('agent')
 /** Полноэкранный крестик при L2 freeze / L4 reject — сам закрывается. */
 const rejectFlashOpen = ref(false)
 
@@ -147,8 +152,6 @@ const chosenFiles = ref<File[]>([])
 const toastText = ref<string | null>(null)
 
 const TOAST_MS = 2800
-/** Toast консультанта сверху: 7 с, потом сам закрывается. */
-const AGENT_TOAST_MS = 7000
 
 /*
  * Таймер из VueUse, а не голый setTimeout: useTimeoutFn снимает его сам при
@@ -166,14 +169,6 @@ const { start: hideToastLater } = useTimeoutFn(
     toastText.value = null
   },
   TOAST_MS,
-  { immediate: false },
-)
-
-const { start: hideAgentToastLater } = useTimeoutFn(
-  () => {
-    agentToastOpen.value = false
-  },
-  AGENT_TOAST_MS,
   { immediate: false },
 )
 
@@ -211,29 +206,16 @@ function unlockFirmaAfterDocs(): void {
   account.advanceTo('signature')
 }
 
-/** Toast консультанта справа снизу + badge на чате + уведомление; через 7 с сам закрывается. */
-function showAgentMessageToast(): void {
-  account.bumpSupportUnread(1)
-  notices.push('managerMessage')
-  agentToastKind.value = 'agent'
-  agentToastOpen.value = true
-  hideAgentToastLater()
-}
-
 /**
  * Приветствие менеджера ~15 с после входа в ЛК:
- * toast + реплика в Assistenza + badge + notice — всё одновременно.
- * (Раньше в чате сразу висело статичное greeting, а toast шёл через 15 с.)
+ * toast + реплика в Assistenza + badge + notice — всё через pushAgentMessage.
  */
 function showWelcomeManagerToast(): void {
   welcomeToastSeen.value = true
-  notices.push('managerMessage')
-  agentToastKind.value = 'welcome'
-  agentToastOpen.value = true
-  hideAgentToastLater()
-  /* pushAgentMessage сам бампит unread — не дублируем */
   void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
-    useSupportChat().pushAgentMessage(t('account.support.chat.welcomeMsg'))
+    useSupportChat().pushAgentMessage(t('account.support.chat.welcomeMsg'), {
+      variant: 'welcome',
+    })
   })
 }
 
@@ -242,25 +224,22 @@ function showWelcomeManagerToast(): void {
  * Не уводит с чата сам — только по клику → Home + короткая прогрузка.
  */
 function showSystemWaitingToast(): void {
-  agentToastKind.value = 'system'
-  agentToastOpen.value = true
-  hideAgentToastLater()
+  showAgentNotify('system')
 }
 
-/** Только после verify (не при выборе файла) — unlock firma + toast + chat badge. */
+/** Только после verify (не при выборе файла) — unlock firma + agent msg (toast+badge). */
 function onDocumentsVerified(): void {
   unlockFirmaAfterDocs()
   notices.push('documentVerified')
-  showAgentMessageToast()
   showToast(t('account.docs.toastReady'))
-  /* Сообщение менеджера — в ленту Assistenza (author=agent). */
+  /* toast + badge + notice — внутри pushAgentMessage */
   void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
     useSupportChat().pushAgentMessage(t('account.support.chat.docsVerified'))
   })
 }
 
 function onAgentToastOpen(): void {
-  agentToastOpen.value = false
+  hideAgentNotify()
   if (agentToastKind.value === 'system') {
     /* Home + полноэкранная прогрузка (как смена этапа). */
     selectTab('home')
@@ -270,12 +249,12 @@ function onAgentToastOpen(): void {
     }, 2000)
     return
   }
-  /* agent / welcome → чат с менеджером */
+  /* agent / welcome → чат с менеджером (badge гасится в VelAccount watch tab) */
   selectTab('support')
 }
 
 function onAgentToastClose(): void {
-  agentToastOpen.value = false
+  hideAgentNotify()
 }
 
 function onContractSignConfirm(dataUrl: string): void {
@@ -290,14 +269,15 @@ function onContractSignConfirm(dataUrl: string): void {
 }
 
 /*
- * Все 5 шагов step bar закрыты (обычно после Firma) → такой же toast
- * «Nuovo messaggio», badge на Assistenza и колокольчике.
+ * Все 5 шагов step bar закрыты (обычно после Firma) → toast + badge Assistenza.
  * Только переход false → true: не дублируем при reload с уже готовым ЛК.
  * Notice «contractSigned» уже пушит useNotices при markContractSigned.
  */
 watch(allDone, (done, wasDone) => {
   if (!done || wasDone !== false) return
-  showAgentMessageToast()
+  account.bumpSupportUnread(1)
+  notices.push('managerMessage')
+  showAgentNotify('agent')
 })
 
 function openContractIban(): void {

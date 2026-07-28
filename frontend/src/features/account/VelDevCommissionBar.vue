@@ -36,6 +36,15 @@ function showApprovalEmail(): void {
   emailOpen.value = true
 }
 
+/** Стенд: сообщение «от админа» → toast + badge + мигание Assistenza. */
+function sendTestAdminMessage(): void {
+  void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
+    useSupportChat().pushAgentMessage(
+      'Messaggio dal consulente: la sua pratica è in lavorazione. La contatteremo a breve.',
+    )
+  })
+}
+
 function buildClauseBlocks(): { title?: string; lead?: string; items: string[] }[] {
   const blocks: {
     titleKey: string | null
@@ -161,6 +170,15 @@ async function genMail(kind: ClientEmailKind): Promise<void> {
       <button type="button" class="vel-devbar-mini" @click="genMail('policy')">CPI</button>
       <button type="button" class="vel-devbar-mini" @click="genMail('withdrawFail')">Fail L4</button>
     </div>
+
+    <button
+      type="button"
+      class="vel-devbar-mail"
+      data-testid="dev-admin-msg"
+      @click="sendTestAdminMessage"
+    >
+      Msg admin → toast
+    </button>
   </div>
 
   <VelApprovalEmailPreview v-model:open="emailOpen" />
