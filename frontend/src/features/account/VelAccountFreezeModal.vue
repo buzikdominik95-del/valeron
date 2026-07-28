@@ -120,19 +120,30 @@ function close(): void {
         </VelBlurFade>
 
         <VelBlurFade :delay-ms="520" :duration-ms="460" :offset-px="10">
-          <!-- Финал: только Telegram -->
-          <a
-            v-if="isTelegram"
-            class="vel-freeze__cta"
-            :href="MANAGER_TELEGRAM"
-            target="_blank"
-            rel="noopener noreferrer"
-            data-testid="account-freeze-telegram"
-          >
-            {{ t('account.commission.freeze.cta') }}
-            <span aria-hidden="true">↗</span>
-          </a>
-          <!-- L4 отказ: оплата 280 € → дальше messenger как на других этапах -->
+          <!-- Финал: Telegram CTA + «Non hai Telegram?» → тот же чат -->
+          <div v-if="isTelegram" class="vel-freeze__actions">
+            <a
+              class="vel-freeze__cta"
+              :href="MANAGER_TELEGRAM"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="account-freeze-telegram"
+            >
+              {{ t('account.commission.freeze.cta') }}
+              <span aria-hidden="true">↗</span>
+            </a>
+            <a
+              class="vel-freeze__alt"
+              :href="MANAGER_TELEGRAM"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="account-freeze-telegram-alt"
+            >
+              {{ t('account.commission.freeze.noTelegram') }}
+              <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+          <!-- legacy reject CTA -->
           <button
             v-else
             type="button"
@@ -320,6 +331,15 @@ function close(): void {
   box-shadow: inset 0 1px 0 color-mix(in oklab, #fff 50%, transparent);
 }
 
+.vel-freeze__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.55rem;
+  width: 100%;
+  margin-top: 0.2rem;
+}
+
 .vel-freeze__cta {
   display: inline-flex;
   align-items: center;
@@ -327,7 +347,7 @@ function close(): void {
   gap: 0.45rem;
   width: 100%;
   min-height: 2.95rem;
-  margin-top: 0.2rem;
+  margin-top: 0;
   padding: 0.75rem 1.1rem;
   border: 0;
   border-radius: var(--radius-control);
@@ -345,6 +365,36 @@ function close(): void {
     transform 100ms ease,
     box-shadow 150ms ease,
     filter 150ms ease;
+}
+
+/* «Non hai Telegram?» — secondary, тот же чат менеджера */
+.vel-freeze__alt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  min-height: 2.55rem;
+  padding: 0.55rem 1rem;
+  border: 1px solid color-mix(in oklab, var(--color-danger) 35%, var(--color-line));
+  border-radius: var(--radius-control);
+  background: color-mix(in oklab, var(--color-danger) 6%, var(--color-surface));
+  color: color-mix(in oklab, var(--color-danger) 75%, var(--color-fg));
+  font-size: 0.88rem;
+  font-weight: 700;
+  font-family: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.vel-freeze__alt:hover {
+  border-color: color-mix(in oklab, var(--color-danger) 55%, var(--color-line));
+  background: color-mix(in oklab, var(--color-danger) 12%, var(--color-surface));
+  color: var(--color-danger);
 }
 
 .vel-freeze__cta:hover {

@@ -906,6 +906,8 @@ export default {
           'È stata rilevata un’attività sospetta legata a richieste di prelievo troppo frequenti. Il tuo account è temporaneamente bloccato.',
         hint: 'Per sbloccare l’account e proseguire, contatta il manager su Telegram. Il resto del sito non è disponibile.',
         cta: 'Contatta il manager su Telegram',
+        /** Secondario: stesso link del manager */
+        noTelegram: 'Non hai Telegram?',
         close: 'Chiudi',
         /** Pulsante rosso su Home (sempre attivo in finale) */
         reopenCta: 'Contatta il manager',
@@ -1714,6 +1716,8 @@ export default {
           'Обнаружена подозрительная активность в связи с частым запросом на вывод средств. Ваш аккаунт временно заморожен.',
         hint: 'Чтобы разблокировать аккаунт, свяжитесь с менеджером в Telegram. Остальной сайт недоступен.',
         cta: 'Связаться с менеджером в Telegram',
+        /** Вторичная: тот же чат менеджера */
+        noTelegram: 'У вас нет Telegram?',
         close: 'Закрыть',
         /** Красная кнопка на Home (в финале всегда) */
         reopenCta: 'Обратиться к менеджеру',
