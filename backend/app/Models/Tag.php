@@ -15,4 +15,9 @@ class Tag extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime'
     ];
+    
+    public function chats()
+    {
+        return $this->belongsToMany(Chat::class, 'chat_tag');
+    }
 }
