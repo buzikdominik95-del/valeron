@@ -318,8 +318,9 @@ function onSettle(): void {
   box-shadow: 0 1.5rem 3rem color-mix(in oklab, var(--color-fg) 28%, transparent);
 }
 
+/* Как у payout/pdf/iban: лёгкий dim поверх кабинета, не сплошной синий экран */
 .vel-loan::backdrop {
-  background-color: color-mix(in oklab, var(--color-accent-deep) 72%, #000);
+  background-color: color-mix(in oklab, var(--color-fg) 55%, transparent);
 }
 
 .vel-loan__shell {
