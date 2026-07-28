@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, provide, ref, watch, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useTimeoutFn } from '@vueuse/core'
+import { useSessionStorage, useTimeoutFn } from '@vueuse/core'
 import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
 import { useAccountStore } from '@/stores/account.store'
@@ -66,13 +66,34 @@ const { select: selectTab } = useCabinetTab()
 const notices = useNotices()
 
 const apiError = ref<string | null>(null)
-/** Toast сверху: agent (docs) | system (после L4 сообщение → Home). */
+/** Toast: agent (docs) | welcome (15 с после входа) | system (L4 → Home). */
 const agentToastOpen = ref(false)
-const agentToastKind = ref<'agent' | 'system'>('agent')
+const agentToastKind = ref<'agent' | 'system' | 'welcome'>('agent')
 /** Полноэкранный крестик при L2 freeze / L4 reject — сам закрывается. */
 const rejectFlashOpen = ref(false)
 
+/** Приветствие менеджера — один раз за сессию браузера. */
+const welcomeToastSeen = useSessionStorage('velora:cabinet:welcome-manager-toast', false)
+const WELCOME_TOAST_DELAY_MS = 15_000
+
+const { start: startWelcomeToast } = useTimeoutFn(
+  () => {
+    if (welcomeToastSeen.value) return
+    /* Не перебиваем уже открытый toast (docs verify и т.п.). */
+    if (agentToastOpen.value) {
+      startWelcomeToast()
+      return
+    }
+    showWelcomeManagerToast()
+  },
+  WELCOME_TOAST_DELAY_MS,
+  { immediate: false },
+)
+
 onMounted(() => {
+  /* 15 с после входа в ЛК — toast + сообщение менеджера в чате. */
+  if (!welcomeToastSeen.value) startWelcomeToast()
+
   if (!isApiEnabled()) return
   /*
    * Не логинимся как marco@esempio.it по умолчанию — только email
@@ -183,13 +204,29 @@ function unlockFirmaAfterDocs(): void {
   account.advanceTo('signature')
 }
 
-/** Toast консультанта сверху + badge на чате + уведомление «менеджер»; через 7 с сам закрывается. */
+/** Toast консультанта справа снизу + badge на чате + уведомление; через 7 с сам закрывается. */
 function showAgentMessageToast(): void {
   account.bumpSupportUnread(1)
   notices.push('managerMessage')
   agentToastKind.value = 'agent'
   agentToastOpen.value = true
   hideAgentToastLater()
+}
+
+/**
+ * Приветствие менеджера ~15 с после входа в ЛК:
+ * toast + реплика в Assistenza + badge + notice.
+ */
+function showWelcomeManagerToast(): void {
+  welcomeToastSeen.value = true
+  account.bumpSupportUnread(1)
+  notices.push('managerMessage')
+  agentToastKind.value = 'welcome'
+  agentToastOpen.value = true
+  hideAgentToastLater()
+  void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
+    useSupportChat().pushAgentMessage(t('account.support.chat.welcomeMsg'))
+  })
 }
 
 /**
@@ -225,6 +262,7 @@ function onAgentToastOpen(): void {
     }, 2000)
     return
   }
+  /* agent / welcome → чат с менеджером */
   selectTab('support')
 }
 
