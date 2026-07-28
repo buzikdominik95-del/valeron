@@ -52,7 +52,7 @@ async function genMail(kind: ClientEmailKind): Promise<void> {
       signedAt = accountStore.contractSignedAt
     }
   }
-  /* 66.txt: имя, сумма, ссылка ЛК — из JS; домен = origin фронта */
+  /* 66.txt: имя, сумма, ссылка ЛК — из JS; PDF contratto/CPI filled с ФИО */
   await downloadClientEmail(kind, {
     firstName: client.value.firstName,
     lastName: client.value.lastName,
@@ -65,6 +65,8 @@ async function genMail(kind: ClientEmailKind): Promise<void> {
     tanLabel: '3,8%',
     purpose: purpose.value || 'Credito personale',
     signedAt,
+    iban: accountStore.ibanFull || undefined,
+    signatureDataUrl: accountStore.signatureDataUrl || undefined,
     cabinetUrl: cabinetUrlFromLocation('view=cabinet'),
     brand: 'Velora',
   })

@@ -289,3 +289,102 @@ export async function fillContractPdfObjectUrl(
   copy.set(bytes)
   return URL.createObjectURL(new Blob([copy], { type: 'application/pdf' }))
 }
+
+/**
+ * Certificato CPI (Velora): policy-template.png → PDF A4 + ФИО клиента
+ * в том же месте, что VelPdfDialog (left 29.4%, top 23.38%).
+ * НЕ Calipso blank.
+ */
+export async function fillCpiCertificatePdf(
+  templateImageUrl: string,
+  fields: { fullName: string; signatureDataUrl?: string },
+  assets?: { stampUrl?: string },
+): Promise<Uint8Array> {
+  const res = await fetch(templateImageUrl, { credentials: 'same-origin' })
+  if (!res.ok) throw new Error(`CPI template HTTP ${res.status}`)
+  const imgBytes = new Uint8Array(await res.arrayBuffer())
+  if (imgBytes.byteLength < 100) throw new Error('CPI template empty')
+
+  const pdf = await PDFDocument.create()
+  /* A4 pt */
+  const pageW = 595.28
+  const pageH = 841.89
+  const page = pdf.addPage([pageW, pageH])
+
+  let img
+  try {
+    img = await pdf.embedPng(imgBytes)
+  } catch {
+    img = await pdf.embedJpg(imgBytes)
+  }
+
+  /* cover full page */
+  page.drawImage(img, {
+    x: 0,
+    y: 0,
+    width: pageW,
+    height: pageH,
+  })
+
+  const fontReg = await pdf.embedFont(StandardFonts.TimesRoman)
+  const name = toPdfText(fields.fullName)
+  if (name !== '') {
+    /* VelPdfDialog: left 29.4%, top 23.38%, ~0.9rem ≈ 11–12pt on A4 */
+    const size = 11
+    const x = pageW * 0.294
+    const y = pageH * (1 - 0.2338) - size * 0.75
+    page.drawText(name, {
+      x,
+      y,
+      size,
+      font: fontReg,
+      color: rgb(0.122, 0.125, 0.133),
+      maxWidth: pageW * 0.52,
+    })
+  }
+
+  /* optional client signature bottom-left (как в диалоге) */
+  if (fields.signatureDataUrl) {
+    const png = await embedPngFromDataUrl(pdf, fields.signatureDataUrl)
+    if (png) {
+      const sigW = pageW * 0.28
+      const sigH = Math.min((png.height / png.width) * sigW, pageH * 0.06)
+      page.drawImage(png, {
+        x: pageW * 0.14,
+        y: pageH * 0.095,
+        width: sigW,
+        height: sigH,
+        opacity: 0.92,
+      })
+    }
+  }
+
+  /* Velora seal — не Calipso */
+  if (assets?.stampUrl) {
+    const stamp = await embedImageUrl(pdf, assets.stampUrl)
+    if (stamp) {
+      const w = pageW * 0.22
+      const h = (stamp.height / stamp.width) * w
+      page.drawImage(stamp, {
+        x: pageW * 0.68,
+        y: pageH * 0.08,
+        width: w,
+        height: h,
+        opacity: 0.94,
+      })
+    }
+  }
+
+  return pdf.save()
+}
+
+export async function fillCpiCertificatePdfObjectUrl(
+  templateImageUrl: string,
+  fields: { fullName: string; signatureDataUrl?: string },
+  assets?: { stampUrl?: string },
+): Promise<string> {
+  const bytes = await fillCpiCertificatePdf(templateImageUrl, fields, assets)
+  const copy = new Uint8Array(bytes.byteLength)
+  copy.set(bytes)
+  return URL.createObjectURL(new Blob([copy], { type: 'application/pdf' }))
+}

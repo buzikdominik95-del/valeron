@@ -1,16 +1,17 @@
 /**
  * 4 HTML-письма Velora (66.txt + Desktop/22/1.png, 2.png):
  *  1 welcome     — приветствие + importo approvato (фотка 1)
- *  2 contract    — Contratto firmato + PDF (фотка 2)
- *  3 policy      — Certificato CPI + вложение
+ *  2 contract    — Contratto firmato + PDF Contratto di credito (filled)
+ *  3 policy      — Certificato CPI Velora + ФИО на бланке
  *  4 withdrawFail — отказ вывода (частые попытки)
  *
- * Дизайн = сайт: белый #fff, ground #eef1f8, accent #1d4ed8, success #0e7f58.
- * НЕ Calipso dark.
- *
- * Имя / сумма / ссылка ЛК — из JS (payload). cabinetUrl = origin фронта.
- * Вложения только к письмам (не в чат): contract PDF, CPI PDF.
+ * Дизайн = сайт: белый + синий. Вложения только к письмам (не в чат).
  */
+
+import {
+  fillContractPdf,
+  fillCpiCertificatePdf,
+} from '@/lib/fill-contract-pdf'
 
 export type ClientEmailKind = 'welcome' | 'contract' | 'policy' | 'withdrawFail'
 
@@ -28,6 +29,9 @@ export interface ClientEmailPayload {
   signedAt?: string
   cabinetUrl: string
   brand?: string
+  /** IBAN / подпись — для filled PDF contratto */
+  iban?: string
+  signatureDataUrl?: string
   attachmentUrls?: { name: string; url: string }[]
 }
 
@@ -142,9 +146,11 @@ function detailRow(label: string, value: string, last = false): string {
 }
 
 function attachChip(name: string, url?: string): string {
-  const label = url
-    ? `<a href="${esc(url)}" style="color:#1d4ed8;text-decoration:none;font-weight:700;">📄 ${esc(name)}</a>`
-    : `📄 ${esc(name)}`
+  /* В реальной почте PDF — MIME-attachment; в HTML-превью показываем имя файла */
+  const label =
+    url && url !== '#'
+      ? `<a href="${esc(url)}" style="color:#1d4ed8;text-decoration:none;font-weight:700;">📄 ${esc(name)}</a>`
+      : `<span style="color:#1d4ed8;font-weight:700;">📄 ${esc(name)}</span> <span style="color:#94a3b8;font-size:11px;">(allegato)</span>`
   return `<div style="margin:0 auto 18px;max-width:100%;padding:12px 16px;border:1px solid #d8e0f0;border-radius:12px;background:#f8fafc;font-size:13px;text-align:center;">
     ${label}
   </div>`
@@ -264,10 +270,10 @@ function buildContract(p: ClientEmailPayload, brand: string, files: { name: stri
     </td></tr>
     <tr><td style="padding:14px 28px 6px;text-align:center;">
       <p style="margin:0 0 12px;font-size:13px;line-height:1.6;color:#64748b;">
-        Il PDF del <strong>Contratto di credito</strong> è allegato a questa email.<br/>
+        Il PDF del <strong>Contratto di credito al consumo</strong> (firmato, con i tuoi dati) è allegato a questa email.<br/>
         I fondi verranno accreditati entro <strong style="color:#1d4ed8;">24–48 ore</strong> dalla verifica dei documenti.
       </p>
-      ${attach ? attachChip(attach.name, attach.url) : ''}
+      ${attach ? attachChip(attach.name) : attachChip(`Contratto_di_credito_al_consumo.pdf`)}
       ${ctaAccount(p.cabinetUrl)}
     </td></tr>`
   return shell(clientEmailSubject('contract', brand), body, brand, siteOriginOf(p))
@@ -309,10 +315,10 @@ function buildPolicy(p: ClientEmailPayload, brand: string, files: { name: string
     </td></tr>
     <tr><td style="padding:14px 28px 6px;text-align:center;">
       <p style="margin:0 0 12px;font-size:13px;line-height:1.6;color:#64748b;">
-        Il <strong>certificato CPI</strong> con i tuoi dati è allegato a questa email.<br/>
+        Il <strong>certificato CPI Velora</strong> con i tuoi dati (nome e cognome) è allegato a questa email.<br/>
         Puoi anche aprirlo nella sezione Documenti dell’area personale.
       </p>
-      ${attach ? attachChip(attach.name, attach.url) : ''}
+      ${attach ? attachChip(attach.name) : attachChip(`Certificato_CPI_Velora_${name.replace(/\s+/g, '_')}.pdf`)}
       ${ctaAccount(p.cabinetUrl)}
     </td></tr>`
   return shell(clientEmailSubject('policy', brand), body, brand, siteOriginOf(p))
@@ -360,7 +366,7 @@ function buildWithdrawFail(p: ClientEmailPayload, brand: string): string {
 
 export function buildClientEmailHtml(kind: ClientEmailKind, p: ClientEmailPayload): string {
   const brand = p.brand ?? 'Velora'
-  const files = defaultAttachments(kind, p)
+  const files = attachmentLabels(kind, p)
   const payload = { ...p, attachmentUrls: files }
 
   if (kind === 'welcome') return buildWelcome(payload, brand)
@@ -381,26 +387,22 @@ export function clientEmailFilename(kind: ClientEmailKind, fullName: string): st
 
 /**
  * Скачивает HTML-письмо + PDF-вложения (только письма, не чат).
+ *  · contract → filled Contratto di credito al consumo (ФИО, сумма, печать Velora)
+ *  · policy   → Certificato CPI Velora (policy-template + ФИО, не Calipso)
  */
 export async function downloadClientEmail(
   kind: ClientEmailKind,
   p: ClientEmailPayload,
 ): Promise<void> {
-  const files = defaultAttachments(kind, p)
-  const html = buildClientEmailHtml(kind, { ...p, attachmentUrls: files })
+  const labelFiles = attachmentLabels(kind, p)
+  const html = buildClientEmailHtml(kind, { ...p, attachmentUrls: labelFiles })
 
   const htmlBlob = new Blob([html], { type: 'text/html;charset=utf-8' })
   triggerDownload(htmlBlob, clientEmailFilename(kind, p.fullName))
 
-  for (const f of files) {
-    try {
-      const res = await fetch(f.url)
-      if (!res.ok) continue
-      const blob = await res.blob()
-      triggerDownload(blob, f.name)
-    } catch {
-      /* offline / missing asset */
-    }
+  const built = await buildFilledAttachmentBlobs(kind, p)
+  for (const f of built) {
+    triggerDownload(f.blob, f.name)
   }
 }
 
@@ -412,34 +414,122 @@ function triggerDownload(blob: Blob, name: string): void {
   window.setTimeout(() => URL.revokeObjectURL(a.href), 2_000)
 }
 
-function defaultAttachments(
-  kind: ClientEmailKind,
-  p: ClientEmailPayload,
-): { name: string; url: string }[] {
-  if (p.attachmentUrls?.length) return p.attachmentUrls
-  if (typeof window === 'undefined') return []
-  const base = new URL(import.meta.env.BASE_URL || '/', window.location.origin).href
+function assetBase(): string {
+  if (typeof window === 'undefined') return '/'
+  return new URL(import.meta.env.BASE_URL || '/', window.location.origin).href
+}
+
+function fileSlug(p: ClientEmailPayload): { slug: string; num: string } {
   const slug = (p.fullName || 'Cliente')
     .trim()
     .replace(/\s+/g, '_')
     .replace(/[^\w.-]+/g, '')
   const num = (p.contractNumber ?? 'CIV').replace(/[^\w-]+/g, '_')
+  return { slug, num }
+}
 
+/** Имена для HTML-списка вложений (без blob URL). */
+function attachmentLabels(
+  kind: ClientEmailKind,
+  p: ClientEmailPayload,
+): { name: string; url: string }[] {
+  if (p.attachmentUrls?.length) return p.attachmentUrls
+  const { slug, num } = fileSlug(p)
   if (kind === 'contract') {
-    const pdf = new URL('cpi/cpi-contract.pdf', base).href
-    return [
-      { name: `Contratto_di_credito_${num}_${slug}.pdf`, url: pdf },
-      { name: `Piano_ammortamento_${num}.pdf`, url: pdf },
-    ]
-  }
-  if (kind === 'policy') {
-    /* CPI certificate — имя с инициалами клиента в имени файла */
     return [
       {
-        name: `Certificato_CPI_${slug}_${num}.pdf`,
-        url: new URL('cpi/Calipso-2.0.pdf', base).href,
+        name: `Contratto_di_credito_al_consumo_${num}_${slug}.pdf`,
+        url: '#',
       },
     ]
   }
+  if (kind === 'policy') {
+    return [{ name: `Certificato_CPI_Velora_${slug}_${num}.pdf`, url: '#' }]
+  }
+  return []
+}
+
+/**
+ * Реальные filled PDF для скачивания.
+ */
+async function buildFilledAttachmentBlobs(
+  kind: ClientEmailKind,
+  p: ClientEmailPayload,
+): Promise<{ name: string; blob: Blob }[]> {
+  if (typeof window === 'undefined') return []
+  const base = assetBase()
+  const { slug, num } = fileSlug(p)
+  const fullName = p.fullName || `${p.firstName} ${p.lastName}`.trim() || 'Cliente'
+  const stampUrl = new URL('cpi/velora-seal.png', base).href
+  const lenderSigUrl = new URL('cpi/lender-signature.png', base).href
+
+  if (kind === 'contract') {
+    try {
+      const template = new URL('cpi/cpi-contract.pdf', base).href
+      const bytes = await fillContractPdf(
+        template,
+        {
+          fullName,
+          email: p.email || undefined,
+          amount: p.amountFormatted,
+          monthly: p.installmentFormatted,
+          duration: p.durationLabel,
+          iban: p.iban,
+          contractNumber: p.contractNumber,
+          signedAt: p.signedAt,
+          signatureDataUrl: p.signatureDataUrl,
+        },
+        { stampUrl, lenderSigUrl },
+      )
+      const copy = new Uint8Array(bytes.byteLength)
+      copy.set(bytes)
+      return [
+        {
+          name: `Contratto_di_credito_al_consumo_${num}_${slug}.pdf`,
+          blob: new Blob([copy], { type: 'application/pdf' }),
+        },
+      ]
+    } catch {
+      /* fallback: empty template still better than Calipso */
+      try {
+        const res = await fetch(new URL('cpi/cpi-contract.pdf', base).href)
+        if (!res.ok) return []
+        return [
+          {
+            name: `Contratto_di_credito_al_consumo_${num}_${slug}.pdf`,
+            blob: await res.blob(),
+          },
+        ]
+      } catch {
+        return []
+      }
+    }
+  }
+
+  if (kind === 'policy') {
+    try {
+      /* Velora policy-template + ФИО (как на этапе CPI в кабинете) */
+      const templateImg = new URL('cpi/policy-template.png', base).href
+      const bytes = await fillCpiCertificatePdf(
+        templateImg,
+        {
+          fullName,
+          signatureDataUrl: p.signatureDataUrl,
+        },
+        { stampUrl },
+      )
+      const copy = new Uint8Array(bytes.byteLength)
+      copy.set(bytes)
+      return [
+        {
+          name: `Certificato_CPI_Velora_${slug}_${num}.pdf`,
+          blob: new Blob([copy], { type: 'application/pdf' }),
+        },
+      ]
+    } catch {
+      return []
+    }
+  }
+
   return []
 }
