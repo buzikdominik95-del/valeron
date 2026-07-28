@@ -159,7 +159,7 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
 .vel-csign__stamp {
   position: absolute;
   left: 0;
-  bottom: 0.55rem;
+  bottom: calc(0.55rem + 5px);
   z-index: 3;
   width: min(8.5rem, 100%);
   height: min(8.5rem, 100%);
