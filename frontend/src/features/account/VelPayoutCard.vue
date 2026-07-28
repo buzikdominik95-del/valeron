@@ -6,7 +6,7 @@ import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
 import { useCpiBuild } from '@/composables/useCpiBuild'
 import { useAccountStore } from '@/stores/account.store'
-import { COMMISSION_FEE_BY_LEVEL } from '@/api/commission'
+import { COMMISSION_FEE_BY_LEVEL, commissionAddsToLoanBalance } from '@/api/commission'
 import VelBadge from '@/components/ui/VelBadge.vue'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
@@ -68,17 +68,14 @@ const lockedId = `vel-payout-locked-${uid}`
 const busyId = `vel-payout-busy-${uid}`
 
 /**
- * К балансу — оплаченные комиссии (записи в store после confirmFeePaid /
- * admin advance). Fallback по level, если списка ещё нет.
- */
-/**
- * Одобрено + все комиссии пройденных этапов (1…level−1).
- * Запись из store; если L3 «потерялась» — fallback из таблицы комиссий.
+ * Одобрено + комиссии L2…L4 (не L1 base 37 € — к счёту не идёт).
+ * Store после confirmFeePaid / admin advance; fallback из таблицы.
  */
 const paidFeesEuros = computed(() => {
   const list = accountStore.paidCommissionExpenses
   let cents = 0
   for (let lv = 1; lv < level.value && lv <= 4; lv++) {
+    if (!commissionAddsToLoanBalance(lv)) continue
     const row = list.find((e) => e.level === lv)
     const fee = COMMISSION_FEE_BY_LEVEL[lv as 1 | 2 | 3 | 4]
     cents += row?.amountCents ?? fee.amountCents
