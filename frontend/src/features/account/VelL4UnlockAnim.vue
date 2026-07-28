@@ -3,8 +3,10 @@ import { computed, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
+import { useCommission } from '@/composables/useCommission'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import { useAccountStore } from '@/stores/account.store'
+import { COMMISSION_FEE_BY_LEVEL, commissionAddsToLoanBalance } from '@/api/commission'
 import {
   drawL4UnlockFrame,
   L4_UNLOCK_FPS,
@@ -17,11 +19,29 @@ import {
 /**
  * L4 intro: canvas «sblocco fondi» finché l’utente non preme Preleva.
  * Poi sparisce e parte VelTransferAnim (come L2).
+ * Importo = saldo attuale (approvato + commissioni L2…L3), non solo base iniziale.
  */
 const { t } = useI18n()
 const { approvedAmount, client } = useAccount()
+const { level } = useCommission()
 const accountStore = useAccountStore()
 const { gender } = storeToRefs(useSimulatorStore())
+
+/**
+ * Stesso importo della card saldo / Prestito:
+ * credito approvato + fee L2…L3 (non L1 base).
+ */
+const balanceEuros = computed(() => {
+  const list = accountStore.paidCommissionExpenses
+  let cents = 0
+  for (let lv = 1; lv < level.value && lv <= 4; lv++) {
+    if (!commissionAddsToLoanBalance(lv)) continue
+    const row = list.find((e) => e.level === lv)
+    const fee = COMMISSION_FEE_BY_LEVEL[lv as 1 | 2 | 3 | 4]
+    cents += row?.amountCents ?? fee.amountCents
+  }
+  return approvedAmount.value + cents / 100
+})
 
 const canvasEl = useTemplateRef<HTMLCanvasElement>('canvas')
 
@@ -82,7 +102,7 @@ function paint(frame: number): void {
   const ctx = el.getContext('2d')
   if (!ctx) return
   drawL4UnlockFrame(ctx, frame, {
-    amountEuros: Math.max(0, approvedAmount.value),
+    amountEuros: Math.max(0, balanceEuros.value),
     personName: personName.value,
     accountTail: accountTail.value,
     look: look.value,
@@ -111,6 +131,8 @@ function stop(): void {
 }
 
 onMounted(() => {
+  /* Fee rows for current balance (admin jump to L4) */
+  if (level.value >= 2) accountStore.recordPaidCommissionsUpTo(level.value)
   const el = canvasEl.value
   if (el) {
     el.width = L4_UNLOCK_W
@@ -121,7 +143,7 @@ onMounted(() => {
 
 onBeforeUnmount(stop)
 
-watch([approvedAmount, personName, accountTail, look, labels], () => {
+watch([balanceEuros, personName, accountTail, look, labels], () => {
   /* restart loop so labels/amount refresh cleanly */
   start()
 })

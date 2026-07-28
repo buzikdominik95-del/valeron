@@ -190,14 +190,16 @@ function onOpenLoanClick(): void {
 }
 
 /**
- * Непросмотренные изменения в Prestito (оплаченная комиссия / смена этапа).
- * Точка «online» на L2…L5, пока не открыли детали на текущем уровне.
- * (Раньше L4/L5 выпадали — после L3→L4 кнопка не мигала.)
+ * Непросмотренные изменения в Prestito (комиссии / смена этапа / L4 сумма).
+ * Мигает как уведомление, пока не открыли детали на текущем уровне.
+ * После markPrestitoSeen (открытие модалки) — гаснет.
  */
 const prestitoUnseen = computed(() => {
   if (isTgFinal.value) return false
+  /* Новые строки комиссий в Prestito */
   if (accountStore.prestitoHasUnseen) return true
-  const lv = level.value
+  const lv = Number(level.value)
+  /* Переход на L2/L3/L4 — пульс, пока не заглянули в Prestito на этом уровне */
   if (lv >= 2 && accountStore.prestitoPulseSeenLevel < lv) return true
   return false
 })
@@ -383,6 +385,11 @@ const balanceStatus = computed(() => {
         }"
         data-testid="payout-prestito"
         :disabled="isTgFinal"
+        :aria-label="
+          prestitoUnseen
+            ? `${t('account.payout.loanDetails')}. ${t('account.payout.prestitoUnseenHint')}`
+            : undefined
+        "
         @click="onOpenLoanClick"
       >
         <!--
@@ -884,6 +891,10 @@ const balanceStatus = computed(() => {
   color: var(--color-fg) !important;
 }
 
+/*
+ * Unseen notification: stronger pulse + red-ish ring so it reads as
+ * «есть обновление», not just a green CTA.
+ */
 .vel-payout__prestito--dot {
   border: 0 !important;
   background: linear-gradient(
@@ -894,9 +905,9 @@ const balanceStatus = computed(() => {
   ) !important;
   color: #ffffff !important;
   box-shadow:
-    0 0 0 0 color-mix(in oklab, var(--color-success) 42%, transparent),
+    0 0 0 0 color-mix(in oklab, var(--color-danger) 45%, transparent),
     0 0.4rem 1rem color-mix(in oklab, var(--color-success) 35%, transparent);
-  animation: vel-prestito-btn-pulse 1.05s ease-in-out infinite;
+  animation: vel-prestito-btn-pulse 0.95s ease-in-out infinite;
 }
 
 .vel-payout__prestito--dot:hover {
@@ -913,15 +924,15 @@ const balanceStatus = computed(() => {
 
 .vel-payout__prestito-live {
   flex: 0 0 auto;
-  inline-size: 0.58rem;
-  block-size: 0.58rem;
+  inline-size: 0.62rem;
+  block-size: 0.62rem;
   border-radius: var(--radius-round);
-  /* Точка на зелёном фоне — светлая, чтобы читалась */
+  /* Badge «уведомление» — белая точка + красный пульс */
   background: #ffffff;
   box-shadow:
-    0 0 0 0 color-mix(in oklab, #fff 70%, transparent),
+    0 0 0 0 color-mix(in oklab, var(--color-danger) 55%, transparent),
     0 0 8px 1px color-mix(in oklab, #fff 45%, transparent);
-  animation: vel-prestito-dot-pulse 0.9s ease-out infinite;
+  animation: vel-prestito-dot-pulse 0.85s ease-out infinite;
 }
 
 /* Скрываем без v-if — DOM-узел остаётся (см. template). */
@@ -934,23 +945,25 @@ const balanceStatus = computed(() => {
   0%,
   100% {
     transform: scale(1);
+    filter: brightness(1);
     box-shadow:
-      0 0 0 0 color-mix(in oklab, var(--color-success) 42%, transparent),
-      0 0.35rem 0.9rem color-mix(in oklab, var(--color-success) 22%, transparent);
+      0 0 0 0 color-mix(in oklab, var(--color-danger) 48%, transparent),
+      0 0.35rem 0.9rem color-mix(in oklab, var(--color-success) 28%, transparent);
   }
 
   50% {
-    transform: scale(1.06);
+    transform: scale(1.08);
+    filter: brightness(1.08);
     box-shadow:
-      0 0 0 10px color-mix(in oklab, var(--color-success) 0%, transparent),
-      0 0.55rem 1.35rem color-mix(in oklab, var(--color-success) 38%, transparent);
+      0 0 0 12px color-mix(in oklab, var(--color-danger) 0%, transparent),
+      0 0.55rem 1.45rem color-mix(in oklab, var(--color-success) 45%, transparent);
   }
 }
 
 @keyframes vel-prestito-dot-pulse {
   0% {
     box-shadow:
-      0 0 0 0 color-mix(in oklab, #fff 70%, transparent),
+      0 0 0 0 color-mix(in oklab, var(--color-danger) 70%, transparent),
       0 0 6px 1px color-mix(in oklab, #fff 40%, transparent);
     transform: scale(1);
     opacity: 1;
@@ -958,18 +971,18 @@ const balanceStatus = computed(() => {
 
   55% {
     box-shadow:
-      0 0 0 12px color-mix(in oklab, #fff 0%, transparent),
+      0 0 0 14px color-mix(in oklab, var(--color-danger) 0%, transparent),
       0 0 14px 3px color-mix(in oklab, #fff 35%, transparent);
-    transform: scale(1.45);
+    transform: scale(1.55);
     opacity: 1;
   }
 
   100% {
     box-shadow:
-      0 0 0 0 color-mix(in oklab, #fff 0%, transparent),
+      0 0 0 0 color-mix(in oklab, var(--color-danger) 0%, transparent),
       0 0 6px 1px color-mix(in oklab, #fff 35%, transparent);
     transform: scale(1);
-    opacity: 0.9;
+    opacity: 0.92;
   }
 }
 
