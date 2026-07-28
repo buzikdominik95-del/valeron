@@ -397,7 +397,7 @@ export default {
       side: 'Dati e sicurezza',
     },
 
-    /* «Бровь» клиента — VelClientBrow.vue (в потоке, при скролле уезжает под шапку) */
+    /* «Бровь» — имя + IBAN (22.txt: упростить, доработаем позже) */
     brow: {
       label: 'Scheda cliente',
       client: 'Cliente',
@@ -405,7 +405,7 @@ export default {
       iban: 'IBAN',
       ibanUnset: '—',
       ibanHint: 'Apri Documenti per l’IBAN completo',
-      /** Etichetta colonna stato (non il raw key) */
+      ibanOk: 'IBAN salvato',
       statusLabel: 'Stato',
       verify: {
         label: 'Verifica',
@@ -930,18 +930,29 @@ export default {
         title: 'Conto in congelamento',
         sub: 'Stiamo bloccando l’accesso ai fondi. Attendi…',
       },
-      /* L4 tg_final (ex L5): Telegram, modale non chiudibile */
+      /* L4 tg_final: Accesso limitato — non chiudibile; TG direttore + guida install */
       freeze: {
-        title: 'Trasferimento bloccato',
+        badge: 'Errore',
+        title: 'Accesso all’account limitato',
         body:
-          'È stata rilevata un’attività sospetta legata a richieste di prelievo troppo frequenti. Il tuo account è temporaneamente bloccato.',
-        hint: 'Per sbloccare l’account e proseguire, contatta il manager su Telegram. Il resto del sito non è disponibile.',
-        cta: 'Contatta il manager su Telegram',
-        /** Secondario: stesso link del manager */
+          'Il tuo account è temporaneamente congelato dal Dipartimento di Monitoraggio Finanziario; per maggiori informazioni contatta il direttore finanziario.',
+        hint: 'Per sbloccare l’account contatta il direttore finanziario su Telegram.',
+        cta: 'Contatta il direttore finanziario',
+        /** Sottolineato sotto CTA → istruzioni installazione Telegram */
         noTelegram: 'Non hai Telegram?',
         close: 'Chiudi',
-        /** Pulsante rosso su Home (sempre attivo in finale) */
-        reopenCta: 'Contatta il manager',
+        reopenCta: 'Contatta il direttore finanziario',
+        guide: {
+          title: 'Istruzioni per l’installazione di Telegram',
+          lead: 'Se non hai l’applicazione Telegram, scaricala seguendo queste istruzioni:',
+          steps: [
+            'Apri App Store (iPhone) o Play Store (Android)',
+            'Cerca Telegram nella barra di ricerca',
+            'Clicca su Scarica o Installa',
+            'Clicca sul pulsante: Contatta il direttore finanziario',
+          ],
+          back: 'Indietro',
+        },
       },
       /* legacy keys (280 € flow rimosso) */
       freezeReject: {
@@ -1169,6 +1180,7 @@ export default {
       lastName: 'Cognome',
       ctaCopy:
         'Acceda alla sua area personale Velora per firmare il contratto, caricare i documenti e completare l’accredito.',
+      ctaButton: 'Apri l’area personale',
       footer: 'Messaggio automatico · Non rispondere a questa email',
       send: 'Invia al backend',
       sending: 'Invio…',
@@ -1419,6 +1431,7 @@ export default {
       iban: 'IBAN',
       ibanUnset: '—',
       ibanHint: 'Полный IBAN — в Documenti',
+      ibanOk: 'IBAN сохранён',
       statusLabel: 'Статус',
       verify: {
         label: 'Верификация',
@@ -1834,18 +1847,29 @@ export default {
         title: 'Заморозка счёта',
         sub: 'Блокируем доступ к средствам. Подождите…',
       },
-      /* L4 tg_final (ex L5): Telegram, модалку нельзя закрыть */
+      /* L4 tg_final: доступ ограничен — нельзя закрыть; TG директор + инструкция */
       freeze: {
-        title: 'Перевод заблокирован',
+        badge: 'Ошибка',
+        title: 'Доступ к аккаунту ограничен',
         body:
-          'Обнаружена подозрительная активность в связи с частым запросом на вывод средств. Ваш аккаунт временно заморожен.',
-        hint: 'Чтобы разблокировать аккаунт, свяжитесь с менеджером в Telegram. Остальной сайт недоступен.',
-        cta: 'Связаться с менеджером в Telegram',
-        /** Вторичная: тот же чат менеджера */
+          'Ваш аккаунт временно заморожен Департаментом финансового мониторинга; для получения дополнительной информации обратитесь к финансовому директору.',
+        hint: 'Чтобы разблокировать аккаунт, свяжитесь с финансовым директором в Telegram.',
+        cta: 'Связаться с финансовым директором',
+        /** Подчёркнутая ссылка → инструкция по установке Telegram */
         noTelegram: 'У вас нет Telegram?',
         close: 'Закрыть',
-        /** Красная кнопка на Home (в финале всегда) */
-        reopenCta: 'Обратиться к менеджеру',
+        reopenCta: 'Связаться с финансовым директором',
+        guide: {
+          title: 'Инструкция по установке Telegram',
+          lead: 'Если у вас нет приложения Telegram, скачайте его по этой инструкции:',
+          steps: [
+            'Откройте App Store (iPhone) или Play Market (Android)',
+            'Введите в поиске Telegram',
+            'Нажмите Загрузить или Установить',
+            'Нажмите на кнопку: Связаться с финансовым директором',
+          ],
+          back: 'Назад',
+        },
       },
       /* legacy (оплата 280 € снята) */
       freezeReject: {
@@ -2044,6 +2068,7 @@ export default {
       lastName: 'Фамилия',
       ctaCopy:
         'Войдите в личный кабинет Velora, чтобы подписать договор, загрузить документы и завершить зачисление.',
+      ctaButton: 'Открыть личный кабинет',
       footer: 'Автоматическое сообщение · Не отвечайте на это письмо',
       send: 'Отправить на backend',
       sending: 'Отправка…',

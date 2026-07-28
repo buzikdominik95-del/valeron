@@ -15,8 +15,12 @@ const emit = defineEmits<{ done: [] }>()
 const { t } = useI18n()
 const reduced = usePreferredReducedMotion()
 
-const HOLD_MS = wantsFastAnim() ? 520 : 2200
-const FAST_MS = 320
+/*
+ * После анимации вывода L4: freeze intro ~1 мин, затем модалка директора.
+ * Fast-anim / reduced — короткие тайминги для стенда и a11y.
+ */
+const HOLD_MS = wantsFastAnim() ? 900 : 60_000
+const FAST_MS = 400
 
 const { start: scheduleDone, stop: stopDone } = useTimeoutFn(
   () => {
