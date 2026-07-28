@@ -107,8 +107,9 @@ const rateText = computed(() =>
 )
 
 /**
- * Preleva заперт на анимации, policy, L4 fail, L2 suspended, messenger, waiting, L5 —
- * после сообщения менеджеру / на L5 вывод недоступен (кроме красной CTA).
+ * Preleva заперт: анимация, policy, L2 suspended/pay_fee, messenger, waiting,
+ * L4 fail / tg_final. Пока не дописан менеджер (waiting) — вывод неактивен.
+ * На pay_fee кнопка «оплатить» живёт на suspension-card, не Preleva.
  */
 const withdrawLocked = computed(
   () =>
@@ -117,14 +118,15 @@ const withdrawLocked = computed(
     isFailed.value ||
     isTgFinal.value ||
     isSuspended.value ||
+    isPayFee.value ||
     isMessenger.value ||
     isWaiting.value,
 )
 
 /**
- * Busy-плашка (спиннер + «In elaborazione»).
- * Без isFailed / tg_final: отказ — badge у SALDO; «Credito approvato» всегда на месте.
- * Без suspended: busy не нужен, Approvato и так статичен.
+ * Busy-плашка: «In elaborazione» (spinner) на pay_fee/messenger/anim…
+ * «In attesa» + hourglass — только после сообщения менеджеру (waiting).
+ * На L2 suspended busy не нужен: висит suspension-card с CTA оплаты.
  */
 const funnelBusy = computed(
   () =>

@@ -1,25 +1,30 @@
 <script setup lang="ts">
-import { useTemplateRef } from 'vue'
+import { inject, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCommission } from '@/composables/useCommission'
 import { usePanelMotion } from '@/composables/usePanelMotion'
+import { OPEN_COMMISSION_KEY } from '@/features/account/payout-panel'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
 
 /**
- * Этап 2 после анимации: ответ «данные переданы, зачисление после страховки».
- * CTA открывает экран покрытия / погашения страховки (pay_fee).
+ * Этап 2 после анимации: «данные переданы, зачисление после страховки».
+ * CTA «Paga» живёт на suspended и на pay_fee (если drawer закрыли без оплаты).
  */
 const emit = defineEmits<{ details: [] }>()
 
 const { t } = useI18n()
-const { openFeeFromSuspension } = useCommission()
+const { phase, openFeeFromSuspension } = useCommission()
+/** AccountFlow provide — reopen drawer даже если phase уже pay_fee. */
+const openCommission = inject(OPEN_COMMISSION_KEY, undefined)
 
 const root = useTemplateRef<HTMLElement>('root')
 usePanelMotion(root)
 
 function onDetails(): void {
-  openFeeFromSuspension()
+  /* suspended → pay_fee; если уже pay_fee — снова drawer */
+  if (phase.value === 'suspended') openFeeFromSuspension()
+  openCommission?.()
   emit('details')
 }
 </script>
