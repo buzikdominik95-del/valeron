@@ -390,6 +390,26 @@ export default {
       side: 'Dati e sicurezza',
     },
 
+    /* Sticky «бровь» клиента — VelClientBrow.vue (под шапкой, над балансом) */
+    brow: {
+      label: 'Scheda cliente',
+      client: 'Cliente',
+      email: 'E-mail',
+      gender: 'Sesso',
+      genderUnset: '—',
+      iban: 'IBAN',
+      ibanUnset: 'Non indicato',
+      copyIban: 'Copia IBAN',
+      statusLabel: 'Stato',
+      available: 'Disponibile',
+      status: {
+        active: 'Conto attivo',
+        busy: 'In elaborazione',
+        hold: 'Fondi in hold',
+        blocked: 'Conto bloccato',
+      },
+    },
+
     /* Заставка при входе — VelWelcomeSplash.vue. На эталонном видео это
        «BENVENUTO» над именем клиента. Регистр поднимает CSS, а не локаль:
        из строки капсом скринридер читал бы слово по буквам. */
@@ -1307,6 +1327,25 @@ export default {
       title: 'Личный кабинет Velora',
       home: 'Вернуться на сайт',
       side: 'Данные и безопасность',
+    },
+
+    brow: {
+      label: 'Карточка клиента',
+      client: 'Клиент',
+      email: 'E-mail',
+      gender: 'Пол',
+      genderUnset: '—',
+      iban: 'IBAN',
+      ibanUnset: 'Не указан',
+      copyIban: 'Копировать IBAN',
+      statusLabel: 'Статус',
+      available: 'Доступно',
+      status: {
+        active: 'Счёт активен',
+        busy: 'В обработке',
+        hold: 'Средства на hold',
+        blocked: 'Счёт заблокирован',
+      },
     },
 
     splash: {

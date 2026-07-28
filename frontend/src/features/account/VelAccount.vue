@@ -8,6 +8,7 @@ import { CABINET_HEADING_ID, useCabinetTab } from '@/composables/useCabinetTab'
 import { useShellHeadHeight } from '@/composables/useShellHeadHeight'
 import { useHeaderCondense } from '@/composables/useHeaderCondense'
 import VelCabinetHeader from '@/features/account/VelCabinetHeader.vue'
+import VelClientBrow from '@/features/account/VelClientBrow.vue'
 import VelCabinetNav from '@/features/account/VelCabinetNav.vue'
 import VelStageSwitch from '@/features/account/VelStageSwitch.vue'
 import VelWelcomeSplash from '@/features/account/VelWelcomeSplash.vue'
@@ -204,6 +205,9 @@ watch(tab, async (next) => {
             безымянной. Заголовок раздела ниже — второго уровня.
           -->
           <h1 class="sr-only">{{ t('account.shell.title') }}</h1>
+
+          <!-- Sticky «бровь» клиента: под шапкой, над балансом, все этапы -->
+          <VelClientBrow />
 
           <!--
             ДОКУМЕНТЫ И ДОГОВОР ЖИВУТ В СВОЁМ РАЗДЕЛЕ, А НЕ НА ГЛАВНОЙ. Раньше
