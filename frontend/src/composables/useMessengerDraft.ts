@@ -15,7 +15,7 @@ const MIN_LEN = 8
  */
 export function useMessengerDraft() {
   const { t } = useI18n()
-  const { level, feeEuros, feeReason, confirmMessageSent } = useCommission()
+  const { level, feeEuros, confirmMessageSent } = useCommission()
   const { client } = useAccount()
 
   const draft = ref('')
