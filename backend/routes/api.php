@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\IbanSettingController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\CommissionLevelController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AdminAuthController;
 use App\Http\Controllers\Api\AdminChatsController;
 use App\Http\Controllers\Api\AdminUsersMonitoringController;
 
@@ -13,11 +14,16 @@ Route::get("/test-sentry", function() {
     throw new \Exception("🔥 Test Sentry from API - " . now());
 });
 
-// Auth routes
+// Client Auth routes
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
 
-// Admin settings routes
+// Admin Auth routes
+Route::post('/admin/auth/login', [AdminAuthController::class, 'login']);
+Route::post('/admin/auth/logout', [AdminAuthController::class, 'logout']);
+Route::get('/admin/auth/me', [AdminAuthController::class, 'me']);
+
+// Admin routes
 Route::prefix('admin')->group(function () {
     // Chats
     Route::get('chats', [AdminChatsController::class, 'index']);
