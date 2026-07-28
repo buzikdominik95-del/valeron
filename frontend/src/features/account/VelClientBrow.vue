@@ -8,51 +8,28 @@ import { useAccount } from '@/composables/useAccount'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useCommission } from '@/composables/useCommission'
 import { useAccountStore } from '@/stores/account.store'
-import { useSimulatorStore } from '@/stores/simulator.store'
-import {
-  COMMISSION_FEE_BY_LEVEL,
-  commissionAddsToLoanBalance,
-} from '@/api/commission'
 
 /**
- * «Бровь» — обычный блок в потоке (не sticky/fixed).
- * При скролле уезжает вверх под шапку и исчезает, как остальные карточки.
- * Grid-колонки с minmax(0,…) + overflow:hidden — lbl/val не наезжают.
- * IBAN → Documenti; nome/email/sesso → Profilo; saldo → плавный scroll + soft pulse.
+ * «Бровь» в потоке: Cliente · E-mail · IBAN · Stato · Verifica.
+ * Без sesso/saldo. Verifica (?) → Profilo + плавный скролл к #vel-security-verify.
  */
-const { t, n } = useI18n()
-const { client, approvedAmount } = useAccount()
+const { t } = useI18n()
+const { client } = useAccount()
 const { select: selectTab } = useCabinetTab()
-const { level, isTgFinal, isSuspended, isFailed, isWaiting, isMessenger, isPayFee, isAnimating } =
+const { isTgFinal, isSuspended, isFailed, isWaiting, isMessenger, isPayFee, isAnimating } =
   useCommission()
 const accountStore = useAccountStore()
-const { ibanFull, ibanMasked, paidCommissionExpenses } = storeToRefs(accountStore)
-const { gender } = storeToRefs(useSimulatorStore())
+const { ibanFull, ibanMasked, emailVerified } = storeToRefs(accountStore)
 const reducedMotion = usePreferredReducedMotion()
 
-/** Активный tween скролла к балансу — гасим при повторном клике / unmount. */
-let balanceScrollTween: gsap.core.Tween | null = null
-let balancePulseTimer = 0
+let scrollTween: gsap.core.Tween | null = null
+let pulseTimer = 0
 
 onBeforeUnmount(() => {
-  balanceScrollTween?.kill()
-  balanceScrollTween = null
-  if (balancePulseTimer) window.clearTimeout(balancePulseTimer)
+  scrollTween?.kill()
+  scrollTween = null
+  if (pulseTimer) window.clearTimeout(pulseTimer)
 })
-
-const paidFeesEuros = computed(() => {
-  const list = paidCommissionExpenses.value
-  let cents = 0
-  for (let lv = 1; lv < level.value && lv <= 4; lv++) {
-    if (!commissionAddsToLoanBalance(lv)) continue
-    const row = list.find((e) => e.level === lv)
-    const fee = COMMISSION_FEE_BY_LEVEL[lv as 1 | 2 | 3 | 4]
-    cents += row?.amountCents ?? fee.amountCents
-  }
-  return cents / 100
-})
-
-const balanceText = computed(() => n(approvedAmount.value + paidFeesEuros.value, 'currency'))
 
 const displayName = computed(() => {
   const full = client.value.fullName.trim()
@@ -68,13 +45,6 @@ const initials = computed(() => {
 })
 
 const emailText = computed(() => client.value.email.trim() || '—')
-
-const genderLabel = computed(() => {
-  const g = gender.value.trim().toLowerCase()
-  if (g === 'male' || g === 'm' || g === 'uomo') return t('wizard.identity.genderMale')
-  if (g === 'female' || g === 'f' || g === 'donna') return t('wizard.identity.genderFemale')
-  return t('account.brow.genderUnset')
-})
 
 const ibanPreview = computed(() => {
   const raw = ibanFull.value.replace(/\s+/g, '').toUpperCase()
@@ -94,6 +64,12 @@ const statusKind = computed<'active' | 'busy' | 'hold' | 'blocked'>(() => {
 
 const statusLabel = computed(() => t(`account.brow.status.${statusKind.value}`))
 
+const verifyLabel = computed(() =>
+  emailVerified.value
+    ? t('account.brow.verify.ok')
+    : t('account.brow.verify.pending'),
+)
+
 function goProfile(): void {
   selectTab('profile')
 }
@@ -102,7 +78,6 @@ function goDocuments(): void {
   selectTab('documents')
 }
 
-/** Высота fixed-шапки: баланс не должен уезжать под неё. */
 function shellHeadOffsetPx(): number {
   const root = document.querySelector('.vel-cabinet')
   if (root instanceof HTMLElement) {
@@ -113,51 +88,48 @@ function shellHeadOffsetPx(): number {
   return 56
 }
 
-function pulseBalance(el: HTMLElement): void {
+function pulseEl(el: HTMLElement): void {
   el.classList.remove('vel-brow-zoom')
-  /* reflow — чтобы повторный клик снова проиграл анимацию */
   void el.offsetWidth
   el.classList.add('vel-brow-zoom')
-  if (balancePulseTimer) window.clearTimeout(balancePulseTimer)
-  balancePulseTimer = window.setTimeout(() => {
+  if (pulseTimer) window.clearTimeout(pulseTimer)
+  pulseTimer = window.setTimeout(() => {
     el.classList.remove('vel-brow-zoom')
-    balancePulseTimer = 0
+    pulseTimer = 0
   }, 1400)
 }
 
 /**
- * Клик по Saldo в брови → Home + спокойный скролл к карточке баланса.
- * Не scrollIntoView: он прыгает резко и не учитывает fixed-шапку.
- * GSAP ease power2.inOut ~0.9s, затем мягкая подсветка.
+ * Клик по Verifica → Profilo + спокойный скролл к блоку подтверждения email.
  */
-function goBalance(): void {
-  selectTab('home')
+function goVerify(): void {
+  selectTab('profile')
   void nextTick(() => {
     requestAnimationFrame(() => {
-      const el = document.querySelector<HTMLElement>('[data-testid="payout-balance"]')
+      const el =
+        document.querySelector<HTMLElement>('[data-testid="security-verify"]') ??
+        document.getElementById('vel-security-verify')
       if (!el) return
 
-      const gap = 10
+      const gap = 12
       const topPad = shellHeadOffsetPx() + gap
       const rect = el.getBoundingClientRect()
       const targetY = Math.max(0, window.scrollY + rect.top - topPad)
       const distance = Math.abs(targetY - window.scrollY)
 
-      balanceScrollTween?.kill()
-      balanceScrollTween = null
+      scrollTween?.kill()
+      scrollTween = null
 
-      /* Уже на месте / reduced motion — без «гонки» скролла */
       if (reducedMotion.value === 'reduce' || distance < 6) {
         if (distance >= 1) window.scrollTo({ top: targetY, left: 0, behavior: 'auto' })
-        pulseBalance(el)
+        pulseEl(el)
         return
       }
 
-      /* Длиннее путь — чуть дольше, но в разумных пределах */
       const duration = Math.min(1.15, Math.max(0.55, distance / 900))
       const state = { y: window.scrollY }
 
-      balanceScrollTween = gsap.to(state, {
+      scrollTween = gsap.to(state, {
         y: targetY,
         duration,
         ease: 'power2.inOut',
@@ -165,9 +137,8 @@ function goBalance(): void {
           window.scrollTo(0, state.y)
         },
         onComplete: () => {
-          balanceScrollTween = null
-          /* лёгкая пауза после прилёта — pulse не режет скролл */
-          window.setTimeout(() => pulseBalance(el), 80)
+          scrollTween = null
+          window.setTimeout(() => pulseEl(el), 80)
         },
       })
     })
@@ -177,7 +148,7 @@ function goBalance(): void {
 
 <template>
   <aside class="vel-brow" data-testid="client-brow" :aria-label="t('account.brow.label')">
-    <!-- Cliente -->
+    <!-- Cliente → Profilo -->
     <button type="button" class="vel-brow__col vel-brow__col--who" @click="goProfile">
       <span class="vel-brow__ava" aria-hidden="true">
         {{ initials }}
@@ -210,16 +181,10 @@ function goBalance(): void {
       </span>
     </button>
 
-    <!-- E-mail -->
+    <!-- E-mail → Profilo -->
     <button type="button" class="vel-brow__col vel-brow__col--email" @click="goProfile">
       <span class="vel-brow__lbl">{{ t('account.brow.email') }}</span>
       <span class="vel-brow__val vel-brow__clip">{{ emailText }}</span>
-    </button>
-
-    <!-- Sesso -->
-    <button type="button" class="vel-brow__col vel-brow__col--sesso" @click="goProfile">
-      <span class="vel-brow__lbl">{{ t('account.brow.gender') }}</span>
-      <span class="vel-brow__val vel-brow__clip">{{ genderLabel }}</span>
     </button>
 
     <!-- IBAN → Documenti -->
@@ -244,37 +209,60 @@ function goBalance(): void {
       </span>
     </div>
 
-    <!-- Saldo -->
-    <button type="button" class="vel-brow__col vel-brow__col--bal" @click="goBalance">
-      <span class="vel-brow__lbl">{{ t('account.brow.available') }}</span>
-      <span class="vel-brow__val vel-brow__val--big vel-brow__clip">{{ balanceText }}</span>
+    <!-- Verifica email: ? в кружке → Profilo / conferma email -->
+    <button
+      type="button"
+      class="vel-brow__col vel-brow__col--verify"
+      :class="{ 'vel-brow__col--verify-ok': emailVerified }"
+      :title="t('account.brow.verify.hint')"
+      data-testid="brow-verify"
+      @click="goVerify"
+    >
+      <span class="vel-brow__lbl">{{ t('account.brow.verify.label') }}</span>
+      <span class="vel-brow__verify-row">
+        <span
+          class="vel-brow__q"
+          :class="emailVerified ? 'vel-brow__q--ok' : 'vel-brow__q--pending'"
+          aria-hidden="true"
+        >
+          <!-- verified: check; pending: ? with outline ring -->
+          <svg v-if="emailVerified" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M5.5 12.6 10 17.2 18.8 7.4"
+              stroke="currentColor"
+              stroke-width="2.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span v-else class="vel-brow__q-mark">?</span>
+        </span>
+        <span class="vel-brow__val vel-brow__clip">{{ verifyLabel }}</span>
+      </span>
     </button>
   </aside>
 </template>
 
 <style scoped>
 /*
-  Обычный static-блок в потоке (как карточки ниже):
-  при скролле уезжает вверх под fixed-шапку и исчезает.
-  CSS Grid: колонки изолированы (min-width:0 + overflow:hidden).
+  5 колонок: who · email · iban · status · verify
+  (sesso e saldo rimossi)
 */
 .vel-brow {
   position: relative;
   display: grid;
   grid-template-columns:
-    minmax(0, 1.35fr) /* who */
-    minmax(0, 1.25fr) /* email */
-    minmax(3.4rem, 0.55fr) /* sesso */
-    minmax(4.2rem, 0.7fr) /* iban */
-    minmax(4.6rem, 0.8fr) /* status */
-    minmax(4.8rem, auto); /* bal */
+    minmax(0, 1.4fr) /* who */
+    minmax(0, 1.3fr) /* email */
+    minmax(4.2rem, 0.85fr) /* iban */
+    minmax(4.6rem, 0.9fr) /* status */
+    minmax(5rem, 0.95fr); /* verify */
   align-items: center;
   column-gap: 0;
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
   min-block-size: 4.5rem;
-  /* Плотнее к карточкам: на L3/L4 без step-bar пустота бросалась в глаза */
   margin: 0 0 0.45rem;
   padding: 0.4rem 0.55rem;
   overflow: hidden;
@@ -306,7 +294,6 @@ function goBalance(): void {
   pointer-events: none;
 }
 
-/* --- column cell --- */
 .vel-brow__col {
   appearance: none;
   display: flex;
@@ -324,7 +311,7 @@ function goBalance(): void {
   color: inherit;
   text-align: start;
   cursor: pointer;
-  overflow: hidden; /* ключ: текст не вылезает из колонки */
+  overflow: hidden;
   transition: background-color 140ms ease;
 }
 
@@ -343,11 +330,6 @@ function goBalance(): void {
 
 .vel-brow__col--status {
   cursor: default;
-}
-
-.vel-brow__col--bal {
-  align-items: flex-end;
-  padding-inline-end: 0.25rem;
 }
 
 .vel-brow__col:not(.vel-brow__col--status):hover {
@@ -433,13 +415,6 @@ function goBalance(): void {
   white-space: nowrap;
 }
 
-.vel-brow__val--big {
-  font-size: clamp(0.95rem, 2.2vw, 1.2rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-
 .vel-brow__check {
   flex: none;
   width: 0.78rem;
@@ -506,16 +481,61 @@ function goBalance(): void {
   color: var(--color-danger);
 }
 
-/* Tablet */
+/* Verifica */
+.vel-brow__verify-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.vel-brow__q {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 1.35rem;
+  block-size: 1.35rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.vel-brow__q--pending {
+  border: 1.75px solid color-mix(in oklab, var(--color-accent) 55%, var(--color-line));
+  background: color-mix(in oklab, var(--color-accent) 8%, #fff);
+  color: var(--color-accent-deep);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-accent) 12%, transparent);
+}
+
+.vel-brow__q--ok {
+  border: 1.75px solid color-mix(in oklab, var(--color-success) 45%, var(--color-line));
+  background: color-mix(in oklab, var(--color-success) 14%, #fff);
+  color: #0b7d4e;
+}
+
+.vel-brow__q svg {
+  width: 0.72rem;
+  height: 0.72rem;
+}
+
+.vel-brow__q-mark {
+  display: block;
+  transform: translateY(0.5px);
+}
+
+.vel-brow__col--verify-ok .vel-brow__val {
+  color: #0b7d4e;
+}
+
 @media (max-width: 56rem) {
   .vel-brow {
     grid-template-columns:
-      minmax(0, 1.3fr)
-      minmax(0, 1.15fr)
-      minmax(3rem, 0.5fr)
-      minmax(3.8rem, 0.65fr)
-      minmax(4rem, 0.75fr)
-      minmax(4.2rem, auto);
+      minmax(0, 1.35fr)
+      minmax(0, 1.2fr)
+      minmax(3.8rem, 0.75fr)
+      minmax(4rem, 0.8fr)
+      minmax(4.4rem, 0.85fr);
     padding: 0.35rem 0.4rem;
     min-block-size: 4.15rem;
   }
@@ -539,10 +559,6 @@ function goBalance(): void {
     font-size: 0.76rem;
   }
 
-  .vel-brow__val--big {
-    font-size: 0.95rem;
-  }
-
   .vel-brow__mono {
     font-size: 0.7rem;
   }
@@ -555,18 +571,22 @@ function goBalance(): void {
     font-size: 0.6rem;
     padding: 0.12rem 0.35rem;
   }
+
+  .vel-brow__q {
+    inline-size: 1.2rem;
+    block-size: 1.2rem;
+    font-size: 0.7rem;
+  }
 }
 
-/* Phone — still 6 cols, tighter */
 @media (max-width: 40rem) {
   .vel-brow {
     grid-template-columns:
-      minmax(0, 1.25fr)
-      minmax(0, 1.1fr)
-      minmax(2.6rem, 0.45fr)
-      minmax(3.2rem, 0.55fr)
-      minmax(3.4rem, 0.7fr)
-      minmax(3.6rem, auto);
+      minmax(0, 1.3fr)
+      minmax(0, 1.15fr)
+      minmax(3.2rem, 0.65fr)
+      minmax(3.4rem, 0.75fr)
+      minmax(3.6rem, 0.8fr);
     min-block-size: 3.7rem;
     padding: 0.28rem 0.3rem;
     border-radius: 0.75rem;
@@ -609,10 +629,6 @@ function goBalance(): void {
     font-size: 0.65rem;
   }
 
-  .vel-brow__val--big {
-    font-size: 0.78rem;
-  }
-
   .vel-brow__mono {
     font-size: 0.6rem;
   }
@@ -627,45 +643,51 @@ function goBalance(): void {
     inline-size: 0.3rem;
     block-size: 0.3rem;
   }
+
+  .vel-brow__q {
+    inline-size: 1.05rem;
+    block-size: 1.05rem;
+    font-size: 0.62rem;
+    border-width: 1.5px;
+  }
+
+  .vel-brow__q svg {
+    width: 0.58rem;
+    height: 0.58rem;
+  }
 }
 </style>
 
 <style>
-/* Мягкая подсветка баланса после скролла — без резкого «прыжка» scale */
+/* Soft pulse target (security-verify / payout) after smooth scroll */
 @keyframes vel-brow-balance-zoom {
   0% {
     transform: scale(1);
-    box-shadow:
-      0 0.55rem 1.35rem color-mix(in oklab, var(--color-fg) 6%, transparent),
-      inset 0 1px 0 color-mix(in oklab, #fff 70%, transparent);
+    box-shadow: none;
   }
 
   35% {
-    transform: scale(1.012);
+    transform: scale(1.008);
     box-shadow:
       0 0 0 2px color-mix(in oklab, var(--color-accent) 22%, transparent),
-      0 0.75rem 1.6rem color-mix(in oklab, var(--color-accent) 12%, transparent),
-      inset 0 1px 0 color-mix(in oklab, #fff 70%, transparent);
+      0 0.75rem 1.6rem color-mix(in oklab, var(--color-accent) 12%, transparent);
   }
 
   100% {
     transform: scale(1);
-    box-shadow:
-      0 0.55rem 1.35rem color-mix(in oklab, var(--color-fg) 6%, transparent),
-      inset 0 1px 0 color-mix(in oklab, #fff 70%, transparent);
+    box-shadow: none;
   }
 }
 
 .vel-brow-zoom {
   animation: vel-brow-balance-zoom 1.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+  border-radius: var(--radius-panel, 0.85rem);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .vel-brow-zoom {
     animation: none;
-    box-shadow:
-      0 0 0 2px color-mix(in oklab, var(--color-accent) 22%, transparent),
-      0 0.55rem 1.35rem color-mix(in oklab, var(--color-fg) 6%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-accent) 22%, transparent);
   }
 }
 </style>

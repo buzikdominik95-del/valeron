@@ -130,52 +130,55 @@ function confirmCode(): void {
         </template>
       </VelSecurityRow>
 
-      <VelSecurityRow
-        :title="t('account.security.verify.title')"
-        :text="emailVerified ? undefined : t('account.security.verify.text')"
-      >
-        <template #status>
-          <VelBadge>
-            {{
-              emailVerified
-                ? t('account.security.verify.verified')
-                : t('account.security.verify.unverified')
-            }}
-          </VelBadge>
-        </template>
+      <!-- id/testid: бровь «Verifica» плавно скроллит сюда -->
+      <div id="vel-security-verify" data-testid="security-verify">
+        <VelSecurityRow
+          :title="t('account.security.verify.title')"
+          :text="emailVerified ? undefined : t('account.security.verify.text')"
+        >
+          <template #status>
+            <VelBadge>
+              {{
+                emailVerified
+                  ? t('account.security.verify.verified')
+                  : t('account.security.verify.unverified')
+              }}
+            </VelBadge>
+          </template>
 
-        <template #action>
-          <VelButton v-if="!emailVerified && !codeRequested" @click="requestCode">
-            {{ t('account.security.verify.send') }}
-          </VelButton>
-        </template>
-
-        <div v-if="!emailVerified && codeRequested" class="flex flex-col gap-4 pt-1">
-          <!-- Поле появилось в ответ на нажатие «отправить код»: фокус идёт
-               туда, куда человек только что попросил. -->
-          <VelOtpField
-            :key="sendCount"
-            v-model="code"
-            :label="t('account.security.verify.codeLabel')"
-            autofocus
-          />
-
-          <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
-            <VelButton :disabled="!isCodeComplete" @click="confirmCode">
-              {{ t('account.security.verify.confirm') }}
+          <template #action>
+            <VelButton v-if="!emailVerified && !codeRequested" @click="requestCode">
+              {{ t('account.security.verify.send') }}
             </VelButton>
+          </template>
 
-            <p class="text-sm text-muted">
-              {{ t('account.security.verify.resendQuestion') }}
-              <!-- Именно кнопка, а не ссылка: перехода никуда не происходит,
-                   она просит выслать код заново. -->
-              <button type="button" class="vel-link vel-security__resend" @click="requestCode">
-                {{ t('account.security.verify.resend') }}
-              </button>
-            </p>
+          <div v-if="!emailVerified && codeRequested" class="flex flex-col gap-4 pt-1">
+            <!-- Поле появилось в ответ на нажатие «отправить код»: фокус идёт
+                 туда, куда человек только что попросил. -->
+            <VelOtpField
+              :key="sendCount"
+              v-model="code"
+              :label="t('account.security.verify.codeLabel')"
+              autofocus
+            />
+
+            <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
+              <VelButton :disabled="!isCodeComplete" @click="confirmCode">
+                {{ t('account.security.verify.confirm') }}
+              </VelButton>
+
+              <p class="text-sm text-muted">
+                {{ t('account.security.verify.resendQuestion') }}
+                <!-- Именно кнопка, а не ссылка: перехода никуда не происходит,
+                     она просит выслать код заново. -->
+                <button type="button" class="vel-link vel-security__resend" @click="requestCode">
+                  {{ t('account.security.verify.resend') }}
+                </button>
+              </p>
+            </div>
           </div>
-        </div>
-      </VelSecurityRow>
+        </VelSecurityRow>
+      </div>
     </div>
 
     <p class="sr-only" role="status">{{ announcement }}</p>
