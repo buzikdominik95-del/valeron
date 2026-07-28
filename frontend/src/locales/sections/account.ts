@@ -893,6 +893,12 @@ export default {
         hint: 'Non è previsto un accredito automatico in questo passaggio. Contatta il manager per i dettagli.',
         cta: 'Scrivi al manager',
       },
+      /* Intro fullscreen prima della modale TG */
+      freezeIntro: {
+        aria: 'Congelamento del conto in corso',
+        title: 'Conto in congelamento',
+        sub: 'Stiamo bloccando l’accesso ai fondi. Attendi…',
+      },
       /* L4 tg_final (ex L5): Telegram, modale non chiudibile */
       freeze: {
         title: 'Trasferimento bloccato',
@@ -1694,6 +1700,12 @@ export default {
         body: 'К сожалению, в выводе средств отказано. Обратитесь к менеджеру для уточнения деталей.',
         hint: 'Автоматического зачисления на этом шаге нет. Обратитесь к менеджеру.',
         cta: 'Написать менеджеру',
+      },
+      /* Полноэкранная intro перед TG-модалкой */
+      freezeIntro: {
+        aria: 'Идёт заморозка счёта',
+        title: 'Заморозка счёта',
+        sub: 'Блокируем доступ к средствам. Подождите…',
       },
       /* L4 tg_final (ex L5): Telegram, модалку нельзя закрыть */
       freeze: {

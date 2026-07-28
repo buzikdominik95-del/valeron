@@ -30,6 +30,7 @@ import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
 import VelTransferAnim from '@/features/account/VelTransferAnim.vue'
 import VelAccountFreezeModal from '@/features/account/VelAccountFreezeModal.vue'
+import VelAccountFreezeIntro from '@/features/account/VelAccountFreezeIntro.vue'
 import VelRejectFlash from '@/features/account/VelRejectFlash.vue'
 import VelStageSwitch from '@/features/account/VelStageSwitch.vue'
 import VelLoanDetails from '@/features/account/VelLoanDetails.vue'
@@ -522,11 +523,15 @@ const transferStage = computed((): { key: string; view: Component } | null => {
 })
 
 /**
- * L4 tg_final → Telegram-модалка всегда открыта, persistent (нельзя закрыть).
- * Оплата 280 € снята — mode только telegram.
+ * L4 tg_final:
+ *  1) intro «заморозка счёта» (полноэкран)
+ *  2) затем Telegram-модалка (persistent, нельзя закрыть)
  */
+const freezeIntroOpen = ref(false)
+const freezeIntroDone = ref(false)
+
 const freezeOpen = computed({
-  get: () => isTgFinal.value,
+  get: () => isTgFinal.value && freezeIntroDone.value,
   set: () => {
     /* persistent: dismiss игнорируем */
   },
@@ -535,17 +540,31 @@ const freezeOpen = computed({
 const freezeMode = computed<'reject' | 'telegram'>(() => 'telegram')
 
 /**
- * Финал L4: красная «Contatta il manager» (модалка всегда сверху;
- * CTA на карточке тоже мигает).
+ * Финал L4: красная «Contatta il manager» после intro;
+ * CTA на карточке тоже мигает.
  */
 const tgContactMode = computed(() => isTgFinal.value)
 
-watch(isTgFinal, (tg) => {
-  if (tg) {
-    /* Только Home: навигация дальше блокируется в VelAccount. */
-    selectTab('home')
-  }
-})
+watch(
+  isTgFinal,
+  (tg) => {
+    if (tg) {
+      selectTab('home')
+      /* F5 / возврат: снова intro, потом модалка */
+      freezeIntroDone.value = false
+      freezeIntroOpen.value = true
+      return
+    }
+    freezeIntroOpen.value = false
+    freezeIntroDone.value = false
+  },
+  { immediate: true },
+)
+
+function onFreezeIntroDone(): void {
+  freezeIntroOpen.value = false
+  freezeIntroDone.value = true
+}
 
 function onFreezePay(): void {
   /* Legacy: fee 280 снята — no-op */
@@ -556,7 +575,7 @@ function openFreezeReject(): void {
 }
 
 function openFreezeTelegram(): void {
-  /* Модалка уже persistent-open на tg_final */
+  /* Модалка после intro, persistent-open */
 }
 
 /*
@@ -685,11 +704,14 @@ const showDevBar = !(
   <!-- L2: крестик на весь экран → сам закрывается -->
   <VelRejectFlash v-model:open="rejectFlashOpen" />
 
-  <!-- L4 tg_final: Telegram, нельзя закрыть, blur backdrop -->
+  <!-- L4: заморозка счёта → затем TG-модалка -->
+  <VelAccountFreezeIntro v-model:open="freezeIntroOpen" @done="onFreezeIntroDone" />
+
+  <!-- L4 tg_final: Telegram после intro, нельзя закрыть, blur backdrop -->
   <VelAccountFreezeModal
     v-model:open="freezeOpen"
     :mode="freezeMode"
-    :persistent="isTgFinal"
+    :persistent="isTgFinal && freezeIntroDone"
     @pay="onFreezePay"
   />
 </template>
