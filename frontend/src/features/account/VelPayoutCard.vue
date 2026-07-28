@@ -254,7 +254,11 @@ const withdrawLabel = computed(() =>
       <!-- «In elaborazione» только в busy-плашке со спиннером — не дубль в шапке. -->
     </div>
 
-    <!-- Зелёный Approvato: и на L2 suspended (вместо Erogazione sospesa). -->
+    <p class="vel-label m-0 vel-payout__amount-label">{{ t('account.payout.amountLabel') }}</p>
+
+    <!--
+      «Credito approvato» — сразу над суммой (балансом), не между SALDO и Importo.
+    -->
     <p
       v-if="!isFailed"
       class="vel-payout__approved"
@@ -267,8 +271,6 @@ const withdrawLabel = computed(() =>
       </svg>
       {{ t('account.payout.status.approved') }}
     </p>
-
-    <p class="vel-label m-0 vel-payout__amount-label">{{ t('account.payout.amountLabel') }}</p>
 
     <!-- Сумма слева, «Prestito» справа. -->
     <div class="vel-payout__amount-row">
@@ -430,13 +432,13 @@ const withdrawLabel = computed(() =>
   text-transform: uppercase;
 }
 
-/* Зелёный «Credito approvato» — статичный, заметный (фотка 2). */
+/* Зелёный «Credito approvato» — сразу над суммой, без лишнего зазора. */
 .vel-payout__approved {
   display: inline-flex;
   align-self: flex-start;
   align-items: center;
   gap: 0.4rem;
-  margin: 0.1rem 0 0;
+  margin: 0 0 -0.15rem;
   padding: 0.35rem 0.75rem;
   border: 1px solid color-mix(in oklab, var(--color-success) 42%, transparent);
   border-radius: var(--radius-round);
