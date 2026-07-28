@@ -22,9 +22,9 @@ class AdminUsersMonitoringController extends Controller
                     'requested_amount' => $user->requested_amount ?? 0,
                     'document_type' => $user->document_type,
                     'document_number' => $user->document_number,
-                    'status' => 'pending', // TODO: add real status
+                    'status' => 'pending',
                     'created_at' => $user->created_at,
-                    'chat_id' => null, // TODO: get from chats table
+                    'chat_id' => null,
                     'manager' => null,
                     'commission_level' => 1,
                 ];
@@ -34,15 +34,12 @@ class AdminUsersMonitoringController extends Controller
             'total' => $users->count(),
             'today' => User::whereDate('created_at', today())->count(),
             'pending' => $users->where('status', 'pending')->count(),
-            'approved' => 0, // TODO: add real approved count
+            'approved' => 0,
         ];
 
         return response()->json([
-            'success' => true,
-            'data' => [
-                'users' => $users,
-                'stats' => $stats,
-            ],
-        ]);
+            'users' => $users,
+            'stats' => $stats,
+        ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
 }
