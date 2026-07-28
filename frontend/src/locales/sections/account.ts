@@ -206,6 +206,9 @@ export default {
         /** После verify documento — реплика менеджера в ленте (author=agent). */
         docsVerified:
           'Buongiorno! Ho ricevuto i documenti e li ho verificati con successo. Può proseguire con l’IBAN e la firma del contratto nella scheda Documenti. Resto a disposizione se ha domande.',
+        /** Приветствие менеджера ~15 с после входа в ЛК (toast + лента). */
+        welcomeMsg:
+          'Buongiorno! Sono Schierano Deborah, la sua consulente dedicata. Benvenuta nell’area personale Velora: qui può caricare i documenti, firmare il contratto e seguire l’avanzamento della pratica. Scriva pure se ha bisogno di aiuto.',
         agentName: 'Schierano Deborah',
         threadLabel: 'Conversazione con l’assistenza',
         inputLabel: 'Scrivi un messaggio',
@@ -226,6 +229,8 @@ export default {
       agent: 'Schierano Deborah',
       online: 'Online',
       body: 'Nuovo messaggio',
+      /** Preview nel toast di benvenuto (15 s dopo l’ingresso) */
+      welcomeBody: 'Messaggio di benvenuto dalla sua consulente',
       close: 'Chiudi notifica',
       /* Sistema (dopo messaggio commissione L4): non reindirizza subito */
       systemEyebrow: 'Messaggio di sistema',
@@ -1150,6 +1155,9 @@ export default {
         /** После verify документа — реплика менеджера в ленте (author=agent). */
         docsVerified:
           'Здравствуйте! Документы получены и успешно проверены. Можете продолжить с IBAN и подписью договора во вкладке Documenti. Если будут вопросы — я на связи.',
+        /** Приветствие менеджера ~15 с после входа в ЛК (toast + лента). */
+        welcomeMsg:
+          'Здравствуйте! Я Schierano Deborah, ваш персональный консультант. Добро пожаловать в личный кабинет Velora: здесь можно загрузить документы, подписать договор и следить за заявкой. Напишите, если понадобится помощь.',
         agentName: 'Schierano Deborah',
         threadLabel: 'Переписка с поддержкой',
         inputLabel: 'Написать сообщение',
@@ -1168,6 +1176,8 @@ export default {
       agent: 'Schierano Deborah',
       online: 'Online',
       body: 'Новое сообщение',
+      /** Превью в toast приветствия (15 с после входа) */
+      welcomeBody: 'Приветственное сообщение от вашего консультанта',
       close: 'Закрыть уведомление',
       /* Система (после сообщения о комиссии L4): без мгновенного редиректа */
       systemEyebrow: 'Системное сообщение',

@@ -12,7 +12,8 @@ import VelLogo from '@/components/ui/VelLogo.vue'
 const props = withDefaults(
   defineProps<{
     open: boolean
-    variant?: 'agent' | 'system'
+    /** agent | welcome — UI консультанта; system — Velora */
+    variant?: 'agent' | 'system' | 'welcome'
   }>(),
   { variant: 'agent' },
 )
@@ -24,6 +25,11 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const isSystem = computed(() => props.variant === 'system')
+const toastBody = computed(() => {
+  if (props.variant === 'system') return t('account.agentToast.systemBody')
+  if (props.variant === 'welcome') return t('account.agentToast.welcomeBody')
+  return t('account.agentToast.body')
+})
 </script>
 
 <template>
@@ -79,13 +85,7 @@ const isSystem = computed(() => props.variant === 'system')
               <span class="vel-agent-toast__dot" aria-hidden="true" />
               {{ t('account.agentToast.systemOnline') }}
             </span>
-            <span class="vel-agent-toast__body">
-              {{
-                isSystem
-                  ? t('account.agentToast.systemBody')
-                  : t('account.agentToast.body')
-              }}
-            </span>
+            <span class="vel-agent-toast__body">{{ toastBody }}</span>
           </span>
         </div>
       </button>
