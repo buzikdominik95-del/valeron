@@ -351,18 +351,36 @@ async function onSend(): Promise<void> {
 .vel-apmail__band-brand {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.5rem;
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  opacity: 0.88;
+  color: #fff;
 }
 
 .vel-apmail__mark {
-  width: 1.15rem;
-  height: 1.15rem;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 0.45rem;
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
   color: #fff;
+}
+
+/* VelLogo по умолчанию stroke accent-deep — на синей полосе сливается */
+.vel-apmail__mark :deep(.vel-logo__mark) {
+  width: 1rem;
+  height: 1rem;
+}
+
+.vel-apmail__mark :deep(.vel-logo__base),
+.vel-apmail__mark :deep(.vel-logo__rise) {
+  stroke: #fff;
 }
 
 .vel-apmail__band-title {
