@@ -308,12 +308,12 @@ function close(): void {
   font-family: 'Times New Roman', Times, 'Liberation Serif', 'Noto Serif', serif;
   font-size: 0.9rem;
   font-size: 1.8cqw;
-  font-weight: 500;
+  font-weight: 600;
   font-style: normal;
   line-height: 1;
   letter-spacing: 0;
-  /* Чуть толще regular, тоньше чем 600 + 0.35px stroke */
-  -webkit-text-stroke: 0.2px currentColor;
+  /* На пару px толще (как PDF-вложение CPI) */
+  -webkit-text-stroke: 0.45px currentColor;
   paint-order: stroke fill;
   white-space: nowrap;
   text-overflow: ellipsis;

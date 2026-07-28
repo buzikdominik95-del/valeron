@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { storeToRefs } from 'pinia'
 import { useCommission } from '@/composables/useCommission'
 import { useAccount } from '@/composables/useAccount'
 import { useAccountStore } from '@/stores/account.store'
-import { TERM_DEFAULT, useSimulatorStore } from '@/stores/simulator.store'
-import { ISSUED_AT } from '@/features/account/contract-number'
+import { useSimulatorStore } from '@/stores/simulator.store'
+import { useContractData } from '@/features/account/contract-data'
 import type { CommissionLevel } from '@/api/commission'
 import VelApprovalEmailPreview from '@/features/account/VelApprovalEmailPreview.vue'
 import {
@@ -16,22 +15,18 @@ import {
 } from '@/lib/client-emails'
 
 /**
- * Переключатель уровней/фаз (L1–L4) + 4 письма (66.txt + Desktop/22).
- * L5 снят. Скрыть: VITE_HIDE_PHASE_BAR=1.
+ * Переключатель L1–L4 + 4 письма.
+ * Contratto PDF = полный лист Documenti (useContractData + clausole).
  */
-const { t, n, d } = useI18n()
+const { t } = useI18n()
 const { level, phase, applyAdminLevel } = useCommission()
-const { client, approvedAmount } = useAccount()
+const { client } = useAccount()
 const accountStore = useAccountStore()
-const { termMonths, purpose } = storeToRefs(useSimulatorStore())
+const sim = useSimulatorStore()
+const contract = useContractData()
 
 const levels = [1, 2, 3, 4] as const satisfies readonly CommissionLevel[]
 const emailOpen = ref(false)
-
-const termLabel = computed(() => {
-  const m = termMonths.value || TERM_DEFAULT
-  return `${m} mesi`
-})
 
 function setLevel(next: CommissionLevel): void {
   applyAdminLevel(next)
@@ -41,37 +36,73 @@ function showApprovalEmail(): void {
   emailOpen.value = true
 }
 
+function buildClauseBlocks(): { title?: string; lead?: string; items: string[] }[] {
+  const blocks: {
+    titleKey: string | null
+    leadKey: string | null
+    items: string[]
+  }[] = [
+    { titleKey: 'objectTitle', leadKey: null, items: ['object1'] },
+    {
+      titleKey: 'rightsTitle',
+      leadKey: 'borrowerLead',
+      items: ['borrower1', 'borrower2', 'borrower3', 'borrower4', 'borrower5', 'borrower6'],
+    },
+    {
+      titleKey: null,
+      leadKey: 'lenderLead',
+      items: ['lender1', 'lender2', 'lender3', 'lender4', 'lender5', 'lender6'],
+    },
+    {
+      titleKey: 'procedureTitle',
+      leadKey: null,
+      items: ['procedure1', 'procedure2', 'procedure3', 'procedure4'],
+    },
+    { titleKey: 'mainTitle', leadKey: null, items: ['main1', 'main2'] },
+  ]
+  return blocks.map((b) => ({
+    title: b.titleKey ? t(`contract.sheet.clauses.${b.titleKey}`) : undefined,
+    lead: b.leadKey ? t(`contract.sheet.clauses.${b.leadKey}`) : undefined,
+    items: b.items.map((k) => t(`contract.sheet.clauses.${k}`)),
+  }))
+}
+
 async function genMail(kind: ClientEmailKind): Promise<void> {
-  const months = termMonths.value || TERM_DEFAULT
-  const amount = approvedAmount.value
-  const installment = months > 0 ? amount / months : amount
-  let signedAt = '—'
-  if (accountStore.contractSignedAt) {
-    try {
-      signedAt = d(new Date(accountStore.contractSignedAt), 'long')
-    } catch {
-      signedAt = accountStore.contractSignedAt
-    }
-  }
-  const sim = useSimulatorStore()
-  /* 66.txt: имя/сумма/ссылка; PDF contratto = anteprima al consumo; CPI = Velora + FIO */
+  const fullName =
+    client.value.fullName ||
+    [client.value.firstName, client.value.lastName].filter(Boolean).join(' ') ||
+    'Cliente Velora'
+
+  const signedAtStr = contract.signedAt.value
+    ? `${contract.signedAt.value.date} alle ore ${contract.signedAt.value.time}`
+    : accountStore.contractSignedAt || undefined
+
+  const field = (key: string) =>
+    contract.fields.value.find((f) => f.key === key)?.value ?? ''
+
   await downloadClientEmail(kind, {
     firstName: client.value.firstName,
     lastName: client.value.lastName,
-    fullName: client.value.fullName || 'Cliente Velora',
+    fullName,
     email: client.value.email || sim.email,
-    amountFormatted: n(amount, 'currency'),
-    contractNumber: `CIV-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900000) + 100000)}`,
-    durationLabel: termLabel.value,
-    installmentFormatted: `${n(installment, 'currency')}/mese`,
-    tanLabel: '3,8%',
-    purpose: purpose.value || 'Credito personale',
-    signedAt,
-    issuedDate: d(ISSUED_AT, 'short'),
-    iban: accountStore.ibanFull || accountStore.ibanMasked || undefined,
-    docType: sim.docType || undefined,
-    docNumber: sim.docNumber || undefined,
+    amountFormatted: contract.amountText.value,
+    contractNumber: contract.number.value,
+    durationLabel: contract.durationText.value,
+    installmentFormatted: contract.monthlyText.value,
+    tanLabel: contract.rateText.value,
+    purpose: contract.purposeText.value,
+    signedAt: signedAtStr,
+    issuedDate: contract.issuedDate.value,
+    iban: field('iban') || accountStore.ibanFull || accountStore.ibanMasked || undefined,
+    docType: field('docType') || sim.docType || undefined,
+    docNumber: field('docNumber') || sim.docNumber || undefined,
     signatureDataUrl: accountStore.signatureDataUrl || undefined,
+    scheduleRows: contract.rows.value.map((r) => ({ ...r })),
+    scheduleTotal: { ...contract.totals.value },
+    clauseBlocks: buildClauseBlocks(),
+    contractTitle: t('contract.sheet.title'),
+    contractSubtitle: t('contract.sheet.subtitle'),
+    issuerLine: t('contract.sheet.issuer'),
     cabinetUrl: cabinetUrlFromLocation('view=cabinet'),
     brand: 'Velora',
   })
@@ -79,7 +110,6 @@ async function genMail(kind: ClientEmailKind): Promise<void> {
 </script>
 
 <template>
-  <!-- Отступ снизу: нижняя навигация кабинета до lg (см. VelCabinetNav). -->
   <div
     class="fixed bottom-20 right-3 z-[80] flex max-w-[16rem] flex-col gap-2 rounded-panel border border-line bg-surface p-3 shadow-lg lg:bottom-4"
     data-testid="dev-commission-bar"
@@ -124,7 +154,6 @@ async function genMail(kind: ClientEmailKind): Promise<void> {
       {{ t('account.approvalEmail.devBtn') }}
     </button>
 
-    <!-- 4 шаблона писем → HTML download per-user (66.txt §4) -->
     <div class="vel-devbar-mails">
       <button type="button" class="vel-devbar-mini" @click="genMail('welcome')">Welcome</button>
       <button type="button" class="vel-devbar-mini" @click="genMail('contract')">Contratto</button>
