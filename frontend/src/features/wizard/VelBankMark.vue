@@ -98,13 +98,15 @@ const logoSrc = computed(() => bankLogoFile(props.name))
   --vel-mark-radius: var(--radius-control);
   --vel-mark-clip: none;
   --vel-mark-fill: var(--color-accent-deep);
-  --vel-mark-inset: 0.25rem;
+  /* Поля вокруг логотипа: меньше — картинка читается в тайле */
+  --vel-mark-inset: 0.12rem;
 
   flex: none;
   display: grid;
   place-items: center;
-  inline-size: 2rem;
-  block-size: 2rem;
+  /* 2.75rem (~44px): 2rem (32px) + contain/padding делали wordmark невидимым */
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
   color: var(--color-accent-ink);
 }
 
@@ -132,16 +134,15 @@ const logoSrc = computed(() => bankLogoFile(props.name))
 */
 /*
   Логотипы — и квадратные знаки (DB, ING…), и широкие wordmark (HSBC, SG…).
-  contain + небольшой inset: wordmark не обрезается cover’ом и не
-  растягивается; фон surface гасит кольцо изнутри.
+  contain + тонкий inset: wordmark не обрезается и занимает почти весь тайл.
 */
 .vel-mark__logo {
   z-index: 1;
   inline-size: 100%;
   block-size: 100%;
-  padding: var(--vel-mark-inset, 0.2rem);
-  border-radius: var(--vel-mark-radius);
-  clip-path: var(--vel-mark-clip);
+  padding: var(--vel-mark-inset, 0.12rem);
+  border-radius: var(--radius-control);
+  clip-path: none;
   background-color: var(--color-surface);
   object-fit: contain;
   object-position: center;
@@ -192,13 +193,14 @@ const logoSrc = computed(() => bankLogoFile(props.name))
   z-index: 2;
   display: grid;
   place-items: center;
-  inline-size: 1.05rem;
-  block-size: 1.05rem;
+  inline-size: 1.15rem;
+  block-size: 1.15rem;
   border-radius: var(--radius-round);
   background: var(--color-success);
   color: #fff;
   box-shadow: 0 0 0 2px var(--color-surface);
-  transform: translate(0.55rem, 0.55rem);
+  /* Смещение под больший тайл 2.75rem */
+  transform: translate(0.75rem, 0.75rem);
 }
 
 .vel-mark__check {
@@ -212,18 +214,13 @@ const logoSrc = computed(() => bankLogoFile(props.name))
 }
 
 /*
-  ФОРМЫ ПОДЛОЖКИ. Три штуки, выбор — по имени банка (bank-mark-identity).
-
-  Круг и скруглённый квадрат идут радиусом, шестиугольник — обрезкой: радиусом
-  шестиугольник не выразить, а гнать все три через clip-path значило бы потерять
-  скругление углов у квадрата.
-
-  ПОЛЯ ЛОГОТИПА (--vel-mark-inset) — по ВПИСАННОМУ квадрату, иначе обрезка
-  срежет угол: у стороны 32px это 0.3rem кругу (16/√2) и 0.375rem шестиугольнику.
+  ФОРМЫ ПОДЛОЖКИ (fallback-монограмма). У файла логотипа clip/радиус
+  свои — см. .vel-mark__logo: скруглённый квадрат без hex-обрезки, чтобы
+  wordmark не терял углы.
 */
 .vel-mark--circle {
   --vel-mark-radius: var(--radius-round);
-  --vel-mark-inset: 0.3rem;
+  --vel-mark-inset: 0.2rem;
 }
 
 .vel-mark--squircle {
@@ -232,7 +229,7 @@ const logoSrc = computed(() => bankLogoFile(props.name))
 
 .vel-mark--hex {
   --vel-mark-radius: 0;
-  --vel-mark-inset: 0.375rem;
+  --vel-mark-inset: 0.28rem;
   /* Правильный шестиугольник остриём вверх: полуширина 0.5 · √3/2 ≈ 0.433,
      то есть боковые грани стоят на 6.7% и 93.3%. */
   --vel-mark-clip: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
