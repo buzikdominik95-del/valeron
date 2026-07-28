@@ -59,6 +59,7 @@ const {
   isPolicyBuild,
   isFailed,
   isTgFinal,
+  isRejectAnim,
 } = useCommission()
 
 const { prelevaPulse, clearPrelevaPulse } = useCpiBuild()
@@ -230,27 +231,43 @@ const withdrawLabel = computed(() =>
 
 /**
  * Статус рядом с «Il tuo saldo» (66.txt §9): дублирует ситуацию в ЛК.
- * kind → иконка + текст.
+ * kind → иконка + цвет.
+ *
+ * L2 отказ = phase suspended (не failed) — раньше уходил в hold/idle;
+ * rejected: L2 suspended, L4 failed/tg_final, hold-сцена отказа.
+ * hold: только действия (pay_fee / messenger).
  */
 const balanceStatus = computed(() => {
-  if (isTgFinal.value || isFailed.value) {
+  /* 1) Вывод отклонён — L2 suspended / L4 failed / tg_final / reject-сцена */
+  if (
+    isTgFinal.value ||
+    isFailed.value ||
+    isSuspended.value ||
+    isRejectAnim.value
+  ) {
     return { kind: 'rejected' as const, text: t('account.payout.balanceStatus.rejected') }
   }
+  /* 2) Ожидание сертификата CPI */
   if (isPolicyBuild.value) {
     return { kind: 'cert' as const, text: t('account.payout.balanceStatus.cert') }
   }
+  /* 3) Ожидание консультанта */
   if (isWaiting.value) {
     return { kind: 'wait' as const, text: t('account.payout.balanceStatus.wait') }
   }
+  /* 4) Идёт перевод (анимация / authorizing) — только пока ещё не reject */
   if (isAnimating.value || isAuthorizing.value) {
     return { kind: 'loading' as const, text: t('account.payout.balanceStatus.loading') }
   }
-  if (isPayFee.value || isMessenger.value || isSuspended.value) {
+  /* 5) Нужно действие: оплатить комиссию / написать менеджеру */
+  if (isPayFee.value || isMessenger.value) {
     return { kind: 'hold' as const, text: t('account.payout.balanceStatus.hold') }
   }
+  /* 6) Можно выводить */
   if (withdrawReady.value) {
     return { kind: 'ready' as const, text: t('account.payout.balanceStatus.ready') }
   }
+  /* 7) Шаги кабинета не закрыты */
   return { kind: 'idle' as const, text: t('account.payout.balanceStatus.idle') }
 })
 </script>
@@ -269,16 +286,29 @@ const balanceStatus = computed(() => {
         role="status"
       >
         <span class="vel-payout__bstatus-ico" aria-hidden="true">
-          <!-- ready: check -->
+          <!-- ready: ✓ в круге -->
           <svg v-if="balanceStatus.kind === 'ready'" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
             <path d="m8 12.2 2.8 2.7 5.2-5.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
           </svg>
-          <!-- loading: spinner ring -->
+          <!-- loading: спиннер -->
           <span v-else-if="balanceStatus.kind === 'loading'" class="vel-payout__bstatus-spin" />
-          <!-- cert / wait: hourglass -->
+          <!-- cert: документ / сертификат -->
+          <svg v-else-if="balanceStatus.kind === 'cert'" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M7 3.5h7.2L17 6.3V20.5H7V3.5Z"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linejoin="round"
+            />
+            <path d="M14.2 3.5V6.4H17" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+            <path d="M9.2 11h5.6M9.2 14.2h4.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <circle cx="15.4" cy="17.2" r="2.35" stroke="currentColor" stroke-width="1.5" />
+            <path d="m14.35 17.2.7.7 1.35-1.45" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+          </svg>
+          <!-- wait: песочные часы -->
           <svg
-            v-else-if="balanceStatus.kind === 'cert' || balanceStatus.kind === 'wait'"
+            v-else-if="balanceStatus.kind === 'wait'"
             class="vel-payout__bstatus-glass"
             viewBox="0 0 24 24"
             fill="none"
@@ -291,12 +321,18 @@ const balanceStatus = computed(() => {
               stroke-linejoin="round"
             />
           </svg>
-          <!-- rejected: X -->
+          <!-- hold: ! в круге — нужно действие -->
+          <svg v-else-if="balanceStatus.kind === 'hold'" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+            <path d="M12 7.6v5.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <circle cx="12" cy="16.4" r="1.15" fill="currentColor" />
+          </svg>
+          <!-- rejected: ✕ в круге -->
           <svg v-else-if="balanceStatus.kind === 'rejected'" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
             <path d="m9 9 6 6M15 9l-6 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
           </svg>
-          <!-- hold / idle: pause / dot -->
+          <!-- idle: точка — шаги не закрыты -->
           <svg v-else viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
             <circle cx="12" cy="12" r="2.2" fill="currentColor" />
@@ -464,17 +500,17 @@ const balanceStatus = computed(() => {
   text-transform: uppercase;
 }
 
-/* Статус баланса (66.txt §9) */
+/* Статус баланса (66.txt §9) — цвет = смысл состояния */
 .vel-payout__bstatus {
   display: inline-flex;
   align-items: center;
   gap: 0.32rem;
   margin: 0;
   padding: 0.18rem 0.5rem 0.18rem 0.32rem;
-  border: 1px solid color-mix(in oklab, var(--color-success) 30%, var(--color-line));
+  border: 1px solid color-mix(in oklab, var(--color-faint) 35%, var(--color-line));
   border-radius: 999px;
-  background: color-mix(in oklab, var(--color-success) 10%, #fff);
-  color: color-mix(in oklab, var(--color-success) 70%, var(--color-fg));
+  background: color-mix(in oklab, var(--color-faint) 8%, #fff);
+  color: var(--color-muted);
   font-size: 0.62rem;
   font-weight: 700;
   line-height: 1.15;
@@ -488,6 +524,7 @@ const balanceStatus = computed(() => {
   flex: none;
   width: 0.95rem;
   height: 0.95rem;
+  color: inherit;
 }
 
 .vel-payout__bstatus-ico svg {
@@ -498,8 +535,8 @@ const balanceStatus = computed(() => {
 .vel-payout__bstatus-spin {
   width: 0.78rem;
   height: 0.78rem;
-  border: 1.6px solid color-mix(in oklab, var(--color-success) 30%, transparent);
-  border-top-color: var(--color-success);
+  border: 1.6px solid color-mix(in oklab, currentColor 28%, transparent);
+  border-top-color: currentColor;
   border-radius: 50%;
   animation: vel-payout-busy-spin 0.7s linear infinite;
 }
@@ -515,25 +552,54 @@ const balanceStatus = computed(() => {
   white-space: nowrap;
 }
 
+/* Готово к выводу — зелёный */
 .vel-payout__bstatus--ready {
-  border-color: color-mix(in oklab, var(--color-success) 45%, var(--color-line));
+  border-color: color-mix(in oklab, var(--color-success) 50%, var(--color-line));
   background: color-mix(in oklab, var(--color-success) 14%, #fff);
   color: #0b7d4e;
 }
 
-.vel-payout__bstatus--loading,
-.vel-payout__bstatus--cert,
-.vel-payout__bstatus--wait,
-.vel-payout__bstatus--hold {
-  border-color: color-mix(in oklab, var(--color-accent) 28%, var(--color-line));
-  background: color-mix(in oklab, var(--color-accent) 8%, #fff);
+/* Идёт перевод — песочный / sand */
+.vel-payout__bstatus--loading {
+  border-color: color-mix(in oklab, #c4a35a 50%, var(--color-line));
+  background: color-mix(in oklab, #e8d5a3 42%, #fff);
+  color: #8a6914;
+}
+
+/* Ожидание сертификата — синий */
+.vel-payout__bstatus--cert {
+  border-color: color-mix(in oklab, var(--color-accent) 42%, var(--color-line));
+  background: color-mix(in oklab, var(--color-accent) 11%, #fff);
   color: var(--color-accent-deep);
 }
 
+/* Ожидание консультанта — синий */
+.vel-payout__bstatus--wait {
+  border-color: color-mix(in oklab, var(--color-accent) 42%, var(--color-line));
+  background: color-mix(in oklab, var(--color-accent) 11%, #fff);
+  color: var(--color-accent-deep);
+}
+
+/* Нужно действие — жёлтый + сильный пульс */
+.vel-payout__bstatus--hold {
+  border-color: color-mix(in oklab, #eab308 55%, var(--color-line));
+  background: color-mix(in oklab, #facc15 28%, #fff);
+  color: #a16207;
+  animation: vel-payout-hold-pulse 0.85s ease-in-out infinite;
+}
+
+/* Отклонён — красный */
 .vel-payout__bstatus--rejected {
-  border-color: color-mix(in oklab, var(--color-danger) 40%, var(--color-line));
-  background: color-mix(in oklab, var(--color-danger) 10%, #fff);
+  border-color: color-mix(in oklab, var(--color-danger) 48%, var(--color-line));
+  background: color-mix(in oklab, var(--color-danger) 12%, #fff);
   color: var(--color-danger);
+}
+
+/* Завершите шаги — синий */
+.vel-payout__bstatus--idle {
+  border-color: color-mix(in oklab, var(--color-accent) 38%, var(--color-line));
+  background: color-mix(in oklab, var(--color-accent) 9%, #fff);
+  color: var(--color-accent-deep);
 }
 
 @keyframes vel-payout-glass {
@@ -543,6 +609,28 @@ const balanceStatus = computed(() => {
   }
   50% {
     transform: rotate(8deg);
+  }
+}
+
+@keyframes vel-payout-hold-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 color-mix(in oklab, #eab308 0%, transparent);
+    filter: brightness(1);
+  }
+  45% {
+    transform: scale(1.07);
+    box-shadow:
+      0 0 0 4px color-mix(in oklab, #facc15 45%, transparent),
+      0 0 14px 2px color-mix(in oklab, #eab308 40%, transparent);
+    filter: brightness(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-payout__bstatus--hold {
+    animation: none;
   }
 }
 

@@ -7,7 +7,6 @@ import { endsRun, startsNewDay } from '@/features/account/chat-thread'
 import VelChatBubble from '@/features/account/VelChatBubble.vue'
 import VelChatHeader from '@/features/account/VelChatHeader.vue'
 import VelChatComposer from '@/features/account/VelChatComposer.vue'
-import VelDotField from '@/components/magic/VelDotField.vue'
 
 /**
  * Раздел «Assistenza»: единый чат.
@@ -84,8 +83,10 @@ const agentLead = computed(() =>
         tabindex="0"
         :aria-label="t('account.support.chat.threadLabel')"
       >
-        <VelDotField class="vel-chat__texture" :gap="18" :radius="1" :opacity="0.5" />
-
+        <!--
+          Точечный фон — CSS на .vel-chat__thread, не absolute-слой внутри скролла:
+          иначе при прокрутке ленты паттерн «съезжал» и оставлял пустые зоны.
+        -->
         <div class="vel-chat__stack">
           <VelChatBubble
             author="agent"
@@ -211,17 +212,29 @@ const agentLead = computed(() =>
 
 .vel-chat__thread {
   position: relative;
+  overflow-x: hidden;
   overflow-y: auto;
   min-block-size: 12rem;
   flex: 1 1 auto;
   padding: 0.85rem;
   overscroll-behavior-block: contain;
+  /*
+   * Фон на самом scroll-контейнере (не на absolute-дочернем):
+   * attachment scroll — паттерн привязан к viewport ленты и не уезжает
+   * вместе с сообщениями при скролле.
+   */
   background-color: var(--color-ground);
-}
-
-.vel-chat__texture {
-  z-index: 0;
-  color: var(--color-line-strong);
+  background-image: radial-gradient(
+    circle at center,
+    color-mix(in oklab, var(--color-line-strong) 50%, transparent) 0,
+    color-mix(in oklab, var(--color-line-strong) 50%, transparent) 1px,
+    transparent 1.1px
+  );
+  background-size: 18px 18px;
+  background-repeat: repeat;
+  background-attachment: scroll;
+  background-origin: padding-box;
+  background-clip: padding-box;
 }
 
 .vel-chat__stack {

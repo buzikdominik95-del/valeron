@@ -229,19 +229,19 @@ export async function fillContractPdf(
     })
   }
 
-  /* Prestatore: печать + подпись (правый нижний угол, как на проде) */
+  /* Prestatore: печать + подпись (правый нижний угол, фото 5 — крупная круглая) */
   if (assets?.stampUrl) {
     const stamp = await embedImageUrl(pdf, assets.stampUrl)
     if (stamp) {
-      /* Печать крупнее (фото 5) */
-      const w = xMm(42, scale)
+      /* ~48 mm — печать целиком, без обрезки края страницы */
+      const w = xMm(48, scale)
       const h = (stamp.height / stamp.width) * w
       page.drawImage(stamp, {
-        x: xMm(138, scale),
-        y: yFromTop(height, 248, scale, 0) - h,
+        x: xMm(128, scale),
+        y: yFromTop(height, 242, scale, 0) - h,
         width: w,
         height: h,
-        opacity: 0.94,
+        opacity: 0.96,
       })
     }
   }

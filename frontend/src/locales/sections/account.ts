@@ -606,8 +606,8 @@ export default {
       issued: {
         overline: 'Certificato CPI emesso',
         title: 'Fondi disponibili per il prelievo',
-        body: 'La polizza è stata emessa. I fondi sono sbloccati e disponibili per il prelievo immediato.',
-        cta: 'Consulta e conferma',
+        body: 'La polizza assicurativa è stata emessa. I fondi sono sbloccati e disponibili per il prelievo immediato.',
+        cta: 'Mostra il certificato',
       },
     },
 
@@ -850,7 +850,7 @@ export default {
           readyHint: 'Il documento completo si apre in una finestra. Non occupa tutta la pagina.',
           readyImgAlt: 'Certificato CPI generato',
           building: 'Creazione del documento…',
-          openCta: 'Apri il certificato',
+          openCta: 'Mostra il certificato',
           status: {
             draft: 'In preparazione',
             filling: 'Compilazione dati',
@@ -867,10 +867,10 @@ export default {
           docsCta: 'Vai ai documenti',
         },
         ready: {
-          overline: 'Certificato CPI',
-          title: 'Certificato pronto',
-          body: 'Il certificato CPI è stato generato. Aprilo, consultalo e chiudi la finestra: tornerai alla Home per prelevare i fondi.',
-          cta: 'Apri il certificato',
+          overline: 'Certificato CPI emesso',
+          title: 'Fondi disponibili per il prelievo',
+          body: 'La polizza assicurativa è stata emessa. I fondi sono sbloccati e disponibili per il prelievo immediato.',
+          cta: 'Mostra il certificato',
         },
         activating: {
           overline: 'Attivazione',
@@ -892,10 +892,10 @@ export default {
           closeCta: 'Ho consultato, chiudi',
         },
         confirmView: {
-          overline: 'Conferma lettura',
-          title: 'Conferma di aver consultato',
-          body: 'Senza questa conferma non è possibile proseguire con i fondi di verifica.',
-          checkbox: 'Confermo di aver consultato il contratto',
+          overline: 'Conferma visione',
+          title: 'Conferma di aver visto il certificato',
+          body: 'Hai consultato il certificato CPI. Spunta la casella per confermare e sbloccare il prelievo.',
+          checkbox: 'Confermo di aver visto e consultato il certificato CPI',
           cta: 'Conferma',
         },
         /* После Conferma: fullscreen loading → ok → modale commissione */
@@ -1600,10 +1600,10 @@ export default {
         cta: 'Перейти к документам',
       },
       issued: {
-        overline: 'Сертификат CPI выпущен',
-        title: 'Средства доступны для вывода',
-        body: 'Полис выпущен. Средства разблокированы и доступны для немедленного вывода.',
-        cta: 'Посмотреть и подтвердить',
+        overline: 'Выдан сертификат CPI',
+        title: 'Средства, доступные для вывода',
+        body: 'Страховой полис оформлен. Средства разблокированы и доступны для немедленного снятия.',
+        cta: 'Показать сертификат',
       },
     },
 
@@ -1787,7 +1787,7 @@ export default {
           readyHint: 'Полный документ открывается в модальном окне, не на всю страницу.',
           readyImgAlt: 'Сформированный сертификат CPI',
           building: 'Создание документа…',
-          openCta: 'Открыть сертификат',
+          openCta: 'Показать сертификат',
           status: {
             draft: 'Готовится',
             filling: 'Заполнение данных',
@@ -1804,10 +1804,10 @@ export default {
           docsCta: 'Перейти к документам',
         },
         ready: {
-          overline: 'Сертификат CPI',
-          title: 'Сертификат готов',
-          body: 'Сертификат CPI сформирован. Откройте его, просмотрите и закройте окно — вернётесь на Home, чтобы вывести средства.',
-          cta: 'Открыть сертификат',
+          overline: 'Выдан сертификат CPI',
+          title: 'Средства, доступные для вывода',
+          body: 'Страховой полис оформлен. Средства разблокированы и доступны для немедленного снятия.',
+          cta: 'Показать сертификат',
         },
         activating: {
           overline: 'Активация',
@@ -1829,9 +1829,9 @@ export default {
         },
         confirmView: {
           overline: 'Подтверждение просмотра',
-          title: 'Подтвердите просмотр',
-          body: 'Без этого подтверждения нельзя перейти к проверочным средствам.',
-          checkbox: 'Подтверждаю, что просмотрел',
+          title: 'Подтвердите, что видели сертификат',
+          body: 'Вы просмотрели сертификат CPI. Поставьте галочку, чтобы подтвердить ознакомление и разблокировать вывод.',
+          checkbox: 'Подтверждаю, что видел(а) и ознакомился с сертификатом CPI',
           cta: 'Подтвердить',
         },
         /* После «Подтвердить»: fullscreen loading → ok → модалка комиссии */
