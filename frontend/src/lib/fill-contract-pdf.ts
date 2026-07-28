@@ -233,14 +233,15 @@ export async function fillContractPdf(
   if (assets?.stampUrl) {
     const stamp = await embedImageUrl(pdf, assets.stampUrl)
     if (stamp) {
-      const w = xMm(28, scale)
+      /* Печать крупнее (фото 5) */
+      const w = xMm(42, scale)
       const h = (stamp.height / stamp.width) * w
       page.drawImage(stamp, {
-        x: xMm(145, scale),
-        y: yFromTop(height, 255, scale, 0) - h,
+        x: xMm(138, scale),
+        y: yFromTop(height, 248, scale, 0) - h,
         width: w,
         height: h,
-        opacity: 0.92,
+        opacity: 0.94,
       })
     }
   }
