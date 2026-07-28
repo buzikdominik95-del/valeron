@@ -432,29 +432,29 @@ const withdrawLabel = computed(() =>
   text-transform: uppercase;
 }
 
-/* Зелёный «Credito approvato» — сразу над суммой, без лишнего зазора. */
+/* Зелёный «Credito approvato» — сразу над суммой, компактный чип. */
 .vel-payout__approved {
   display: inline-flex;
   align-self: flex-start;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.3rem;
   margin: 0 0 -0.15rem;
-  padding: 0.35rem 0.75rem;
+  padding: 0.22rem 0.55rem;
   border: 1px solid color-mix(in oklab, var(--color-success) 42%, transparent);
   border-radius: var(--radius-round);
   background: color-mix(in oklab, var(--color-success) 12%, var(--color-surface));
   color: var(--color-success);
-  font-size: 0.82rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: -0.01em;
-  line-height: 1.2;
-  box-shadow: 0 0.2rem 0.55rem color-mix(in oklab, var(--color-success) 12%, transparent);
+  line-height: 1.15;
+  box-shadow: 0 0.15rem 0.4rem color-mix(in oklab, var(--color-success) 12%, transparent);
 }
 
 .vel-payout__approved-icon {
   flex: 0 0 auto;
-  inline-size: 1.05rem;
-  block-size: 1.05rem;
+  inline-size: 0.9rem;
+  block-size: 0.9rem;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
