@@ -586,22 +586,6 @@ const withdrawLabel = computed(() =>
   }
 }
 
-@keyframes vel-payout-hourglass-flip {
-  0%,
-  35% {
-    transform: rotate(0deg);
-  }
-
-  50%,
-  85% {
-    transform: rotate(180deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
 .vel-payout__busy:focus:not(:focus-visible) {
   outline: none;
 }
@@ -915,18 +899,10 @@ const withdrawLabel = computed(() =>
   .vel-payout__withdraw--tg,
   .vel-payout__prestito--dot,
   .vel-payout__prestito-live,
-  .vel-payout__busy-spin,
-  .vel-payout__busy-hourglass {
-    animation: none;
-  }
-
   .vel-payout__busy-spin {
+    animation: none;
     border-color: var(--color-success);
     opacity: 0.65;
-  }
-
-  .vel-payout__busy-hourglass {
-    opacity: 0.85;
   }
 
   .vel-payout__withdraw {
