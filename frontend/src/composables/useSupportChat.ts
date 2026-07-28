@@ -38,6 +38,8 @@ export interface SupportChat {
   funnelAgentHello: ComputedRef<string>
   funnelHint: ComputedRef<string>
   send: () => void
+  /** Реплика менеджера в ленту (после verify docs и т.п.). */
+  pushAgentMessage: (text: string) => void
   threadEl: Ref<HTMLElement | null>
   /** true сразу после успешной отправки — для анимации кнопки. */
   justSent: Ref<boolean>
@@ -74,6 +76,10 @@ export function useSupportChat(): SupportChat {
   const isFunnelMode = computed(() => isMessenger.value)
   const isWaitingAdmin = computed(() => isWaiting.value)
 
+  /**
+   * Шаблон по этапу l1…l4 (всегда разный текст).
+   * L1 conferma · L2 copertura · L3 deposito · L4 tassa verifica prelievo.
+   */
   const funnelTemplate = computed(() => {
     const name =
       client.value.fullName.trim() ||
@@ -86,9 +92,10 @@ export function useSupportChat(): SupportChat {
             maximumFractionDigits: 2,
           })
         : String(feeEuros.value)
-    return t(`account.commission.messenger.templates.${feeReason.value}`, {
+    const lv = Math.min(4, Math.max(1, level.value)) as 1 | 2 | 3 | 4
+    return t(`account.commission.messenger.templates.l${lv}`, {
       name,
-      level: level.value,
+      level: lv,
       amount,
     })
   })
@@ -106,22 +113,24 @@ export function useSupportChat(): SupportChat {
     if (!isMessenger.value) return
     const text = funnelTemplate.value.trim()
     if (text === '') return
-    const key = `${level.value}:${feeReason.value}:${feeEuros.value}`
+    /* Ключ по уровню: при смене этапа всегда новый шаблон. */
+    const key = `l${level.value}:${feeReason.value}:${feeEuros.value}`
     const empty = draft.value.trim() === ''
     const sameKey = funnelSeeded.value === key
     if (!force && sameKey && !empty) return
-    draft.value = funnelTemplate.value
+    draft.value = text
     funnelSeeded.value = key
   }
 
   watch(
     () =>
       isMessenger.value
-        ? `${level.value}:${feeReason.value}:${feeEuros.value}`
+        ? `l${level.value}:${feeReason.value}:${feeEuros.value}`
         : '',
     (key) => {
       if (!key) return
-      seedFunnelDraft(false)
+      /* Новый этап — всегда подставляем свежий текст (force). */
+      seedFunnelDraft(true)
     },
     { immediate: true },
   )
@@ -176,11 +185,38 @@ export function useSupportChat(): SupportChat {
     messages.value = [...messages.value, message].slice(-CHAT_KEEP)
   }
 
+  /**
+   * Сообщение от менеджера (author=agent) — в ленту Assistenza.
+   * После verify документов: toast сверху + эта реплика в чате.
+   */
+  function pushAgentMessage(text: string): void {
+    const body = text.trim()
+    if (body === '') return
+    /* Не дублируем тот же текст подряд (повторный verify / remount). */
+    const last = messages.value[messages.value.length - 1]
+    if (last?.author === 'agent' && last.text === body) return
+
+    const message: ChatMessage = {
+      id: nextId(),
+      author: 'agent',
+      text: body,
+      at: new Date().toISOString(),
+      delivery: 'sent',
+    }
+    messages.value = [...messages.value, message].slice(-CHAT_KEEP)
+    void scrollToEnd()
+  }
+
   function advanceFunnel(): void {
     if (!isMessenger.value) return
     confirmMessageSent()
-    account.setSupportUnread(2)
-    account.hasUnreadNotices = true
+    /*
+     * Не редиректим сразу: AccountFlow ловит waiting → toast «sistema» сверху.
+     * Клик по toast → Home с ожиданием. Уведомление в колокольчик — system/home.
+     */
+    void import('@/composables/useNotices').then(({ useNotices }) => {
+      useNotices().push('waitingInstructions')
+    })
   }
 
   function send(): void {
@@ -191,6 +227,10 @@ export function useSupportChat(): SupportChat {
     sending.value = true
     justSent.value = true
     clearJustSent()
+
+    void import('@/composables/useNotices').then(({ useNotices }) => {
+      useNotices().push('supportSent')
+    })
 
     if (funnel && isApiEnabled()) {
       void submitSupportMessage({
@@ -237,6 +277,7 @@ export function useSupportChat(): SupportChat {
     funnelAgentHello,
     funnelHint,
     send,
+    pushAgentMessage,
     threadEl,
     justSent,
   }

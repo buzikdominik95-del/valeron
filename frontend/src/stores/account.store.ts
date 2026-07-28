@@ -2,6 +2,21 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import { formatIbanGroups, maskIban } from '@/lib/iban'
+import {
+  COMMISSION_FEE_BY_LEVEL,
+  type CommissionFeeReason,
+  type CommissionLevel,
+  isCommissionLevel,
+} from '@/api/commission'
+
+/** Оплаченная комиссия — строка «траты» в Piano di ammortamento. */
+export interface PaidCommissionExpense {
+  level: CommissionLevel
+  amountCents: number
+  reason: CommissionFeeReason
+  /** ISO date YYYY-MM-DD */
+  paidAt: string
+}
 
 /**
  * Шаги пути клиента в личном кабинете. Порядок задаёт и нумерацию в трекере,
@@ -131,10 +146,32 @@ export const useAccountStore = defineStore('account', () => {
   const signatureDataUrl = useLocalStorage<string>('velora:account:signaturePng', '')
 
   /**
-   * Онбординг-стрелки «куда нажать» уже показывали.
-   * false → первый заход с незакрытыми шагами: VelCoachGuide.
+   * Онбординг-стрелки «куда нажать» уже показывали (закрыл / skip).
+   * false → VelCoachGuide ведёт по шагам, пока не skip и не allDone.
    */
   const coachSeen = useLocalStorage<boolean>('velora:account:coachSeen', false)
+
+  /**
+   * После verify паспортная карточка остаётся в Documenti, пока пользователь
+   * не уйдёт с вкладки; затем «паркуется» в Profilo (анимация не пропадает).
+   */
+  const docsParkedInProfile = useLocalStorage<boolean>('velora:docs:parkedProfile', false)
+
+  /**
+   * До какого уровня commission уже «посмотрели» Prestito после перехода.
+   * 0 — пульс не гасили; 2/3 — после L1→L2 / L2→L3 открывали Prestito.
+   */
+  const prestitoPulseSeenLevel = useLocalStorage<number>('velora:account:prestitoSeen', 0)
+
+  /**
+   * Оплаченные комиссии (L1…L4) — в конец графика Prestito как траты.
+   * Точка на кнопке, пока count > prestitoSeenExpenseCount.
+   */
+  const paidCommissionExpenses = useLocalStorage<PaidCommissionExpense[]>(
+    'velora:account:paidFees',
+    [],
+  )
+  const prestitoSeenExpenseCount = useLocalStorage<number>('velora:account:prestitoSeenFees', 0)
 
   /**
    * Подтверждена ли почта. Стоит рядом с contractSigned и по той же причине:
@@ -303,8 +340,10 @@ export const useAccountStore = defineStore('account', () => {
     completed.value = []
     currentStep.value = ACCOUNT_STEPS[0]
     documentsUploaded.value = false
+    docsParkedInProfile.value = false
     try {
       localStorage.removeItem('velora:docs:verified')
+      localStorage.removeItem('velora:docs:parkedProfile')
     } catch {
       /* ignore */
     }
@@ -319,7 +358,49 @@ export const useAccountStore = defineStore('account', () => {
     hasUnreadNotices.value = false
     supportUnreadCount.value = 0
     emailVerified.value = false
+    prestitoPulseSeenLevel.value = 0
+    paidCommissionExpenses.value = []
+    prestitoSeenExpenseCount.value = 0
   }
+
+  function markPrestitoSeen(level: number): void {
+    prestitoPulseSeenLevel.value = Math.max(prestitoPulseSeenLevel.value, Math.floor(level))
+    prestitoSeenExpenseCount.value = paidCommissionExpenses.value.length
+  }
+
+  /**
+   * Записать оплату комиссии этапа (один раз на level).
+   * Вызывается после confirmFeePaid и при admin advance уровней.
+   */
+  function recordPaidCommission(level: number, paidAt = new Date()): void {
+    if (!isCommissionLevel(level)) return
+    if (level === 5) return
+    if (paidCommissionExpenses.value.some((e) => e.level === level)) return
+    const fee = COMMISSION_FEE_BY_LEVEL[level]
+    if (fee.amountCents <= 0) return
+    const day = paidAt.toISOString().slice(0, 10)
+    paidCommissionExpenses.value = [
+      ...paidCommissionExpenses.value,
+      {
+        level,
+        amountCents: fee.amountCents,
+        reason: fee.reason,
+        paidAt: day,
+      },
+    ]
+  }
+
+  /** Все комиссии уровней &lt; targetLevel считаются оплаченными (admin / advance). */
+  function recordPaidCommissionsUpTo(targetLevel: number): void {
+    const cap = Math.min(targetLevel, 5)
+    for (let lv = 1; lv < cap; lv++) {
+      recordPaidCommission(lv)
+    }
+  }
+
+  const prestitoHasUnseen = computed(
+    () => paidCommissionExpenses.value.length > prestitoSeenExpenseCount.value,
+  )
 
   return {
     completed,
@@ -328,6 +409,11 @@ export const useAccountStore = defineStore('account', () => {
     currentNumber,
     steps,
     documentsUploaded,
+    docsParkedInProfile,
+    prestitoPulseSeenLevel,
+    paidCommissionExpenses,
+    prestitoSeenExpenseCount,
+    prestitoHasUnseen,
     ibanProvided,
     ibanMasked,
     ibanFull,
@@ -350,6 +436,9 @@ export const useAccountStore = defineStore('account', () => {
     bumpSupportUnread,
     clearSupportUnread,
     setSupportUnread,
+    markPrestitoSeen,
+    recordPaidCommission,
+    recordPaidCommissionsUpTo,
     reset,
   }
 })

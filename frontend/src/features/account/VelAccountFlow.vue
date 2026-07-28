@@ -8,6 +8,7 @@ import { useAccountStore } from '@/stores/account.store'
 import { useDossierStore } from '@/stores/dossier.store'
 import { isApiEnabled } from '@/api/account.api'
 import { demoLogin } from '@/api/auth.api'
+import { useSimulatorStore } from '@/stores/simulator.store'
 
 import VelAccount from '@/features/account/VelAccount.vue'
 import VelPayoutCard from '@/features/account/VelPayoutCard.vue'
@@ -21,25 +22,29 @@ import VelPolicyCard from '@/features/account/VelPolicyCard.vue'
 import VelDocumentUpload from '@/features/account/VelDocumentUpload.vue'
 import VelContractCard from '@/features/account/VelContractCard.vue'
 import VelContractSheet from '@/features/account/VelContractSheet.vue'
-import VelContractSignDialog from '@/features/account/VelContractSignDialog.vue'
+import VelContractIban from '@/features/account/VelContractIban.vue'
+import VelSignaturePad from '@/features/account/VelSignaturePad.vue'
 import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
-import { useFilledContractPdf } from '@/composables/useFilledContractPdf'
-import VelCoachGuide from '@/features/account/VelCoachGuide.vue'
+import VelLevelTransition from '@/features/account/VelLevelTransition.vue'
 import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
-import VelPayoutFailed from '@/features/account/VelPayoutFailed.vue'
 import VelTransferAnim from '@/features/account/VelTransferAnim.vue'
+import VelAccountFreezeModal from '@/features/account/VelAccountFreezeModal.vue'
+import VelRejectFlash from '@/features/account/VelRejectFlash.vue'
 import VelStageSwitch from '@/features/account/VelStageSwitch.vue'
 import VelLoanDetails from '@/features/account/VelLoanDetails.vue'
 import VelDevCommissionBar from '@/features/account/VelDevCommissionBar.vue'
 import VelTransferSuccess from '@/features/account/VelTransferSuccess.vue'
 import VelAccountToast from '@/features/account/VelAccountToast.vue'
+import VelAgentToast from '@/features/account/VelAgentToast.vue'
+import VelWaitingAdmin from '@/features/account/VelWaitingAdmin.vue'
 import { useCabinetTab } from '@/composables/useCabinetTab'
+import { useNotices } from '@/composables/useNotices'
 
 const { t } = useI18n()
 const account = useAccountStore()
 const dossier = useDossierStore()
-const { steps, canWithdraw, isAuthorizing, approvedAmount } = useAccount()
+const { steps, canWithdraw, isAuthorizing, allDone, approvedAmount } = useAccount()
 const {
   isPayFee,
   isMessenger,
@@ -48,28 +53,45 @@ const {
   isSuspended,
   isPolicyBuild,
   isFailed,
+  isTgFinal,
+  isRejectAnim,
   isReady,
   phase,
   level,
   beginWithdraw,
   openFeeFromSuspension,
+  openFeeFromFailure,
 } = useCommission()
 const { select: selectTab } = useCabinetTab()
+const notices = useNotices()
 
 const apiError = ref<string | null>(null)
+/** Toast сверху: agent (docs) | system (после L4 сообщение → Home). */
+const agentToastOpen = ref(false)
+const agentToastKind = ref<'agent' | 'system'>('agent')
+/** Полноэкранный крестик при L2 freeze / L4 reject — сам закрывается. */
+const rejectFlashOpen = ref(false)
 
 onMounted(() => {
   if (!isApiEnabled()) return
-  void demoLogin()
+  /*
+   * Не логинимся как marco@esempio.it по умолчанию — только email
+   * зарегистрированного пользователя (после мастера).
+   */
+  const simulator = useSimulatorStore()
+  const mail = simulator.email.trim()
+  if (mail === '') return
+  const name =
+    [simulator.firstName.trim(), simulator.surname.trim()].filter(Boolean).join(' ') || mail
+  void demoLogin(mail, 'password', name)
     .then(() => dossier.pullAccount())
     .catch((e: unknown) => {
       apiError.value = e instanceof Error ? e.message : 'API unavailable'
     })
 })
 
-/** Contratto template (Calipso-2.0) — данные клиента дорисует useFilledContractPdf. */
+/** Contratto PDF template (BASE_URL только в script — в template import.meta ломает prod build). */
 const contractPdfTemplate = `${import.meta.env.BASE_URL}cpi/cpi-contract.pdf`
-/* hasPdf для карточки: шаблон всегда есть */
 const contractPdfUrl = contractPdfTemplate
 /* payoutOpen убран: форма — выпадающая VelPayoutPanel под балансом */
 /** Этап 2: «данные в банк, 5–10 мин» до 7-минутной анимации. */
@@ -78,12 +100,13 @@ const bankNoticeOpen = ref(false)
 const amountOpen = ref(false)
 const withdrawAmount = ref(0)
 const commissionOpen = ref(false)
+/** Прогрузка с логотипом Velora при смене этапа (L1→L2…). */
+const levelTransitionOpen = ref(false)
 /** Выпадающая панель метода (не модалка) под Preleva. */
 const payoutPanelOpen = ref(false)
 provide(PAYOUT_PANEL_KEY, payoutPanelOpen)
-/* Счёт для зачисления кредита — своё окно, не окно вывода: почему именно так,
-   написано в шапке VelContractIban.vue. */
-/** IBAN + подпись в одной модалке */
+/* IBAN и подпись — отдельно (бриф, фотка 4): сначала счёт, потом росчерк. */
+const contractIbanOpen = ref(false)
 const contractSignOpen = ref(false)
 /** Prestito → модалка Dati personali + Piano di ammortamento */
 const loanOpen = ref(false)
@@ -96,6 +119,8 @@ const chosenFiles = ref<File[]>([])
 const toastText = ref<string | null>(null)
 
 const TOAST_MS = 2800
+/** Toast консультанта сверху: 7 с, потом сам закрывается. */
+const AGENT_TOAST_MS = 7000
 
 /*
  * Таймер из VueUse, а не голый setTimeout: useTimeoutFn снимает его сам при
@@ -116,22 +141,41 @@ const { start: hideToastLater } = useTimeoutFn(
   { immediate: false },
 )
 
+const { start: hideAgentToastLater } = useTimeoutFn(
+  () => {
+    agentToastOpen.value = false
+  },
+  AGENT_TOAST_MS,
+  { immediate: false },
+)
+
 function showToast(message: string): void {
   toastText.value = message
   hideToastLater()
 }
 
 /**
- * Firma unlock: шаг documents done, ИЛИ флаг store, ИЛИ выбран ≥1 файл.
- * Следим и за length, и за deep — иначе после setInputFiles в Playwright
- * кнопка иногда оставалась disabled на один кадр.
+ * Документы приняты (для Firma / пульса IBAN).
+ *
+ * НЕ смотрим chosenFiles: файлы выбирают до checking — иначе IBAN пульсирует
+ * ещё во время анимации «Documento verificato». Только после verified
+ * (documentsUploaded / step done / уже на Firma).
  */
-const documentsReady = computed(
-  () =>
-    steps.value.find((step) => step.id === 'documents')?.status === 'done' ||
-    account.documentsUploaded === true ||
-    chosenFiles.value.length > 0,
-)
+const documentsReady = computed(() => {
+  if (account.documentsUploaded === true) return true
+  if (account.completed.includes('documents')) return true
+
+  const docs = steps.value.find((step) => step.id === 'documents')
+  if (docs?.status === 'done') return true
+
+  /* Уже на Firma / подписан — документы позади. */
+  const sig = steps.value.find((step) => step.id === 'signature')
+  if (sig?.status === 'current' || sig?.status === 'done') return true
+  if (account.currentStep === 'signature') return true
+  if (account.contractSigned) return true
+
+  return false
+})
 
 function unlockFirmaAfterDocs(): void {
   account.documentsUploaded = true
@@ -139,24 +183,89 @@ function unlockFirmaAfterDocs(): void {
   account.advanceTo('signature')
 }
 
-/** Только после verify (не при выборе файла) — unlock firma + toast. */
-function onDocumentsVerified(): void {
-  unlockFirmaAfterDocs()
-  showToast(t('account.docs.toastReady'))
+/** Toast консультанта сверху + badge на чате + уведомление «менеджер»; через 7 с сам закрывается. */
+function showAgentMessageToast(): void {
+  account.bumpSupportUnread(1)
+  notices.push('managerMessage')
+  agentToastKind.value = 'agent'
+  agentToastOpen.value = true
+  hideAgentToastLater()
 }
 
-function onContractSignConfirm(payload: { dataUrl: string; ibanSaved: boolean }): void {
+/**
+ * Системный toast после оплаты+сообщения (L4/воронка waiting).
+ * Не уводит с чата сам — только по клику → Home + короткая прогрузка.
+ */
+function showSystemWaitingToast(): void {
+  agentToastKind.value = 'system'
+  agentToastOpen.value = true
+  hideAgentToastLater()
+}
+
+/** Только после verify (не при выборе файла) — unlock firma + toast + chat badge. */
+function onDocumentsVerified(): void {
+  unlockFirmaAfterDocs()
+  notices.push('documentVerified')
+  showAgentMessageToast()
+  showToast(t('account.docs.toastReady'))
+  /* Сообщение менеджера — в ленту Assistenza (author=agent). */
+  void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
+    useSupportChat().pushAgentMessage(t('account.support.chat.docsVerified'))
+  })
+}
+
+function onAgentToastOpen(): void {
+  agentToastOpen.value = false
+  if (agentToastKind.value === 'system') {
+    /* Home + полноэкранная прогрузка (как смена этапа). */
+    selectTab('home')
+    levelTransitionOpen.value = true
+    window.setTimeout(() => {
+      levelTransitionOpen.value = false
+    }, 2000)
+    return
+  }
+  selectTab('support')
+}
+
+function onAgentToastClose(): void {
+  agentToastOpen.value = false
+}
+
+function onContractSignConfirm(dataUrl: string): void {
   /* Подпись сразу в стор → лист договора рисует PNG. */
-  account.markContractSigned(new Date(), payload.dataUrl)
+  account.markContractSigned(new Date(), dataUrl)
   account.markDone('signature')
-  showToast(
-    payload.ibanSaved
-      ? t('account.contract.toastSigned')
-      : t('account.contract.toastSigned'),
-  )
+  /* Все 5 кружков step bar → done (каскад галочек в VelTrackerRow). */
+  for (const id of ['simulation', 'approval', 'account', 'documents', 'signature'] as const) {
+    account.markDone(id)
+  }
+  showToast(t('account.contract.toastSigned'))
+}
+
+/*
+ * Все 5 шагов step bar закрыты (обычно после Firma) → такой же toast
+ * «Nuovo messaggio», badge на Assistenza и колокольчике.
+ * Только переход false → true: не дублируем при reload с уже готовым ЛК.
+ * Notice «contractSigned» уже пушит useNotices при markContractSigned.
+ */
+watch(allDone, (done, wasDone) => {
+  if (!done || wasDone !== false) return
+  showAgentMessageToast()
+})
+
+function openContractIban(): void {
+  contractIbanOpen.value = true
 }
 
 function openContractSign(): void {
+  const hasIban =
+    Boolean(account.ibanProvided) || account.ibanFull.trim() !== '' || account.ibanMasked.trim() !== ''
+  /* Firma disabled без IBAN на карточке; страховка на случай вызова сбоку. */
+  if (!hasIban) {
+    contractIbanOpen.value = true
+    return
+  }
   contractSignOpen.value = true
 }
 
@@ -179,34 +288,70 @@ function startWithdrawFunnel(): void {
 }
 
 /**
- * Preleva:
- *  · Уровень 1 — ВСЕГДА выпадающая панель вниз («Scegli il metodo» + IBAN +
- *    сумма). Не пропускать, даже если IBAN уже из модалки подписи.
- *  · Уровни 2+ и IBAN уже в сторе → панель не открываем, сразу воронка.
- *  · Уровни 2+ без IBAN → панель (ввод один раз).
+ * Сумма для drawer: после L2-анимации ref может быть 0 (F5 / другой вход).
+ * Берём одобренный кредит — не гоняем снова в Preleva.
+ */
+function ensureWithdrawAmount(): void {
+  if (withdrawAmount.value > 0) return
+  const approved = Math.round(approvedAmount.value)
+  if (approved > 0) withdrawAmount.value = approved
+}
+
+/** pay_fee / «Paga la copertura»: сразу drawer комиссии, без Preleva. */
+function openCommissionPayment(): void {
+  ensureWithdrawAmount()
+  payoutPanelOpen.value = false
+  commissionOpen.value = true
+}
+
+/**
+ * Preleva — повторный вход после 1-й попытки (pay_fee / messenger / suspended).
+ * Раньше кнопка гасла навсегда: phase ≠ ready, а onWithdraw выходил сразу.
  */
 function onWithdraw(): void {
   if (!canWithdraw.value) return
-  if (!isReady.value && !isSuspended.value) return
-  if (isSuspended.value) {
-    openFeeFromSuspension()
-  }
 
-  const hasIban = account.ibanProvided && account.ibanFull.trim() !== ''
-
-  /* L1: всегда панель вниз. 2+ без IBAN: тоже панель. */
-  if (level.value === 1 || !hasIban) {
-    if (payoutPanelOpen.value) {
-      payoutPanelOpen.value = false
-      return
-    }
-    payoutPanelOpen.value = true
+  /* Уже в оплате комиссии — снова drawer (закрыли без оплаты). */
+  if (isPayFee.value) {
+    openCommissionPayment()
     return
   }
 
-  /* L2 / L3 / L4 + IBAN уже сохранён → сразу вывод без повторного ввода. */
-  payoutPanelOpen.value = false
-  continueAfterPayout(Math.round(approvedAmount.value))
+  /* L4 failed: Preleva снова открывает оплату (сцена не пропадает). */
+  if (isFailed.value && level.value === 4) {
+    openFeeFromFailure()
+    openCommissionPayment()
+    return
+  }
+
+  /* После оплаты: продолжить в чате с менеджером. */
+  if (isMessenger.value) {
+    selectTab('support')
+    return
+  }
+
+  /* Waiting: остаёмся на Home — карточка «ожидайте инструкций». */
+  if (isWaiting.value) {
+    selectTab('home')
+    return
+  }
+
+  /* L2 страховка: pay_fee → сразу комиссия (не Preleva). */
+  if (isSuspended.value) {
+    openFeeFromSuspension()
+    openCommissionPayment()
+    return
+  }
+
+  /* Анимация / policy / отказ — кнопки нет (VelPayoutCard.withdrawLocked). */
+  if (!isReady.value) return
+
+  /* Toggle: повторный Preleva закрывает панель. */
+  if (payoutPanelOpen.value) {
+    payoutPanelOpen.value = false
+    return
+  }
+  payoutPanelOpen.value = true
 }
 
 /** После панели или сразу (если IBAN есть) → drawer / анимация по уровню. */
@@ -249,38 +394,39 @@ function onCommissionConfirmed(): void {
   selectTab('support')
 }
 
-/** Комиссия в pay_fee → drawer (не инлайн-карточка). */
+/**
+ * Комиссия в pay_fee → drawer (не инлайн-карточка).
+ * L2 «перевод заморожен» → Paga: openFeeFromSuspension → pay_fee → сразу оплата,
+ * без повторного Preleva (сумма из approved, если ref сброшен).
+ */
 watch(isPayFee, (on) => {
   if (!on) {
     commissionOpen.value = false
     return
   }
-  // Сумма уже из Preleva-панели; если нет — снова выпадающая форма.
-  if (withdrawAmount.value <= 0) {
-    payoutPanelOpen.value = true
-    return
-  }
-  commissionOpen.value = true
+  openCommissionPayment()
 })
 
-/** Messenger / waiting: уходим с Home на Assistenza, чат не на главной. */
-watch(
-  () => isMessenger.value || isWaiting.value,
-  (needChat) => {
-    if (needChat) selectTab('support')
-  },
-)
+/** После оплаты → Assistenza (чат). */
+watch(isMessenger, (needChat) => {
+  if (needChat) selectTab('support')
+})
+
+/*
+ * Waiting: НЕ редиректим сразу на Home.
+ * Показываем системный toast сверху (как после docs); клик → Home + анимация.
+ */
+watch(isWaiting, (waiting, was) => {
+  if (waiting && was === false) {
+    showSystemWaitingToast()
+  }
+})
 
 /** PDF в модалке: шаблон + ФИО/сумма/IBAN/подпись как на старом проде. */
 const pdfOpen = ref(false)
-const {
-  displayUrl: filledPdfUrl,
-  loading: pdfFilling,
-  error: pdfError,
-} = useFilledContractPdf(contractPdfTemplate, pdfOpen)
 
 function onOpenPdf(): void {
-  /* Сразу открываем модалку — шаблон виден, fill идёт в фоне. */
+  /* Чистая модалка с бланком + ФИО (без PDF toolbar / печати). */
   pdfOpen.value = true
 }
 
@@ -307,20 +453,96 @@ watch(isAnimating, (now, was) => {
   }
 })
 
+/*
+ * Конец анимации L2/L4: полноэкранный крестик «вылетает» и через ~1.4 с уходит.
+ * isRejectAnim = true в hold 100% и в suspended/failed.
+ */
+watch(isRejectAnim, (now, was) => {
+  if (now && was === false) {
+    rejectFlashOpen.value = true
+  }
+})
+
 const showClassicBank = computed(
   () => isAuthorizing.value && !isAnimating.value && !isSuspended.value && !isFailed.value,
+)
+
+/**
+ * L4: сцена отказа живёт до оплаты + сообщения менеджеру
+ * (failed → drawer поверх failed → messenger → waiting).
+ */
+const showL4RejectScene = computed(
+  () => level.value === 4 && (isFailed.value || isMessenger.value),
 )
 
 const transferStage = computed((): { key: string; view: Component } | null => {
   if (isAnimating.value) return { key: `anim-${phase.value}`, view: VelTransferAnim }
   if (isSuspended.value) return { key: 'suspended', view: VelSuspensionCard }
-  if (isFailed.value) return { key: 'failed', view: VelPayoutFailed }
+  /* После оплаты + сообщения: анимация уходит, на Home — «ожидайте инструкций». */
+  if (isWaiting.value) return { key: 'waiting', view: VelWaitingAdmin }
+  /* L4 failed / tg_final: сцена ниже + freeze-modal, не отдельная stage-карточка */
+  if (isFailed.value || isTgFinal.value) return null
   if (showClassicBank.value) return { key: 'bank', view: VelBankAuthorizing }
   // pay_fee → VelCommissionDrawer (оверлей), не карточка на Home
   if (isPolicyBuild.value) return { key: 'policy-build', view: VelPolicyBuildCard }
-  // messenger / waiting — внутри VelCabinetSupport (один чат, без отдельной панели)
+  // messenger L1–L3 — чат Assistenza; L4 messenger — сцена + чат
   return null
 })
+
+/**
+ * L4 failed → модалка «оплати» (крестик; CTA снова открывает).
+ * L5 tg_final → Telegram-модалка (тоже крестик); после закрытия —
+ * красная «Contatta il manager» на Home → снова open.
+ */
+const freezeDismissed = ref(false)
+const freezeOpen = computed({
+  get: () => {
+    if (isTgFinal.value || isFailed.value) return !freezeDismissed.value
+    return false
+  },
+  set: (next) => {
+    freezeDismissed.value = !next
+  },
+})
+
+const freezeMode = computed<'reject' | 'telegram'>(() =>
+  isTgFinal.value ? 'telegram' : 'reject',
+)
+
+/**
+ * L5: красная «Contatta il manager» ВСЕГДА (модалка открыта или закрыта),
+ * не зелёный Preleva. Клик → открыть/вернуть Telegram-модалку.
+ */
+const tgContactMode = computed(() => isTgFinal.value)
+
+watch(isFailed, (failed) => {
+  if (failed) freezeDismissed.value = false
+})
+
+watch(isTgFinal, (tg) => {
+  if (tg) {
+    freezeDismissed.value = false
+    /* Только Home: навигация дальше блокируется в VelAccount. */
+    selectTab('home')
+  }
+})
+
+function onFreezePay(): void {
+  /* Drawer поверх failed: phase не сбрасываем, UI остаётся. */
+  freezeDismissed.value = true
+  openFeeFromFailure()
+  openCommissionPayment()
+}
+
+function openFreezeReject(): void {
+  if (!isFailed.value) return
+  freezeDismissed.value = false
+}
+
+function openFreezeTelegram(): void {
+  if (!isTgFinal.value) return
+  freezeDismissed.value = false
+}
 
 /*
  * Переключатель фаз L1–L4 — всегда на экране (демо + стенд + прод-сборка).
@@ -338,8 +560,10 @@ const showDevBar = !(
     <template #summary>
       <VelPayoutCard
         :panel-open="payoutPanelOpen"
+        :tg-contact-mode="tgContactMode"
         @withdraw="onWithdraw"
         @open-loan="openLoan"
+        @contact-manager="openFreezeTelegram"
       />
       <!-- Выпадающая форма метода (шаг 1 после Preleva) — не модалка -->
       <VelPayoutPanel
@@ -355,11 +579,15 @@ const showDevBar = !(
       </VelStageSwitch>
 
       <!--
-        ПРИ ОТКАЗЕ СЦЕНА ПЕРЕВОДА ОСТАЁТСЯ НА ЭКРАНЕ, а карточка отказа встаёт
-        под ней. Заказчик просил, чтобы движение не прекращалось: деньги ушли из
-        банка и идут, до получателя не доходят.
+        L4: сцена отказа до оплаты + сообщения менеджеру;
+        L2 suspended → карточка страховки + freeze-сцена.
       -->
-      <VelTransferAnim v-if="isFailed" class="mt-4" />
+      <VelTransferAnim
+        v-if="showL4RejectScene || isSuspended"
+        class="mt-4"
+        :reject-open="isFailed && freezeOpen && freezeMode === 'reject'"
+        @open-reject="openFreezeReject"
+      />
     </template>
 
     <template #policy>
@@ -376,15 +604,15 @@ const showDevBar = !(
 
     <template #signature>
       <!-- Один блок: шапка договора + лист (2.png) -->
-      <section class="vel-contract-block rounded-panel border border-line bg-surface p-4 sm:p-5">
+      <section class="vel-contract-block rounded-panel border border-line bg-surface">
         <VelContractCard
           :pdf-url="contractPdfUrl"
           :documents-ready="documentsReady"
-          :iban-provided="account.ibanProvided"
+          :iban-provided="Boolean(account.ibanProvided) || account.ibanFull.trim() !== ''"
           :signed="account.contractSigned"
           @sign="openContractSign"
           @open-pdf="onOpenPdf"
-          @enter-iban="openContractSign"
+          @enter-iban="openContractIban"
         />
         <div class="mt-4 border-t border-line pt-4">
           <VelContractSheet />
@@ -405,33 +633,57 @@ const showDevBar = !(
     v-model:open="commissionOpen"
     @confirmed="onCommissionConfirmed"
   />
-  <!-- IBAN + firma in una modale -->
-  <VelContractSignDialog v-model:open="contractSignOpen" @confirm="onContractSignConfirm" />
+  <!-- IBAN отдельно, подпись (только росчерк) отдельно -->
+  <VelContractIban v-model:open="contractIbanOpen" />
+  <VelSignaturePad v-model:open="contractSignOpen" @confirm="onContractSignConfirm" />
 
-  <!-- Contratto PDF con dati cliente (overlay come policy-pdf.php) -->
+  <!-- Apri PDF: полный Contratto di credito al consumo (тот же лист, что на Documenti) -->
   <VelPdfDialog
     v-model:open="pdfOpen"
-    :src="filledPdfUrl"
-    :title="t('contract.card.title')"
-    :loading="pdfFilling"
-    :error="pdfError"
-  />
+    name-mode="none"
+    :title="t('contract.preview.title')"
+  >
+    <VelContractSheet />
+  </VelPdfDialog>
 
   <!-- Prestito: модалка с 2 блоками (Dati personali + ammortamento) -->
   <VelLoanDetails v-model:open="loanOpen" />
 
-  <VelCoachGuide />
+  <!-- L1→L2 (и дальше): полноэкранная прогрузка с логотипом Velora -->
+  <VelLevelTransition v-model:open="levelTransitionOpen" :level="level" />
 
   <!-- Полноэкранный финал перевода: сам уходит по таймеру, закрывается по Esc -->
   <VelTransferSuccess v-model:open="successOpen" />
 
-  <VelDevCommissionBar v-if="showDevBar" />
+  <VelDevCommissionBar v-if="showDevBar && !isTgFinal" />
 
   <VelAccountToast :text="toastText" />
+
+  <VelAgentToast
+    :open="agentToastOpen"
+    :variant="agentToastKind"
+    @open="onAgentToastOpen"
+    @close="onAgentToastClose"
+  />
+
+  <!-- L2/L4: крестик на весь экран → сам закрывается -->
+  <VelRejectFlash v-model:open="rejectFlashOpen" />
+
+  <!-- L4 reject → pay 280; L5 / tg_final → Telegram -->
+  <VelAccountFreezeModal
+    v-model:open="freezeOpen"
+    :mode="freezeMode"
+    @pay="onFreezePay"
+  />
 </template>
 
 <style scoped>
 /* Единый блок договора: убираем вторую рамку у карточки внутри */
+.vel-contract-block {
+  min-inline-size: 0;
+  padding: var(--vel-cab-card-pad, 1rem);
+}
+
 .vel-contract-block :deep(.vel-contract-card) {
   padding: 0;
   border: none;

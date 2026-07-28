@@ -56,7 +56,28 @@ useAutoAnimate(fieldBody)
 
     <slot />
 
-    <p v-if="error" :id="errorId" class="text-xs text-danger" role="alert">{{ error }}</p>
-    <p v-else-if="hint" :id="hintId" class="text-xs text-faint">{{ hint }}</p>
+    <p v-if="error" :id="errorId" class="vel-field__msg vel-field__msg--error" role="alert">
+      {{ error }}
+    </p>
+    <p v-else-if="hint" :id="hintId" class="vel-field__msg vel-field__msg--hint">{{ hint }}</p>
   </div>
 </template>
+
+<style scoped>
+/* Подсказки форм: нейтральный slate, не «нежно-голубой» bleached text. */
+.vel-field__msg {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+}
+
+.vel-field__msg--hint {
+  color: var(--color-muted);
+}
+
+.vel-field__msg--error {
+  color: var(--color-danger);
+  font-weight: 500;
+}
+</style>

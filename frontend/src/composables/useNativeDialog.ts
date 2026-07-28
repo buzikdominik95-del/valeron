@@ -25,11 +25,58 @@ import { tryOnScopeDispose, useEventListener, useScrollLock } from '@vueuse/core
  *      бы поднятым — окно больше не открылось бы, потому что менять нечего.
  *   2. Замок прокрутки. Колесо над подложкой продолжает мотать документ:
  *      единственное, что приходится добирать из VueUse.
+ *   3. Анимация закрытия: close() снимает [open] мгновенно. Перед close()
+ *      вешаем класс vel-dialog-out (глобальные keyframes в main.css) и ждём
+ *      animationend — иначе все модалки «моргают» без leave.
  *
  * @param dialog ссылка на элемент <dialog>
  * @param open   модель «окно открыто»
  */
-export function useNativeDialog(dialog: Readonly<Ref<HTMLDialogElement | null>>, open: Ref<boolean>): void {
+
+/** Длительность leave — синхрон с --vel-dialog-out-ms / main.css */
+const DIALOG_OUT_MS = 220
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined' || !window.matchMedia) return false
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function closeWithAnimation(element: HTMLDialogElement): void {
+  if (!element.open) return
+  if (element.dataset.velClosing === '1') return
+
+  if (prefersReducedMotion()) {
+    element.close()
+    return
+  }
+
+  element.dataset.velClosing = '1'
+  element.classList.add('vel-dialog-out')
+
+  let finished = false
+  const finish = (): void => {
+    if (finished) return
+    finished = true
+    element.removeEventListener('animationend', onAnimEnd)
+    element.classList.remove('vel-dialog-out')
+    delete element.dataset.velClosing
+    if (element.open) element.close()
+  }
+
+  const onAnimEnd = (event: AnimationEvent): void => {
+    /* Только анимация самого dialog, не дочерних (text/border-beam). */
+    if (event.target !== element) return
+    finish()
+  }
+
+  element.addEventListener('animationend', onAnimEnd)
+  window.setTimeout(finish, DIALOG_OUT_MS + 80)
+}
+
+export function useNativeDialog(
+  dialog: Readonly<Ref<HTMLDialogElement | null>>,
+  open: Ref<boolean>,
+): void {
   /*
    * В источниках не только флаг, но и сам элемент: при монтировании с
    * open === true флага бы не хватило — он не менялся, и showModal() никто
@@ -41,17 +88,32 @@ export function useNativeDialog(dialog: Readonly<Ref<HTMLDialogElement | null>>,
       if (!element) return
 
       if (isOpen) {
+        element.classList.remove('vel-dialog-out')
+        delete element.dataset.velClosing
         // Повторный showModal() на открытом окне — исключение InvalidStateError.
         if (!element.open) element.showModal()
         return
       }
 
-      if (element.open) element.close()
+      if (element.open) closeWithAnimation(element)
     },
     { flush: 'post' },
   )
 
-  // Escape и любой вызов close() закрывают окно мимо модели — опускаем флаг.
+  /*
+   * Escape: preventDefault, чтобы dialog не close() мгновенно —
+   * спускаем open=false → watch → leave-анимация → close().
+   */
+  useEventListener(
+    () => dialog.value,
+    'cancel',
+    (event) => {
+      event.preventDefault()
+      if (open.value) open.value = false
+    },
+  )
+
+  // close() после анимации (или native) — опускаем флаг модели.
   useEventListener(
     () => dialog.value,
     'close',
@@ -69,5 +131,7 @@ export function useNativeDialog(dialog: Readonly<Ref<HTMLDialogElement | null>>,
   // Окно могли размонтировать открытым — замок снимаем за собой.
   tryOnScopeDispose(() => {
     locked.value = false
+    const el = dialog.value
+    if (el?.open) el.close()
   })
 }

@@ -96,12 +96,43 @@ function monogram(name: string): string {
 }
 
 /**
+ * Фиксированные цвета/формы «как на старом проде» для известных банков.
+ * Без чужих логотипов — только фирменные палитры и монограммы.
+ */
+const BRAND: Record<string, { tone: (typeof TONES)[number]; shape: (typeof SHAPES)[number]; initials?: string }> = {
+  'bnp paribas': { tone: 'navy', shape: 'hex', initials: 'BP' },
+  'societe generale': { tone: 'brick', shape: 'squircle', initials: 'SG' },
+  'société générale': { tone: 'brick', shape: 'squircle', initials: 'SG' },
+  'credit agricole': { tone: 'forest', shape: 'circle', initials: 'CA' },
+  'crédit agricole': { tone: 'forest', shape: 'circle', initials: 'CA' },
+  santander: { tone: 'brick', shape: 'circle', initials: 'SA' },
+  hsbc: { tone: 'brick', shape: 'squircle', initials: 'HS' },
+  revolut: { tone: 'slate', shape: 'hex', initials: 'RE' },
+  'deutsche bank': { tone: 'plum', shape: 'circle', initials: 'DB' },
+  ing: { tone: 'ochre', shape: 'squircle', initials: 'IN' },
+  bbva: { tone: 'royal', shape: 'hex', initials: 'BB' },
+  unicredit: { tone: 'brick', shape: 'circle', initials: 'UN' },
+  'intesa sanpaolo': { tone: 'forest', shape: 'squircle', initials: 'IS' },
+  commerzbank: { tone: 'ochre', shape: 'hex', initials: 'CO' },
+  barclays: { tone: 'teal', shape: 'hex', initials: 'BA' },
+}
+
+/**
  * Марка банка по его имени. Чистая функция: одно имя — всегда один результат,
  * поэтому вызывать её можно хоть на каждой перерисовке.
  */
 export function bankMarkIdentity(name: string): BankMarkIdentity {
-  const hash = hashName(name)
+  const key = name.trim().toLowerCase()
+  const brand = BRAND[key]
+  if (brand) {
+    return {
+      toneClass: `vel-mark--${brand.tone}`,
+      shapeClass: `vel-mark--${brand.shape}`,
+      initials: brand.initials ?? monogram(name),
+    }
+  }
 
+  const hash = hashName(name)
   return {
     toneClass: `vel-mark--${TONES[hash % TONES.length]}`,
     shapeClass: `vel-mark--${SHAPES[(hash >>> 8) % SHAPES.length]}`,

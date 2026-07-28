@@ -76,7 +76,13 @@ function createCabinetTab(): CabinetTabApi {
   function select(next: CabinetTab): void {
     // Страж и на запись: значение приходит из разметки меню, но однажды придёт
     // и извне — из ссылки, кода уведомления, глубокого перехода.
-    if (!isCabinetTab(next) || tab.value === next) return
+    if (!isCabinetTab(next)) return
+    /* Та же вкладка — всё равно пишем: уведомление «на документы» должно
+       сработать, даже если Documenti уже открыт (focus heading снаружи). */
+    if (tab.value === next) {
+      params.tab = next
+      return
+    }
     params.tab = next
   }
 

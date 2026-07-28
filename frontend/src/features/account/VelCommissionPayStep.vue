@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelCopyRow from '@/features/account/VelCopyRow.vue'
 
-/** Шаг 3 drawer: SEPA-реквизиты для оплаты комиссии. */
+/** Шаг 3 drawer: SEPA-реквизиты. Без Indietro. */
 defineProps<{
   beneficiary: string
   iban: string
@@ -11,7 +11,7 @@ defineProps<{
   feeText: string
 }>()
 
-const emit = defineEmits<{ back: []; confirm: [] }>()
+const emit = defineEmits<{ confirm: [] }>()
 const { t } = useI18n()
 </script>
 
@@ -31,10 +31,7 @@ const { t } = useI18n()
       <VelCopyRow :label="t('account.payment.amount')" :value="feeText" />
     </div>
     <p data-reveal class="m-0 text-xs text-faint">{{ t('account.payment.sslNote') }}</p>
-    <div data-reveal class="flex flex-col gap-2">
-      <VelButton type="button" variant="outline" block @click="emit('back')">
-        {{ t('account.commissionDrawer.back') }}
-      </VelButton>
+    <div data-reveal>
       <VelButton
         type="button"
         block

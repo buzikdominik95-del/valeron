@@ -43,13 +43,66 @@ import VelCabinetSupport from '@/features/account/VelCabinetSupport.vue'
  * следующий Tab уводит по старому месту.
  */
 const { t } = useI18n()
-const { client } = useAccount()
+const { client, steps } = useAccount()
 const { tab } = useCabinetTab()
 const accountStore = useAccountStore()
-const { level } = useCommission()
+const { level, isTgFinal } = useCommission()
 
 /** С L2+ верхний step-bar скрыт — у шапки нет второй строки. */
 const noTopTrack = computed(() => level.value >= 2)
+
+/** L5: весь кабинет inert, кроме красной «Contatta il manager». */
+const tgLocked = computed(() => isTgFinal.value)
+
+/**
+ * Загрузка удостоверения (паспорт / ID):
+ *   · пока не принято — Documenti;
+ *   · после verify — анимация ОСТАЁТСЯ на Documenti (не исчезает);
+ *   · ушёл с Documenti (Home и т.д.) → «паркуется» в Profilo.
+ */
+const docsAccepted = computed(
+  () =>
+    accountStore.documentsUploaded === true ||
+    steps.value.find((s) => s.id === 'documents')?.status === 'done',
+)
+
+/** Показать карточку на Documenti: ещё не verified, либо verified, но ещё не уходили. */
+const showDocsOnDocuments = computed(
+  () => docsAccepted.value === false || accountStore.docsParkedInProfile === false,
+)
+
+/** В Profilo — только после ухода с Documenti (или restore с уже parked). */
+const showDocsOnProfile = computed(
+  () => docsAccepted.value === true && accountStore.docsParkedInProfile === true,
+)
+
+/*
+ * Уход с Documenti после verify → паркуем карточку в Profilo.
+ * Reload с уже загруженными docs: сразу Profilo (анимацию уже видели).
+ */
+watch(
+  tab,
+  (next, prev) => {
+    if (docsAccepted.value && prev === 'documents' && next !== 'documents') {
+      accountStore.docsParkedInProfile = true
+    }
+  },
+)
+
+watch(
+  docsAccepted,
+  (ok) => {
+    if (!ok) {
+      accountStore.docsParkedInProfile = false
+      return
+    }
+    /* Restore: уже verified и не на Documenti — сразу в профиле. */
+    if (tab.value !== 'documents') {
+      accountStore.docsParkedInProfile = true
+    }
+  },
+  { immediate: true },
+)
 
 /**
  * Панель уведомлений открывает оболочка, а не шапка.
@@ -118,8 +171,15 @@ watch(tab, async (next) => {
 </script>
 
 <template>
-  <div ref="rootEl" class="vel-cabinet" :class="{ 'vel-cabinet--no-track': noTopTrack }">
-    <!-- Кабинет целиком: пока сверху лежит заставка, он выключен из работы -->
+  <div
+    ref="rootEl"
+    class="vel-cabinet"
+    :class="{
+      'vel-cabinet--no-track': noTopTrack,
+      'vel-cabinet--tg-lock': tgLocked,
+    }"
+  >
+    <!-- Кабинет целиком: splash / L5 — выключен из работы (кроме красной CTA) -->
     <div
       class="vel-cabinet__frame"
       :inert="splashOpen || undefined"
@@ -155,18 +215,43 @@ watch(tab, async (next) => {
             На Home от них остались строки списка шагов со ссылками «Vai» —
             они и ведут сюда, так что путь не потерялся.
           -->
-          <VelStageSwitch :stage-key="tab">
-            <VelCabinetHome v-if="tab === 'home'">
+          <!--
+            Home держим смонтированным (v-show), а не v-if: после отказа L2/L4
+            сцена freeze + карточка должны ОСТАВАТЬСЯ при уходе в Assistenza
+            и возврате на Home. v-if + VelStageSwitch уничтожали DOM → анимация
+            «пропадала».
+          -->
+          <div
+            v-show="tab === 'home'"
+            class="vel-cabinet__page"
+            :inert="tab !== 'home' || undefined"
+            :aria-hidden="tab !== 'home' || undefined"
+          >
+            <VelCabinetHome>
               <template #summary><slot name="summary" /></template>
               <template #transfer><slot name="transfer" /></template>
               <template #policy><slot name="policy" /></template>
               <template #side><slot name="side" /></template>
             </VelCabinetHome>
+          </div>
 
-            <VelCabinetProfile v-else-if="tab === 'profile'" />
+          <VelStageSwitch v-if="tab !== 'home'" :stage-key="tab">
+            <VelCabinetProfile v-if="tab === 'profile'">
+              <!-- После verify + ухода с Documenti — карточка с анимацией здесь -->
+              <template v-if="showDocsOnProfile" #documents>
+                <slot name="documents" />
+              </template>
+            </VelCabinetProfile>
 
             <VelCabinetDocuments v-else-if="tab === 'documents'">
-              <template #upload><slot name="documents" /></template>
+              <!--
+                Карточка паспорта: idle/checking/verified.
+                После verify остаётся здесь, пока пользователь не уйдёт с вкладки
+                (тогда showDocsOnProfile = true).
+              -->
+              <template v-if="showDocsOnDocuments" #upload>
+                <slot name="documents" />
+              </template>
               <template #contract><slot name="signature" /></template>
             </VelCabinetDocuments>
 
@@ -204,7 +289,18 @@ watch(tab, async (next) => {
      настоящего, залипшая колонка Home полезет под полосу шагов. */
   --vel-track-h: 6.1rem;
   --vel-tabbar-h: 4rem;
-  --vel-tabbar-gap: 0.5rem;
+  --vel-tabbar-gap: 0.4rem;
+  /*
+    Плотность ЛК: меньше «воздуха» без ломки min 2.75rem touch targets.
+    Карточки/страницы читают эти переменные.
+  */
+  --vel-cab-pad-x: max(0.7rem, env(safe-area-inset-left, 0px));
+  --vel-cab-pad-x-end: max(0.7rem, env(safe-area-inset-right, 0px));
+  --vel-cab-pad-y: 0.75rem;
+  --vel-cab-gap: 0.7rem;
+  --vel-cab-card-pad: 1rem;
+  --vel-cab-card-gap: 0.65rem;
+  --vel-cab-content-max: 42rem;
 
   display: flex;
   min-block-size: 100dvh;
@@ -215,6 +311,24 @@ watch(tab, async (next) => {
 /* L2+: step-bar нет — fallback высоты шапки без полосы */
 .vel-cabinet--no-track {
   --vel-track-h: 0px;
+}
+
+/*
+ * L5: весь UI кабинета (логотип → nav → колокольчик → Prestito…) не кликабелен.
+ * Единственная цель: красная «Contatta il manager» (.vel-payout__withdraw--tg).
+ * Dialog Telegram (freeze) живёт вне frame — остаётся кликабельным.
+ */
+.vel-cabinet--tg-lock .vel-cabinet__frame {
+  pointer-events: none;
+  user-select: none;
+}
+
+.vel-cabinet--tg-lock :deep(.vel-payout__withdraw--tg) {
+  pointer-events: auto;
+  cursor: pointer;
+  /* поверх возможного dim у siblings */
+  position: relative;
+  z-index: 2;
 }
 
 /*
@@ -243,18 +357,21 @@ watch(tab, async (next) => {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.vel-cabinet__page {
+  display: block;
+  width: 100%;
+}
+
 .vel-cabinet__main {
   min-inline-size: 0;
-  padding-block-start: 1.25rem;
-  /* Боковые поля не меньше 0.875rem и не меньше бокового выреза — в ландшафте
-     с viewport-fit=cover текст иначе уходит под «бровь». */
-  padding-inline:
-    max(0.875rem, env(safe-area-inset-left))
-    max(0.875rem, env(safe-area-inset-right));
-  /* Нижнее поле считается из тех же двух переменных, что и сама панель, плюс
-     безопасная зона телефона: под панелью не должно оставаться содержимого. */
+  inline-size: 100%;
+  max-inline-size: min(100%, 52rem);
+  margin-inline: auto;
+  padding-block-start: var(--vel-cab-pad-y);
+  padding-inline: var(--vel-cab-pad-x) var(--vel-cab-pad-x-end);
+  /* Нижнее поле = tabbar + gap + safe-area; без лишних 0.5rem «воздуха». */
   padding-block-end:
-    calc(var(--vel-tabbar-h) + var(--vel-tabbar-gap) * 2 + env(safe-area-inset-bottom) + 0.5rem);
+    calc(var(--vel-tabbar-h) + var(--vel-tabbar-gap) * 2 + env(safe-area-inset-bottom) + 0.35rem);
 }
 
 /* Фокус сюда приходит программно, рамка была бы шумом. :focus-visible
@@ -263,16 +380,50 @@ watch(tab, async (next) => {
   outline: none;
 }
 
-@media (min-width: 64rem) {
-  .vel-cabinet__body {
-    grid-template-columns: 14rem minmax(0, 1fr);
+/* Планшет: чуть больше поле, контент шире — меньше пустых боков. */
+@media (min-width: 40rem) {
+  .vel-cabinet {
+    --vel-cab-pad-x: max(1rem, env(safe-area-inset-left, 0px));
+    --vel-cab-pad-x-end: max(1rem, env(safe-area-inset-right, 0px));
+    --vel-cab-pad-y: 0.9rem;
+    --vel-cab-gap: 0.8rem;
+    --vel-cab-card-pad: 1.1rem;
+    --vel-cab-content-max: 44rem;
   }
 
   .vel-cabinet__main {
-    inline-size: 100%;
-    max-inline-size: 72rem;
-    margin-inline: auto;
-    padding: 1.5rem 1.5rem 3rem;
+    max-inline-size: min(100%, 48rem);
+  }
+}
+
+@media (min-width: 64rem) {
+  .vel-cabinet {
+    --vel-cab-pad-x: 1.15rem;
+    --vel-cab-pad-x-end: 1.15rem;
+    --vel-cab-pad-y: 1rem;
+    --vel-cab-gap: 0.85rem;
+    --vel-cab-card-pad: 1.15rem;
+    --vel-tabbar-gap: 0.5rem;
+  }
+
+  .vel-cabinet__body {
+    grid-template-columns: 12.5rem minmax(0, 1fr);
+  }
+
+  .vel-cabinet__main {
+    max-inline-size: none;
+    /* Без гигантского padding-bottom 3rem — только нормальный низ. */
+    padding: var(--vel-cab-pad-y) var(--vel-cab-pad-x) 1.5rem;
+  }
+}
+
+@media (min-width: 80rem) {
+  .vel-cabinet__body {
+    grid-template-columns: 13.5rem minmax(0, 1fr);
+  }
+
+  .vel-cabinet__main {
+    max-inline-size: 56rem;
   }
 }
 </style>

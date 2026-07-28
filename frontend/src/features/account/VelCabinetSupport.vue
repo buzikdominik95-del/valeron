@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CABINET_HEADING_ID } from '@/composables/useCabinetTab'
 import { useSupportChat } from '@/composables/useSupportChat'
-import { useCommission } from '@/composables/useCommission'
 import { endsRun, startsNewDay } from '@/features/account/chat-thread'
 import VelChatBubble from '@/features/account/VelChatBubble.vue'
 import VelChatHeader from '@/features/account/VelChatHeader.vue'
@@ -18,7 +17,6 @@ import VelDotField from '@/components/magic/VelDotField.vue'
  * Waiting — компактная полоска внутри карточки, не второе «окно».
  */
 const { t, d } = useI18n()
-const { level } = useCommission()
 
 const {
   messages,
@@ -67,13 +65,13 @@ const agentLead = computed(() =>
         v-if="isWaitingAdmin"
         class="vel-chat__wait"
         role="status"
-        :aria-label="t('account.commission.waiting.busy', { level })"
+        :aria-label="t('account.commission.waiting.busy')"
       >
         <span class="vel-chat__wait-ring" aria-hidden="true" />
         <div class="min-w-0">
           <p class="vel-chat__wait-title">{{ t('account.commission.waiting.title') }}</p>
           <p class="vel-chat__wait-body">
-            {{ t('account.commission.waiting.body', { level }) }}
+            {{ t('account.commission.waiting.body') }}
           </p>
         </div>
       </div>
@@ -142,9 +140,11 @@ const agentLead = computed(() =>
 
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.45rem;
   block-size: calc(100dvh - var(--vel-shell-head-h, 9.6rem) - var(--vel-chat-reserve));
-  min-block-size: 22rem;
+  min-block-size: min(22rem, 70dvh);
+  max-inline-size: var(--vel-cab-content-max, 42rem);
+  width: 100%;
 }
 
 .vel-chat__card {

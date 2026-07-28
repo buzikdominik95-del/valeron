@@ -81,9 +81,21 @@ function goToPay(): void {
   step.value = 3
 }
 
+/** Аккуратная «назад»: 3→2, 2→1 (если IBAN-шаг нужен) или закрыть. */
 function goBack(): void {
-  if (step.value === 3) step.value = 2
-  else if (step.value === 2) step.value = 1
+  if (step.value === 3) {
+    step.value = 2
+    return
+  }
+  if (step.value === 2) {
+    if (hasIban.value) {
+      onDismiss()
+      return
+    }
+    step.value = 1
+    return
+  }
+  onDismiss()
 }
 
 function onConfirm(): void {
@@ -96,6 +108,8 @@ function onDismiss(): void {
   open.value = false
   emit('close')
 }
+
+const showBack = computed(() => step.value > 1 || !hasIban.value)
 </script>
 
 <template>
@@ -106,14 +120,33 @@ function onDismiss(): void {
     :aria-labelledby="titleId"
   >
     <form class="vel-cdraw__form" @submit.prevent>
-      <header class="flex items-start justify-between gap-3">
-        <div class="min-w-0">
-          <p class="vel-label m-0">{{ t('account.commissionDrawer.overline', { level }) }}</p>
-          <h2 :id="titleId" class="m-0 text-xl font-semibold text-fg">{{ stepTitle }}</h2>
+      <!--
+        Шапка: назад и × — одинаковый hit-box 2.75rem, без обводки,
+        в одной линии (items-center) на всех 3 шагах.
+      -->
+      <header class="vel-cdraw__head">
+        <button
+          v-if="showBack"
+          type="button"
+          class="vel-cdraw__icon-btn vel-cdraw__back"
+          :aria-label="t('account.commissionDrawer.back')"
+          @click="goBack"
+        >
+          <svg class="vel-cdraw__back-ico" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15 6 9 12l6 6" />
+          </svg>
+        </button>
+        <!-- Спейсер, если назад скрыт — × остаётся справа на том же уровне -->
+        <span v-else class="vel-cdraw__icon-btn vel-cdraw__icon-btn--ghost" aria-hidden="true" />
+
+        <div class="vel-cdraw__titles min-w-0">
+          <p class="vel-label m-0">{{ t('account.commissionDrawer.overlinePlain') }}</p>
+          <h2 :id="titleId" class="vel-cdraw__title m-0">{{ stepTitle }}</h2>
         </div>
+
         <button
           type="button"
-          class="vel-cdraw__x"
+          class="vel-cdraw__icon-btn vel-cdraw__x"
           :aria-label="t('account.commissionDrawer.close')"
           @click="onDismiss"
         >
@@ -168,7 +201,6 @@ function onDismiss(): void {
           :reason-title="reasonTitle"
           :reason-body="reasonBody"
           :fee-text="feeText"
-          @back="goBack"
           @next="goToPay"
         />
         <VelCommissionPayStep
@@ -177,7 +209,6 @@ function onDismiss(): void {
           :iban="sepaIban"
           :swift="coords.swift"
           :fee-text="feeText"
-          @back="goBack"
           @confirm="onConfirm"
         />
       </div>
@@ -214,20 +245,84 @@ function onDismiss(): void {
   min-block-size: 1px;
 }
 
-.vel-cdraw__x {
+/* Сетка шапки: [назад 2.75] | title | [× 2.75] — одна линия, все шаги */
+.vel-cdraw__head {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+  align-items: center;
+  column-gap: 0.35rem;
+  min-block-size: 2.75rem;
+}
+
+.vel-cdraw__titles {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.1rem;
+  text-align: center;
+  padding-inline: 0.15rem;
+}
+
+.vel-cdraw__title {
+  color: var(--color-fg);
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+/* Общий hit-box для ← и ×: без border/outline/круга, pixel-match */
+.vel-cdraw__icon-btn {
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: 2.75rem;
   height: 2.75rem;
-  border: 1px solid var(--color-line);
+  margin: 0;
+  padding: 0;
+  border: 0;
   border-radius: var(--radius-round);
-  background: var(--color-ground);
-  color: var(--color-fg);
-  font-size: 1.35rem;
-  line-height: 1;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-muted);
   cursor: pointer;
+  transition:
+    color 140ms ease,
+    background-color 140ms ease;
+}
+
+.vel-cdraw__icon-btn:hover {
+  background: var(--color-raised);
+  color: var(--color-fg);
+}
+
+.vel-cdraw__icon-btn:focus,
+.vel-cdraw__icon-btn:focus-visible {
+  outline: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.vel-cdraw__icon-btn--ghost {
+  visibility: hidden;
+  pointer-events: none;
+  cursor: default;
+}
+
+.vel-cdraw__back-ico {
+  width: 1.2rem;
+  height: 1.2rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.vel-cdraw__x {
+  font-size: 1.4rem;
+  line-height: 1;
 }
 
 .vel-cdraw__seg {

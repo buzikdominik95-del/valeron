@@ -24,6 +24,7 @@ const {
   isAnimating,
   isSuspended,
   isFailed,
+  isTgFinal,
   isPolicyBuild,
 } = useCommission()
 
@@ -37,6 +38,7 @@ const transferTakesOver = computed(
     isAuthorizing.value ||
     isSuspended.value ||
     isFailed.value ||
+    isTgFinal.value ||
     isPolicyBuild.value,
 )
 
@@ -48,6 +50,7 @@ const showTracker = computed(
 const stageKey = computed(() => {
   if (showTracker.value) return 'tracker'
   if (isPolicyBuild.value) return 'policy-build'
+  if (isTgFinal.value) return 'tg-final'
   if (isFailed.value) return 'failed'
   if (isSuspended.value) return 'suspended'
   if (isAnimating.value) return `anim-${level.value}`
@@ -58,7 +61,16 @@ const stageKey = computed(() => {
 
 <template>
   <div class="vel-home" :class="`vel-home--l${level}`">
-    <h2 :id="CABINET_HEADING_ID" tabindex="-1" class="vel-home__heading">
+    <!-- «La tua pratica» скрываем с L2+ (фотка 12) -->
+    <h2
+      v-if="level < 2"
+      :id="CABINET_HEADING_ID"
+      tabindex="-1"
+      class="vel-home__heading"
+    >
+      {{ t('account.pages.home.title') }}
+    </h2>
+    <h2 v-else :id="CABINET_HEADING_ID" tabindex="-1" class="sr-only">
       {{ t('account.pages.home.title') }}
     </h2>
 
@@ -99,7 +111,7 @@ const stageKey = computed(() => {
 .vel-home {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: var(--vel-cab-gap, 0.7rem);
 }
 
 .vel-home__heading:focus:not(:focus-visible) {
@@ -109,17 +121,18 @@ const stageKey = computed(() => {
 .vel-home__heading {
   margin: 0;
   color: var(--color-fg);
-  font-size: 1.35rem;
+  font-size: clamp(1.15rem, 3.5vw, 1.3rem);
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.2;
   letter-spacing: -0.02em;
 }
 
 .vel-home__main {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  max-inline-size: 40rem;
+  gap: var(--vel-cab-gap, 0.7rem);
+  max-inline-size: var(--vel-cab-content-max, 42rem);
+  width: 100%;
 }
 
 .vel-home__balance,
@@ -128,7 +141,8 @@ const stageKey = computed(() => {
 .vel-home__panels {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.55rem;
+  min-inline-size: 0;
 }
 
 .vel-home__transfer-idle:empty,

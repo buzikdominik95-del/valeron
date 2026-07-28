@@ -5,6 +5,7 @@ import { useAccount } from '@/composables/useAccount'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import type { CabinetTab } from '@/composables/useCabinetTab'
 import { accountStepHref } from '@/features/account/account-anchors'
+import { useAccountStore } from '@/stores/account.store'
 import type { AccountStep, AccountStepStatus } from '@/stores/account.store'
 
 /**
@@ -41,6 +42,8 @@ export interface TrackerStepItem {
   canOpen: boolean
   goLabel: string
   statusLabel: string
+  /** Сильный пульс — следующий шаг онбординга (docs / firma). */
+  callToAction: boolean
 }
 
 export interface TrackerBar {
@@ -76,6 +79,25 @@ export function useTrackerBar(root: Ref<HTMLElement | null>): TrackerBar {
     return allDone.value ? total : Math.min(total, doneCount.value + 1)
   })
 
+  /*
+   * Онбординг: пульс на step bar строго по цепочке.
+   * 1) documents — пока НЕ documentsUploaded (checking/idle ещё «docs»)
+   * 2) signature — только после verified, пока не signed
+   * documentsUploaded ставится после анимации Verificato (см. VelDocumentUpload).
+   */
+  const onboardingCall = computed<'documents' | 'signature' | null>(() => {
+    const store = useAccountStore()
+    const docsDone =
+      store.documentsUploaded === true ||
+      steps.value.find((s) => s.id === 'documents')?.status === 'done'
+    if (!docsDone) return 'documents'
+    const sigDone =
+      store.contractSigned === true ||
+      steps.value.find((s) => s.id === 'signature')?.status === 'done'
+    if (!sigDone) return 'signature'
+    return null
+  })
+
   /* Все строки шага собираются здесь и уходят в кружок уже переведёнными:
      ключи i18n знает полоса, а кружок — только свою разметку. */
   const items = computed<TrackerStepItem[]>(() =>
@@ -89,6 +111,9 @@ export function useTrackerBar(root: Ref<HTMLElement | null>): TrackerBar {
         step.id === 'simulation' ||
         step.id === 'approval'
 
+      const callToAction =
+        onboardingCall.value !== null && step.id === onboardingCall.value
+
       return {
         ...step,
         title,
@@ -97,6 +122,7 @@ export function useTrackerBar(root: Ref<HTMLElement | null>): TrackerBar {
         canOpen,
         goLabel: t('account.progress.goStep', { step: title }),
         statusLabel: t(`account.tracker.status.${step.status}`),
+        callToAction,
       }
     }),
   )
@@ -140,14 +166,24 @@ export function useTrackerBar(root: Ref<HTMLElement | null>): TrackerBar {
    * Остальные шаги закрывает система, вести по ним некуда — им остаётся
    * обзор на главной.
    */
-  const STEP_TAB: Partial<Record<AccountStep, CabinetTab>> = {
-    account: 'profile',
-    documents: 'documents',
-    signature: 'documents',
+  /**
+   * documents: до verify → Documenti; после accept карточка в Profilo (фотка 20).
+   * signature всегда в Documenti (договор).
+   */
+  function tabForStep(stepId: AccountStep): CabinetTab {
+    if (stepId === 'account') return 'profile'
+    if (stepId === 'signature') return 'documents'
+    if (stepId === 'documents') {
+      const docsDone =
+        useAccountStore().documentsUploaded === true ||
+        steps.value.find((s) => s.id === 'documents')?.status === 'done'
+      return docsDone ? 'profile' : 'documents'
+    }
+    return 'home'
   }
 
   function openStep(stepId: AccountStep, href: string | undefined): void {
-    const target = STEP_TAB[stepId] ?? 'home'
+    const target = tabForStep(stepId)
     if (tab.value !== target) select(target)
 
     // Шаг без якоря — это шаг без своей панели: показываем обзор сверху.

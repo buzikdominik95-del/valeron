@@ -1,22 +1,20 @@
 <script setup lang="ts">
+import { computed, useSlots } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CABINET_HEADING_ID } from '@/composables/useCabinetTab'
 import VelPersonalData from '@/features/account/VelPersonalData.vue'
 import VelSecurityPanel from '@/features/account/VelSecurityPanel.vue'
 
 /**
- * Раздел Profilo: личные данные заявки и безопасность аккаунта.
- * Те же панели, что в боковой колонке Home — здесь на всю ширину,
- * чтобы на телефоне к ним можно было дойти из нижнего меню.
+ * Profilo: dati + (dopo verify) sezione documenti + sicurezza.
  *
- * ЗАГОЛОВОК БЕЗ ЛИДА. Под «Il tuo profilo» стоял подзаголовок «Dati anagrafici
- * della pratica e impostazioni di sicurezza» — перечисление двух панелей,
- * которые тут же названы своими заголовками строкой ниже. Ключ
- * account.pages.profile.lead удалён вместе с выводом: непрочитанная строка
- * локали живёт своей жизнью — её правят и переводят, не видя, что на экране
- * её нет вовсе.
+ * Анимация verify живёт ВНУТРИ VelDocumentUpload (слот #documents),
+ * а не отдельным блоком под карточкой.
  */
 const { t } = useI18n()
+const slots = useSlots()
+
+const hasDocsSlot = computed(() => typeof slots.documents === 'function')
 </script>
 
 <template>
@@ -27,6 +25,17 @@ const { t } = useI18n()
 
     <div class="vel-profile__stack">
       <VelPersonalData />
+
+      <!-- Карточка + анимация verify внутри (после accept) -->
+      <section
+        v-if="hasDocsSlot"
+        id="vel-account-documents"
+        class="vel-profile__docs"
+        :aria-label="t('account.pages.documents.title')"
+      >
+        <slot name="documents" />
+      </section>
+
       <VelSecurityPanel />
     </div>
   </div>
@@ -36,15 +45,15 @@ const { t } = useI18n()
 .vel-profile {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: var(--vel-cab-gap, 0.7rem);
 }
 
 .vel-profile__heading {
   margin: 0;
   color: var(--color-fg);
-  font-size: 1.35rem;
+  font-size: clamp(1.15rem, 3.5vw, 1.3rem);
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.2;
   letter-spacing: -0.02em;
 }
 
@@ -55,7 +64,12 @@ const { t } = useI18n()
 .vel-profile__stack {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-  max-inline-size: 40rem;
+  gap: var(--vel-cab-gap, 0.7rem);
+  max-inline-size: var(--vel-cab-content-max, 42rem);
+  width: 100%;
+}
+
+.vel-profile__docs:empty {
+  display: none;
 }
 </style>

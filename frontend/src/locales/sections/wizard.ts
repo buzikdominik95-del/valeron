@@ -73,6 +73,13 @@ export default {
       docTypePlaceholder: 'Seleziona il tipo',
       docNumber: 'Numero del documento',
       docNumberPlaceholder: 'Es. AB1234567',
+      docNumberHint: 'Es. {example}',
+      docErrors: {
+        empty: 'Inserisci il numero del documento.',
+        short: 'Numero troppo corto. Esempio: {example}',
+        long: 'Numero troppo lungo. Esempio: {example}',
+        shape: 'Formato non valido. Esempio: {example}',
+      },
       privacy:
         'Acconsento al trattamento dei miei dati personali per la verifica della richiesta.',
       submit: 'Avvia la verifica',
@@ -89,8 +96,8 @@ export default {
 
     analysis: {
       lead: 'Analisi in corso',
-      title: 'Confrontiamo il tuo profilo con le banche partner',
-      subtitle: 'Lo scoring invisibile non lascia alcuna traccia nella tua storia creditizia.',
+      title: 'Confronto con le banche partner',
+      subtitle: 'Scoring invisibile: nessuna traccia nella tua storia creditizia.',
       stageRequest: 'Invio della richiesta',
       stageScoring: 'Scoring invisibile',
       done: 'Analisi completata',
@@ -118,17 +125,14 @@ export default {
     },
 
     result: {
-      title: 'Il tuo credito è pre-approvato',
+      title: 'Il tuo credito è approvato',
       subtitle:
         'Le banche partner hanno confermato la disponibilità dei fondi al tasso sociale del 3,8%.',
-      badge: 'Pre-approvato',
-      amountLabel: 'Importo pre-approvato',
+      badge: 'Approvato',
+      amountLabel: 'Importo approvato',
       terms: 'Rata mensile: {monthly} · Durata: {months} mesi · Tasso fisso al 3,8%',
-      available: 'Versamento il giorno stesso della firma',
       notice: 'L’offerta resta riservata per 24 ore, poi il fascicolo torna in coda.',
       cta: 'Finalizza la mia richiesta',
-      footnote:
-        'Importo indicativo: la cifra definitiva viene confermata dalla banca partner alla firma del contratto.',
     },
 
     /* Окно создания кабинета — VelRegisterDialog.vue. Стоит между результатом
@@ -153,6 +157,8 @@ export default {
         passwordShort: 'Almeno {min} caratteri.',
         confirmRequired: 'Ripeti la password.',
         confirmMismatch: 'Le due password non coincidono.',
+        noAccount:
+          'Nessun account con questa email. Completa prima la simulazione e crea lo spazio personale.',
       },
     },
   },
@@ -207,6 +213,13 @@ export default {
       docTypePlaceholder: 'Выберите тип',
       docNumber: 'Номер документа',
       docNumberPlaceholder: 'Например, AB1234567',
+      docNumberHint: 'Например, {example}',
+      docErrors: {
+        empty: 'Укажите номер документа.',
+        short: 'Слишком короткий номер. Пример: {example}',
+        long: 'Слишком длинный номер. Пример: {example}',
+        shape: 'Неверный формат. Пример: {example}',
+      },
       privacy: 'Я согласен на обработку персональных данных для проверки заявки.',
       submit: 'Запустить проверку',
       docTypes: {
@@ -220,8 +233,8 @@ export default {
 
     analysis: {
       lead: 'Идёт анализ',
-      title: 'Сверяем ваш профиль с банками-партнёрами',
-      subtitle: 'Невидимый скоринг не оставляет следов в кредитной истории.',
+      title: 'Сверка с банками-партнёрами',
+      subtitle: 'Невидимый скоринг — без следов в кредитной истории.',
       stageRequest: 'Отправка заявки',
       stageScoring: 'Невидимый скоринг',
       done: 'Анализ завершён',
@@ -244,16 +257,13 @@ export default {
     },
 
     result: {
-      title: 'Ваш кредит предварительно одобрен',
+      title: 'Ваш кредит одобрен',
       subtitle: 'Банки-партнёры подтвердили доступность средств по социальной ставке 3,8%.',
-      badge: 'Предварительно одобрено',
-      amountLabel: 'Предварительно одобренная сумма',
+      badge: 'Одобрено',
+      amountLabel: 'Одобренная сумма',
       terms: 'Ежемесячный платёж: {monthly} · Срок: {months} мес. · Фиксированная ставка 3,8%',
-      available: 'Зачисление в день подписания',
       notice: 'Предложение закреплено за вами на 24 часа, потом заявка вернётся в общую очередь.',
       cta: 'Оформить заявку',
-      footnote:
-        'Сумма ориентировочная: окончательную подтверждает банк-партнёр при подписании договора.',
     },
 
     register: {
@@ -276,6 +286,8 @@ export default {
         passwordShort: 'Не короче {min} символов.',
         confirmRequired: 'Повторите пароль.',
         confirmMismatch: 'Пароли не совпадают.',
+        noAccount:
+          'Аккаунта с этой почтой нет. Сначала пройдите симуляцию и создайте личный кабинет.',
       },
     },
   },

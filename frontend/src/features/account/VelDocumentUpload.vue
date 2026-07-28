@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, useId, useTemplateRef, watch } from 'vue'
+import { computed, onUnmounted, useId, useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useAutoAnimate } from '@/composables/useAutoAnimate'
 import { useDocumentUpload } from '@/composables/useDocumentUpload'
 import { useAccountStore } from '@/stores/account.store'
+import { wantsFastAnim } from '@/lib/fast-anim'
 import { DOC_MAX_FILE_MB, docSideKey } from '@/features/account/doc-kinds'
 import type { DocSide } from '@/features/account/doc-kinds'
 import VelButton from '@/components/ui/VelButton.vue'
@@ -13,10 +14,10 @@ import VelDocIcon from '@/features/account/VelDocIcon.vue'
 import VelDocKindChoice from '@/features/account/VelDocKindChoice.vue'
 import VelDocSlotRow from '@/features/account/VelDocSlotRow.vue'
 import VelDocVerified from '@/features/account/VelDocVerified.vue'
-
 /**
  * Documenti: idle → checking → verified.
- * После verified форма загрузки больше не показывается (только анимация «приняты»).
+ * До accept — вкладка Documenti; после — Profilo (docsAccepted).
+ * Анимация «Documento verificato» ВНУТРИ этой карточки, не отдельным блоком снизу.
  */
 const files = defineModel<File[]>({ default: () => [] })
 const emit = defineEmits<{ verified: [] }>()
@@ -30,13 +31,40 @@ const docsLocked = computed(() => documentsUploaded.value === true)
 const { kind, sides, fileOf, previewOf, rejection, status, ready, pick, submit } =
   useDocumentUpload(files, { locked: docsLocked })
 
-/* Когда проверка дошла до verified — фиксируем в store и закрываем шаг. */
+/*
+ * verified → сначала анимация VelDocVerified (~1 с), и только потом unlock
+ * (documentsUploaded + emit). Иначе IBAN на договоре пульсирует ещё во время
+ * «проверка документов».
+ */
+const VERIFY_REVEAL_MS = 1_150
+const VERIFY_REVEAL_FAST_MS = 220
+let unlockTimer: ReturnType<typeof setTimeout> | null = null
+
 watch(status, (s) => {
-  if (s !== 'verified') return
-  if (!documentsUploaded.value) {
-    documentsUploaded.value = true
+  if (s !== 'verified') {
+    if (unlockTimer) {
+      clearTimeout(unlockTimer)
+      unlockTimer = null
+    }
+    return
   }
-  emit('verified')
+  if (documentsUploaded.value) {
+    emit('verified')
+    return
+  }
+  if (unlockTimer) clearTimeout(unlockTimer)
+  const delay = wantsFastAnim() ? VERIFY_REVEAL_FAST_MS : VERIFY_REVEAL_MS
+  unlockTimer = setTimeout(() => {
+    unlockTimer = null
+    if (!documentsUploaded.value) {
+      documentsUploaded.value = true
+    }
+    emit('verified')
+  }, delay)
+})
+
+onUnmounted(() => {
+  if (unlockTimer) clearTimeout(unlockTimer)
 })
 
 const titleId = `vel-docup-${useId()}`
@@ -61,7 +89,7 @@ useAutoAnimate(slotList)
 </script>
 
 <template>
-  <section class="vel-docup" :aria-labelledby="titleId">
+  <section class="vel-docup" data-coach-docs :aria-labelledby="titleId">
     <h2 :id="titleId" class="vel-docup__title">{{ t('account.docs.cardTitle') }}</h2>
 
     <div class="vel-docup__head">
@@ -99,7 +127,15 @@ useAutoAnimate(slotList)
         {{ rejectionText }}
       </p>
 
-      <VelButton v-if="kind !== null" block size="lg" :disabled="!ready" @click="submit">
+      <!-- Пульс «Carica il documento» только когда все снимки выбраны (фотка 2). -->
+      <VelButton
+        v-if="kind !== null"
+        block
+        size="lg"
+        :disabled="!ready"
+        :class="{ 'vel-docup__submit--pulse': ready }"
+        @click="submit"
+      >
         {{ t('account.docs.submit') }}
       </VelButton>
 
@@ -110,10 +146,10 @@ useAutoAnimate(slotList)
 
     <VelDocChecking v-else-if="status === 'checking'" />
 
-    <!-- Dopo verifica: niente re-upload — solo esito animato «accettati». -->
-    <div v-else class="vel-docup__done">
+    <!-- Verified: анимация + lock внутри той же карточки (не отдельным блоком) -->
+    <div v-else class="vel-docup__done" role="status">
       <VelDocVerified />
-      <p class="vel-docup__done-note" role="status">
+      <p class="vel-docup__done-note">
         {{ t('account.docs.lockedAfterVerify') }}
       </p>
     </div>
@@ -124,8 +160,9 @@ useAutoAnimate(slotList)
 .vel-docup {
   display: flex;
   flex-direction: column;
-  gap: 0.875rem;
-  padding: 1.125rem;
+  gap: var(--vel-cab-card-gap, 0.65rem);
+  min-inline-size: 0;
+  padding: var(--vel-cab-card-pad, 1rem);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-panel);
   background-color: var(--color-surface);
@@ -232,8 +269,19 @@ useAutoAnimate(slotList)
 .vel-docup__done {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
-  padding-block: 0.5rem;
+  gap: 0.75rem;
+  padding-block-start: 0.25rem;
+}
+
+/* Анимация встроена в карточку — чуть компактнее, без внешнего « visания» */
+.vel-docup__done :deep(.vel-docdone) {
+  padding-block: 0.25rem 0.5rem;
+  gap: 0.65rem;
+}
+
+.vel-docup__done :deep(.vel-docdone__sign) {
+  inline-size: 4.75rem;
+  block-size: 4.75rem;
 }
 
 .vel-docup__done-note {
@@ -245,6 +293,40 @@ useAutoAnimate(slotList)
   color: var(--color-success);
   font-size: 0.85rem;
   font-weight: 600;
+  line-height: 1.4;
   text-align: center;
+}
+
+/* CTA загрузки: сильный пульс + мигание (как step bar онбординга). */
+.vel-docup__submit--pulse {
+  animation: vel-docup-call 1.15s ease-in-out infinite;
+}
+
+@keyframes vel-docup-call {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-accent) 55%, transparent),
+      0 0.35rem 0.9rem color-mix(in oklab, var(--color-accent) 28%, transparent);
+    filter: brightness(1);
+  }
+
+  50% {
+    transform: scale(1.06);
+    opacity: 0.78;
+    box-shadow:
+      0 0 0 12px color-mix(in oklab, var(--color-accent) 0%, transparent),
+      0 0 20px 4px color-mix(in oklab, var(--color-accent) 48%, transparent);
+    filter: brightness(1.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-docup__submit--pulse {
+    animation: none;
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-accent) 40%, transparent);
+  }
 }
 </style>

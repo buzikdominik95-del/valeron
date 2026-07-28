@@ -7,8 +7,8 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
  * а не в PDF points. Старый policy-pdf.php/FPDI ставил SetXY(60, 67) в мм —
  * те же числа сюда, без × (72/25.4).
  *
- * Текст: WinAnsi (Helvetica). Кириллицу транслитерируем в латиницу —
- * никаких «???????».
+ * Текст: WinAnsi (Times-Roman — serif бланка). Кириллицу транслитерируем
+ * в латиницу — никаких «???????».
  */
 
 /** A4 points; если страница близка к этому — координаты в pt, иначе мм. */
@@ -98,7 +98,7 @@ const CYR_MAP: Record<string, string> = {
 }
 
 /**
- * Готовит строку для StandardFonts.Helvetica (WinAnsi).
+ * Готовит строку для StandardFonts.TimesRoman (WinAnsi).
  * Без подстановки «?» — неподдерживаемые символы убираем/заменяем на ASCII.
  */
 export function toPdfText(value: string): string {
@@ -205,27 +205,26 @@ export async function fillContractPdf(
   const page = pdf.getPages()[0]
   if (!page) throw new Error('PDF has no pages')
 
-  const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold)
+  /* Times-Roman: ближе к UI (чуть толще regular, не full Bold). Cyr → latin. */
+  const fontReg = await pdf.embedFont(StandardFonts.TimesRoman)
   const { width, height } = page.getSize()
   const scale = unitScale(width)
-  const ink = rgb(0.08, 0.12, 0.22)
+  /* Тон ink policy-template (~#1f2022). */
+  const bodyInk = rgb(0.122, 0.125, 0.133)
 
   /*
-   * policy-grid.png (876×1238) → page 210×297:
-   *   Cliente / Contraente: ~ y_px 290 → 69.5 mm from top, name after label ~ x 62 mm
-   *   Firma / stamp zone:   ~ y_px 1050–1120 → 252–269 mm
-   *
-   * Как policy-pdf.php: только ФИО в поле Cliente — без мусора поверх пунктов.
+   * policy-template.png → page 210×297 mm:
+   *   name top 23.38% (+2px) → 69.44 mm; x after colon → 61.7 mm
    */
   const name = toPdfText(fields.fullName)
   if (name !== '') {
-    const size = scale === 1 ? 4.2 : 12.5
+    const size = scale === 1 ? 4.56 : 12
     page.drawText(name, {
-      x: xMm(62, scale),
-      y: yFromTop(height, 69.5, scale, size),
+      x: xMm(61.7, scale),
+      y: yFromTop(height, 69.44, scale, size),
       size,
-      font: fontBold,
-      color: ink,
+      font: fontReg,
+      color: bodyInk,
       maxWidth: xMm(110, scale),
     })
   }

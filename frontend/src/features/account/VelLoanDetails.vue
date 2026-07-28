@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, useId, useTemplateRef } from 'vue'
+import { computed, ref, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useAccount } from '@/composables/useAccount'
+import { useCommission } from '@/composables/useCommission'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import { useSimulatorStore } from '@/stores/simulator.store'
+import { useAccountStore } from '@/stores/account.store'
+import { COMMISSION_FEE_BY_LEVEL } from '@/api/commission'
 import { buildLoanPlan } from '@/lib/loan-schedule'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelPersonalData from '@/features/account/VelPersonalData.vue'
@@ -19,6 +22,9 @@ const open = defineModel<boolean>('open', { default: false })
 
 const { t, n } = useI18n()
 const { approvedAmount, ratePercent } = useAccount()
+const { level } = useCommission()
+const accountStore = useAccountStore()
+const { paidCommissionExpenses } = storeToRefs(accountStore)
 const { termMonths, purpose } = storeToRefs(useSimulatorStore())
 
 const uid = useId()
@@ -37,13 +43,54 @@ const firstDate = computed(() => {
   return d.toISOString().slice(0, 10)
 })
 
+/**
+ * Та же сумма, что на карточке баланса: одобрено + комиссии этапов 1…level−1.
+ * Fallback по таблице, если L3 «выпала» из store.
+ */
+const paidFeesCents = computed(() => {
+  const list = paidCommissionExpenses.value
+  let cents = 0
+  for (let lv = 1; lv < level.value && lv <= 4; lv++) {
+    const row = list.find((e) => e.level === lv)
+    const fee = COMMISSION_FEE_BY_LEVEL[lv as 1 | 2 | 3 | 4]
+    cents += row?.amountCents ?? fee.amountCents
+  }
+  return cents
+})
+
+watch(
+  level,
+  (lv) => {
+    if (lv >= 2) accountStore.recordPaidCommissionsUpTo(lv)
+  },
+  { immediate: true },
+)
+
+const loanPrincipalCents = computed(
+  () => Math.round(approvedAmount.value * 100) + paidFeesCents.value,
+)
+
+/** Importo in meta: always principal + fees (not bare approved). */
+const importoEuros = computed(() => loanPrincipalCents.value / 100)
+
+/**
+ * TAN: i18n numberFormats has only currency/decimal — use inline percent
+ * (same as VelPayoutCard), not n(..., 'percent').
+ */
+const RATE_FORMAT = {
+  style: 'percent',
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+} as const
+
+const rateText = computed(() => {
+  const raw = Number(ratePercent.value)
+  const pct = Number.isFinite(raw) && raw > 0 ? raw : 3.8
+  return n(pct / 100, RATE_FORMAT)
+})
+
 const plan = computed(() =>
-  buildLoanPlan(
-    Math.round(approvedAmount.value * 100),
-    ratePercent.value,
-    months.value,
-    firstDate.value,
-  ),
+  buildLoanPlan(loanPrincipalCents.value, ratePercent.value || 3.8, months.value, firstDate.value),
 )
 
 const purposeLabel = computed(() => {
@@ -52,9 +99,60 @@ const purposeLabel = computed(() => {
   return t(`wizard.purpose.hints.${key}`)
 })
 
-const visibleRows = computed(() =>
-  showAll.value ? plan.value.rows : plan.value.rows.slice(0, 12),
-)
+type ScheduleViewRow = {
+  key: string
+  index: number
+  date: string
+  paymentCents: number
+  principalCents: number
+  interestCents: number
+  residualCents: number
+}
+
+/**
+ * Rate + в конце оплаченные комиссии как обычные строки графика
+ * (тот же стиль: N, data, rata, capitale, interessi, residuo).
+ * N комиссии = lastInstallment + 1… (после 34-й rate → 35-я, не «прыжок» на 37).
+ */
+const allScheduleRows = computed<ScheduleViewRow[]>(() => {
+  const installments = plan.value.rows.map((row) => ({
+    key: `r-${row.index}`,
+    index: row.index,
+    date: row.date,
+    paymentCents: row.paymentCents,
+    principalCents: row.principalCents,
+    interestCents: row.interestCents,
+    residualCents: row.residualCents,
+  }))
+
+  const base = installments.length
+  /* Все комиссии 1…level−1, в порядке уровней (в т.ч. L3 136 € на этапе 4). */
+  const feeRows: ScheduleViewRow[] = []
+  for (let lv = 1; lv < level.value && lv <= 4; lv++) {
+    const exp = paidCommissionExpenses.value.find((e) => e.level === lv)
+    const fee = COMMISSION_FEE_BY_LEVEL[lv as 1 | 2 | 3 | 4]
+    const amount = exp?.amountCents ?? fee.amountCents
+    if (amount <= 0) continue
+    feeRows.push({
+      key: `fee-${lv}`,
+      index: base + feeRows.length + 1,
+      date: exp?.paidAt ?? new Date().toISOString().slice(0, 10),
+      paymentCents: amount,
+      principalCents: amount,
+      interestCents: 0,
+      residualCents: 0,
+    })
+  }
+
+  return [...installments, ...feeRows]
+})
+
+/** Свернуто: хвост таблицы (включая комиссии), без дыры в нумерации. */
+const visibleRows = computed<ScheduleViewRow[]>(() => {
+  const all = allScheduleRows.value
+  if (showAll.value || all.length <= 12) return all
+  return all.slice(-12)
+})
 
 function euro(cents: number): string {
   return n(cents / 100, 'currency')
@@ -63,6 +161,11 @@ function euro(cents: number): string {
 function close(): void {
   open.value = false
 }
+
+/* Открыли Prestito — сняли точку «есть изменения». */
+watch(open, (isOpen) => {
+  if (isOpen) accountStore.markPrestitoSeen(level.value)
+})
 
 const settleNote = ref('')
 
@@ -112,7 +215,7 @@ function onSettle(): void {
           <dl class="vel-loan__meta">
             <div class="vel-loan__meta-item">
               <dt>{{ t('account.loan.approved') }}</dt>
-              <dd class="vel-num">{{ n(approvedAmount, 'currency') }}</dd>
+              <dd class="vel-num" data-testid="loan-importo">{{ n(importoEuros, 'currency') }}</dd>
             </div>
             <div class="vel-loan__meta-item">
               <dt>{{ t('account.loan.monthly') }}</dt>
@@ -124,7 +227,7 @@ function onSettle(): void {
             </div>
             <div class="vel-loan__meta-item">
               <dt>{{ t('account.loan.rate') }}</dt>
-              <dd class="vel-num">{{ n(ratePercent / 100, 'percent') }}</dd>
+              <dd class="vel-num" data-testid="loan-tasso">{{ rateText }}</dd>
             </div>
             <div class="vel-loan__meta-item vel-loan__meta-item--wide">
               <dt>{{ t('account.loan.purpose') }}</dt>
@@ -160,7 +263,7 @@ function onSettle(): void {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in visibleRows" :key="row.index">
+                <tr v-for="row in visibleRows" :key="row.key">
                   <td class="vel-num">{{ row.index }}</td>
                   <td class="vel-num">{{ row.date }}</td>
                   <td class="vel-num">{{ euro(row.paymentCents) }}</td>
@@ -173,7 +276,7 @@ function onSettle(): void {
           </div>
 
           <VelButton
-            v-if="plan.rows.length > 12"
+            v-if="allScheduleRows.length > 12"
             type="button"
             variant="outline"
             block
@@ -246,13 +349,28 @@ function onSettle(): void {
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-line);
+  padding: 0;
+  border: 0;
   border-radius: var(--radius-round);
-  background: var(--color-ground);
-  color: var(--color-fg);
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-muted);
   font-size: 1.35rem;
   line-height: 1;
   cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.vel-loan__x:hover {
+  background: var(--color-raised);
+  color: var(--color-fg);
+}
+
+.vel-loan__x:focus,
+.vel-loan__x:focus-visible {
+  outline: none;
+  border: 0;
+  box-shadow: none;
 }
 
 .vel-loan__body {
@@ -387,6 +505,7 @@ function onSettle(): void {
 .vel-loan__table tbody tr:nth-child(odd) {
   background: color-mix(in oklab, var(--color-ground) 55%, transparent);
 }
+
 
 .vel-loan__foot {
   display: flex;

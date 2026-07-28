@@ -14,12 +14,9 @@ import VelContractActions from '@/features/account/VelContractActions.vue'
  * «проверено банком» здесь не появляется ни при каких условиях: такие слова
  * вправе сказать только ответ API.
  *
- * ЕДИНСТВЕННОЕ УСЛОВИЕ ПОДПИСИ — ПРИНЯТЫЕ ДОКУМЕНТЫ, и IBAN на него не влияет.
- * Это не недосмотр: реквизиты в этом кабинете спрашивают и после подписи, в
- * окне вывода средств. Запирай подпись за IBAN — маршрут замкнулся бы сам на
- * себя на первой же заявке, где человек ещё не выбрал счёт. Кнопка «Inserisci
- * IBAN» здесь стоит как удобный ярлык (счёт сразу попадает в лист договора
- * ниже), а не как пропуск к подписи.
+ * ПОДПИСЬ ЗАПЕРТА ЗА IBAN (бриф, фотка 4): сначала Inserisci IBAN, потом
+ * Firma. После ввода счёт «запирается» замком; подпись — отдельная модалка
+ * только с росчерком (без набора имени буквами).
  *
  * НА УЗКОМ ЭКРАНЕ действия уезжают ПОД текст и выстраиваются в ряд с
  * переносом, а не жмутся к правому краю: три кнопки в колонке шириной в треть
@@ -58,13 +55,27 @@ const { t } = useI18n()
 const titleId = `vel-contract-${useId()}`
 
 const hasPdf = computed(() => (props.pdfUrl ?? '') !== '')
-const isSigned = computed(() => props.signed === true)
-const hasIban = computed(() => props.ibanProvided === true)
-const canSign = computed(() => props.documentsReady === true && !isSigned.value)
+const isSigned = computed(() => Boolean(props.signed))
+/** Boolean(): localStorage/prop иногда truthy, но не строго true. */
+const hasIban = computed(() => Boolean(props.ibanProvided))
+const docsOk = computed(() => Boolean(props.documentsReady))
+/** Документы + IBAN, договор ещё не подписан. */
+const canSign = computed(() => docsOk.value && hasIban.value && !isSigned.value)
+const docsMissing = computed(() => !docsOk.value && !isSigned.value)
+const ibanMissing = computed(() => docsOk.value && !hasIban.value && !isSigned.value)
+
+/** Онбординг: после документов — пульс IBAN; после IBAN — пульс Firma. */
+const pulseIban = computed(() => docsOk.value && !hasIban.value && !isSigned.value)
+const pulseSign = computed(() => docsOk.value && hasIban.value && !isSigned.value)
 </script>
 
 <template>
-  <section class="vel-contract-card" :aria-labelledby="titleId">
+  <section
+    class="vel-contract-card"
+    data-coach-iban
+    data-coach-sign
+    :aria-labelledby="titleId"
+  >
     <div class="vel-contract-card__row">
       <div class="vel-contract-card__intro">
         <!-- Плитка со знаком: замок читается как «документ под подписью»,
@@ -105,6 +116,8 @@ const canSign = computed(() => props.documentsReady === true && !isSigned.value)
         :has-iban="hasIban"
         :is-signed="isSigned"
         :hide-pdf="true"
+        :pulse-iban="pulseIban"
+        :pulse-sign="pulseSign"
         @open-pdf="emit('openPdf')"
         @enter-iban="emit('enterIban')"
         @sign="emit('sign')"
@@ -113,10 +126,13 @@ const canSign = computed(() => props.documentsReady === true && !isSigned.value)
 
     <!-- Причина, по которой кнопка недоступна, написана словами: заблокированная
          кнопка сама по себе не объясняет ничего. -->
-    <div v-if="!hasPdf || !canSign" class="vel-contract-card__notes">
+    <div v-if="!hasPdf || docsMissing || ibanMissing" class="vel-contract-card__notes">
       <p v-if="!hasPdf" class="vel-contract-card__note">{{ t('contract.card.pdfWaiting') }}</p>
-      <p v-if="!canSign && !isSigned" class="vel-contract-card__note">
+      <p v-if="docsMissing" class="vel-contract-card__note">
         {{ t('contract.card.signLocked') }}
+      </p>
+      <p v-if="ibanMissing" class="vel-contract-card__note">
+        {{ t('contract.card.signNeedsIban') }}
       </p>
     </div>
   </section>
@@ -182,10 +198,11 @@ const canSign = computed(() => props.documentsReady === true && !isSigned.value)
 
 .vel-contract-card__title-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem 0.75rem;
+  gap: 0.65rem 1rem;
+  width: 100%;
 }
 
 .vel-contract-card__pdf {
@@ -194,6 +211,7 @@ const canSign = computed(() => props.documentsReady === true && !isSigned.value)
   align-items: center;
   gap: 0.35rem;
   min-height: 2.5rem;
+  margin-inline-start: auto;
   padding: 0.35rem 0.85rem;
   border: 1px solid var(--color-line-strong);
   border-radius: var(--radius-control);
@@ -237,12 +255,20 @@ const canSign = computed(() => props.documentsReady === true && !isSigned.value)
 }
 
 .vel-contract-card__title {
+  flex: 1 1 auto;
+  min-inline-size: 0;
   margin: 0;
   color: var(--color-fg);
-  font-size: 1.35rem;
+  font-size: 1.2rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.15;
+}
+
+@media (min-width: 24rem) {
+  .vel-contract-card__title {
+    font-size: 1.35rem;
+  }
 }
 
 .vel-contract-card__notes {
