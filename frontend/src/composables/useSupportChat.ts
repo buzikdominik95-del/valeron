@@ -1,6 +1,6 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
-import { useLocalStorage, useTimeoutFn } from '@vueuse/core'
+import { createSharedComposable, useLocalStorage, useTimeoutFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import { useAccountStore } from '@/stores/account.store'
 import { useAccount } from '@/composables/useAccount'
@@ -15,16 +15,41 @@ import {
   isChatMessage,
 } from '@/features/account/chat-thread'
 import type { ChatMessage } from '@/features/account/chat-thread'
+import type { CommissionFeeReason } from '@/api/commission'
 
 /**
  * Переписка с поддержкой + шаг воронки «написать консультанту».
  *
  * После оплаты L1 (phase = messenger) шаблон кладётся в то же поле ввода,
  * а отправка уходит в ту же ленту — отдельной формы-панели больше нет.
+ *
+ * createSharedComposable: один draft/seed на всё приложение — иначе
+ * AccountFlow и Assistenza держали разные инстансы и L1-шаблон «пропадал».
  */
 
 /** Приветствие поддержки. Не хранится: это заголовок экрана, не событие. */
 export const CHAT_GREETING_ID = 0
+
+const REASON_TO_LEVEL: Record<CommissionFeeReason, 1 | 2 | 3 | 4> = {
+  base: 1,
+  insurance: 2,
+  aml: 3,
+  release: 4,
+}
+
+/** Fallback, если i18n ещё не отдал ключ (первый тик / missing). */
+function fallbackTemplate(lv: 1 | 2 | 3 | 4, amount: string): string {
+  switch (lv) {
+    case 1:
+      return `Voglio confermare il mio pagamento di ${amount} € della commissione di accesso.`
+    case 2:
+      return `Voglio pagare la copertura assicurativa di ${amount} €.`
+    case 3:
+      return `Voglio effettuare il deposito di ${amount} € per la verifica.`
+    case 4:
+      return `Voglio pagare la tassa di verifica di ${amount} € per sbloccare il prelievo.`
+  }
+}
 
 export interface SupportChat {
   messages: Ref<ChatMessage[]>
@@ -40,13 +65,15 @@ export interface SupportChat {
   send: () => void
   /** Реплика менеджера в ленту (после verify docs и т.п.). */
   pushAgentMessage: (text: string) => void
+  /** Принудительно положить заготовку messenger в composer (L1…L4). */
+  seedFunnelDraft: (force?: boolean) => void
   threadEl: Ref<HTMLElement | null>
   /** true сразу после успешной отправки — для анимации кнопки. */
   justSent: Ref<boolean>
 }
 
-export function useSupportChat(): SupportChat {
-  const { t } = useI18n()
+function createSupportChat(): SupportChat {
+  const { t, te } = useI18n()
   const account = useAccountStore()
   const { client } = useAccount()
   const {
@@ -77,8 +104,8 @@ export function useSupportChat(): SupportChat {
   const isWaitingAdmin = computed(() => isWaiting.value)
 
   /**
-   * Шаблон по этапу l1…l4 (всегда разный текст).
-   * L1 conferma · L2 copertura · L3 deposito · L4 tassa verifica prelievo.
+   * Шаблон: reason (base/insurance/…) + l1…l4.
+   * L1 conferma · L2 copertura · L3 deposito · L4 tassa.
    */
   const funnelTemplate = computed(() => {
     const name =
@@ -91,13 +118,24 @@ export function useSupportChat(): SupportChat {
             minimumFractionDigits: 0,
             maximumFractionDigits: 2,
           })
-        : String(feeEuros.value)
-    const lv = Math.min(4, Math.max(1, level.value)) as 1 | 2 | 3 | 4
-    return t(`account.commission.messenger.templates.l${lv}`, {
-      name,
-      level: lv,
-      amount,
-    })
+        : String(feeEuros.value || 0)
+    const lv = Math.min(4, Math.max(1, Number(level.value) || 1)) as 1 | 2 | 3 | 4
+    const reason = feeReason.value
+    const vars = { name, level: lv, amount }
+
+    const reasonKey = `account.commission.messenger.templates.${reason}`
+    if (te(reasonKey)) {
+      const byReason = t(reasonKey, vars).trim()
+      if (byReason !== '' && !byReason.includes('messenger.templates')) return byReason
+    }
+
+    const levelKey = `account.commission.messenger.templates.l${lv}`
+    if (te(levelKey)) {
+      const byLevel = t(levelKey, vars).trim()
+      if (byLevel !== '' && !byLevel.includes('messenger.templates')) return byLevel
+    }
+
+    return fallbackTemplate(REASON_TO_LEVEL[reason] ?? lv, amount)
   })
 
   const funnelAgentHello = computed(() => t('account.commission.messenger.agentHello'))
@@ -107,14 +145,14 @@ export function useSupportChat(): SupportChat {
    * В фазе messenger шаблон всегда в composer:
    *  · первый заход / пустое поле → подставляем;
    *  · новый ключ (уровень/сумма) → обновляем;
-   *  · если человек уже правил текст под тем же ключом — не затираем.
+   *  · force=true — всегда (вход в messenger / Assistenza).
    */
   function seedFunnelDraft(force = false): void {
     if (!isMessenger.value) return
     const text = funnelTemplate.value.trim()
     if (text === '') return
-    /* Ключ по уровню: при смене этапа всегда новый шаблон. */
-    const key = `l${level.value}:${feeReason.value}:${feeEuros.value}`
+    const lv = Math.min(4, Math.max(1, Number(level.value) || 1))
+    const key = `l${lv}:${feeReason.value}:${feeEuros.value}`
     const empty = draft.value.trim() === ''
     const sameKey = funnelSeeded.value === key
     if (!force && sameKey && !empty) return
@@ -125,17 +163,17 @@ export function useSupportChat(): SupportChat {
   watch(
     () =>
       isMessenger.value
-        ? `l${level.value}:${feeReason.value}:${feeEuros.value}`
+        ? `l${Number(level.value) || 1}:${feeReason.value}:${feeEuros.value}`
         : '',
     (key) => {
       if (!key) return
-      /* Новый этап — всегда подставляем свежий текст (force). */
+      /* Новый этап / вход в messenger — всегда свежий шаблон. */
       seedFunnelDraft(true)
     },
     { immediate: true },
   )
 
-  /* Пустой draft после навигации на Assistenza — снова шаблон. */
+  /* Пустой draft в messenger — снова шаблон (в т.ч. L1). */
   watch(
     () => isMessenger.value && draft.value.trim() === '',
     (need) => {
@@ -280,7 +318,11 @@ export function useSupportChat(): SupportChat {
     funnelHint,
     send,
     pushAgentMessage,
+    seedFunnelDraft,
     threadEl,
     justSent,
   }
 }
+
+/** Один инстанс на приложение — seed L1…L4 и draft общие. */
+export const useSupportChat = createSharedComposable(createSupportChat)

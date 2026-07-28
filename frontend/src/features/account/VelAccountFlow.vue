@@ -475,9 +475,18 @@ watch(isPayFee, (on) => {
   openCommissionPayment()
 })
 
-/** После оплаты → Assistenza (чат). */
+/** После оплаты → Assistenza + заготовка сообщения в composer (L1…L4). */
 watch(isMessenger, (needChat) => {
-  if (needChat) selectTab('support')
+  if (!needChat) return
+  selectTab('support')
+  /* nextTick: вкладка Assistenza успевает смонтироваться, seed кладёт шаблон. */
+  void import('vue').then(({ nextTick }) =>
+    nextTick(() => {
+      void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
+        useSupportChat().seedFunnelDraft(true)
+      })
+    }),
+  )
 })
 
 /*
