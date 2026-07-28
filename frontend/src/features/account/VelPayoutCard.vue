@@ -646,19 +646,33 @@ const withdrawLabel = computed(() =>
 }
 
 /*
- * Prestito (этапы 1–4, пока есть непросмотренные изменения):
- *  · --dot: зелёный градиент (как Preleva) + пульс + точка;
- *  · после markPrestitoSeen — снова белая outline.
- * L5: --locked, без пульса.
+ * Prestito:
+ *  · active (--dot, этапы 1–4): зелёный градиент + пульс + точка;
+ *  · неактивна (просмотрели): снова белая outline;
+ *  · L5: --locked.
  */
 .vel-payout__prestito {
   position: relative;
+  /* Явный «покой»: белая заливка, чтобы после --dot не залипал зелёный */
+  border: 1px solid var(--color-line-strong) !important;
+  background: var(--color-surface) !important;
+  color: var(--color-fg) !important;
+  box-shadow: none;
+  animation: none;
+  filter: none;
   transition:
-    background 180ms ease,
-    border-color 180ms ease,
-    color 180ms ease,
-    box-shadow 180ms ease,
-    transform 180ms ease;
+    background 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease,
+    box-shadow 200ms ease,
+    transform 200ms ease,
+    filter 200ms ease;
+}
+
+.vel-payout__prestito:hover:not(:disabled):not(.vel-payout__prestito--dot) {
+  border-color: var(--color-accent) !important;
+  background: var(--color-surface) !important;
+  color: var(--color-fg) !important;
 }
 
 .vel-payout__prestito--dot {
