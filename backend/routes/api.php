@@ -25,3 +25,9 @@ Route::prefix('admin')->group(function () {
     Route::get('commission-levels', [CommissionLevelController::class, 'index']);
     Route::put('commission-levels', [CommissionLevelController::class, 'update']);
 });
+
+// Auth routes
+use App\Http\Controllers\Api\AuthController;
+
+Route::post('/auth/register', [AuthController::class, 'register']);
+Route::post('/auth/login', [AuthController::class, 'login']);
