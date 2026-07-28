@@ -481,12 +481,18 @@ function onOpenPdf(): void {
 const successOpen = ref(false)
 
 /*
- * Финал «перевод завершён» только если анимация не ушла в L2-страховку
- * (suspended) и не в L4-отказ (failed). Иначе поверх карточки страховки/отказа
- * всплывал бы ложный success.
+ * Финал «перевод завершён» только при реальном успехе.
+ * НЕ показывать: L2 suspended, L4 failed, L4 tg_final (иначе зелёный
+ * «conferma Velora» перед freeze/Telegram).
  */
 watch(isAnimating, (now, was) => {
-  if (was && !now && !isSuspended.value && !isFailed.value) {
+  if (
+    was &&
+    !now &&
+    !isSuspended.value &&
+    !isFailed.value &&
+    !isTgFinal.value
+  ) {
     successOpen.value = true
   }
 })
@@ -506,9 +512,11 @@ const showClassicBank = computed(
 )
 
 /**
- * L4: после анимации — tg_final; сцена отказа не нужна (модалка TG + lock).
+ * L4 после отказа: красная сцена вывода остаётся на фоне (tg_final / freeze / TG).
  */
-const showL4RejectScene = computed(() => false)
+const showL4RejectScene = computed(
+  () => level.value === 4 && (isTgFinal.value || isFailed.value || isRejectAnim.value),
+)
 
 /**
  * L2: карточка «Paga» остаётся на suspended И на pay_fee (закрыли drawer
@@ -523,7 +531,7 @@ const transferStage = computed((): { key: string; view: Component } | null => {
   if (showL2SuspensionCard.value) return { key: 'suspended', view: VelSuspensionCard }
   /* После сообщения менеджеру: «ожидайте инструкций» + hourglass на Preleva. */
   if (isWaiting.value) return { key: 'waiting', view: VelWaitingAdmin }
-  /* tg_final: только freeze-modal + lock, не stage-карточка */
+  /* L4 tg_final / failed: красная VelTransferAnim ниже (не success-карточка) */
   if (isFailed.value || isTgFinal.value) return null
   if (showClassicBank.value) return { key: 'bank', view: VelBankAuthorizing }
   // L1/L3 pay_fee → VelCommissionDrawer (оверлей), не карточка на Home
@@ -623,13 +631,13 @@ const showDevBar = !(
       </VelStageSwitch>
 
       <!--
-        L4: сцена отказа до оплаты + сообщения менеджеру;
-        L2 suspended → карточка страховки + freeze-сцена.
+        L4: красная сцена вывода остаётся под freeze/TG;
+        L2 suspended/pay_fee → freeze-сцена под карточкой страховки.
       -->
       <VelTransferAnim
         v-if="showL4RejectScene || showL2SuspensionCard"
         class="mt-4"
-        :reject-open="isFailed && freezeOpen && freezeMode === 'reject'"
+        :reject-open="false"
         @open-reject="openFreezeReject"
       />
     </template>

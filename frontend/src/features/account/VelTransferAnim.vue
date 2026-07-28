@@ -41,6 +41,7 @@ const {
   isRejectAnim,
   isSuspended,
   isPayFee,
+  isTgFinal,
   level,
 } = useCommission()
 const { approvedAmount, client, transferAccountTail } = useAccount()
@@ -77,20 +78,20 @@ const recipientName = computed(() => client.value.fullName)
 const personLook = computed<SceneLook>(() => (gender.value === 'male' ? 'crop' : 'bob'))
 
 /**
- * Freeze / red-X: hold 100%, L4 failed, L2 suspended (isRejectAnim).
- * На L2 после «Paga» phase = pay_fee — сцена НЕ должна зеленеть (success):
- * остаётся отказ/hold, пока пользователь не уйдёт с карточки страховки.
+ * Freeze / red-X: hold 100%, L4 failed/tg_final, L2 suspended/pay_fee.
+ * L4 tg_final — сцена остаётся красной на фоне freeze-intro + Telegram.
  */
 const sceneFailed = computed(
   () =>
     isRejectAnim.value ||
     isFailed.value ||
+    isTgFinal.value ||
     isSuspended.value ||
     (level.value === 2 && isPayFee.value),
 )
 
-/** Только L4 failed — CTA оплаты / повторного открытия модалки. */
-const showResolveCta = computed(() => isFailed.value)
+/** CTA оплаты 280 снята — на L4 только TG, кнопку resolve не показываем. */
+const showResolveCta = computed(() => false)
 
 const isGreenTone = computed(
   () => resolvePhase.value === 'green' || resolvePhase.value === 'to-green',
