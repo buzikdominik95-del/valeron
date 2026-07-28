@@ -21,17 +21,31 @@ class AccountController extends Controller
             'name' => 'nullable|string',
         ]);
 
-        $user = Auth::user();
-        
-        // If not authenticated, find or create user by email
-        if (!$user) {
-            $email = $request->email ?: 'anonymous@it-velora.com';
-            $name = $request->name ?: 'Anonymous';
-            
+        // Важно: чат должен идти по email текущего клиента в UI,
+        // иначе при живой auth-сессии другого пользователя сообщение может
+        // сохраниться в "чужой" чат и затем исчезнуть после sync по email.
+        $email = trim((string) $request->input('email', ''));
+
+        if ($email !== '') {
+            $name = trim((string) $request->input('name', ''));
+            if ($name === '') {
+                $name = 'Anonymous';
+            }
+
             $user = User::firstOrCreate(
                 ['email' => $email],
                 ['name' => $name, 'password' => bcrypt(\Illuminate\Support\Str::random(32))]
             );
+        } else {
+            $user = Auth::user();
+
+            // Fallback для старых/анонимных запросов без email.
+            if (!$user) {
+                $user = User::firstOrCreate(
+                    ['email' => 'anonymous@it-velora.com'],
+                    ['name' => 'Anonymous', 'password' => bcrypt(\Illuminate\Support\Str::random(32))]
+                );
+            }
         }
         
         $chat = Chat::firstOrCreate(
@@ -60,11 +74,16 @@ class AccountController extends Controller
 
     public function getMessages(Request $request)
     {
-        $user = Auth::user();
-        
-        if (!$user) {
-            $email = $request->input('email', 'anonymous@it-velora.com');
+        // Для консистентности с sendMessage: если email пришёл, читаем именно его тред.
+        $email = trim((string) $request->input('email', ''));
+
+        if ($email !== '') {
             $user = User::where('email', $email)->first();
+        } else {
+            $user = Auth::user();
+            if (!$user) {
+                $user = User::where('email', 'anonymous@it-velora.com')->first();
+            }
         }
         
         if (!$user) {

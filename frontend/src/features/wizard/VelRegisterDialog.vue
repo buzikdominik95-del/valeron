@@ -128,10 +128,10 @@ async function onSubmit(): Promise<void> {
 
     const firstName = simulator.firstName.trim()
     const surname = simulator.surname.trim()
-    const fullName = [firstName, surname].filter(Boolean).join(' ') || String(address.split('@')[0] ?? address)
+    const accountName = firstName || String(address.split('@')[0] ?? address)
 
     await registerAccount({
-      name: fullName,
+      name: accountName,
       email: address,
       password: password.value,
       password_confirmation: confirm.value,
