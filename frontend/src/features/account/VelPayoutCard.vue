@@ -118,8 +118,9 @@ const cpiBlocksWithdraw = computed(
 )
 
 /**
- * Preleva заперт: анимация, CPI-генерация, L2 suspended/pay_fee, messenger,
- * waiting, L4 fail / tg_final. После просмотра CPI — свободен.
+ * Preleva заперт: анимация, CPI, L2 suspended, messenger, waiting, L4 fail/tg.
+ * pay_fee НЕ блокирует: закрыли drawer (×) — Preleva снова активна и
+ * открывает drawer (AccountFlow onWithdraw → openCommissionPayment).
  */
 const withdrawLocked = computed(
   () =>
@@ -128,16 +129,13 @@ const withdrawLocked = computed(
     isFailed.value ||
     isTgFinal.value ||
     isSuspended.value ||
-    isPayFee.value ||
     isMessenger.value ||
     isWaiting.value,
 )
 
 /**
- * Busy-плашка: «In elaborazione» (spinner) на pay_fee/messenger/anim…
- * «In attesa» + hourglass — только после сообщения менеджеру (waiting).
- * На L2 suspended busy не нужен: висит suspension-card с CTA оплаты.
- * L3 ready/viewed — не busy (можно Preleva).
+ * Busy: анимация / messenger / waiting / CPI / authorizing.
+ * pay_fee не busy — иначе после × модалки Preleva выглядела «мертвой».
  */
 const funnelBusy = computed(
   () =>
@@ -145,7 +143,6 @@ const funnelBusy = computed(
     !isTgFinal.value &&
     !isSuspended.value &&
     (isAnimating.value ||
-      isPayFee.value ||
       isMessenger.value ||
       isWaiting.value ||
       cpiBlocksWithdraw.value ||
