@@ -181,7 +181,12 @@ function onWithdrawClick(): void {
 function onOpenLoanClick(): void {
   /* L5: Prestito не открываем — только Telegram-модалка. */
   if (isTgFinal.value) return
-  onOpenLoan()
+  /*
+   * Только emit — markPrestitoSeen в VelLoanDetails после showModal.
+   * Раньше mark + снятие pulse-DOM на том же клике давали
+   * NotFoundError insertBefore (Vue patch vs <dialog>).
+   */
+  emit('openLoan')
 }
 
 /**
@@ -230,11 +235,6 @@ const remainingNames = computed(() =>
 const counterText = computed(() =>
   t('account.progress.counter', { done: doneCount.value, total }),
 )
-
-function onOpenLoan(): void {
-  accountStore.markPrestitoSeen(level.value)
-  emit('openLoan')
-}
 
 const withdrawLabel = computed(() =>
   showTgContact.value
@@ -385,9 +385,13 @@ const balanceStatus = computed(() => {
         :disabled="isTgFinal"
         @click="onOpenLoanClick"
       >
+        <!--
+          Всегда в DOM (не v-if): снятие точки через CSS, иначе markPrestitoSeen
+          + open dialog на одном тике → insertBefore NotFoundError.
+        -->
         <span
-          v-if="prestitoUnseen"
           class="vel-payout__prestito-live"
+          :class="{ 'vel-payout__prestito-live--off': !prestitoUnseen }"
           aria-hidden="true"
         />
         {{ t('account.payout.loanDetails') }}
@@ -918,6 +922,12 @@ const balanceStatus = computed(() => {
     0 0 0 0 color-mix(in oklab, #fff 70%, transparent),
     0 0 8px 1px color-mix(in oklab, #fff 45%, transparent);
   animation: vel-prestito-dot-pulse 0.9s ease-out infinite;
+}
+
+/* Скрываем без v-if — DOM-узел остаётся (см. template). */
+.vel-payout__prestito-live--off {
+  display: none;
+  animation: none;
 }
 
 @keyframes vel-prestito-btn-pulse {
