@@ -13,7 +13,7 @@ export function demoLogin(
   name = 'Marco Rossi',
   signal?: AbortSignal,
 ): Promise<{ user: AuthUser }> {
-  return request<{ user: AuthUser }>('/auth/demo-login', {
+  return request<{ user: AuthUser }>('/auth/login', {
     method: 'POST',
     body: { email, password, name },
     signal,

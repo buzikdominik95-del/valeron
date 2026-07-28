@@ -92,4 +92,53 @@ class AccountController extends Controller
 
         return response()->json(['messages' => $messages]);
     }
+
+    public function getAccount(Request $request)
+    {
+        $user = $request->user();
+        
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        // Split name into first and last name
+        $nameParts = explode(' ', $user->name, 2);
+        $firstName = $nameParts[0] ?? '';
+        $lastName = $nameParts[1] ?? '';
+
+        // Return the account dossier format expected by frontend
+        return response()->json([
+            'client' => [
+                'firstName' => $firstName,
+                'lastName' => $lastName,
+                'email' => $user->email,
+            ],
+            'credit' => [
+                'approvedAmountCents' => 500000, // 5000 EUR default
+                'ratePercent' => 7.5,
+            ],
+            'policy' => [
+                'termsAcceptedAt' => $user->created_at->toIso8601String(),
+                'privacyAcceptedAt' => $user->created_at->toIso8601String(),
+            ],
+            'transfer' => [
+                'iban' => 'IT00X0000000000000000000000',
+                'beneficiaryName' => $user->name,
+                'bankName' => 'Velora Bank',
+            ],
+            'commission' => [
+                'levelId' => 1,
+                'ratePercent' => 2.5,
+                'earnedCents' => 0,
+            ],
+            'steps' => [
+                'registration' => true,
+                'questionnaire' => false,
+                'identity' => false,
+                'contract' => false,
+                'transfer' => false,
+            ],
+            'documents' => [],
+        ]);
+    }
 }
