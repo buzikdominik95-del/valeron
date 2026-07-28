@@ -13,10 +13,13 @@ import {
 } from '@/api/commission'
 
 /**
- * Sticky «бровь» клиента — компактная, адаптивная.
+ * «Бровь» клиента — как в velora-client-brow-final.html:
+ * одна горизонтальная полоса: who | email | sesso | IBAN | status | saldo.
  *
- * IBAN: только начало (IT60 X054…); клик → Profilo (полный номер там).
- * Nome / email / sesso → Profilo; saldo → Home + zoom.
+ * Адаптация: на узком экране — горизонтальный скролл (дизайн не ломаем).
+ * Sticky сразу под fixed-шапкой: top = --vel-shell-head-h.
+ *
+ * IBAN: только начало; клик → Profilo.
  */
 const { t, n } = useI18n()
 const { client, approvedAmount } = useAccount()
@@ -63,19 +66,13 @@ const genderLabel = computed(() => {
   return t('account.brow.genderUnset')
 })
 
-/** Только начало IBAN — полный номер в Profilo / Documenti */
+/** Только начало IBAN — полный в профиле */
 const ibanPreview = computed(() => {
   const raw = ibanFull.value.replace(/\s+/g, '').toUpperCase()
-  if (raw.length >= 8) {
-    /* IT60X054… → IT60 X054… */
-    const head = raw.slice(0, 8)
-    return `${head.slice(0, 4)} ${head.slice(4)}…`
-  }
-  const mask = ibanMasked.value.trim()
-  if (mask) {
-    const compact = mask.replace(/\s+/g, '')
-    return compact.length > 10 ? `${compact.slice(0, 8)}…` : mask
-  }
+  if (raw.length >= 8) return `${raw.slice(0, 4)} ${raw.slice(4, 8)}…`
+  const mask = ibanMasked.value.trim().replace(/\s+/g, '')
+  if (mask.length >= 6) return `${mask.slice(0, 8)}…`
+  if (mask) return mask
   return t('account.brow.ibanUnset')
 })
 
@@ -110,82 +107,119 @@ function goBalance(): void {
     <button type="button" class="vel-brow__who" @click="goProfile">
       <span class="vel-brow__ava" aria-hidden="true">
         {{ initials }}
-        <s class="vel-brow__dot" />
+        <s class="vel-brow__ava-ok" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path
+              d="M5.5 12.6 10 17.2 18.8 7.4"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </s>
       </span>
-      <span class="vel-brow__who-text">
+      <span class="vel-brow__cell vel-brow__cell--flush">
         <span class="vel-brow__lbl">{{ t('account.brow.client') }}</span>
-        <span class="vel-brow__name">{{ displayName }}</span>
+        <span class="vel-brow__val">
+          {{ displayName }}
+          <svg class="vel-brow__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M5.5 12.6 10 17.2 18.8 7.4"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </span>
       </span>
     </button>
 
-    <!-- Meta chips: email · sesso · iban · status -->
-    <div class="vel-brow__meta">
-      <button type="button" class="vel-brow__chip" @click="goProfile">
-        <span class="vel-brow__lbl">{{ t('account.brow.email') }}</span>
-        <span class="vel-brow__chip-val">{{ emailText }}</span>
-      </button>
+    <span class="vel-brow__sep" aria-hidden="true" />
 
-      <button type="button" class="vel-brow__chip vel-brow__chip--sm" @click="goProfile">
-        <span class="vel-brow__lbl">{{ t('account.brow.gender') }}</span>
-        <span class="vel-brow__chip-val">{{ genderLabel }}</span>
-      </button>
+    <button type="button" class="vel-brow__cell" @click="goProfile">
+      <span class="vel-brow__lbl">{{ t('account.brow.email') }}</span>
+      <span class="vel-brow__val">{{ emailText }}</span>
+    </button>
 
-      <button
-        type="button"
-        class="vel-brow__chip vel-brow__chip--iban"
-        :title="t('account.brow.ibanHint')"
-        @click="goProfile"
-      >
-        <span class="vel-brow__lbl">{{ t('account.brow.iban') }}</span>
-        <span class="vel-brow__chip-val vel-brow__chip-val--mono">{{ ibanPreview }}</span>
-      </button>
+    <span class="vel-brow__sep" aria-hidden="true" />
 
-      <div
-        class="vel-brow__status"
-        :class="`vel-brow__status--${statusKind}`"
-        role="status"
-      >
-        <s v-if="statusKind === 'active'" class="vel-brow__status-live" aria-hidden="true" />
-        <s
-          v-else-if="statusKind === 'busy'"
-          class="vel-brow__status-spin"
-          aria-hidden="true"
-        />
-        <span>{{ statusLabel }}</span>
-      </div>
+    <button type="button" class="vel-brow__cell vel-brow__cell--sesso" @click="goProfile">
+      <span class="vel-brow__lbl">{{ t('account.brow.gender') }}</span>
+      <span class="vel-brow__val">{{ genderLabel }}</span>
+    </button>
+
+    <span class="vel-brow__sep" aria-hidden="true" />
+
+    <button
+      type="button"
+      class="vel-brow__cell vel-brow__cell--iban"
+      :title="t('account.brow.ibanHint')"
+      @click="goProfile"
+    >
+      <span class="vel-brow__lbl">{{ t('account.brow.iban') }}</span>
+      <span class="vel-brow__val">
+        <b class="vel-brow__mono">{{ ibanPreview }}</b>
+      </span>
+    </button>
+
+    <span class="vel-brow__sep" aria-hidden="true" />
+
+    <div class="vel-brow__cell vel-brow__cell--static">
+      <span class="vel-brow__lbl">{{ t('account.brow.statusLabel') }}</span>
+      <span class="vel-brow__pills">
+        <i class="vel-brow__pill" :class="`vel-brow__pill--${statusKind}`">
+          <s v-if="statusKind === 'active'" />
+          {{ statusLabel }}
+        </i>
+      </span>
     </div>
 
-    <!-- Balance -->
-    <button type="button" class="vel-brow__bal" @click="goBalance">
+    <span class="vel-brow__spacer" aria-hidden="true" />
+    <span class="vel-brow__sep" aria-hidden="true" />
+
+    <button type="button" class="vel-brow__cell vel-brow__cell--bal" @click="goBalance">
       <span class="vel-brow__lbl">{{ t('account.brow.available') }}</span>
-      <span class="vel-brow__money">{{ balanceText }}</span>
+      <span class="vel-brow__val vel-brow__val--big">{{ balanceText }}</span>
     </button>
   </aside>
 </template>
 
 <style scoped>
+/*
+  Макет 1:1 с HTML-макетом «бровь»:
+  flex row + sep + spacer + bal.
+  Sticky: top = высота fixed-шапки кабинета (не 0.35rem — иначе уезжает под header).
+*/
 .vel-brow {
   position: sticky;
-  top: 0.35rem;
-  z-index: 25;
+  top: var(--vel-shell-head-h, calc(var(--vel-header-h, 3.5rem) + var(--vel-track-h, 0px)));
+  z-index: 30;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.65rem 0.85rem;
+  gap: 0;
+  min-block-size: 4.75rem;
   margin-block-end: var(--vel-cab-gap, 0.7rem);
-  padding: 0.7rem 0.9rem;
-  border: 1px solid color-mix(in oklab, var(--color-accent) 26%, var(--color-line));
-  border-radius: var(--radius-panel);
+  padding: 0 0.25rem 0 0;
+  /* overflow-x scroll на узких — overflow-y visible для тени */
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid color-mix(in oklab, var(--color-accent) 22%, var(--color-line));
+  border-radius: 1rem;
   background:
     linear-gradient(
-      110deg,
+      105deg,
       color-mix(in oklab, var(--color-accent) 16%, #eef2ff) 0%,
-      color-mix(in oklab, var(--color-accent) 8%, var(--color-surface)) 48%,
+      color-mix(in oklab, var(--color-accent) 8%, var(--color-surface)) 42%,
       var(--color-surface) 100%
     );
   box-shadow:
-    0 0.55rem 1.35rem color-mix(in oklab, var(--color-accent) 12%, transparent),
-    inset 0 1px 0 color-mix(in oklab, #fff 72%, transparent);
+    0 0.85rem 2rem -1.2rem color-mix(in oklab, var(--color-accent) 40%, transparent),
+    inset 0 1px 0 color-mix(in oklab, #fff 70%, transparent);
+  scrollbar-width: thin;
 }
 
 .vel-brow::before {
@@ -194,36 +228,78 @@ function goBalance(): void {
   inset-inline: 0;
   inset-block-start: 0;
   block-size: 3px;
-  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
   background: linear-gradient(
     90deg,
     var(--color-accent-deep),
-    var(--color-accent) 50%,
+    var(--color-accent) 45%,
     transparent
   );
   pointer-events: none;
 }
 
-/* --- who --- */
-.vel-brow__who {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  min-inline-size: 0;
-  max-inline-size: 14rem;
+.vel-brow__who,
+.vel-brow__cell {
+  appearance: none;
   margin: 0;
-  padding: 0.15rem 0.35rem 0.15rem 0;
   border: 0;
-  border-radius: var(--radius-control);
   background: transparent;
   font: inherit;
   color: inherit;
   text-align: start;
   cursor: pointer;
+  flex: none;
 }
 
-.vel-brow__who:hover {
-  background: color-mix(in oklab, var(--color-accent) 7%, transparent);
+.vel-brow__who {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  block-size: 100%;
+  min-block-size: 4.75rem;
+  padding: 0 0.85rem 0 1.1rem;
+  transition: background-color 160ms ease;
+}
+
+.vel-brow__cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.2rem;
+  min-block-size: 4.75rem;
+  padding: 0 1.05rem;
+  transition: background-color 160ms ease;
+}
+
+.vel-brow__cell--flush {
+  padding: 0;
+  min-block-size: 0;
+}
+
+.vel-brow__cell--static {
+  cursor: default;
+}
+
+.vel-brow__cell--static:hover {
+  background: transparent;
+}
+
+.vel-brow__cell--sesso {
+  min-inline-size: 5.25rem;
+}
+
+.vel-brow__cell--iban {
+  min-inline-size: 6.5rem;
+}
+
+.vel-brow__cell--bal {
+  align-items: flex-end;
+  padding-inline-end: 1.25rem;
+  min-inline-size: 7rem;
+}
+
+.vel-brow__who:hover,
+.vel-brow__cell:not(.vel-brow__cell--static):hover {
+  background: color-mix(in oklab, var(--color-accent) 6%, transparent);
 }
 
 .vel-brow__ava {
@@ -231,182 +307,167 @@ function goBalance(): void {
   display: grid;
   place-items: center;
   flex: none;
-  inline-size: 2.4rem;
-  block-size: 2.4rem;
-  border-radius: 0.7rem;
-  background: linear-gradient(145deg, var(--color-accent), var(--color-accent-deep));
+  inline-size: 2.6rem;
+  block-size: 2.6rem;
+  border-radius: 0.8rem;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-deep));
   color: var(--color-accent-ink);
-  font-size: 0.82rem;
+  font-size: 0.9rem;
   font-weight: 800;
-  box-shadow: 0 0.35rem 0.85rem color-mix(in oklab, var(--color-accent) 36%, transparent);
+  letter-spacing: 0.02em;
+  box-shadow: 0 0.5rem 1.1rem -0.35rem color-mix(in oklab, var(--color-accent) 55%, transparent);
 }
 
-.vel-brow__dot {
+.vel-brow__ava-ok {
   position: absolute;
-  right: -0.12rem;
-  bottom: -0.12rem;
-  inline-size: 0.72rem;
-  block-size: 0.72rem;
-  border: 2px solid var(--color-surface);
+  right: -0.2rem;
+  bottom: -0.2rem;
+  display: grid;
+  place-items: center;
+  inline-size: 0.95rem;
+  block-size: 0.95rem;
+  border: 2.5px solid var(--color-surface);
   border-radius: 999px;
   background: var(--color-success);
+  color: #fff;
 }
 
-.vel-brow__who-text {
-  display: flex;
-  min-inline-size: 0;
-  flex-direction: column;
-  gap: 0.1rem;
+.vel-brow__ava-ok svg {
+  width: 0.5rem;
+  height: 0.5rem;
 }
 
 .vel-brow__lbl {
-  color: color-mix(in oklab, var(--color-accent-deep) 42%, var(--color-faint));
-  font-size: 0.58rem;
+  color: color-mix(in oklab, var(--color-accent-deep) 40%, var(--color-faint));
+  font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
-  line-height: 1;
-}
-
-.vel-brow__name {
-  overflow: hidden;
-  color: var(--color-fg);
-  font-size: 0.9rem;
-  font-weight: 700;
-  line-height: 1.2;
   white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
-/* --- meta chips --- */
-.vel-brow__meta {
+.vel-brow__val {
   display: flex;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.4rem 0.45rem;
-  min-inline-size: 0;
-}
-
-.vel-brow__chip {
-  display: flex;
-  flex-direction: column;
-  gap: 0.12rem;
-  min-inline-size: 0;
-  max-inline-size: 12rem;
-  margin: 0;
-  padding: 0.28rem 0.55rem;
-  border: 1px solid color-mix(in oklab, var(--color-accent) 12%, var(--color-line));
-  border-radius: 0.55rem;
-  background: color-mix(in oklab, #fff 72%, transparent);
-  font: inherit;
-  color: inherit;
-  text-align: start;
-  cursor: pointer;
-  transition:
-    background-color 140ms ease,
-    border-color 140ms ease;
-}
-
-.vel-brow__chip:hover {
-  border-color: color-mix(in oklab, var(--color-accent) 32%, var(--color-line));
-  background: color-mix(in oklab, var(--color-accent) 6%, #fff);
-}
-
-.vel-brow__chip--sm {
-  max-inline-size: 6.5rem;
-  flex: none;
-}
-
-.vel-brow__chip--iban {
-  max-inline-size: 8.5rem;
-  flex: none;
-}
-
-.vel-brow__chip-val {
+  gap: 0.4rem;
+  max-inline-size: 11rem;
   overflow: hidden;
   color: var(--color-fg);
-  font-size: 0.8rem;
+  font-size: 0.94rem;
   font-weight: 650;
-  line-height: 1.2;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-.vel-brow__chip-val--mono {
+.vel-brow__cell--sesso .vel-brow__val {
+  max-inline-size: none;
+}
+
+.vel-brow__val--big {
+  max-inline-size: none;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-fg);
+}
+
+.vel-brow__check {
+  flex: none;
+  width: 0.88rem;
+  height: 0.88rem;
+  color: var(--color-success);
+}
+
+.vel-brow__mono {
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 0.76rem;
+  font-size: 0.88rem;
+  font-weight: 650;
   letter-spacing: 0.02em;
   color: var(--color-accent-deep);
 }
 
-/* --- status badge (compact, clean) --- */
-.vel-brow__status {
+.vel-brow__sep {
+  flex: none;
+  inline-size: 1px;
+  block-size: 2.35rem;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in oklab, var(--color-accent) 20%, var(--color-line)) 18%,
+    color-mix(in oklab, var(--color-accent) 20%, var(--color-line)) 82%,
+    transparent
+  );
+}
+
+.vel-brow__spacer {
+  flex: 1 1 0.5rem;
+  min-inline-size: 0.5rem;
+}
+
+.vel-brow__pills {
+  display: flex;
+  align-items: center;
+}
+
+/* Pill как в HTML-макете */
+.vel-brow__pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  flex: none;
-  max-inline-size: 100%;
-  padding: 0.38rem 0.7rem;
+  gap: 0.4rem;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--color-line);
   border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 750;
-  line-height: 1.15;
+  background: #f3f6fe;
+  color: #5b678f;
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 700;
   white-space: nowrap;
-  letter-spacing: 0.01em;
+  line-height: 1.2;
 }
 
-.vel-brow__status--active {
-  border: 1px solid color-mix(in oklab, var(--color-success) 32%, transparent);
+.vel-brow__pill--active {
   background: color-mix(in oklab, var(--color-success) 12%, #fff);
-  color: color-mix(in oklab, var(--color-success) 78%, var(--color-fg));
+  border-color: color-mix(in oklab, var(--color-success) 28%, var(--color-line));
+  color: #0b7d4e;
 }
 
-.vel-brow__status--busy {
-  border: 1px solid color-mix(in oklab, var(--color-accent) 30%, transparent);
+.vel-brow__pill--active s {
+  display: block;
+  flex: none;
+  inline-size: 0.44rem;
+  block-size: 0.44rem;
+  border-radius: 999px;
+  background: var(--color-success);
+  animation: vel-brow-blip 2s infinite;
+}
+
+.vel-brow__pill--busy {
   background: color-mix(in oklab, var(--color-accent) 10%, #fff);
+  border-color: color-mix(in oklab, var(--color-accent) 26%, var(--color-line));
   color: var(--color-accent-deep);
 }
 
-.vel-brow__status--hold {
-  border: 1px solid color-mix(in oklab, #e8a317 40%, transparent);
-  background: color-mix(in oklab, #f5c542 14%, #fff);
+.vel-brow__pill--hold {
+  background: color-mix(in oklab, #f5c542 16%, #fff);
+  border-color: color-mix(in oklab, #e8a317 35%, var(--color-line));
   color: #9a6410;
 }
 
-.vel-brow__status--blocked {
-  border: 1px solid color-mix(in oklab, var(--color-danger) 38%, transparent);
+.vel-brow__pill--blocked {
   background: color-mix(in oklab, var(--color-danger) 10%, #fff);
+  border-color: color-mix(in oklab, var(--color-danger) 32%, var(--color-line));
   color: var(--color-danger);
 }
 
-.vel-brow__status-live {
-  flex: none;
-  inline-size: 0.4rem;
-  block-size: 0.4rem;
-  border-radius: 999px;
-  background: var(--color-success);
-  box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-success) 40%, transparent);
-  animation: vel-brow-live 2s ease-out infinite;
-}
-
-.vel-brow__status-spin {
-  flex: none;
-  inline-size: 0.65rem;
-  block-size: 0.65rem;
-  border: 1.5px solid color-mix(in oklab, var(--color-accent) 28%, transparent);
-  border-top-color: var(--color-accent);
-  border-radius: 999px;
-  animation: vel-brow-spin 0.7s linear infinite;
-}
-
-@keyframes vel-brow-live {
+@keyframes vel-brow-blip {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-success) 40%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-success) 45%, transparent);
   }
 
   70% {
-    box-shadow: 0 0 0 0.4rem transparent;
+    box-shadow: 0 0 0 0.45rem transparent;
   }
 
   100% {
@@ -414,116 +475,60 @@ function goBalance(): void {
   }
 }
 
-@keyframes vel-brow-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* --- balance --- */
-.vel-brow__bal {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.12rem;
-  flex: none;
-  margin: 0;
-  margin-inline-start: auto;
-  padding: 0.2rem 0.15rem 0.2rem 0.5rem;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: transparent;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-}
-
-.vel-brow__bal:hover .vel-brow__money {
-  color: var(--color-accent);
-}
-
-.vel-brow__money {
-  color: var(--color-accent-deep);
-  font-size: 1.15rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-  white-space: nowrap;
-  transition: color 140ms ease;
-}
-
-/* ========== Mobile ========== */
-@media (max-width: 40rem) {
+/* Узкий экран: та же полоса, горизонтальный скролл (дизайн не ломаем) */
+@media (max-width: 48rem) {
   .vel-brow {
-    gap: 0.55rem;
-    padding: 0.75rem 0.8rem;
+    min-block-size: 4.4rem;
+  }
+
+  .vel-brow__who,
+  .vel-brow__cell {
+    min-block-size: 4.4rem;
   }
 
   .vel-brow__who {
-    flex: 1 1 auto;
+    padding-inline: 0.75rem 0.65rem;
+  }
+
+  .vel-brow__cell {
+    padding-inline: 0.8rem;
+  }
+
+  .vel-brow__val {
+    max-inline-size: 8.5rem;
+    font-size: 0.86rem;
+  }
+
+  .vel-brow__cell--sesso .vel-brow__val {
     max-inline-size: none;
   }
 
-  .vel-brow__meta {
-    flex: 1 1 100%;
-    order: 3;
-    gap: 0.35rem;
+  .vel-brow__val--big {
+    font-size: 1.15rem;
   }
 
-  .vel-brow__chip {
-    flex: 1 1 calc(50% - 0.25rem);
-    max-inline-size: none;
+  .vel-brow__lbl {
+    font-size: 0.55rem;
+    letter-spacing: 0.1em;
   }
 
-  .vel-brow__chip--sm {
-    flex: 0 1 auto;
-    max-inline-size: none;
+  .vel-brow__ava {
+    inline-size: 2.35rem;
+    block-size: 2.35rem;
   }
 
-  .vel-brow__chip--iban {
-    flex: 1 1 auto;
-    max-inline-size: none;
-  }
-
-  .vel-brow__status {
-    flex: 1 1 auto;
-    justify-content: center;
-  }
-
-  .vel-brow__bal {
-    order: 2;
-  }
-
-  .vel-brow__money {
-    font-size: 1.05rem;
-  }
-
-  .vel-brow__chip-val {
-    font-size: 0.78rem;
-  }
-}
-
-/* Tablet: slightly tighter chips */
-@media (min-width: 40.01rem) and (max-width: 56rem) {
-  .vel-brow__chip {
-    max-inline-size: 9.5rem;
-  }
-
-  .vel-brow__who {
-    max-inline-size: 11rem;
+  .vel-brow__spacer {
+    min-inline-size: 0.75rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vel-brow__status-live,
-  .vel-brow__status-spin {
+  .vel-brow__pill--active s {
     animation: none;
   }
 
   .vel-brow__who,
-  .vel-brow__chip,
-  .vel-brow__money {
+  .vel-brow__cell {
     transition: none;
   }
 }
@@ -533,17 +538,15 @@ function goBalance(): void {
 @keyframes vel-brow-balance-zoom {
   0% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 transparent;
   }
 
   40% {
-    transform: scale(1.03);
-    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-accent) 35%, transparent);
+    transform: scale(1.025);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent) 30%, transparent);
   }
 
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 transparent;
   }
 }
 
