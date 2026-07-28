@@ -937,8 +937,8 @@ const balanceStatus = computed(() => {
   box-shadow:
     0 0 0 2px color-mix(in oklab, var(--color-accent) 35%, transparent),
     0 0.15rem 0.4rem color-mix(in oklab, var(--color-accent-deep) 25%, transparent);
-  /* Заметное «колыхание» колокольчика */
-  animation: vel-prestito-bell-ring 0.7s ease-in-out infinite;
+  /* Заметное «колыхание» колокольчика — чуть медленнее */
+  animation: vel-prestito-bell-ring 1.15s ease-in-out infinite;
   transform-origin: 50% 10%;
 }
 
