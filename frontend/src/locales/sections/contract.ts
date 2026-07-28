@@ -16,7 +16,7 @@
  *   sheet.months        — {count}
  *   sheet.rateNote      — {rate} (уже отформатированная строка процента)
  *   sheet.purposeLine   — {purpose}
- *   sheet.clauses.repayment — {count}
+ *   sheet.clauses.*     — полный текст под таблицей (22.txt)
  *   sheet.total         — {count}
  *   sheet.signedAt      — {date}, {time}
  *
@@ -105,16 +105,54 @@ export default {
          внутри своей рамки, и об этом надо сказать вслух. */
       scrollHint: 'Piano di ammortamento — tabella scorrevole in orizzontale',
 
-      clausesTitle: 'Clausole Principali',
+      /* Текст под piano di ammortamento — из 22.txt (oggetto → clausole). */
+      clausesTitle: 'Disposizioni del contratto',
       clauses: {
-        repayment:
-          '1. Rimborso. Il Prenditore si impegna a rimborsare l’importo erogato in {count} rate mensili posticipate, alle date e per gli importi indicati nel piano di ammortamento sopra riportato.',
-        early:
-          '2. Rimborso anticipato. Il Prenditore può rimborsare anticipatamente, in tutto o in parte, quanto dovuto in qualsiasi momento, con diritto alla riduzione degli interessi e dei costi relativi alla vita residua del contratto, secondo la normativa vigente in materia di credito ai consumatori.',
-        withdrawal:
-          '3. Recesso. Il Prenditore può recedere dal presente contratto entro quattordici giorni dalla conclusione, senza penalità e senza indicarne il motivo, dandone comunicazione al Prestatore con le modalità indicate nella documentazione precontrattuale.',
-        data:
-          '4. Trattamento dei dati. I dati personali del Prenditore sono trattati per la gestione del rapporto contrattuale e per gli adempimenti di legge, nel rispetto del Regolamento (UE) 2016/679. L’informativa completa è disponibile nell’area personale.',
+        objectTitle: '1. OGGETTO DEL CONTRATTO',
+        object1:
+          '1.1. Il presente contratto è stipulato con l’obiettivo di fornire sostegno sociale ai cittadini e di concedere un credito sulla base delle leggi e dei regolamenti vigenti del Governo italiano che disciplinano il credito agevolato.',
+
+        rightsTitle: '2. DIRITTI E OBBLIGHI DELLE PARTI',
+        borrowerLead: 'Obblighi del Mutuatario:',
+        borrower1:
+          '2.1. Garantire l’utilizzo dei fondi del credito per lo scopo previsto, in conformità ai termini del presente contratto.',
+        borrower2:
+          '2.2. Pagare puntualmente e integralmente il capitale e gli interessi, secondo il piano di rimborso.',
+        borrower3:
+          '2.3. Fornire alla Banca informazioni veritiere sulla propria situazione finanziaria e sulle fonti di reddito.',
+        borrower4:
+          '2.4. Accettare le sanzioni e le multe applicate dalla Banca in caso di ritardo nel pagamento del debito.',
+        borrower5:
+          '2.5. Presentare mensilmente le ricevute di pagamento e i rendiconti finanziari.',
+        borrower6:
+          '2.6. Il Prenditore si impegna a rimborsare il capitale erogato unitamente agli interessi calcolati al TAN fisso del 3,8% annuo, mediante rate mensili costanti nella misura sopra indicata.',
+
+        lenderLead: 'Obblighi della Banca:',
+        lender1: '2.7. Concedere il credito nella forma stabilita nel contratto.',
+        lender2:
+          '2.8. Aprire un conto o utilizzare un conto esistente per la registrazione del prestito a nome del Mutuatario.',
+        lender3: '2.9. Fornire al Mutuatario informazioni relative al credito.',
+        lender4: '2.10. Notificare al Mutuatario l’ammortamento anticipato del debito.',
+        lender5:
+          '2.11. Informare circa le modifiche nei documenti normativi che incidono sulle condizioni del credito.',
+        lender6:
+          '2.12. Il Prestatore si impegna a erogare il capitale approvato entro 24 ore dall’avvenuta firma elettronica del presente contratto e dalla verifica positiva dei documenti.',
+
+        procedureTitle: '3. PROCEDURA DI CONCESSIONE E AMMORTAMENTO DEL CREDITO',
+        procedure1:
+          '3.1. La data di concessione del credito è considerata la data di accredito dei fondi sul conto bancario del Mutuatario.',
+        procedure2:
+          '3.2. L’ammortamento del capitale e il pagamento degli interessi sono effettuati mensilmente dal Mutuatario, secondo il piano di rimborso allegato al presente contratto.',
+        procedure3:
+          '3.3. Se la data indicata nel piano non è un giorno lavorativo bancario, il pagamento viene rinviato al giorno lavorativo successivo.',
+        procedure4:
+          '3.4. In caso di ritardo nel rimborso del debito, il saldo dovuto viene trasferito sul conto delle posizioni scadute della Banca e maturano interessi al tasso stabilito.',
+
+        mainTitle: '4. CLAUSOLE PRINCIPALI',
+        main1:
+          '4.4. L’accredito dei fondi del credito viene effettuato in conformità con le regole, gli standard e i regolamenti del sistema di pagamento internazionale SEPA.',
+        main2:
+          '4.5. Il presente contratto è garantito dalla polizza assicurativa CPI fornita dal Servizio Centrale Tutela Credito.',
       },
 
       /*
@@ -260,16 +298,54 @@ export default {
       total: 'Итого ({count} платежей)',
       scrollHint: 'График погашения — таблица прокручивается вбок',
 
-      clausesTitle: 'Основные условия',
+      /* Зеркало it (22.txt): те же ключи, русский перевод для ru-локали. */
+      clausesTitle: 'Условия договора',
       clauses: {
-        repayment:
-          '1. Погашение. Заёмщик обязуется вернуть выданную сумму {count} ежемесячными платежами в даты и в размерах, указанных в приведённом выше графике погашения.',
-        early:
-          '2. Досрочное погашение. Заёмщик вправе в любой момент полностью или частично погасить задолженность досрочно с уменьшением процентов и расходов, приходящихся на оставшийся срок договора, в соответствии с действующими правилами потребительского кредитования.',
-        withdrawal:
-          '3. Отказ от договора. Заёмщик вправе отказаться от договора в течение четырнадцати дней с момента заключения без штрафов и без объяснения причин, уведомив кредитора способом, указанным в преддоговорных документах.',
-        data:
-          '4. Обработка данных. Персональные данные заёмщика обрабатываются для исполнения договора и выполнения требований закона в соответствии с Регламентом (ЕС) 2016/679. Полное уведомление доступно в личном кабинете.',
+        objectTitle: '1. ПРЕДМЕТ ДОГОВОРА',
+        object1:
+          '1.1. Настоящий договор заключён с целью оказания социальной поддержки гражданам и предоставления кредита на основании действующих законов и нормативных актов Правительства Италии, регулирующих льготное кредитование.',
+
+        rightsTitle: '2. ПРАВА И ОБЯЗАННОСТИ СТОРОН',
+        borrowerLead: 'Обязанности Заёмщика:',
+        borrower1:
+          '2.1. Обеспечить использование кредитных средств по назначению в соответствии с условиями настоящего договора.',
+        borrower2:
+          '2.2. Своевременно и в полном объёме уплачивать основной долг и проценты согласно графику погашения.',
+        borrower3:
+          '2.3. Предоставлять Банку достоверные сведения о своём финансовом положении и источниках дохода.',
+        borrower4:
+          '2.4. Принимать санкции и штрафы, применяемые Банком в случае просрочки погашения задолженности.',
+        borrower5:
+          '2.5. Ежемесячно представлять квитанции об оплате и финансовые отчёты.',
+        borrower6:
+          '2.6. Заёмщик обязуется возвратить выданный капитал вместе с процентами, начисленными по фиксированной TAN 3,8% годовых, равными ежемесячными платежами в размере, указанном выше.',
+
+        lenderLead: 'Обязанности Банка:',
+        lender1: '2.7. Предоставить кредит в форме, установленной договором.',
+        lender2:
+          '2.8. Открыть счёт или использовать существующий счёт для учёта займа на имя Заёмщика.',
+        lender3: '2.9. Предоставлять Заёмщику информацию, относящуюся к кредиту.',
+        lender4: '2.10. Уведомлять Заёмщика о досрочном погашении задолженности.',
+        lender5:
+          '2.11. Информировать об изменениях в нормативных документах, влияющих на условия кредита.',
+        lender6:
+          '2.12. Кредитор обязуется перечислить одобренный капитал в течение 24 часов с момента электронной подписи настоящего договора и успешной проверки документов.',
+
+        procedureTitle: '3. ПОРЯДОК ПРЕДОСТАВЛЕНИЯ И ПОГАШЕНИЯ КРЕДИТА',
+        procedure1:
+          '3.1. Датой предоставления кредита считается дата зачисления средств на банковский счёт Заёмщика.',
+        procedure2:
+          '3.2. Погашение капитала и уплата процентов осуществляются Заёмщиком ежемесячно согласно графику погашения, приложенному к настоящему договору.',
+        procedure3:
+          '3.3. Если указанная в графике дата не является банковским рабочим днём, платёж переносится на следующий рабочий день.',
+        procedure4:
+          '3.4. В случае просрочки погашения задолженности причитающийся остаток переводится на счёт просроченных позиций Банка, и начисляются проценты по установленной ставке.',
+
+        mainTitle: '4. ОСНОВНЫЕ ОГОВОРКИ',
+        main1:
+          '4.4. Зачисление кредитных средств осуществляется в соответствии с правилами, стандартами и регламентами международной платёжной системы SEPA.',
+        main2:
+          '4.5. Настоящий договор обеспечен страховым полисом CPI, предоставленным Servizio Centrale Tutela Credito.',
       },
 
       /* См. развёрнутый комментарий в итальянской части: это заглушка,
