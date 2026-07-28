@@ -18,7 +18,6 @@ class AdminUsersMonitoringController extends Controller
                     'id' => $user->id,
                     'name' => $user->name . ($user->surname ? ' ' . $user->surname : ''),
                     'email' => $user->email,
-                    'phone' => $user->phone,
                     'requested_amount' => $user->requested_amount ?? 0,
                     'document_type' => $user->document_type,
                     'document_number' => $user->document_number,

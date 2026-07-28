@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\AdminChatsController;
 use App\Http\Controllers\Api\AdminUsersMonitoringController;
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\ApprovalEmailController;
+use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\AdminLeadController;
 
 // Test Sentry endpoint
 Route::get("/test-sentry", function() {
@@ -52,6 +54,17 @@ Route::prefix('admin')->group(function () {
     
     // Users monitoring
     Route::get('users-monitoring', [AdminUsersMonitoringController::class, 'index']);
+
+    // Users
+    Route::get('users', [UserController::class, 'index']);
+    Route::post('users', [UserController::class, 'store']);
+    Route::delete('users/{id}', [UserController::class, 'destroy']);
+
+    // Leads
+    Route::get('leads', [AdminLeadController::class, 'index']);
+    Route::get('leads/{id}', [AdminLeadController::class, 'show']);
+    Route::delete('leads/{id}', [AdminLeadController::class, 'destroy']);
+    Route::delete('leads', [AdminLeadController::class, 'destroyAll']);
     
     // IBAN settings
     Route::get('settings/iban', [IbanSettingController::class, 'show']);
