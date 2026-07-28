@@ -181,9 +181,23 @@ export const useDossierStore = defineStore('dossier', () => {
 
     if (isApiEnabled()) {
       void beginWithdrawApi()
-        .then(hydrate)
+        .then((full) => {
+          /*
+           * L2/L4: если сервер не перевёл в animating (или вернул ready),
+           * hydrate сносил offline-анимацию → панель просто сворачивалась.
+           */
+          if (needsAnim && full.commission?.phase !== 'animating') {
+            beginWithdrawOffline(dossier.value)
+            return
+          }
+          hydrate(full)
+        })
         .catch(() => {
-          /* API упал — оставляем offline animating / pay_fee */
+          if (needsAnim && dossier.value.commission.phase !== 'animating') {
+            beginWithdrawOffline(dossier.value)
+          }
+        })
+        .finally(() => {
           if (needsAnim && dossier.value.commission.phase !== 'animating') {
             beginWithdrawOffline(dossier.value)
           }

@@ -154,6 +154,10 @@ const funnelBusy = computed(
 
 const disabled = computed(() => !canWithdraw.value || withdrawLocked.value)
 
+/**
+ * Панель открыта — основная Preleva остаётся кликабельной (подтверждение),
+ * но без «toggle close only»: AccountFlow при повторном клике стартует вывод.
+ */
 const withdrawReady = computed(() => !disabled.value && !props.panelOpen)
 
 /**
