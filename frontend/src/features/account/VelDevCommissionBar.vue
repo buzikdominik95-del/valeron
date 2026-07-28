@@ -6,6 +6,7 @@ import { useCommission } from '@/composables/useCommission'
 import { useAccount } from '@/composables/useAccount'
 import { useAccountStore } from '@/stores/account.store'
 import { TERM_DEFAULT, useSimulatorStore } from '@/stores/simulator.store'
+import { ISSUED_AT } from '@/features/account/contract-number'
 import type { CommissionLevel } from '@/api/commission'
 import VelApprovalEmailPreview from '@/features/account/VelApprovalEmailPreview.vue'
 import {
@@ -52,12 +53,13 @@ async function genMail(kind: ClientEmailKind): Promise<void> {
       signedAt = accountStore.contractSignedAt
     }
   }
-  /* 66.txt: имя, сумма, ссылка ЛК — из JS; PDF contratto/CPI filled с ФИО */
+  const sim = useSimulatorStore()
+  /* 66.txt: имя/сумма/ссылка; PDF contratto = anteprima al consumo; CPI = Velora + FIO */
   await downloadClientEmail(kind, {
     firstName: client.value.firstName,
     lastName: client.value.lastName,
     fullName: client.value.fullName || 'Cliente Velora',
-    email: client.value.email,
+    email: client.value.email || sim.email,
     amountFormatted: n(amount, 'currency'),
     contractNumber: `CIV-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900000) + 100000)}`,
     durationLabel: termLabel.value,
@@ -65,7 +67,10 @@ async function genMail(kind: ClientEmailKind): Promise<void> {
     tanLabel: '3,8%',
     purpose: purpose.value || 'Credito personale',
     signedAt,
-    iban: accountStore.ibanFull || undefined,
+    issuedDate: d(ISSUED_AT, 'short'),
+    iban: accountStore.ibanFull || accountStore.ibanMasked || undefined,
+    docType: sim.docType || undefined,
+    docNumber: sim.docNumber || undefined,
     signatureDataUrl: accountStore.signatureDataUrl || undefined,
     cabinetUrl: cabinetUrlFromLocation('view=cabinet'),
     brand: 'Velora',
