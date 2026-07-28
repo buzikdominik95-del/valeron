@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useSessionStorage, useTimeoutFn } from '@vueuse/core'
 import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
+import { useCpiBuild } from '@/composables/useCpiBuild'
 import { useAccountStore } from '@/stores/account.store'
 import { useDossierStore } from '@/stores/dossier.store'
 import { isApiEnabled } from '@/api/account.api'
@@ -18,7 +19,6 @@ import VelBankNoticeDialog from '@/features/account/VelBankNoticeDialog.vue'
 import VelWithdrawAmountDialog from '@/features/account/VelWithdrawAmountDialog.vue'
 import VelCommissionDrawer from '@/features/account/VelCommissionDrawer.vue'
 import VelBankAuthorizing from '@/features/account/VelBankAuthorizing.vue'
-import VelPolicyCard from '@/features/account/VelPolicyCard.vue'
 import VelDocumentUpload from '@/features/account/VelDocumentUpload.vue'
 import VelContractCard from '@/features/account/VelContractCard.vue'
 import VelContractSheet from '@/features/account/VelContractSheet.vue'
@@ -62,6 +62,7 @@ const {
   beginWithdraw,
   openFeeFromSuspension,
 } = useCommission()
+const { certViewed, step: cpiStep } = useCpiBuild()
 const { select: selectTab } = useCabinetTab()
 const notices = useNotices()
 
@@ -233,15 +234,16 @@ function showAgentMessageToast(): void {
 
 /**
  * Приветствие менеджера ~15 с после входа в ЛК:
- * toast + реплика в Assistenza + badge + notice.
+ * toast + реплика в Assistenza + badge + notice — всё одновременно.
+ * (Раньше в чате сразу висело статичное greeting, а toast шёл через 15 с.)
  */
 function showWelcomeManagerToast(): void {
   welcomeToastSeen.value = true
-  account.bumpSupportUnread(1)
   notices.push('managerMessage')
   agentToastKind.value = 'welcome'
   agentToastOpen.value = true
   hideAgentToastLater()
+  /* pushAgentMessage сам бампит unread — не дублируем */
   void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
     useSupportChat().pushAgentMessage(t('account.support.chat.welcomeMsg'))
   })
@@ -326,29 +328,26 @@ function openContractSign(): void {
 }
 
 /**
- * CPI issued-карточка: сертификат + галочка живут в VelPolicyCard.
- * Сюда — только после подтверждения (не авто-withdraw).
- */
-function onPolicyReview(): void {
-  /* no-op: вывод — через Preleva; карточка только показывает сертификат */
-}
-
-function onPolicyConfirm(): void {
-  /* markCertViewed уже в VelPolicyCard; Preleva разблокируется через phase ready */
-}
-
-/**
  * Старт воронки после суммы.
- * L2 ready → банк-уведомление → анимация.
+ * L2: сразу animating + информационное окно банка.
+ * L4: анимация отказа (обязательно Home + phase animating).
  * L1 / fee → beginWithdraw → pay_fee → drawer комиссии.
- * L4 → анимация отказа.
  */
 function startWithdrawFunnel(): void {
-  if (level.value === 2 && isReady.value) {
+  selectTab('home')
+  const lv = Number(level.value)
+
+  if (lv === 2) {
+    beginWithdraw()
     bankNoticeOpen.value = true
     return
   }
-  beginWithdraw()
+
+  /* L4 (и запасной путь): анимация перевода */
+  const ok = beginWithdraw()
+  if (!ok && (lv === 2 || lv === 4) && phase.value === 'ready') {
+    beginWithdraw()
+  }
 }
 
 /**
@@ -410,9 +409,24 @@ function onWithdraw(): void {
   /* Анимация / policy / отказ — кнопки нет (VelPayoutCard.withdrawLocked). */
   if (!isReady.value) return
 
-  /* Toggle: повторный Preleva закрывает панель. */
+  /*
+   * Панель уже открыта: повторный Preleva = подтвердить (IBAN есть) и
+   * запустить воронку — НЕ просто свернуть (на L4 из‑за этого «ничего»).
+   */
   if (payoutPanelOpen.value) {
-    payoutPanelOpen.value = false
+    const hasIban = account.ibanFull.trim() !== '' || account.ibanProvided
+    if (hasIban) {
+      ensureWithdrawAmount()
+      const euros =
+        withdrawAmount.value > 0
+          ? withdrawAmount.value
+          : Math.round(approvedAmount.value)
+      if (euros > 0) {
+        continueAfterPayout(euros)
+        return
+      }
+    }
+    /* Форма не готова — оставляем панель открытой */
     return
   }
   payoutPanelOpen.value = true
@@ -420,11 +434,16 @@ function onWithdraw(): void {
 
 /** После панели или сразу (если IBAN есть) → drawer / анимация по уровню. */
 function continueAfterPayout(euros: number): void {
-  withdrawAmount.value = euros
+  withdrawAmount.value = Math.max(0, Math.round(euros))
+  if (withdrawAmount.value <= 0) {
+    ensureWithdrawAmount()
+  }
   payoutPanelOpen.value = false
 
+  const lv = Number(level.value)
+
   // L1 / L3 / страховка: pay_fee → drawer (IBAN-шаг пропускается, если уже есть).
-  if (level.value === 1 || level.value === 3 || isSuspended.value) {
+  if (lv === 1 || lv === 3 || isSuspended.value) {
     if (!isPayFee.value) beginWithdraw()
     commissionOpen.value = true
     return
@@ -449,7 +468,10 @@ function onAmountConfirm(): void {
 
 function onBankNoticeContinue(): void {
   bankNoticeOpen.value = false
-  beginWithdraw()
+  /* Анимация уже должна идти (startWithdrawFunnel); страховка если begin сбойнул */
+  if (!isAnimating.value && (isReady.value || phase.value === 'ready')) {
+    beginWithdraw()
+  }
 }
 
 function onCommissionConfirmed(): void {
@@ -552,6 +574,24 @@ const showL2SuspensionCard = computed(
   () => level.value === 2 && (isSuspended.value || isPayFee.value),
 )
 
+/**
+ * L3 CPI-карточка на Home: генерация, «готов» и ПОСЛЕ галочки (phase ready).
+ * Раньше после markCertViewed phase≠policy_build → карточка пропадала.
+ */
+const showL3CpiCard = computed(() => {
+  if (level.value !== 3) return false
+  if (isAnimating.value || isPayFee.value || isMessenger.value || isWaiting.value) return false
+  if (isPolicyBuild.value) return true
+  /* После просмотра: phase ready + сертификат выдан — карточка остаётся */
+  if (
+    isReady.value &&
+    (certViewed.value || cpiStep.value === 'viewed' || cpiStep.value === 'ready')
+  ) {
+    return true
+  }
+  return false
+})
+
 const transferStage = computed((): { key: string; view: Component } | null => {
   if (isAnimating.value) return { key: `anim-${phase.value}`, view: VelTransferAnim }
   if (showL2SuspensionCard.value) return { key: 'suspended', view: VelSuspensionCard }
@@ -560,8 +600,11 @@ const transferStage = computed((): { key: string; view: Component } | null => {
   /* L4 tg_final / failed: красная VelTransferAnim ниже (не success-карточка) */
   if (isFailed.value || isTgFinal.value) return null
   if (showClassicBank.value) return { key: 'bank', view: VelBankAuthorizing }
+  // L3 CPI (loading / ready / viewed) — не только policy_build
+  if (showL3CpiCard.value) {
+    return { key: `cpi-${cpiStep.value}-${phase.value}`, view: VelPolicyBuildCard }
+  }
   // L1/L3 pay_fee → VelCommissionDrawer (оверлей), не карточка на Home
-  if (isPolicyBuild.value) return { key: 'policy-build', view: VelPolicyBuildCard }
   // messenger L1–L3 — чат Assistenza; Preleva locked + busy «In elaborazione»
   return null
 })
@@ -665,15 +708,6 @@ const showDevBar = !(
         class="mt-4"
         :reject-open="false"
         @open-reject="openFreezeReject"
-      />
-    </template>
-
-    <template #policy>
-      <!-- CPI-карточка только на 3-м уровне комиссии (см. изминенния / 1.png) -->
-      <VelPolicyCard
-        v-if="level === 3 && !isPolicyBuild && !isAnimating"
-        @review="onPolicyReview"
-        @confirm="onPolicyConfirm"
       />
     </template>
 

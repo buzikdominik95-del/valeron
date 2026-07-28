@@ -330,8 +330,8 @@ export async function fillCpiCertificatePdf(
   const fontBold = await pdf.embedFont(StandardFonts.TimesRomanBold)
   const name = toPdfText(fields.fullName)
   if (name !== '') {
-    /* VelPdfDialog: left 29.4%, top 23.38% */
-    const size = 11.5
+    /* VelPdfDialog: left 29.4%, top 23.38%; −0.5px ≈ −0.375pt к 11.5 */
+    const size = 11.125
     const x = pageW * 0.294
     const y = pageH * (1 - 0.2338) - size * 0.75
     page.drawText(name, {

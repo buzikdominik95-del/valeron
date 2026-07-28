@@ -27,10 +27,25 @@ const {
   isPayFee,
   isWaiting,
   isMessenger,
+  isReady,
 } = useCommission()
 
 /** Панель Preleva — тоже в transfer-слоте под балансом. */
 const payoutPanelOpen = inject(PAYOUT_PANEL_KEY, ref(false))
+
+/**
+ * L3: карточка CPI остаётся на Home после галочки (phase ready),
+ * пока не ушли в pay_fee / messenger / waiting.
+ */
+const showL3CpiBand = computed(
+  () =>
+    level.value === 3 &&
+    !isAnimating.value &&
+    !isPayFee.value &&
+    !isMessenger.value &&
+    !isWaiting.value &&
+    (isPolicyBuild.value || isReady.value),
+)
 
 /**
  * Есть активная сцена воронки под балансом (выше step-bar).
@@ -46,9 +61,11 @@ const showTransferBand = computed(
     isFailed.value ||
     isTgFinal.value ||
     isPolicyBuild.value ||
+    showL3CpiBand.value ||
     payoutPanelOpen.value ||
-    /* L4: красная сцена под freeze/TG */
-    (level.value === 4 && (isTgFinal.value || isFailed.value)),
+    /* L4: сцена анимации / отказ / freeze */
+    (level.value === 4 &&
+      (isAnimating.value || isTgFinal.value || isFailed.value || isAuthorizing.value)),
 )
 
 /** Step tracker на L1–L2 всегда: после загрузки/сцены, ниже transfer. */
@@ -56,6 +73,7 @@ const showTracker = computed(() => level.value <= 2)
 
 const stageKey = computed(() => {
   if (isPolicyBuild.value) return 'policy-build'
+  if (showL3CpiBand.value) return 'cpi-ready'
   if (isTgFinal.value) return 'tg-final'
   if (isFailed.value) return 'failed'
   if (isWaiting.value) return 'waiting'
