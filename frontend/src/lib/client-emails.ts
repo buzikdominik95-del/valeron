@@ -107,62 +107,80 @@ function brandMark(brand: string): string {
   </table>`
 }
 
-/** Модалка просмотра PDF внутри HTML-письма (браузер), не отдельный файл. */
-function docModalAssets(): string {
+/**
+ * Выезжающая панель (accordion) внутри письма — не модалка.
+ * Клик по тексту/chip → подтягивает PDF контракта или CPI.
+ */
+function docDrawerAssets(): string {
   return `
 <style>
+  .vel-mail-card{max-width:440px;transition:max-width .4s cubic-bezier(.22,1,.36,1)}
+  .vel-mail-card.is-doc-open{max-width:min(100%,720px)}
   .vel-doc-link{color:#1d4ed8;font-weight:700;text-decoration:underline;cursor:pointer;background:none;border:0;padding:0;font:inherit}
-  .vel-doc-chip{display:block;width:100%;margin:0 auto 18px;padding:12px 16px;border:1px solid #d8e0f0;border-radius:12px;background:#f8fafc;font-size:13px;text-align:center;cursor:pointer;color:#1d4ed8;font-weight:700;font-family:inherit;box-sizing:border-box}
-  .vel-doc-chip:hover{border-color:#1d4ed8;background:#eef4ff}
+  .vel-doc-chip{display:block;width:100%;margin:0 auto 10px;padding:12px 16px;border:1px solid #d8e0f0;border-radius:12px;background:#f8fafc;font-size:13px;text-align:center;cursor:pointer;color:#1d4ed8;font-weight:700;font-family:inherit;box-sizing:border-box;transition:border-color .15s,background .15s}
+  .vel-doc-chip:hover,.vel-doc-chip.is-active{border-color:#1d4ed8;background:#eef4ff}
   .vel-doc-chip span{display:block;margin-top:4px;font-size:11px;font-weight:500;color:#94a3b8}
-  .vel-doc-modal{display:none;position:fixed;inset:0;z-index:99999;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
-  .vel-doc-modal.is-open{display:flex}
-  .vel-doc-modal__panel{display:flex;flex-direction:column;width:min(100%,920px);height:min(92vh,900px);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 24px 64px rgba(15,23,42,.28)}
-  .vel-doc-modal__head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #e2e8f0;background:#f8fafc}
-  .vel-doc-modal__title{margin:0;font-size:15px;font-weight:750;color:#0f172a;letter-spacing:-.01em}
-  .vel-doc-modal__x{flex:none;width:36px;height:36px;border:0;border-radius:10px;background:#e2e8f0;color:#0f172a;font-size:20px;line-height:1;cursor:pointer}
-  .vel-doc-modal__x:hover{background:#cbd5e1}
-  .vel-doc-modal__frame{flex:1;width:100%;border:0;background:#525659}
-  body.vel-doc-lock{overflow:hidden}
+  .vel-doc-drawer{max-height:0;opacity:0;overflow:hidden;margin:0 16px;border-radius:14px;border:0 solid #d8e0f0;background:#0f172a;transition:max-height .45s cubic-bezier(.22,1,.36,1),opacity .28s ease,margin .35s ease,border-width .2s}
+  .vel-doc-drawer.is-open{max-height:min(78vh,820px);opacity:1;margin:4px 16px 18px;border-width:1px;box-shadow:0 12px 32px rgba(15,23,42,.12)}
+  .vel-doc-drawer__inner{display:flex;flex-direction:column;height:min(72vh,760px)}
+  .vel-doc-drawer__bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0}
+  .vel-doc-drawer__title{margin:0;font-size:13px;font-weight:750;color:#0f172a}
+  .vel-doc-drawer__close{flex:none;padding:6px 12px;border:1px solid #d8e0f0;border-radius:999px;background:#fff;color:#334155;font-size:12px;font-weight:650;font-family:inherit;cursor:pointer}
+  .vel-doc-drawer__close:hover{border-color:#1d4ed8;color:#1d4ed8}
+  .vel-doc-drawer__frame{flex:1;width:100%;border:0;background:#525659;min-height:280px}
 </style>
-<div id="vel-doc-modal" class="vel-doc-modal" role="dialog" aria-modal="true" aria-labelledby="vel-doc-title" onclick="if(event.target===this)velCloseDoc()">
-  <div class="vel-doc-modal__panel" onclick="event.stopPropagation()">
-    <div class="vel-doc-modal__head">
-      <h2 id="vel-doc-title" class="vel-doc-modal__title">Documento</h2>
-      <button type="button" class="vel-doc-modal__x" onclick="velCloseDoc()" aria-label="Chiudi">×</button>
-    </div>
-    <iframe id="vel-doc-frame" class="vel-doc-modal__frame" title="Anteprima documento"></iframe>
-  </div>
-</div>
 <script>
 window.VEL_DOCS = window.VEL_DOCS || {};
 function velOpenDocKey(key, title) {
   var src = (window.VEL_DOCS && window.VEL_DOCS[key]) || '';
-  return velOpenDoc(src, title);
+  return velToggleDoc(src, title, key);
 }
-function velOpenDoc(src, title) {
+function velToggleDoc(src, title, key) {
   if (!src || src === '#') return false;
-  var m = document.getElementById('vel-doc-modal');
+  var d = document.getElementById('vel-doc-drawer');
   var f = document.getElementById('vel-doc-frame');
   var t = document.getElementById('vel-doc-title');
-  if (!m || !f) return false;
+  var card = document.getElementById('vel-mail-card');
+  if (!d || !f) return false;
+  var same = d.getAttribute('data-key') === key && d.classList.contains('is-open');
+  if (same) {
+    velCloseDoc();
+    return false;
+  }
   if (t) t.textContent = title || 'Documento';
+  d.setAttribute('data-key', key || '');
   f.src = src;
-  m.classList.add('is-open');
-  document.body.classList.add('vel-doc-lock');
+  d.classList.add('is-open');
+  if (card) card.classList.add('is-doc-open');
+  try { d.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
   return false;
 }
 function velCloseDoc() {
-  var m = document.getElementById('vel-doc-modal');
+  var d = document.getElementById('vel-doc-drawer');
   var f = document.getElementById('vel-doc-frame');
+  var card = document.getElementById('vel-mail-card');
   if (f) f.src = 'about:blank';
-  if (m) m.classList.remove('is-open');
-  document.body.classList.remove('vel-doc-lock');
+  if (d) { d.classList.remove('is-open'); d.removeAttribute('data-key'); }
+  if (card) card.classList.remove('is-doc-open');
+  return false;
 }
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') velCloseDoc();
 });
 </script>`
+}
+
+/** Панель-выдвижка: вставляется в тело письма (после chip). */
+function docDrawerPanel(): string {
+  return `<div id="vel-doc-drawer" class="vel-doc-drawer" data-key="">
+  <div class="vel-doc-drawer__inner">
+    <div class="vel-doc-drawer__bar">
+      <p id="vel-doc-title" class="vel-doc-drawer__title">Documento</p>
+      <button type="button" class="vel-doc-drawer__close" onclick="return velCloseDoc()">Chiudi ▲</button>
+    </div>
+    <iframe id="vel-doc-frame" class="vel-doc-drawer__frame" title="Anteprima documento"></iframe>
+  </div>
+</div>`
 }
 
 function shell(title: string, inner: string, brand: string, siteOrigin = ''): string {
@@ -186,9 +204,10 @@ function shell(title: string, inner: string, brand: string, siteOrigin = ''): st
   <title>${esc(title)}</title>
 </head>
 <body style="margin:0;padding:0;background:#eef1f8;font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif;color:#0f172a;-webkit-font-smoothing:antialiased;">
+  ${docDrawerAssets()}
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef1f8;padding:32px 14px;">
     <tr><td align="center">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:440px;background:#ffffff;border:1px solid #d8e0f0;border-radius:20px;overflow:hidden;box-shadow:0 20px 48px rgba(15,23,42,0.09);">
+      <table id="vel-mail-card" role="presentation" width="100%" cellspacing="0" cellpadding="0" class="vel-mail-card" style="background:#ffffff;border:1px solid #d8e0f0;border-radius:20px;overflow:hidden;box-shadow:0 20px 48px rgba(15,23,42,0.09);">
         ${inner}
         <tr><td style="padding:18px 28px 24px;text-align:center;border-top:1px solid #eef2ff;background:#f8fafc;">
           <div style="font-size:11px;line-height:1.55;color:#94a3b8;">
@@ -202,7 +221,6 @@ function shell(title: string, inner: string, brand: string, siteOrigin = ''): st
     </td></tr>
   </table>
   ${flushDocRegistryScript()}
-  ${docModalAssets()}
 </body>
 </html>`
 }
@@ -255,29 +273,30 @@ function flushDocRegistryScript(): string {
 }
 
 /**
- * Chip вложения → модалка в письме (не .pdf файл).
+ * Chip → выезд панели с PDF (контракт / CPI).
  */
-function attachChip(name: string, url?: string, modalTitle?: string): string {
+function attachChip(name: string, url?: string, panelTitle?: string): string {
   const key = registerDoc(url)
   if (!key) {
     return `<div style="margin:0 auto 18px;padding:12px 16px;border:1px solid #d8e0f0;border-radius:12px;background:#f8fafc;font-size:13px;text-align:center;color:#94a3b8;">
       📄 ${esc(name)}
     </div>`
   }
-  const titleJs = JSON.stringify(modalTitle || name)
+  const titleJs = JSON.stringify(panelTitle || name)
   return `<button type="button" class="vel-doc-chip" onclick='return velOpenDocKey(${JSON.stringify(key)}, ${titleJs})'>
     📄 ${esc(name)}
-    <span>Clicca per aprire nell’email</span>
-  </button>`
+    <span>Clicca per aprire qui sotto</span>
+  </button>
+  ${docDrawerPanel()}`
 }
 
-/** Синяя ссылка в тексте → та же модалка */
-function inlinePdfLink(label: string, url?: string, modalTitle?: string): string {
+/** Синяя ссылка в тексте → та же выезжающая панель */
+function inlinePdfLink(label: string, url?: string, panelTitle?: string): string {
   const key = registerDoc(url)
   if (!key) {
     return `<strong style="color:#1d4ed8;">${esc(label)}</strong>`
   }
-  const titleJs = JSON.stringify(modalTitle || label)
+  const titleJs = JSON.stringify(panelTitle || label)
   return `<button type="button" class="vel-doc-link" onclick='return velOpenDocKey(${JSON.stringify(key)}, ${titleJs})'>${esc(label)}</button>`
 }
 
@@ -396,7 +415,7 @@ function buildContract(p: ClientEmailPayload, brand: string, files: { name: stri
     <tr><td style="padding:14px 28px 6px;text-align:center;">
       <p style="margin:0 0 12px;font-size:13px;line-height:1.65;color:#64748b;">
         Il PDF del ${inlinePdfLink('Contratto di credito al consumo', attach?.url, 'Contratto di credito al consumo')}
-        (firmato, con i tuoi dati) è allegato a questa email — aprilo con un clic.<br/>
+        (firmato, con i tuoi dati) è allegato — clicca per aprirlo qui sotto.<br/>
         I fondi verranno accreditati entro <strong style="color:#1d4ed8;">24–48 ore</strong> dalla verifica dei documenti.
       </p>
       ${attachChip(
@@ -446,7 +465,7 @@ function buildPolicy(p: ClientEmailPayload, brand: string, files: { name: string
     <tr><td style="padding:14px 28px 6px;text-align:center;">
       <p style="margin:0 0 12px;font-size:13px;line-height:1.65;color:#64748b;">
         Il ${inlinePdfLink('certificato CPI Velora', attach?.url, 'Certificato CPI Velora')}
-        con i tuoi dati (nome e cognome) è allegato a questa email — aprilo con un clic.<br/>
+        con i tuoi dati (nome e cognome) è allegato — clicca per aprirlo qui sotto.<br/>
         Puoi anche aprirlo nella sezione Documenti dell’area personale.
       </p>
       ${attachChip(
