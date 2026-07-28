@@ -338,13 +338,12 @@ export function useSupportChat(): SupportChat {
               return dossier.pullAccount()
             }
           })
-          .then(async () => {
+          .then(() => {
             pushClientMessage(body, 'sent')
             draft.value = ''
             sending.value = false
             if (funnel) advanceFunnel()
             account.clearSupportUnread()
-            await syncFromServer()
             void scrollToEnd()
           })
           .catch((error) => {
