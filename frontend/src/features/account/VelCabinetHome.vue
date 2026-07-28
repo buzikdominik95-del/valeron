@@ -70,16 +70,8 @@ const stageKey = computed(() => {
 
 <template>
   <div class="vel-home" :class="`vel-home--l${level}`">
-    <!-- «La tua pratica» скрываем с L2+ (фотка 12) -->
-    <h2
-      v-if="level < 2"
-      :id="CABINET_HEADING_ID"
-      tabindex="-1"
-      class="vel-home__heading"
-    >
-      {{ t('account.pages.home.title') }}
-    </h2>
-    <h2 v-else :id="CABINET_HEADING_ID" tabindex="-1" class="sr-only">
+    <!-- «La tua pratica» убрана (66.txt §3) — только sr-only для a11y -->
+    <h2 :id="CABINET_HEADING_ID" tabindex="-1" class="sr-only">
       {{ t('account.pages.home.title') }}
     </h2>
 

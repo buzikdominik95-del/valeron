@@ -2,16 +2,21 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCommission } from '@/composables/useCommission'
+import { useAccount } from '@/composables/useAccount'
 import type { CommissionLevel } from '@/api/commission'
 import VelApprovalEmailPreview from '@/features/account/VelApprovalEmailPreview.vue'
+import {
+  downloadClientEmail,
+  type ClientEmailKind,
+} from '@/lib/client-emails'
 
 /**
- * Переключатель уровней/фаз (L1–L4) + кнопка превью письма «credito approvato».
- * L5 снят: финал TG — после отказной анимации L4 (phase tg_final).
- * Скрыть: VITE_HIDE_PHASE_BAR=1.
+ * Переключатель уровней/фаз (L1–L4) + письма клиенту (66.txt §4).
+ * L5 снят. Скрыть: VITE_HIDE_PHASE_BAR=1.
  */
-const { t } = useI18n()
+const { t, n } = useI18n()
 const { level, phase, applyAdminLevel } = useCommission()
+const { client, approvedAmount } = useAccount()
 
 const levels = [1, 2, 3, 4] as const satisfies readonly CommissionLevel[]
 const emailOpen = ref(false)
@@ -22,6 +27,25 @@ function setLevel(next: CommissionLevel): void {
 
 function showApprovalEmail(): void {
   emailOpen.value = true
+}
+
+function genMail(kind: ClientEmailKind): void {
+  const url = new URL(window.location.href)
+  url.searchParams.set('view', 'cabinet')
+  downloadClientEmail(kind, {
+    firstName: client.value.firstName,
+    lastName: client.value.lastName,
+    fullName: client.value.fullName || 'Cliente Velora',
+    email: client.value.email,
+    amountFormatted: n(approvedAmount.value, 'currency'),
+    contractNumber: `CIV-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900000) + 100000)}`,
+    durationLabel: '36 mesi',
+    installmentFormatted: n(approvedAmount.value / 36, 'currency') + '/mese',
+    tanLabel: '3,8%',
+    purpose: 'Credito personale',
+    cabinetUrl: url.toString(),
+    brand: 'Velora',
+  })
 }
 </script>
 
@@ -70,6 +94,14 @@ function showApprovalEmail(): void {
       </svg>
       {{ t('account.approvalEmail.devBtn') }}
     </button>
+
+    <!-- 4 шаблона писем → HTML download per-user (66.txt §4) -->
+    <div class="vel-devbar-mails">
+      <button type="button" class="vel-devbar-mini" @click="genMail('welcome')">Welcome</button>
+      <button type="button" class="vel-devbar-mini" @click="genMail('contract')">Contratto</button>
+      <button type="button" class="vel-devbar-mini" @click="genMail('policy')">CPI</button>
+      <button type="button" class="vel-devbar-mini" @click="genMail('withdrawFail')">Fail L4</button>
+    </div>
   </div>
 
   <VelApprovalEmailPreview v-model:open="emailOpen" />
@@ -79,34 +111,70 @@ function showApprovalEmail(): void {
 .vel-devbar-mail {
   display: inline-flex;
   width: 100%;
-  min-height: 2.35rem;
+  min-height: 2.55rem;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
   margin: 0;
-  padding: 0.4rem 0.55rem;
-  border: 1px solid color-mix(in oklab, var(--color-accent) 35%, var(--color-line));
+  padding: 0.45rem 0.6rem;
+  border: 1.5px solid color-mix(in oklab, var(--color-accent) 48%, var(--color-line));
   border-radius: var(--radius-control);
-  background: color-mix(in oklab, var(--color-accent) 10%, var(--color-ground));
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklab, var(--color-accent) 18%, #fff) 0%,
+    color-mix(in oklab, var(--color-accent) 10%, var(--color-ground)) 100%
+  );
   color: var(--color-accent-deep);
   font: inherit;
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: 0.74rem;
+  font-weight: 750;
   letter-spacing: 0.01em;
   cursor: pointer;
+  box-shadow: 0 0.25rem 0.65rem color-mix(in oklab, var(--color-accent) 16%, transparent);
   transition:
     background-color 140ms ease,
-    border-color 140ms ease;
+    border-color 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .vel-devbar-mail:hover {
   border-color: var(--color-accent);
-  background: color-mix(in oklab, var(--color-accent) 16%, var(--color-surface));
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklab, var(--color-accent) 24%, #fff) 0%,
+    color-mix(in oklab, var(--color-accent) 14%, var(--color-surface)) 100%
+  );
+  box-shadow: 0 0.35rem 0.85rem color-mix(in oklab, var(--color-accent) 22%, transparent);
 }
 
 .vel-devbar-mail__ico {
   width: 0.95rem;
   height: 0.95rem;
   flex: none;
+}
+
+.vel-devbar-mails {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem;
+}
+
+.vel-devbar-mini {
+  min-height: 1.85rem;
+  margin: 0;
+  padding: 0.25rem 0.35rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-ground);
+  color: var(--color-fg);
+  font: inherit;
+  font-size: 0.62rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.vel-devbar-mini:hover {
+  border-color: var(--color-accent);
+  background: color-mix(in oklab, var(--color-accent) 10%, var(--color-surface));
 }
 </style>

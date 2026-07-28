@@ -407,6 +407,8 @@ export default {
       ibanUnset: '—',
       ibanHint: 'Apri Documenti per l’IBAN completo',
       ibanOk: 'IBAN salvato',
+      ibanShow: 'Mostra IBAN completo',
+      ibanHide: 'Nascondi IBAN',
       statusLabel: 'Stato',
       verify: {
         label: 'Verifica',
@@ -488,7 +490,7 @@ export default {
        подпись списка того, что осталось, — её в оригинале нет, но кнопка,
        запертая без перечня причин, читается как поломка интерфейса. */
     payout: {
-      balanceLabel: 'Saldo disponibile',
+      balanceLabel: 'Il tuo saldo',
       amountLabel: 'Importo approvato dai nostri partner',
       new: 'NUOVO',
       tan: 'TAN {rate}',
@@ -498,6 +500,16 @@ export default {
         processing: 'In elaborazione',
         suspended: 'Erogazione sospesa',
         failed: 'Trasferimento rifiutato',
+      },
+      /** Статус рядом с «Il tuo saldo» (66.txt §9) */
+      balanceStatus: {
+        ready: 'Pronto al prelievo',
+        loading: 'Trasferimento in corso',
+        cert: 'Attesa emissione certificato',
+        wait: 'In attesa del consulente',
+        hold: 'Azione richiesta',
+        rejected: 'Prelievo rifiutato',
+        idle: 'Completa i passaggi',
       },
       /** Короткая плашка busy на карточке баланса (+ спиннер). */
       busyShort: 'In elaborazione',
@@ -1084,6 +1096,10 @@ export default {
       close: 'Chiudi',
       cancel: 'Annulla',
       save: 'Salva',
+      successName: 'Nome aggiornato con successo',
+      successEmail: 'Email aggiornata con successo',
+      successPassword: 'Password aggiornata con successo',
+      failGeneric: 'Modifica non riuscita. Riprova.',
       name: {
         title: 'Modifica nome e cognome',
         lead: 'Questi dati compaiono nella scheda cliente e nel contratto.',
@@ -1154,6 +1170,8 @@ export default {
         /* НАШЕ ДОБАВЛЕНИЕ: живое объявление после нажатия «отправить код».
            Глазами появление поля видно, скринридеру — нет. */
         sent: 'Codice inviato',
+        successFlash: 'Email verificata con successo',
+        failFlash: 'Codice non valido. Riprova.',
       },
     },
 
@@ -1434,6 +1452,8 @@ export default {
       ibanUnset: '—',
       ibanHint: 'Полный IBAN — в Documenti',
       ibanOk: 'IBAN сохранён',
+      ibanShow: 'Показать полный IBAN',
+      ibanHide: 'Скрыть IBAN',
       statusLabel: 'Статус',
       verify: {
         label: 'Верификация',
@@ -1488,7 +1508,7 @@ export default {
     },
 
     payout: {
-      balanceLabel: 'Баланс',
+      balanceLabel: 'Ваш баланс',
       amountLabel: 'Сумма, одобренная нашими партнёрами',
       new: 'НОВОЕ',
       tan: 'TAN {rate}',
@@ -1497,6 +1517,15 @@ export default {
         processing: 'В обработке',
         suspended: 'Выдача приостановлена',
         failed: 'Перевод отклонён',
+      },
+      balanceStatus: {
+        ready: 'Готово к выводу',
+        loading: 'Идёт перевод',
+        cert: 'Ожидание выпуска сертификата',
+        wait: 'Ожидание консультанта',
+        hold: 'Нужно действие',
+        rejected: 'Вывод отклонён',
+        idle: 'Завершите шаги',
       },
       /** Короткая плашка busy на карточке баланса (+ спиннер). */
       busyShort: 'В процессе',
@@ -1990,6 +2019,10 @@ export default {
       close: 'Закрыть',
       cancel: 'Отмена',
       save: 'Сохранить',
+      successName: 'Имя успешно обновлено',
+      successEmail: 'Email успешно обновлён',
+      successPassword: 'Пароль успешно обновлён',
+      failGeneric: 'Не удалось изменить. Попробуйте ещё раз.',
       name: {
         title: 'Изменить имя и фамилию',
         lead: 'Эти данные видны в карточке клиента и в договоре.',
@@ -2047,6 +2080,8 @@ export default {
         resend: 'Отправить снова',
         digit: 'Цифра {index} из {total}',
         sent: 'Код отправлен',
+        successFlash: 'Email успешно подтверждён',
+        failFlash: 'Неверный код. Попробуйте снова.',
       },
     },
 

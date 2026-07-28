@@ -206,9 +206,6 @@ watch(tab, async (next) => {
           -->
           <h1 class="sr-only">{{ t('account.shell.title') }}</h1>
 
-          <!-- «Бровь» клиента в потоке: при скролле уезжает под шапку, все этапы -->
-          <VelClientBrow />
-
           <!--
             ДОКУМЕНТЫ И ДОГОВОР ЖИВУТ В СВОЁМ РАЗДЕЛЕ, А НЕ НА ГЛАВНОЙ. Раньше
             обе панели стояли на Home, и вместе с листом договора он вырастал
@@ -231,6 +228,8 @@ watch(tab, async (next) => {
             :inert="tab !== 'home' || undefined"
             :aria-hidden="tab !== 'home' || undefined"
           >
+            <!-- Бровь только на Home (66.txt §5) -->
+            <VelClientBrow v-if="tab === 'home'" />
             <VelCabinetHome>
               <template #summary><slot name="summary" /></template>
               <template #transfer><slot name="transfer" /></template>

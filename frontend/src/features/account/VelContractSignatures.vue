@@ -18,8 +18,8 @@ defineProps<Props>()
 const { t } = useI18n()
 
 const base = import.meta.env.BASE_URL
-/* RGBA webp без шахматки; png — для PDF (pdf-lib) */
-const lenderStamp = computed(() => `${base}cpi/lender-stamp.webp`)
+/* Печать Velora (крупная, поверх подписи — 66.txt §7 / 3.png) */
+const lenderStamp = computed(() => `${base}cpi/velora-seal.png`)
 const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
 </script>
 
@@ -31,21 +31,22 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
         <div class="vel-csign__box" :class="{ 'vel-csign__box--filled': signed }">
           <template v-if="signed">
             <div class="vel-csign__lender">
-              <img
-                class="vel-csign__stamp"
-                :src="lenderStamp"
-                alt=""
-                width="140"
-                height="140"
-                decoding="async"
-                draggable="false"
-              />
+              <!-- Подпись снизу, печать крупнее и поверх (z-index) -->
               <img
                 class="vel-csign__lender-sig"
                 :src="lenderSignature"
                 alt=""
                 width="220"
                 height="80"
+                decoding="async"
+                draggable="false"
+              />
+              <img
+                class="vel-csign__stamp"
+                :src="lenderStamp"
+                alt=""
+                width="200"
+                height="200"
                 decoding="async"
                 draggable="false"
               />
@@ -125,7 +126,7 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
 }
 
 .vel-csign__box--filled {
-  min-block-size: 6.25rem;
+  min-block-size: 7.5rem;
 }
 
 .vel-csign__placeholder-line {
@@ -138,36 +139,36 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
   position: relative;
   display: flex;
   width: 100%;
-  min-block-size: 5.5rem;
+  min-block-size: 6.75rem;
   align-items: flex-end;
   background: transparent;
 }
 
-/* Ассеты — RGBA без фона; на бумаге multiply = «чернила» */
+/* Печать крупнее и ПОВЕРХ подписи (66.txt §7) */
 .vel-csign__stamp {
   position: absolute;
-  left: 0;
-  bottom: 0.15rem;
-  z-index: 1;
-  width: 4.75rem;
-  height: 4.75rem;
+  left: 0.15rem;
+  bottom: -0.15rem;
+  z-index: 3;
+  width: 7.25rem;
+  height: 7.25rem;
   object-fit: contain;
   object-position: left bottom;
   background: transparent;
-  opacity: 0.92;
+  opacity: 0.95;
   mix-blend-mode: multiply;
-  filter: contrast(1.08) saturate(1.05);
+  filter: contrast(1.06) saturate(1.08);
   pointer-events: none;
   animation: vel-csign-pop 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .vel-csign__lender-sig {
   position: relative;
-  z-index: 2;
+  z-index: 1;
   display: block;
   max-inline-size: min(100%, 12rem);
   max-block-size: 3.4rem;
-  margin-inline-start: 2.1rem;
+  margin-inline-start: 1.4rem;
   margin-block-end: 0.15rem;
   object-fit: contain;
   object-position: left bottom;

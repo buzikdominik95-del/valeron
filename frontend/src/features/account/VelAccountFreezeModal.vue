@@ -240,23 +240,30 @@ function backToMain(): void {
   overflow: auto;
   overscroll-behavior: contain;
   padding: 0;
-  border: 1px solid color-mix(in oklab, var(--color-danger) 38%, var(--color-line));
+  border: 1px solid color-mix(in oklab, #dc2626 55%, #7f1d1d);
   border-radius: 1.15rem;
-  background: var(--color-surface);
+  /* Чуть краснее / розовее панели (66.txt §11) */
+  background: linear-gradient(
+    165deg,
+    #fff5f5 0%,
+    #ffffff 38%,
+    #fff 100%
+  );
   color: var(--color-fg);
   box-shadow:
-    0 1.75rem 3.5rem color-mix(in oklab, var(--color-fg) 28%, transparent),
-    0 0 0 1px color-mix(in oklab, var(--color-danger) 12%, transparent);
+    0 1.75rem 3.5rem color-mix(in oklab, #7f1d1d 32%, transparent),
+    0 0 0 1px color-mix(in oklab, #ef4444 22%, transparent);
 }
 
 .vel-freeze::backdrop {
   background:
     radial-gradient(
-      ellipse 80% 60% at 50% 40%,
-      color-mix(in oklab, var(--color-danger) 22%, transparent),
-      color-mix(in oklab, var(--color-fg) 68%, transparent) 70%
+      ellipse 85% 65% at 50% 40%,
+      color-mix(in oklab, #ef4444 38%, transparent),
+      color-mix(in oklab, #450a0a 78%, transparent) 72%
     );
-  backdrop-filter: blur(5px) saturate(0.9);
+  /* Сильнее размытие фона */
+  backdrop-filter: blur(12px) saturate(0.75);
   animation: vel-freeze-backdrop 0.55s ease-out both;
 }
 
@@ -272,9 +279,9 @@ function backToMain(): void {
   background:
     linear-gradient(
       180deg,
-      color-mix(in oklab, var(--color-danger) 10%, var(--color-surface)) 0%,
-      var(--color-surface) 2.5rem,
-      var(--color-surface) 100%
+      color-mix(in oklab, #ef4444 14%, #fff) 0%,
+      color-mix(in oklab, #fecaca 18%, #fff) 2.2rem,
+      #fff 100%
     );
 }
 
@@ -283,8 +290,8 @@ function backToMain(): void {
   position: absolute;
   inset-inline: 0;
   inset-block-start: 0;
-  block-size: 4px;
-  background: linear-gradient(90deg, #e11d48, #f43f5e 55%, #fb7185);
+  block-size: 5px;
+  background: linear-gradient(90deg, #991b1b, #dc2626 40%, #f43f5e 70%, #fb7185);
   pointer-events: none;
 }
 
