@@ -226,7 +226,7 @@ function goVerify(): void {
           :class="emailVerified ? 'vel-brow__q--ok' : 'vel-brow__q--pending'"
           aria-hidden="true"
         >
-          <!-- verified: check; pending: ? with outline ring -->
+          <!-- verified: check; pending: ? (SVG — глиф шрифта криво сидел в круге) -->
           <svg v-if="emailVerified" viewBox="0 0 24 24" fill="none">
             <path
               d="M5.5 12.6 10 17.2 18.8 7.4"
@@ -236,7 +236,15 @@ function goVerify(): void {
               stroke-linejoin="round"
             />
           </svg>
-          <span v-else class="vel-brow__q-mark">?</span>
+          <svg v-else class="vel-brow__q-svg" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4.5"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+            />
+            <circle cx="12" cy="18" r="1.15" fill="currentColor" />
+          </svg>
         </span>
         <span class="vel-brow__val vel-brow__clip">{{ verifyLabel }}</span>
       </span>
@@ -486,15 +494,14 @@ function goVerify(): void {
 }
 
 .vel-brow__q {
-  display: grid;
-  place-items: center;
+  display: inline-flex;
   flex: none;
+  align-items: center;
+  justify-content: center;
   inline-size: 1.35rem;
   block-size: 1.35rem;
   border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 800;
-  line-height: 1;
+  line-height: 0;
 }
 
 .vel-brow__q--pending {
@@ -511,13 +518,16 @@ function goVerify(): void {
 }
 
 .vel-brow__q svg {
-  width: 0.72rem;
-  height: 0.72rem;
+  display: block;
+  width: 0.78rem;
+  height: 0.78rem;
+  flex: none;
 }
 
-.vel-brow__q-mark {
-  display: block;
-  transform: translateY(0.5px);
+.vel-brow__q-svg {
+  /* чуть крупнее галочки — «?» читается в круге */
+  width: 0.82rem;
+  height: 0.82rem;
 }
 
 .vel-brow__col--verify-ok .vel-brow__val {
@@ -566,7 +576,16 @@ function goVerify(): void {
   .vel-brow__q {
     inline-size: 1.2rem;
     block-size: 1.2rem;
-    font-size: 0.7rem;
+  }
+
+  .vel-brow__q svg {
+    width: 0.7rem;
+    height: 0.7rem;
+  }
+
+  .vel-brow__q-svg {
+    width: 0.74rem;
+    height: 0.74rem;
   }
 }
 
@@ -632,13 +651,17 @@ function goVerify(): void {
   .vel-brow__q {
     inline-size: 1.05rem;
     block-size: 1.05rem;
-    font-size: 0.62rem;
     border-width: 1.5px;
   }
 
   .vel-brow__q svg {
-    width: 0.58rem;
-    height: 0.58rem;
+    width: 0.6rem;
+    height: 0.6rem;
+  }
+
+  .vel-brow__q-svg {
+    width: 0.64rem;
+    height: 0.64rem;
   }
 }
 </style>
