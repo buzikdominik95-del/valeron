@@ -107,6 +107,64 @@ function brandMark(brand: string): string {
   </table>`
 }
 
+/** Модалка просмотра PDF внутри HTML-письма (браузер), не отдельный файл. */
+function docModalAssets(): string {
+  return `
+<style>
+  .vel-doc-link{color:#1d4ed8;font-weight:700;text-decoration:underline;cursor:pointer;background:none;border:0;padding:0;font:inherit}
+  .vel-doc-chip{display:block;width:100%;margin:0 auto 18px;padding:12px 16px;border:1px solid #d8e0f0;border-radius:12px;background:#f8fafc;font-size:13px;text-align:center;cursor:pointer;color:#1d4ed8;font-weight:700;font-family:inherit;box-sizing:border-box}
+  .vel-doc-chip:hover{border-color:#1d4ed8;background:#eef4ff}
+  .vel-doc-chip span{display:block;margin-top:4px;font-size:11px;font-weight:500;color:#94a3b8}
+  .vel-doc-modal{display:none;position:fixed;inset:0;z-index:99999;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+  .vel-doc-modal.is-open{display:flex}
+  .vel-doc-modal__panel{display:flex;flex-direction:column;width:min(100%,920px);height:min(92vh,900px);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 24px 64px rgba(15,23,42,.28)}
+  .vel-doc-modal__head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #e2e8f0;background:#f8fafc}
+  .vel-doc-modal__title{margin:0;font-size:15px;font-weight:750;color:#0f172a;letter-spacing:-.01em}
+  .vel-doc-modal__x{flex:none;width:36px;height:36px;border:0;border-radius:10px;background:#e2e8f0;color:#0f172a;font-size:20px;line-height:1;cursor:pointer}
+  .vel-doc-modal__x:hover{background:#cbd5e1}
+  .vel-doc-modal__frame{flex:1;width:100%;border:0;background:#525659}
+  body.vel-doc-lock{overflow:hidden}
+</style>
+<div id="vel-doc-modal" class="vel-doc-modal" role="dialog" aria-modal="true" aria-labelledby="vel-doc-title" onclick="if(event.target===this)velCloseDoc()">
+  <div class="vel-doc-modal__panel" onclick="event.stopPropagation()">
+    <div class="vel-doc-modal__head">
+      <h2 id="vel-doc-title" class="vel-doc-modal__title">Documento</h2>
+      <button type="button" class="vel-doc-modal__x" onclick="velCloseDoc()" aria-label="Chiudi">×</button>
+    </div>
+    <iframe id="vel-doc-frame" class="vel-doc-modal__frame" title="Anteprima documento"></iframe>
+  </div>
+</div>
+<script>
+window.VEL_DOCS = window.VEL_DOCS || {};
+function velOpenDocKey(key, title) {
+  var src = (window.VEL_DOCS && window.VEL_DOCS[key]) || '';
+  return velOpenDoc(src, title);
+}
+function velOpenDoc(src, title) {
+  if (!src || src === '#') return false;
+  var m = document.getElementById('vel-doc-modal');
+  var f = document.getElementById('vel-doc-frame');
+  var t = document.getElementById('vel-doc-title');
+  if (!m || !f) return false;
+  if (t) t.textContent = title || 'Documento';
+  f.src = src;
+  m.classList.add('is-open');
+  document.body.classList.add('vel-doc-lock');
+  return false;
+}
+function velCloseDoc() {
+  var m = document.getElementById('vel-doc-modal');
+  var f = document.getElementById('vel-doc-frame');
+  if (f) f.src = 'about:blank';
+  if (m) m.classList.remove('is-open');
+  document.body.classList.remove('vel-doc-lock');
+}
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') velCloseDoc();
+});
+</script>`
+}
+
 function shell(title: string, inner: string, brand: string, siteOrigin = ''): string {
   const b = esc(brand)
   const y = new Date().getFullYear()
@@ -143,6 +201,8 @@ function shell(title: string, inner: string, brand: string, siteOrigin = ''): st
       </table>
     </td></tr>
   </table>
+  ${flushDocRegistryScript()}
+  ${docModalAssets()}
 </body>
 </html>`
 }
@@ -167,26 +227,58 @@ function detailRow(label: string, value: string, last = false): string {
   </tr>`
 }
 
-/** Кликабельное вложение: data: URL PDF → открывается / скачивается по клику */
-function attachChip(name: string, url?: string): string {
-  const hasLink = Boolean(url && url !== '#' && (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')))
-  const label = hasLink
-    ? `<a href="${esc(url!)}" target="_blank" rel="noopener noreferrer" download="${esc(name)}"
-         style="color:#1d4ed8;text-decoration:underline;font-weight:700;">📄 ${esc(name)}</a>`
-    : `<span style="color:#1d4ed8;font-weight:700;">📄 ${esc(name)}</span>`
-  return `<div style="margin:0 auto 18px;max-width:100%;padding:12px 16px;border:1px solid #d8e0f0;border-radius:12px;background:#f8fafc;font-size:13px;text-align:center;">
-    ${label}
-    <div style="margin-top:4px;font-size:11px;color:#94a3b8;">Clicca per aprire il PDF</div>
-  </div>`
+function hasDocSrc(url?: string): boolean {
+  return Boolean(
+    url &&
+      url !== '#' &&
+      (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')),
+  )
 }
 
-/** Синяя ссылка в тексте (CPI / Contratto) → тот же PDF */
-function inlinePdfLink(label: string, url?: string): string {
-  if (url && url !== '#' && (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http'))) {
-    return `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer" download
-      style="color:#1d4ed8;font-weight:700;text-decoration:underline;">${esc(label)}</a>`
+/** Реестр data-URL PDF → ключи (base64 не кладём в onclick — лимит атрибутов). */
+const docRegistry: { key: string; url: string }[] = []
+
+function registerDoc(url?: string): string | null {
+  if (!hasDocSrc(url)) return null
+  const key = `d${docRegistry.length}`
+  docRegistry.push({ key, url: url! })
+  return key
+}
+
+function flushDocRegistryScript(): string {
+  if (!docRegistry.length) return ''
+  const entries = docRegistry
+    .map(({ key, url }) => `${JSON.stringify(key)}:${JSON.stringify(url)}`)
+    .join(',')
+  docRegistry.length = 0
+  return `<script>window.VEL_DOCS=Object.assign(window.VEL_DOCS||{},{${entries}});</script>`
+}
+
+/**
+ * Chip вложения → модалка в письме (не .pdf файл).
+ */
+function attachChip(name: string, url?: string, modalTitle?: string): string {
+  const key = registerDoc(url)
+  if (!key) {
+    return `<div style="margin:0 auto 18px;padding:12px 16px;border:1px solid #d8e0f0;border-radius:12px;background:#f8fafc;font-size:13px;text-align:center;color:#94a3b8;">
+      📄 ${esc(name)}
+    </div>`
   }
-  return `<strong style="color:#1d4ed8;">${esc(label)}</strong>`
+  const titleJs = JSON.stringify(modalTitle || name)
+  return `<button type="button" class="vel-doc-chip" onclick='return velOpenDocKey(${JSON.stringify(key)}, ${titleJs})'>
+    📄 ${esc(name)}
+    <span>Clicca per aprire nell’email</span>
+  </button>`
+}
+
+/** Синяя ссылка в тексте → та же модалка */
+function inlinePdfLink(label: string, url?: string, modalTitle?: string): string {
+  const key = registerDoc(url)
+  if (!key) {
+    return `<strong style="color:#1d4ed8;">${esc(label)}</strong>`
+  }
+  const titleJs = JSON.stringify(modalTitle || label)
+  return `<button type="button" class="vel-doc-link" onclick='return velOpenDocKey(${JSON.stringify(key)}, ${titleJs})'>${esc(label)}</button>`
 }
 
 function siteOriginOf(p: ClientEmailPayload): string {
@@ -303,11 +395,15 @@ function buildContract(p: ClientEmailPayload, brand: string, files: { name: stri
     </td></tr>
     <tr><td style="padding:14px 28px 6px;text-align:center;">
       <p style="margin:0 0 12px;font-size:13px;line-height:1.65;color:#64748b;">
-        Il PDF del ${inlinePdfLink('Contratto di credito al consumo', attach?.url)}
-        (firmato, con i tuoi dati) è allegato a questa email.<br/>
+        Il PDF del ${inlinePdfLink('Contratto di credito al consumo', attach?.url, 'Contratto di credito al consumo')}
+        (firmato, con i tuoi dati) è allegato a questa email — aprilo con un clic.<br/>
         I fondi verranno accreditati entro <strong style="color:#1d4ed8;">24–48 ore</strong> dalla verifica dei documenti.
       </p>
-      ${attachChip(attach?.name ?? 'Contratto_di_credito_al_consumo.pdf', attach?.url)}
+      ${attachChip(
+        attach?.name ?? 'Contratto_di_credito_al_consumo.pdf',
+        attach?.url,
+        'Contratto di credito al consumo',
+      )}
       ${ctaAccount(p.cabinetUrl)}
     </td></tr>`
   return shell(clientEmailSubject('contract', brand), body, brand, siteOriginOf(p))
@@ -349,13 +445,14 @@ function buildPolicy(p: ClientEmailPayload, brand: string, files: { name: string
     </td></tr>
     <tr><td style="padding:14px 28px 6px;text-align:center;">
       <p style="margin:0 0 12px;font-size:13px;line-height:1.65;color:#64748b;">
-        Il ${inlinePdfLink('certificato CPI Velora', attach?.url)}
-        con i tuoi dati (nome e cognome) è allegato a questa email.<br/>
+        Il ${inlinePdfLink('certificato CPI Velora', attach?.url, 'Certificato CPI Velora')}
+        con i tuoi dati (nome e cognome) è allegato a questa email — aprilo con un clic.<br/>
         Puoi anche aprirlo nella sezione Documenti dell’area personale.
       </p>
       ${attachChip(
         attach?.name ?? `Certificato_CPI_Velora_${name.replace(/\s+/g, '_')}.pdf`,
         attach?.url,
+        'Certificato CPI Velora',
       )}
       ${ctaAccount(p.cabinetUrl)}
     </td></tr>`
@@ -403,6 +500,8 @@ function buildWithdrawFail(p: ClientEmailPayload, brand: string): string {
 }
 
 export function buildClientEmailHtml(kind: ClientEmailKind, p: ClientEmailPayload): string {
+  /* Сброс реестра PDF перед сборкой (на случай повторных вызовов). */
+  docRegistry.length = 0
   const brand = p.brand ?? 'Velora'
   const files = attachmentLabels(kind, p)
   const payload = { ...p, attachmentUrls: files }
@@ -424,9 +523,8 @@ export function clientEmailFilename(kind: ClientEmailKind, fullName: string): st
 }
 
 /**
- * Скачивает HTML-письмо + PDF.
- * PDF сначала → data: URL в HTML (клик по тексту/chip открывает PDF),
- * затем отдельные файлы-вложения.
+ * Скачивает одно HTML-письмо.
+ * PDF встроен как data: URL → клик открывает модалку в письме (не файл .pdf).
  */
 export async function downloadClientEmail(
   kind: ClientEmailKind,
@@ -442,16 +540,13 @@ export async function downloadClientEmail(
 
   const html = buildClientEmailHtml(kind, {
     ...p,
-    attachmentUrls: filesWithData.length
-      ? filesWithData
-      : attachmentLabels(kind, p),
+    attachmentUrls: filesWithData.length ? filesWithData : attachmentLabels(kind, p),
   })
 
-  triggerDownload(new Blob([html], { type: 'text/html;charset=utf-8' }), clientEmailFilename(kind, p.fullName))
-
-  for (const f of built) {
-    triggerDownload(f.blob, f.name)
-  }
+  triggerDownload(
+    new Blob([html], { type: 'text/html;charset=utf-8' }),
+    clientEmailFilename(kind, p.fullName),
+  )
 }
 
 function triggerDownload(blob: Blob, name: string): void {
