@@ -4,6 +4,7 @@ import type { ComponentPublicInstance } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMaskedInput } from '@/composables/useMaskedInput'
 import { useAccount } from '@/composables/useAccount'
+import { useCommission } from '@/composables/useCommission'
 import { useAccountStore } from '@/stores/account.store'
 import { ibanExpectedLength, isValidIban } from '@/lib/iban'
 import type { PayoutMethod } from '@/api/account.api'
@@ -23,6 +24,7 @@ const emit = defineEmits<{ submitted: [euros: number]; close: [] }>()
 
 const { t, n } = useI18n()
 const { approvedAmount, canWithdraw, isAuthorizing, client } = useAccount()
+const { isReady, isAnimating } = useCommission()
 const accountStore = useAccountStore()
 
 const uid = useId()
@@ -167,8 +169,15 @@ const accountReady = computed(() => {
 
 const holderReady = computed(() => holder.value.trim().length >= HOLDER_MIN_LENGTH)
 
+/**
+ * Не блокируем Avvia «залипшим» transfer.authorizing при phase=ready
+ * (прерванная L2-анимация / F5) — иначе Preleva открывается, а submit мёртв.
+ * Блокируем только реальный ход анимации.
+ */
+const transferBusy = computed(() => isAnimating.value || (isAuthorizing.value && !isReady.value))
+
 const canSubmit = computed(
-  () => canWithdraw.value && !isAuthorizing.value && accountReady.value && holderReady.value,
+  () => canWithdraw.value && !transferBusy.value && accountReady.value && holderReady.value,
 )
 
 const accountError = computed(() => {
@@ -181,7 +190,7 @@ const accountError = computed(() => {
 })
 
 const blockedReason = computed(() =>
-  isAuthorizing.value ? t('account.payout.inProgress') : t('account.payout.dialog.incomplete'),
+  transferBusy.value ? t('account.payout.inProgress') : t('account.payout.dialog.incomplete'),
 )
 
 function submit(): void {

@@ -135,9 +135,9 @@ const userHolder = computed(
 const sceneIbanTail = computed(() => {
   const fromTransfer = (transferAccountTail.value ?? '').trim()
   if (fromTransfer) return fromTransfer
-  const full = accountStore.ibanFull.replace(/\s+/g, '')
+  const full = (accountStore.ibanFull ?? '').replace(/\s+/g, '')
   if (full.length >= 4) return full.slice(-4)
-  const masked = accountStore.ibanMasked.replace(/\s+/g, '')
+  const masked = (accountStore.ibanMasked ?? '').replace(/\s+/g, '')
   if (masked.length >= 4) {
     const visibleTail = masked.match(/([0-9A-Za-z]{1,4})$/)
     if (visibleTail?.[1]) return visibleTail[1]
