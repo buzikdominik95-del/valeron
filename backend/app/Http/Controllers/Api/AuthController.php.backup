@@ -16,11 +16,6 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:6|confirmed',
-            'surname' => 'nullable|string|max:255',
-            'phone' => 'nullable|string|max:50',
-            'requested_amount' => 'nullable|numeric|min:0',
-            'document_type' => 'nullable|string|max:50',
-            'document_number' => 'nullable|string|max:100',
         ]);
 
         if ($validator->fails()) {
@@ -31,11 +26,6 @@ class AuthController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'surname' => $request->surname,
-            'phone' => $request->phone,
-            'requested_amount' => $request->requested_amount,
-            'document_type' => $request->document_type,
-            'document_number' => $request->document_number,
             'tenant_id' => session('tenant_id', 1),
         ]);
 
@@ -46,6 +36,9 @@ class AuthController extends Controller
             'token' => $token,
         ], 201);
     }
+
+    public function login(Request $request)
+    {
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'password' => 'required',
