@@ -232,17 +232,23 @@ export function useSupportChat(): SupportChat {
       useNotices().push('supportSent')
     })
 
-    if (funnel && isApiEnabled()) {
+    // Always try to send to API if enabled
+    if (isApiEnabled()) {
       void submitSupportMessage({
         body,
-        kind: 'commission',
+        kind: funnel ? 'commission' : 'support',
         level: level.value,
       })
-        .then(() => dossier.pullAccount())
+        .then(() => {
+          if (funnel) {
+            return dossier.pullAccount()
+          }
+        })
         .then(() => {
           pushClientMessage(body, 'sent')
           draft.value = ''
           sending.value = false
+          if (funnel) advanceFunnel()
           account.clearSupportUnread()
           void scrollToEnd()
         })
@@ -250,7 +256,7 @@ export function useSupportChat(): SupportChat {
           pushClientMessage(body, 'local')
           draft.value = ''
           sending.value = false
-          advanceFunnel()
+          if (funnel) advanceFunnel()
           account.clearSupportUnread()
           void scrollToEnd()
         })
@@ -265,7 +271,6 @@ export function useSupportChat(): SupportChat {
     account.clearSupportUnread()
     void scrollToEnd()
   }
-
   return {
     messages,
     draft,
