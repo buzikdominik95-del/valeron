@@ -3,35 +3,47 @@ import { computed, ref, useSlots } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CABINET_HEADING_ID } from '@/composables/useCabinetTab'
 import { useAccountView } from '@/composables/useAccountView'
+import { useAccountStore } from '@/stores/account.store'
 import { logout as apiLogout } from '@/api/auth.api'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelPersonalData from '@/features/account/VelPersonalData.vue'
 import VelSecurityPanel from '@/features/account/VelSecurityPanel.vue'
+import VelProfileEditDialog from '@/features/account/VelProfileEditDialog.vue'
+import type { ProfileEditKind } from '@/features/account/VelProfileEditDialog.vue'
 
 /**
- * Profilo: dati + (dopo verify) sezione documenti + sicurezza + Esci.
- *
- * Esci → лендинг (useAccountView.close). Данные заявки в simulator
- * НЕ чистим: hasCabinetAccess остаётся true → повторный квиз показывает
- * «Hai già un’area personale» (useWizard + VelCabinetExistsGate).
- *
- * Анимация verify живёт ВНУТРИ VelDocumentUpload (слот #documents).
+ * Profilo: dati + documenti + sicurezza + Esci.
+ * Modifica nome / email / password → VelProfileEditDialog.
+ * Verify email (OTP demo) → markEmailVerified.
  */
 const { t } = useI18n()
 const slots = useSlots()
 const { close: leaveCabinet } = useAccountView()
+const accountStore = useAccountStore()
 
 const hasDocsSlot = computed(() => typeof slots.documents === 'function')
 const loggingOut = ref(false)
+
+const editOpen = ref(false)
+const editKind = ref<ProfileEditKind>('name')
+
+function openEdit(kind: ProfileEditKind): void {
+  editKind.value = kind
+  editOpen.value = true
+}
+
+function onVerifyCode(_code: string): void {
+  /* Demo offline: qualsiasi codice a 6 cifre conferma l’email */
+  accountStore.markEmailVerified()
+}
 
 async function onLogout(): Promise<void> {
   if (loggingOut.value) return
   loggingOut.value = true
   try {
-    /* Best-effort: demo SPA может быть без сессии Sanctum. */
     await apiLogout()
   } catch {
-    /* выход на лендинг всё равно */
+    /* exit landing anyway */
   } finally {
     leaveCabinet()
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
@@ -47,7 +59,7 @@ async function onLogout(): Promise<void> {
     </h2>
 
     <div class="vel-profile__stack">
-      <VelPersonalData />
+      <VelPersonalData @edit-name="openEdit('name')" />
 
       <!-- Карточка + анимация verify внутри (после accept) -->
       <section
@@ -59,7 +71,13 @@ async function onLogout(): Promise<void> {
         <slot name="documents" />
       </section>
 
-      <VelSecurityPanel />
+      <VelSecurityPanel
+        @change-password="openEdit('password')"
+        @change-email="openEdit('email')"
+        @verify="onVerifyCode"
+      />
+
+      <VelProfileEditDialog v-model:open="editOpen" :kind="editKind" />
 
       <!-- Esci: лендинг; повторный кредит → gate «hai già un account» -->
       <section

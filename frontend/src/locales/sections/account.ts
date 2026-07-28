@@ -1064,6 +1064,38 @@ export default {
       /* Читается вместо прочерка. Сам знак «—» скринридер либо пропускает,
          либо произносит «тире», и ни то ни другое не говорит, что поле пусто. */
       notProvided: 'Non indicato',
+      editName: 'Modifica nome',
+    },
+
+    /** Dialoghi modifica profilo (nome / email / password) — VelProfileEditDialog */
+    profileEdit: {
+      close: 'Chiudi',
+      cancel: 'Annulla',
+      save: 'Salva',
+      name: {
+        title: 'Modifica nome e cognome',
+        lead: 'Questi dati compaiono nella scheda cliente e nel contratto.',
+        errorEmpty: 'Inserisci almeno il nome o il cognome.',
+      },
+      email: {
+        title: 'Cambia indirizzo email',
+        lead: 'Dopo il cambio dovrai verificare di nuovo l’indirizzo.',
+        hint: 'Useremo questa email per le comunicazioni sul credito.',
+        errorRequired: 'Inserisci l’indirizzo email.',
+        errorShape: 'Controlla l’indirizzo: manca la chiocciola o il dominio.',
+      },
+      password: {
+        title: 'Cambia password',
+        lead: 'Scegli una password sicura di almeno 8 caratteri.',
+        current: 'Password attuale',
+        next: 'Nuova password',
+        confirm: 'Conferma nuova password',
+        hint: 'Minimo {min} caratteri.',
+        errorCurrent: 'Inserisci la password attuale.',
+        errorWrong: 'Password attuale non corretta.',
+        errorShort: 'La nuova password deve avere almeno {min} caratteri.',
+        errorMismatch: 'Le due password non coincidono.',
+      },
     },
 
     /* Карточка принятого документа — VelDocumentCard.vue. Надзаголовок и
@@ -1925,6 +1957,37 @@ export default {
       docType: 'Тип документа',
       docNumber: 'Номер документа',
       notProvided: 'Не указано',
+      editName: 'Изменить имя',
+    },
+
+    profileEdit: {
+      close: 'Закрыть',
+      cancel: 'Отмена',
+      save: 'Сохранить',
+      name: {
+        title: 'Изменить имя и фамилию',
+        lead: 'Эти данные видны в карточке клиента и в договоре.',
+        errorEmpty: 'Укажите хотя бы имя или фамилию.',
+      },
+      email: {
+        title: 'Сменить email',
+        lead: 'После смены нужно снова подтвердить адрес.',
+        hint: 'На этот адрес будем слать сообщения по кредиту.',
+        errorRequired: 'Укажите адрес email.',
+        errorShape: 'Проверьте адрес: не хватает «@» или домена.',
+      },
+      password: {
+        title: 'Сменить пароль',
+        lead: 'Придумайте пароль не короче 8 символов.',
+        current: 'Текущий пароль',
+        next: 'Новый пароль',
+        confirm: 'Повторите новый пароль',
+        hint: 'Минимум {min} символов.',
+        errorCurrent: 'Введите текущий пароль.',
+        errorWrong: 'Неверный текущий пароль.',
+        errorShort: 'Новый пароль — не короче {min} символов.',
+        errorMismatch: 'Пароли не совпадают.',
+      },
     },
 
     documentCard: {

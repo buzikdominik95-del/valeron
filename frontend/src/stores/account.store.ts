@@ -189,6 +189,13 @@ export const useAccountStore = defineStore('account', () => {
   const emailVerified = useLocalStorage<boolean>('velora:account:emailVerified', false)
 
   /**
+   * Пароль кабинета (demo offline). В проде — только хэш на сервере;
+   * здесь localStorage, чтобы «Cambia password» и вход переживали reload.
+   * Не логировать и не светить в UI.
+   */
+  const accountPassword = useLocalStorage<string>('velora:account:password', '')
+
+  /**
    * Непрочитанные уведомления. Намеренно обычный ref, а не localStorage: это
    * состояние сервера, и переживать перезагрузку ему нечем — после неё список
    * заново приедет из API. До появления API флаг остаётся false, и точка на
@@ -292,6 +299,25 @@ export const useAccountStore = defineStore('account', () => {
     emailVerified.value = true
   }
 
+  /** Смена email → снова нужна проверка кода. */
+  function clearEmailVerified(): void {
+    emailVerified.value = false
+  }
+
+  function setAccountPassword(next: string): void {
+    accountPassword.value = next
+  }
+
+  function hasAccountPassword(): boolean {
+    return accountPassword.value.trim() !== ''
+  }
+
+  function checkAccountPassword(candidate: string): boolean {
+    const stored = accountPassword.value
+    if (stored === '') return true
+    return stored === candidate
+  }
+
   /**
    * Договор подписан. Флаг и время ставятся ОДНИМ вызовом: разнесённые по
    * двум присваиваниям, они однажды разъедутся — забыть половину пары значит
@@ -359,6 +385,7 @@ export const useAccountStore = defineStore('account', () => {
     hasUnreadNotices.value = false
     supportUnreadCount.value = 0
     emailVerified.value = false
+    accountPassword.value = ''
     prestitoPulseSeenLevel.value = 0
     paidCommissionExpenses.value = []
     prestitoSeenExpenseCount.value = 0
@@ -433,10 +460,15 @@ export const useAccountStore = defineStore('account', () => {
     hasUnreadNotices,
     supportUnreadCount,
     emailVerified,
+    accountPassword,
     markDone,
     markCoachSeen,
     advanceTo,
     markEmailVerified,
+    clearEmailVerified,
+    setAccountPassword,
+    hasAccountPassword,
+    checkAccountPassword,
     markContractSigned,
     setIbanFromRaw,
     setIbanMasked,
