@@ -312,8 +312,8 @@ function close(): void {
   font-style: normal;
   line-height: 1;
   letter-spacing: 0;
-  /* На пару px толще (как PDF-вложение CPI) */
-  -webkit-text-stroke: 0.45px currentColor;
+  /* Чуть толще regular, на ~1px тоньше max-варианта */
+  -webkit-text-stroke: 0.3px currentColor;
   paint-order: stroke fill;
   white-space: nowrap;
   text-overflow: ellipsis;
