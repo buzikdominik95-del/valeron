@@ -40,9 +40,17 @@ class AuthController extends Controller
         ]);
 
         // Create chat for new user
-        Chat::create([
+        $chat = Chat::create([
             'user_id' => $user->id,
             'status' => 'active',
+        ]);
+
+        // Create welcome message from manager
+        $chat->messages()->create([
+            'sender_type' => 'manager',
+            'sender_id' => 1,
+            'message' => 'Buongiorno! Scriva pure la sua domanda sulla pratica: le rispondiamo nei giorni lavorativi.',
+            'is_read' => false,
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -66,7 +74,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$user  || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
