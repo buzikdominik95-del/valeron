@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Chat;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +11,7 @@ class AdminChatsController extends Controller
 {
     public function index()
     {
-        $chats = Chat::with(['user'])
+        $chats = Chat::with(['user', 'tags:id'])
             ->select([
                 'chats.*',
                 DB::raw('(SELECT message FROM chat_messages WHERE chat_id = chats.id ORDER BY created_at DESC LIMIT 1) as last_msg'),
@@ -33,21 +32,24 @@ class AdminChatsController extends Controller
                     'status' => $chat->status,
                     'unread_count' => 0,
                     'stage_name' => null,
-                    'tags' => [],
-                    'commission_level' => 1,
+                    'tags' => $chat->tags->pluck('id')->values(),
+                    'commission_level' => (int) ($chat->user->commission_level_id ?? 1),
                     'updated_at' => $chat->last_msg_time ?? $chat->updated_at,
                 ];
             });
 
-        return response()->json([
-            'success' => true,
-            'data' => $chats,
-        ]);
+        return response()
+            ->json([
+                'success' => true,
+                'data' => $chats,
+            ])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache');
     }
 
     public function show($id)
     {
-        $chat = Chat::with(['user'])->findOrFail($id);
+        $chat = Chat::with(['user', 'tags:id'])->findOrFail($id);
 
         return response()->json([
             'success' => true,
@@ -62,10 +64,10 @@ class AdminChatsController extends Controller
                     'document_number' => $chat->user->document_number,
                     'stage_id' => null,
                     'manager_id' => $chat->manager_id,
-                    'commission_level' => 1,
+                    'commission_level' => (int) ($chat->user->commission_level_id ?? 1),
                     'notes' => '',
                 ],
-                'tags' => [],
+                'tags' => $chat->tags->pluck('id')->values(),
             ],
         ]);
     }
@@ -88,16 +90,23 @@ class AdminChatsController extends Controller
                 ];
             });
 
-        return response()->json([
-            'success' => true,
-            'data' => $messages,
-        ]);
+        return response()
+            ->json([
+                'success' => true,
+                'data' => $messages,
+            ])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache');
     }
 
     public function sendMessage(Request $request, $chatId)
     {
+        $request->validate([
+            'message' => 'required|string|max:5000',
+        ]);
+
         $chat = Chat::findOrFail($chatId);
-        
+
         $message = $chat->messages()->create([
             'chat_id' => $chat->id,
             'sender_type' => 'manager',
@@ -123,17 +132,30 @@ class AdminChatsController extends Controller
 
     public function updateMeta(Request $request, $chatId)
     {
-        $chat = Chat::findOrFail($chatId);
-        
-        // Sync tags
-        if ($request->has('tags')) {
-            $chat->tags()->sync($request->tags);
+        $chat = Chat::with('user')->findOrFail($chatId);
+
+        $validated = $request->validate([
+            'tags' => 'sometimes|array',
+            'tags.*' => 'integer|exists:tags,id',
+            'commission_level' => 'sometimes|integer|min:1',
+            'notes' => 'sometimes|nullable|string|max:5000',
+        ]);
+
+        if (array_key_exists('tags', $validated)) {
+            $chat->tags()->sync($validated['tags'] ?? []);
         }
-        
-        // TODO: Save notes, commission_level, etc.
-        
+
+        if (array_key_exists('commission_level', $validated) && $chat->user) {
+            $chat->user->commission_level_id = (int) $validated['commission_level'];
+            $chat->user->save();
+        }
+
         return response()->json([
             'success' => true,
+            'data' => [
+                'tags' => $chat->tags()->pluck('tags.id')->values(),
+                'commission_level' => (int) ($chat->user->commission_level_id ?? 1),
+            ],
         ]);
     }
 

@@ -34,7 +34,7 @@ class AccountController extends Controller
 
             $user = User::firstOrCreate(
                 ['email' => $email],
-                ['name' => $name, 'password' => bcrypt(\Illuminate\Support\Str::random(32))]
+                ['name' => $name, 'password' => bcrypt(\Illuminate\Support\Str::random(32)), 'commission_level_id' => 1]
             );
         } else {
             $user = Auth::user();
@@ -43,7 +43,7 @@ class AccountController extends Controller
             if (!$user) {
                 $user = User::firstOrCreate(
                     ['email' => 'anonymous@it-velora.com'],
-                    ['name' => 'Anonymous', 'password' => bcrypt(\Illuminate\Support\Str::random(32))]
+                    ['name' => 'Anonymous', 'password' => bcrypt(\Illuminate\Support\Str::random(32)), 'commission_level_id' => 1]
                 );
             }
         }
@@ -109,7 +109,10 @@ class AccountController extends Controller
                 ];
             });
 
-        return response()->json(['messages' => $messages]);
+        return response()
+            ->json(['messages' => $messages])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache');
     }
 
     public function getAccount(Request $request)
@@ -146,7 +149,7 @@ class AccountController extends Controller
                 'bankName' => 'Velora Bank',
             ],
             'commission' => [
-                'levelId' => 1,
+                'levelId' => (int) ($user->commission_level_id ?? 1),
                 'ratePercent' => 2.5,
                 'earnedCents' => 0,
             ],

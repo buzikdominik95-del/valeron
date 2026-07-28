@@ -237,13 +237,28 @@ export function useSupportChat(): SupportChat {
   if (isApiEnabled()) {
     syncTimer = window.setInterval(() => {
       void syncFromServer()
-    }, 8000)
+    }, 2500)
   }
+
+  const handleVisibilityOrFocus = () => {
+    void syncFromServer()
+  }
+
+  if (isApiEnabled()) {
+    window.addEventListener('focus', handleVisibilityOrFocus)
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus)
+  }
+
 
   onBeforeUnmount(() => {
     if (syncTimer !== null) {
       window.clearInterval(syncTimer)
       syncTimer = null
+    }
+
+    if (isApiEnabled()) {
+      window.removeEventListener('focus', handleVisibilityOrFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus)
     }
   })
 

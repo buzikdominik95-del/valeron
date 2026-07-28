@@ -287,7 +287,10 @@ export async function fetchSupportMessages(
   signal?: AbortSignal,
 ): Promise<SupportThreadMessage[]> {
   const cleanEmail = (email ?? '').trim().toLowerCase()
-  const query = cleanEmail === '' ? '' : `?email=${encodeURIComponent(cleanEmail)}`
+  const params = new URLSearchParams()
+  if (cleanEmail !== '') params.set('email', cleanEmail)
+  params.set('_t', String(Date.now()))
+  const query = `?${params.toString()}`
 
   try {
     const payload = await request<{ messages?: SupportThreadMessage[] }>(`/account/messages${query}`, {
