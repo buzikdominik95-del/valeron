@@ -9,7 +9,10 @@
  * - Ошибки валидации Laravel (422) приходят как { message, errors }.
  * - 419 (истёкшая CSRF-сессия) обрабатывается прозрачно: токен обновляется
  *   и запрос повторяется ровно один раз.
+ * - 401 → disableApiForSession(): дальше isApiEnabled() = false, без спама.
  */
+
+import { disableApiForSession } from '@/api/session'
 
 /** Пустая строка — валидное значение переменной окружения, а ?? её не отловит. */
 function envOr(value: string | undefined, fallback: string): string {
@@ -173,6 +176,10 @@ export async function request<TResponse>(
     const payload = await parseBody(response)
 
     if (!response.ok) {
+      /* Без сессии любые poll/retry только засоряют консоль — offline-first. */
+      if (response.status === 401) {
+        disableApiForSession()
+      }
       const shape = payload as { message?: string; errors?: ApiValidationErrors } | undefined
       throw new ApiError(
         response.status,
