@@ -2,6 +2,7 @@ import {
   COMMISSION_ANIMATION_MS,
   COMMISSION_FEE_BY_LEVEL,
   defaultCommission,
+  normalizeCommissionLevel,
 } from '@/api/commission'
 import type { AccountDossier, PayoutTransferRequest } from '@/api/account.api'
 import type { CommissionLevel } from '@/api/commission'
@@ -48,7 +49,7 @@ export function startTransferOffline(
 /**
  * Нажали «Preleva» при canWithdraw.
  * L1 / L3 (без длинной анимации сразу) → pay_fee.
- * L2 / L4 → animating (таймер + canvas), отказ после окончания.
+ * L2 / L4 → animating (таймер + canvas), исход после окончания.
  */
 export function beginWithdrawOffline(dossier: AccountDossier): void {
   const level = dossier.commission.level
@@ -71,7 +72,6 @@ export function markFeePaidOffline(dossier: AccountDossier): void {
 
   /*
    * L3: после CPI пользователь платит 136 € как на L1 → messenger.
-   * (раньше ошибочно возвращали в policy_build).
    */
   if (level === 3) {
     dossier.commission.policyProgress = 1
@@ -81,18 +81,19 @@ export function markFeePaidOffline(dossier: AccountDossier): void {
     return
   }
 
-  /* L1 / L2 / L4 (после отказа 280 €): чат с менеджером. */
+  /* L1 / L2: чат с менеджером. L4 fee снят — финал через анимацию → tg_final. */
   dossier.commission.phase = 'messenger'
 }
 
 /**
- * L4 после отказа: готовим fee 280 €, phase остаётся failed.
- * UI (сцена + CTA) не сбрасывается, пока не оплатили и не написали менеджеру.
- * Drawer комиссии открывает AccountFlow поверх failed.
+ * @deprecated L4 больше не открывает оплату 280 € — сразу tg_final.
+ * Оставлено no-op, чтобы не ломать старые вызовы.
  */
 export function openFeeFromFailureOffline(dossier: AccountDossier): void {
   if (dossier.commission.level !== 4) return
-  if (dossier.commission.phase !== 'failed') return
+  /* Финал Telegram вместо fee 280 € */
+  dossier.transfer.status = 'failed'
+  dossier.commission.phase = 'tg_final'
   dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[4]
 }
 
@@ -109,39 +110,33 @@ export function applyOfflineOutcome(dossier: AccountDossier): void {
   }
 
   if (level === 4) {
+    /* Отказ вывода → сразу финал Telegram (бывший L5), без оплаты 280 € */
     dossier.transfer.status = 'failed'
-    dossier.commission.phase = 'failed'
+    dossier.commission.phase = 'tg_final'
     dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[4]
   }
 }
 
-/** Флаг админа: перевести клиента на уровень N. */
+/** Флаг админа: перевести клиента на уровень N (1…4). */
 export function advanceCommissionLevelOffline(
   dossier: AccountDossier,
   level: CommissionLevel,
 ): void {
-  dossier.commission = defaultCommission(level)
+  const lv = normalizeCommissionLevel(level)
+  dossier.commission = defaultCommission(lv)
 
-  if (level === 3) {
+  if (lv === 3) {
     dossier.policy.status = 'processing'
     dossier.policy.etaMinutes = 15
   }
 
   /*
-   * L4+: CPI уже пройден на L3 — сертификат остаётся issued
-   * (карточка в Documenti не зависит от policy_build).
+   * L4: CPI уже пройден на L3 — сертификат остаётся issued.
    */
-  if (level >= 4) {
+  if (lv >= 4) {
     dossier.policy.status = 'issued'
     dossier.policy.etaMinutes = 0
     dossier.commission.policyProgress = 1
-  }
-
-  if (level === 5) {
-    dossier.transfer.status = 'failed'
-    dossier.transfer.method = null
-    dossier.transfer.accountTail = ''
-    return
   }
 
   dossier.transfer.status = 'idle'

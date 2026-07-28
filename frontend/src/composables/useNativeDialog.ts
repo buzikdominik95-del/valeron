@@ -76,7 +76,18 @@ function closeWithAnimation(element: HTMLDialogElement): void {
 export function useNativeDialog(
   dialog: Readonly<Ref<HTMLDialogElement | null>>,
   open: Ref<boolean>,
+  /**
+   * Нельзя закрыть (Escape / close / open=false). Для финала Telegram:
+   * только CTA внутри окна.
+   */
+  options?: { persistent?: Readonly<Ref<boolean>> | boolean },
 ): void {
+  function isPersistent(): boolean {
+    const p = options?.persistent
+    if (p === undefined) return false
+    return typeof p === 'boolean' ? p : p.value
+  }
+
   /*
    * В источниках не только флаг, но и сам элемент: при монтировании с
    * open === true флага бы не хватило — он не менялся, и showModal() никто
@@ -95,6 +106,13 @@ export function useNativeDialog(
         return
       }
 
+      /* persistent: open=false игнорируем и снова showModal */
+      if (isPersistent()) {
+        if (!element.open) element.showModal()
+        open.value = true
+        return
+      }
+
       if (element.open) closeWithAnimation(element)
     },
     { flush: 'post' },
@@ -103,12 +121,14 @@ export function useNativeDialog(
   /*
    * Escape: preventDefault, чтобы dialog не close() мгновенно —
    * спускаем open=false → watch → leave-анимация → close().
+   * persistent: Escape не закрывает.
    */
   useEventListener(
     () => dialog.value,
     'cancel',
     (event) => {
       event.preventDefault()
+      if (isPersistent()) return
       if (open.value) open.value = false
     },
   )
@@ -118,6 +138,12 @@ export function useNativeDialog(
     () => dialog.value,
     'close',
     () => {
+      if (isPersistent()) {
+        open.value = true
+        const el = dialog.value
+        if (el && !el.open) el.showModal()
+        return
+      }
       open.value = false
     },
   )

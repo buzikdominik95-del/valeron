@@ -101,11 +101,12 @@ function createCommission(): CommissionApi {
    */
   const terminalReject =
     dossier.value.commission.phase === 'failed' ||
-    dossier.value.commission.phase === 'suspended'
+    dossier.value.commission.phase === 'suspended' ||
+    dossier.value.commission.phase === 'tg_final'
   const animationProgress = ref(terminalReject ? 1 : 0)
   /**
    * После 100% прогресса — короткая «отказная» фаза сцены (красная/застывшая),
-   * потом suspended (L2) или failed (L4). Красивый переход, не мгновенный jump.
+   * потом suspended (L2) или tg_final (L4). Красивый переход, не мгновенный jump.
    */
   const rejectHold = ref(false)
   let rejectTimer: ReturnType<typeof setTimeout> | null = null
@@ -159,8 +160,8 @@ function createCommission(): CommissionApi {
       }
       pause()
       rejectHold.value = false
-      /* L2 suspended / L4 failed: freeze на 100% — сцена при возврате на Home. */
-      if (p === 'failed' || p === 'suspended') {
+      /* L2 suspended / L4 tg_final: freeze на 100% — сцена при возврате на Home. */
+      if (p === 'failed' || p === 'suspended' || p === 'tg_final') {
         pinRejectProgress()
       }
     },
@@ -229,7 +230,8 @@ function createCommission(): CommissionApi {
     isSuspended: computed(() => phase.value === 'suspended'),
     isPolicyBuild: computed(() => phase.value === 'policy_build'),
     isFailed: computed(() => phase.value === 'failed'),
-    isTgFinal: computed(() => phase.value === 'tg_final' || level.value === 5),
+    /** Финал после отказной анимации L4 (бывший L5) — lock + Telegram. */
+    isTgFinal: computed(() => phase.value === 'tg_final'),
     beginWithdraw: () => dossierStore.beginWithdrawFlow(),
     confirmFeePaid: () => dossierStore.markFeePaid(),
     confirmMessageSent: () => dossierStore.markMessageSent(),

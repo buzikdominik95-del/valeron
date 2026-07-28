@@ -142,11 +142,10 @@ export function useContractData(): ContractView {
     }
     if (level.value >= 3) cents += COMMISSION_FEE_BY_LEVEL[2].amountCents
     if (level.value >= 4) cents += COMMISSION_FEE_BY_LEVEL[3].amountCents
-    if (level.value >= 5) cents += COMMISSION_FEE_BY_LEVEL[4].amountCents
     return cents
   })
 
-  /** Сумма оплаченных комиссий в центах (для итога totalPaid) — без L1. */
+  /** Сумма оплаченных комиссий в центах (для итога totalPaid) — без L1 / L4. */
   const feesPaidCents = computed(() => {
     const list = paidCommissionExpenses.value.filter((e) =>
       commissionAddsToLoanBalance(e.level),
@@ -157,7 +156,6 @@ export function useContractData(): ContractView {
     let cents = 0
     if (level.value >= 3) cents += COMMISSION_FEE_BY_LEVEL[2].amountCents
     if (level.value >= 4) cents += COMMISSION_FEE_BY_LEVEL[3].amountCents
-    if (level.value >= 5) cents += COMMISSION_FEE_BY_LEVEL[4].amountCents
     return cents
   })
 
@@ -251,9 +249,6 @@ export function useContractData(): ContractView {
     }
     if (level.value >= 4) {
       list.push({ level: 3, amountCents: COMMISSION_FEE_BY_LEVEL[3].amountCents, paidAt: today })
-    }
-    if (level.value >= 5) {
-      list.push({ level: 4, amountCents: COMMISSION_FEE_BY_LEVEL[4].amountCents, paidAt: today })
     }
     return list
   })

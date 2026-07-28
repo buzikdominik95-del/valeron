@@ -60,7 +60,6 @@ const {
   level,
   beginWithdraw,
   openFeeFromSuspension,
-  openFeeFromFailure,
 } = useCommission()
 const { select: selectTab } = useCabinetTab()
 const notices = useNotices()
@@ -355,10 +354,8 @@ function onWithdraw(): void {
     return
   }
 
-  /* L4 failed: Preleva снова открывает оплату (сцена не пропадает). */
-  if (isFailed.value && level.value === 4) {
-    openFeeFromFailure()
-    openCommissionPayment()
+  /* L4 финал (tg_final): вывод заблокирован — только Telegram. */
+  if (isTgFinal.value) {
     return
   }
 
@@ -506,80 +503,60 @@ const showClassicBank = computed(
 )
 
 /**
- * L4: сцена отказа живёт до оплаты + сообщения менеджеру
- * (failed → drawer поверх failed → messenger → waiting).
+ * L4: после анимации — tg_final; сцена отказа не нужна (модалка TG + lock).
  */
-const showL4RejectScene = computed(
-  () => level.value === 4 && (isFailed.value || isMessenger.value),
-)
+const showL4RejectScene = computed(() => false)
 
 const transferStage = computed((): { key: string; view: Component } | null => {
   if (isAnimating.value) return { key: `anim-${phase.value}`, view: VelTransferAnim }
   if (isSuspended.value) return { key: 'suspended', view: VelSuspensionCard }
   /* После оплаты + сообщения: анимация уходит, на Home — «ожидайте инструкций». */
   if (isWaiting.value) return { key: 'waiting', view: VelWaitingAdmin }
-  /* L4 failed / tg_final: сцена ниже + freeze-modal, не отдельная stage-карточка */
+  /* tg_final: только freeze-modal + lock, не stage-карточка */
   if (isFailed.value || isTgFinal.value) return null
   if (showClassicBank.value) return { key: 'bank', view: VelBankAuthorizing }
   // pay_fee → VelCommissionDrawer (оверлей), не карточка на Home
   if (isPolicyBuild.value) return { key: 'policy-build', view: VelPolicyBuildCard }
-  // messenger L1–L3 — чат Assistenza; L4 messenger — сцена + чат
+  // messenger L1–L3 — чат Assistenza
   return null
 })
 
 /**
- * L4 failed → модалка «оплати» (крестик; CTA снова открывает).
- * L5 tg_final → Telegram-модалка (тоже крестик); после закрытия —
- * красная «Contatta il manager» на Home → снова open.
+ * L4 tg_final → Telegram-модалка всегда открыта, persistent (нельзя закрыть).
+ * Оплата 280 € снята — mode только telegram.
  */
-const freezeDismissed = ref(false)
 const freezeOpen = computed({
-  get: () => {
-    if (isTgFinal.value || isFailed.value) return !freezeDismissed.value
-    return false
-  },
-  set: (next) => {
-    freezeDismissed.value = !next
+  get: () => isTgFinal.value,
+  set: () => {
+    /* persistent: dismiss игнорируем */
   },
 })
 
-const freezeMode = computed<'reject' | 'telegram'>(() =>
-  isTgFinal.value ? 'telegram' : 'reject',
-)
+const freezeMode = computed<'reject' | 'telegram'>(() => 'telegram')
 
 /**
- * L5: красная «Contatta il manager» ВСЕГДА (модалка открыта или закрыта),
- * не зелёный Preleva. Клик → открыть/вернуть Telegram-модалку.
+ * Финал L4: красная «Contatta il manager» (модалка всегда сверху;
+ * CTA на карточке тоже мигает).
  */
 const tgContactMode = computed(() => isTgFinal.value)
 
-watch(isFailed, (failed) => {
-  if (failed) freezeDismissed.value = false
-})
-
 watch(isTgFinal, (tg) => {
   if (tg) {
-    freezeDismissed.value = false
     /* Только Home: навигация дальше блокируется в VelAccount. */
     selectTab('home')
   }
 })
 
 function onFreezePay(): void {
-  /* Drawer поверх failed: phase не сбрасываем, UI остаётся. */
-  freezeDismissed.value = true
-  openFeeFromFailure()
-  openCommissionPayment()
+  /* Legacy: fee 280 снята — no-op */
 }
 
 function openFreezeReject(): void {
-  if (!isFailed.value) return
-  freezeDismissed.value = false
+  /* no-op: reject-pay flow снят */
 }
 
 function openFreezeTelegram(): void {
-  if (!isTgFinal.value) return
-  freezeDismissed.value = false
+  /* Модалка уже persistent-open на tg_final */
 }
 
 /*
@@ -693,7 +670,8 @@ const showDevBar = !(
   <!-- Полноэкранный финал перевода: сам уходит по таймеру, закрывается по Esc -->
   <VelTransferSuccess v-model:open="successOpen" />
 
-  <VelDevCommissionBar v-if="showDevBar && !isTgFinal" />
+  <!-- Пульт L1–L4 (L5 снят); на финале тоже виден, чтобы сбросить уровень. -->
+  <VelDevCommissionBar v-if="showDevBar" />
 
   <VelAccountToast :text="toastText" />
 
@@ -704,13 +682,14 @@ const showDevBar = !(
     @close="onAgentToastClose"
   />
 
-  <!-- L2/L4: крестик на весь экран → сам закрывается -->
+  <!-- L2: крестик на весь экран → сам закрывается -->
   <VelRejectFlash v-model:open="rejectFlashOpen" />
 
-  <!-- L4 reject → pay 280; L5 / tg_final → Telegram -->
+  <!-- L4 tg_final: Telegram, нельзя закрыть, blur backdrop -->
   <VelAccountFreezeModal
     v-model:open="freezeOpen"
     :mode="freezeMode"
+    :persistent="isTgFinal"
     @pay="onFreezePay"
   />
 </template>
