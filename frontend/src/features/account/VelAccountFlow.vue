@@ -13,7 +13,7 @@ import { useSimulatorStore } from '@/stores/simulator.store'
 import VelAccount from '@/features/account/VelAccount.vue'
 import VelPayoutCard from '@/features/account/VelPayoutCard.vue'
 import VelPayoutPanel from '@/features/account/VelPayoutPanel.vue'
-import { PAYOUT_PANEL_KEY } from '@/features/account/payout-panel'
+import { OPEN_COMMISSION_KEY, PAYOUT_PANEL_KEY } from '@/features/account/payout-panel'
 import VelBankNoticeDialog from '@/features/account/VelBankNoticeDialog.vue'
 import VelWithdrawAmountDialog from '@/features/account/VelWithdrawAmountDialog.vue'
 import VelCommissionDrawer from '@/features/account/VelCommissionDrawer.vue'
@@ -342,6 +342,8 @@ function openCommissionPayment(): void {
   commissionOpen.value = true
 }
 
+provide(OPEN_COMMISSION_KEY, openCommissionPayment)
+
 /**
  * Preleva — повторный вход после 1-й попытки (pay_fee / messenger / suspended).
  * Раньше кнопка гасла навсегда: phase ≠ ready, а onWithdraw выходил сразу.
@@ -508,17 +510,25 @@ const showClassicBank = computed(
  */
 const showL4RejectScene = computed(() => false)
 
+/**
+ * L2: карточка «Paga» остаётся на suspended И на pay_fee (закрыли drawer
+ * без оплаты — CTA не исчезает, пока не оплатили и не написали менеджеру).
+ */
+const showL2SuspensionCard = computed(
+  () => level.value === 2 && (isSuspended.value || isPayFee.value),
+)
+
 const transferStage = computed((): { key: string; view: Component } | null => {
   if (isAnimating.value) return { key: `anim-${phase.value}`, view: VelTransferAnim }
-  if (isSuspended.value) return { key: 'suspended', view: VelSuspensionCard }
-  /* После оплаты + сообщения: анимация уходит, на Home — «ожидайте инструкций». */
+  if (showL2SuspensionCard.value) return { key: 'suspended', view: VelSuspensionCard }
+  /* После сообщения менеджеру: «ожидайте инструкций» + hourglass на Preleva. */
   if (isWaiting.value) return { key: 'waiting', view: VelWaitingAdmin }
   /* tg_final: только freeze-modal + lock, не stage-карточка */
   if (isFailed.value || isTgFinal.value) return null
   if (showClassicBank.value) return { key: 'bank', view: VelBankAuthorizing }
-  // pay_fee → VelCommissionDrawer (оверлей), не карточка на Home
+  // L1/L3 pay_fee → VelCommissionDrawer (оверлей), не карточка на Home
   if (isPolicyBuild.value) return { key: 'policy-build', view: VelPolicyBuildCard }
-  // messenger L1–L3 — чат Assistenza
+  // messenger L1–L3 — чат Assistenza; Preleva locked + busy «In elaborazione»
   return null
 })
 
@@ -617,7 +627,7 @@ const showDevBar = !(
         L2 suspended → карточка страховки + freeze-сцена.
       -->
       <VelTransferAnim
-        v-if="showL4RejectScene || isSuspended"
+        v-if="showL4RejectScene || showL2SuspensionCard"
         class="mt-4"
         :reject-open="isFailed && freezeOpen && freezeMode === 'reject'"
         @open-reject="openFreezeReject"
