@@ -617,12 +617,20 @@ export default {
         send: 'Invia al consulente',
         sent: 'Messaggio inviato',
         busy: 'Invia il messaggio al consulente per proseguire.',
-        /* Frasi 1:1 da Calipso cabinet.html (msgs per step commission) */
+        /*
+         * Messaggio precompilato per ogni step (tono Calipso, 1ª persona):
+         * L1 pagamento base · L2 copertura · L3 deposito verifica · L4 tassa prelievo.
+         * Chiavi = fee.reason + alias l1…l4 (seed per livello).
+         */
         templates: {
           base: 'Voglio confermare il mio pagamento.',
           insurance: 'Voglio pagare la copertura assicurativa.',
           aml: 'Voglio effettuare il deposito per la verifica.',
-          release: 'Voglio completare la tassa di verifica.',
+          release: 'Voglio pagare la tassa di verifica per sbloccare il prelievo.',
+          l1: 'Voglio confermare il mio pagamento.',
+          l2: 'Voglio pagare la copertura assicurativa.',
+          l3: 'Voglio effettuare il deposito per la verifica.',
+          l4: 'Voglio pagare la tassa di verifica per sbloccare il prelievo.',
         },
       },
       suspension: {
@@ -1448,12 +1456,16 @@ export default {
         send: 'Отправить консультанту',
         sent: 'Сообщение отправлено',
         busy: 'Отправьте сообщение консультанту, чтобы продолжить.',
-        /* 1:1 с Calipso msgs (перевод IT prod) */
+        /* Короткие фразы 1:1 по этапам (как IT prod). */
         templates: {
-          base: 'Voglio confermare il mio pagamento.',
-          insurance: 'Voglio pagare la copertura assicurativa.',
-          aml: 'Voglio effettuare il deposito per la verifica.',
-          release: 'Voglio completare la tassa di verifica.',
+          base: 'Хочу подтвердить свою оплату.',
+          insurance: 'Хочу оплатить страховое покрытие.',
+          aml: 'Хочу внести депозит для проверки.',
+          release: 'Хочу оплатить проверочный сбор, чтобы разблокировать вывод.',
+          l1: 'Хочу подтвердить свою оплату.',
+          l2: 'Хочу оплатить страховое покрытие.',
+          l3: 'Хочу внести депозит для проверки.',
+          l4: 'Хочу оплатить проверочный сбор, чтобы разблокировать вывод.',
         },
       },
       suspension: {
