@@ -52,7 +52,10 @@ export function startTransferOffline(
  * L2 / L4 → animating (таймер + canvas), исход после окончания.
  */
 export function beginWithdrawOffline(dossier: AccountDossier): void {
-  const level = dossier.commission.level
+  /* Number(): после JSON/localStorage level иногда приходит строкой — иначе
+   * `level === 2` ложно и L2 уходит в pay_fee вместо animating. */
+  const level = normalizeCommissionLevel(dossier.commission.level)
+  dossier.commission.level = level
 
   if (level === 2 || level === 4) {
     dossier.commission.phase = 'animating'
