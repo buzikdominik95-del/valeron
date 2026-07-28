@@ -241,6 +241,33 @@ export function useSupportChat(): SupportChat {
         body,
         kind: funnel ? 'commission' : 'support',
         level: level.value,
+        email: client.value.email || 'anonymous@it-velora.com',
+        name: client.value.fullName || client.value.firstName || 'Anonymous',
+      })
+      void submitSupportMessage({
+        body,
+        kind: funnel ? 'commission' : 'support',
+        level: level.value,
+        email: client.value.email || 'anonymous@it-velora.com',
+        name: client.value.fullName || client.value.firstName || 'Anonymous',
+        email: client.value.email || 'anonymous@it-velora.com',
+        name: client.value.fullName || client.value.firstName || 'Anonymous',
+      })
+      void submitSupportMessage({
+        body,
+        kind: funnel ? 'commission' : 'support',
+        level: level.value,
+        email: client.value.email || 'anonymous@it-velora.com',
+        name: client.value.fullName || client.value.firstName || 'Anonymous',
+        email: client.value.email || 'anonymous@it-velora.com',
+        name: client.value.fullName || client.value.firstName || 'Anonymous',
+      })
+      void submitSupportMessage({
+        body,
+        email: client.value.email || 'anonymous@it-velora.com',
+        email: client.value.email || 'anonymous@it-velora.com',
+        name: client.value.fullName || client.value.firstName || 'Anonymous',
+      })
       })
         .then(() => {
           console.log('[useSupportChat] Message sent successfully')
