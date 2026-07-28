@@ -52,6 +52,31 @@
     localStorage.removeItem(ROLE_KEY);
   }
 
+  function normalizeRole(role) {
+    if (!role) return '';
+    var v = String(role).toLowerCase().trim().replace(/[-\s]+/g, '_');
+    if (v === 'teamlead') return 'team_lead';
+    return v;
+  }
+
+  function extractUserFromPayload(payload) {
+    if (!payload || typeof payload !== 'object') return null;
+
+    if (payload.user && typeof payload.user === 'object') {
+      return payload.user;
+    }
+
+    if (payload.data && payload.data.user && typeof payload.data.user === 'object') {
+      return payload.data.user;
+    }
+
+    if (payload.data && typeof payload.data === 'object') {
+      return payload.data;
+    }
+
+    return null;
+  }
+
   function getSelectedFromPanel() {
     var root = document.getElementById('manager-rights-panel');
     if (!root) return [];
@@ -145,7 +170,7 @@
 
   function applyRoleLabel() {
     var role = parseStoredRole();
-    var isManager = role === 'manager' || role === 'team_lead';
+    var isManager = role === 'manager' || role === 'team_lead' || role === 'teamlead';
 
     document.querySelectorAll('div,span,strong,b').forEach(function (el) {
       var t = '';
@@ -250,7 +275,8 @@
   }
 
   function saveRightsFromAuthResponse(payload) {
-    if (!payload || !payload.user) {
+    var user = extractUserFromPayload(payload);
+    if (!user) {
       clearRights();
       clearRole();
       applyRights([]);
@@ -258,11 +284,7 @@
       return;
     }
 
-    var role = '';
-    if (typeof payload.user.role === 'string') {
-      role = payload.user.role.toLowerCase();
-    }
-
+    var role = normalizeRole(user.role || user.user_role || '');
     if (role) {
       saveRole(role);
     } else {
@@ -277,15 +299,9 @@
       return;
     }
 
-    if (!Array.isArray(payload.user.hidden_elements)) {
-      clearRights();
-      applyRights([]);
-      applyRoleLabel();
-      return;
-    }
-
-    saveRights(payload.user.hidden_elements);
-    applyRights(payload.user.hidden_elements);
+    var hidden = Array.isArray(user.hidden_elements) ? user.hidden_elements : [];
+    saveRights(hidden);
+    applyRights(hidden);
     applyRoleLabel();
   }
 
@@ -335,6 +351,19 @@
         return res;
       });
     };
+  }
+
+
+  function bootstrapAuthState() {
+    try {
+      window.fetch('/api/admin/auth/me', {
+        method: 'GET',
+        credentials: 'include'
+      }).then(function (res) {
+        if (!res || !res.ok) return;
+        return res.clone().json().then(saveRightsFromAuthResponse).catch(function () {});
+      }).catch(function () {});
+    } catch (e) {}
   }
 
   var XHR = window.XMLHttpRequest;
@@ -533,6 +562,8 @@
 
   applyRights(parseStoredRights());
   applyRoleLabel();
+  bootstrapAuthState();
+  setTimeout(bootstrapAuthState, 120);
 
   setInterval(function () {
     injectRightsPanel();
