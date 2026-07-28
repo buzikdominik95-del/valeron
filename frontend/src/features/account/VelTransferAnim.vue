@@ -34,7 +34,15 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const { animationProgress, animationRemainingMs, isFailed, isRejectAnim } = useCommission()
+const {
+  animationProgress,
+  animationRemainingMs,
+  isFailed,
+  isRejectAnim,
+  isSuspended,
+  isPayFee,
+  level,
+} = useCommission()
 const { approvedAmount, client, transferAccountTail } = useAccount()
 const accountStore = useAccountStore()
 const { gender } = storeToRefs(useSimulatorStore())
@@ -70,9 +78,16 @@ const personLook = computed<SceneLook>(() => (gender.value === 'male' ? 'crop' :
 
 /**
  * Freeze / red-X: hold 100%, L4 failed, L2 suspended (isRejectAnim).
- * isFailed дублирует failed-фазу на случай рассинхрона.
+ * На L2 после «Paga» phase = pay_fee — сцена НЕ должна зеленеть (success):
+ * остаётся отказ/hold, пока пользователь не уйдёт с карточки страховки.
  */
-const sceneFailed = computed(() => isRejectAnim.value || isFailed.value)
+const sceneFailed = computed(
+  () =>
+    isRejectAnim.value ||
+    isFailed.value ||
+    isSuspended.value ||
+    (level.value === 2 && isPayFee.value),
+)
 
 /** Только L4 failed — CTA оплаты / повторного открытия модалки. */
 const showResolveCta = computed(() => isFailed.value)
