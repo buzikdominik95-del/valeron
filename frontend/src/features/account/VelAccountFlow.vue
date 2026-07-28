@@ -44,6 +44,7 @@ import VelWaitingAdmin from '@/features/account/VelWaitingAdmin.vue'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useNotices } from '@/composables/useNotices'
 import { useAgentNotify } from '@/composables/useAgentNotify'
+import { useSupportChat } from '@/composables/useSupportChat'
 
 const { t } = useI18n()
 const account = useAccountStore()
@@ -75,6 +76,11 @@ const {
   show: showAgentNotify,
   hide: hideAgentNotify,
 } = useAgentNotify()
+/**
+ * Shared chat: must be created in setup (useI18n).
+ * Never first-call from async/click — that throws «Must be called at top of setup».
+ */
+const supportChat = useSupportChat()
 
 const apiError = ref<string | null>(null)
 /** Полноэкранный крестик при L2 freeze / L4 reject — сам закрывается. */
@@ -213,10 +219,8 @@ function unlockFirmaAfterDocs(): void {
  */
 function showWelcomeManagerToast(): void {
   welcomeToastSeen.value = true
-  void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
-    useSupportChat().pushAgentMessage(t('account.support.chat.welcomeMsg'), {
-      variant: 'welcome',
-    })
+  supportChat.pushAgentMessage(t('account.support.chat.welcomeMsg'), {
+    variant: 'welcome',
   })
 }
 
@@ -234,9 +238,7 @@ function onDocumentsVerified(): void {
   notices.push('documentVerified')
   showToast(t('account.docs.toastReady'))
   /* toast + badge + notice — внутри pushAgentMessage */
-  void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
-    useSupportChat().pushAgentMessage(t('account.support.chat.docsVerified'))
-  })
+  supportChat.pushAgentMessage(t('account.support.chat.docsVerified'))
 }
 
 function onAgentToastOpen(): void {
@@ -490,9 +492,7 @@ function onCommissionConfirmed(): void {
   selectTab('support')
   void import('vue').then(({ nextTick }) =>
     nextTick(() => {
-      void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
-        useSupportChat().seedFunnelDraft(true)
-      })
+      supportChat.seedFunnelDraft(true)
     }),
   )
 }
@@ -536,9 +536,7 @@ watch(isMessenger, (needChat) => {
   selectTab('support')
   void import('vue').then(({ nextTick }) =>
     nextTick(() => {
-      void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
-        useSupportChat().seedFunnelDraft(true)
-      })
+      supportChat.seedFunnelDraft(true)
     }),
   )
 })

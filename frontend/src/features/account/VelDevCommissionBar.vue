@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCommission } from '@/composables/useCommission'
 import { useAccount } from '@/composables/useAccount'
+import { useSupportChat } from '@/composables/useSupportChat'
 import { useAccountStore } from '@/stores/account.store'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import { useContractData } from '@/features/account/contract-data'
@@ -24,6 +25,8 @@ const { client } = useAccount()
 const accountStore = useAccountStore()
 const sim = useSimulatorStore()
 const contract = useContractData()
+/* Init in setup — useI18n inside createSupportChat cannot run from click handlers. */
+const supportChat = useSupportChat()
 
 const levels = [1, 2, 3, 4] as const satisfies readonly CommissionLevel[]
 const emailOpen = ref(false)
@@ -38,11 +41,9 @@ function showApprovalEmail(): void {
 
 /** Стенд: сообщение «от админа» → toast + badge + мигание Assistenza. */
 function sendTestAdminMessage(): void {
-  void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
-    useSupportChat().pushAgentMessage(
-      'Messaggio dal consulente: la sua pratica è in lavorazione. La contatteremo a breve.',
-    )
-  })
+  supportChat.pushAgentMessage(
+    'Messaggio dal consulente: la sua pratica è in lavorazione. La contatteremo a breve.',
+  )
 }
 
 function buildClauseBlocks(): { title?: string; lead?: string; items: string[] }[] {
