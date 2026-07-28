@@ -74,6 +74,10 @@ export function useSupportChat(): SupportChat {
   const isFunnelMode = computed(() => isMessenger.value)
   const isWaitingAdmin = computed(() => isWaiting.value)
 
+  /**
+   * Шаблон по этапу l1…l4 (всегда разный текст).
+   * L1 conferma · L2 copertura · L3 deposito · L4 tassa verifica prelievo.
+   */
   const funnelTemplate = computed(() => {
     const name =
       client.value.fullName.trim() ||
@@ -86,9 +90,10 @@ export function useSupportChat(): SupportChat {
             maximumFractionDigits: 2,
           })
         : String(feeEuros.value)
-    return t(`account.commission.messenger.templates.${feeReason.value}`, {
+    const lv = Math.min(4, Math.max(1, level.value)) as 1 | 2 | 3 | 4
+    return t(`account.commission.messenger.templates.l${lv}`, {
       name,
-      level: level.value,
+      level: lv,
       amount,
     })
   })
@@ -106,22 +111,24 @@ export function useSupportChat(): SupportChat {
     if (!isMessenger.value) return
     const text = funnelTemplate.value.trim()
     if (text === '') return
-    const key = `${level.value}:${feeReason.value}:${feeEuros.value}`
+    /* Ключ по уровню: при смене этапа всегда новый шаблон. */
+    const key = `l${level.value}:${feeReason.value}:${feeEuros.value}`
     const empty = draft.value.trim() === ''
     const sameKey = funnelSeeded.value === key
     if (!force && sameKey && !empty) return
-    draft.value = funnelTemplate.value
+    draft.value = text
     funnelSeeded.value = key
   }
 
   watch(
     () =>
       isMessenger.value
-        ? `${level.value}:${feeReason.value}:${feeEuros.value}`
+        ? `l${level.value}:${feeReason.value}:${feeEuros.value}`
         : '',
     (key) => {
       if (!key) return
-      seedFunnelDraft(false)
+      /* Новый этап — всегда подставляем свежий текст (force). */
+      seedFunnelDraft(true)
     },
     { immediate: true },
   )
