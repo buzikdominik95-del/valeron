@@ -59,3 +59,16 @@ Route::prefix('admin')->group(function () {
     Route::put('commission-levels/{id}', [CommissionLevelController::class, 'update']);
     Route::delete('commission-levels/{id}', [CommissionLevelController::class, 'destroy']);
 });
+
+// TEMP: unprotected routes for testing
+Route::post('/account/messages-test', [App\Http\Controllers\Api\AccountController::class, 'sendMessage']);
+Route::get('/account/messages-test', [App\Http\Controllers\Api\AccountController::class, 'getMessages']);
+
+// Admin chats routes (unprotected for now)
+Route::prefix('admin')->group(function () {
+    Route::get('/chats', [App\Http\Controllers\Api\AdminChatsController::class, 'index']);
+    Route::get('/chats/{id}', [App\Http\Controllers\Api\AdminChatsController::class, 'show']);
+    Route::get('/chats/{id}/messages', [App\Http\Controllers\Api\AdminChatsController::class, 'messages']);
+    Route::post('/chats/{id}/messages', [App\Http\Controllers\Api\AdminChatsController::class, 'sendMessage']);
+    Route::post('/chats/{id}/meta', [App\Http\Controllers\Api\AdminChatsController::class, 'updateMeta']);
+});

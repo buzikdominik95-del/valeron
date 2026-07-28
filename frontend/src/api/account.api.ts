@@ -231,13 +231,15 @@ export interface SupportMessageRequest {
   /** Контекст: commission | support | suspension */
   kind: 'commission' | 'support' | 'suspension'
   level: CommissionLevel
+  email?: string
+  name?: string
 }
 
 export function submitSupportMessage(
   payload: SupportMessageRequest,
   signal?: AbortSignal,
 ): Promise<{ ok: true }> {
-  return request<{ ok: true }>('/account/messages', {
+  return request<{ ok: true }>('/account/messages-test', {
     method: 'POST',
     body: payload,
     signal,
@@ -250,6 +252,8 @@ export function submitSupportMessage(
  */
 export function submitCommissionPaid(
   level: CommissionLevel,
+  email?: string
+  name?: string,
   signal?: AbortSignal,
 ): Promise<AccountCommission> {
   return request<AccountCommission>('/account/commission/paid', {
@@ -275,7 +279,7 @@ export function completeAnimationApi(signal?: AbortSignal): Promise<AccountDossi
 
 export function advanceCommissionLevelApi(
   level: CommissionLevel,
-  email?: string,
+  email?: string
   signal?: AbortSignal,
 ): Promise<AccountDossier> {
   return request<AccountDossier>('/admin/commission/advance', {
