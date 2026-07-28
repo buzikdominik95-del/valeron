@@ -7,8 +7,9 @@ import { useCommission } from '@/composables/useCommission'
 import { useCpiBuild } from '@/composables/useCpiBuild'
 import { useAccountStore } from '@/stores/account.store'
 import { useDossierStore } from '@/stores/dossier.store'
-import { isApiEnabled } from '@/api/account.api'
+import { disableApiForSession, isApiEnabled } from '@/api/account.api'
 import { demoLogin } from '@/api/auth.api'
+import { ApiError } from '@/api/http'
 import { useSimulatorStore } from '@/stores/simulator.store'
 
 import VelAccount from '@/features/account/VelAccount.vue'
@@ -99,6 +100,7 @@ onMounted(() => {
   /*
    * Не логинимся как marco@esempio.it по умолчанию — только email
    * зарегистрированного пользователя (после мастера).
+   * Без сессии — offline (localStorage); 401 гасит API на всю вкладку.
    */
   const simulator = useSimulatorStore()
   const mail = simulator.email.trim()
@@ -108,7 +110,11 @@ onMounted(() => {
   void demoLogin(mail, 'password', name)
     .then(() => dossier.pullAccount())
     .catch((e: unknown) => {
-      apiError.value = e instanceof Error ? e.message : 'API unavailable'
+      if (e instanceof ApiError && (e.status === 401 || e.status === 419 || e.status === 0)) {
+        disableApiForSession()
+      }
+      /* Не показываем красный баннер — кабинет работает offline. */
+      apiError.value = null
     })
 })
 

@@ -140,10 +140,18 @@ export const useDossierStore = defineStore('dossier', () => {
     return true
   }
 
+  /**
+   * Soft hydrate from server. 401 disables API for the session (http.ts);
+   * never rethrow — offline dossier in localStorage remains the source of truth.
+   */
   async function pullAccount(): Promise<void> {
     if (!isApiEnabled()) return
-    const full = await fetchAccount()
-    hydrate(full)
+    try {
+      const full = await fetchAccount()
+      hydrate(full)
+    } catch {
+      /* 401 / network — stay offline */
+    }
   }
 
   /** Возврат к исходному состоянию перевода: отмена или неудача. */
