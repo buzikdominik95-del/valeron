@@ -13,13 +13,9 @@ import {
 } from '@/api/commission'
 
 /**
- * «Бровь» клиента — как в velora-client-brow-final.html:
- * одна горизонтальная полоса: who | email | sesso | IBAN | status | saldo.
- *
- * Адаптация: на узком экране — горизонтальный скролл (дизайн не ломаем).
- * Sticky сразу под fixed-шапкой: top = --vel-shell-head-h.
- *
- * IBAN: только начало; клик → Profilo.
+ * «Бровь» — одна строка со всеми полями, всё помещается:
+ * who | email | sesso | IBAN… | stato saldo | saldo.
+ * Длинный текст укорачивается (ellipsis / префикс IBAN), без горизонтального скролла.
  */
 const { t, n } = useI18n()
 const { client, approvedAmount } = useAccount()
@@ -66,7 +62,7 @@ const genderLabel = computed(() => {
   return t('account.brow.genderUnset')
 })
 
-/** Только начало IBAN — полный в профиле */
+/** Только начало IBAN */
 const ibanPreview = computed(() => {
   const raw = ibanFull.value.replace(/\s+/g, '').toUpperCase()
   if (raw.length >= 8) return `${raw.slice(0, 4)} ${raw.slice(4, 8)}…`
@@ -103,7 +99,6 @@ function goBalance(): void {
 
 <template>
   <aside class="vel-brow" data-testid="client-brow" :aria-label="t('account.brow.label')">
-    <!-- Who -->
     <button type="button" class="vel-brow__who" @click="goProfile">
       <span class="vel-brow__ava" aria-hidden="true">
         {{ initials }}
@@ -119,10 +114,10 @@ function goBalance(): void {
           </svg>
         </s>
       </span>
-      <span class="vel-brow__cell vel-brow__cell--flush">
+      <span class="vel-brow__stack">
         <span class="vel-brow__lbl">{{ t('account.brow.client') }}</span>
         <span class="vel-brow__val">
-          {{ displayName }}
+          <span class="vel-brow__ellipsis">{{ displayName }}</span>
           <svg class="vel-brow__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path
               d="M5.5 12.6 10 17.2 18.8 7.4"
@@ -138,9 +133,9 @@ function goBalance(): void {
 
     <span class="vel-brow__sep" aria-hidden="true" />
 
-    <button type="button" class="vel-brow__cell" @click="goProfile">
+    <button type="button" class="vel-brow__cell vel-brow__cell--email" @click="goProfile">
       <span class="vel-brow__lbl">{{ t('account.brow.email') }}</span>
-      <span class="vel-brow__val">{{ emailText }}</span>
+      <span class="vel-brow__val vel-brow__ellipsis">{{ emailText }}</span>
     </button>
 
     <span class="vel-brow__sep" aria-hidden="true" />
@@ -166,18 +161,15 @@ function goBalance(): void {
 
     <span class="vel-brow__sep" aria-hidden="true" />
 
-    <div class="vel-brow__cell vel-brow__cell--static">
+    <div class="vel-brow__cell vel-brow__cell--status">
       <span class="vel-brow__lbl">{{ t('account.brow.statusLabel') }}</span>
-      <span class="vel-brow__pills">
-        <i class="vel-brow__pill" :class="`vel-brow__pill--${statusKind}`">
-          <s v-if="statusKind === 'active'" />
-          {{ statusLabel }}
-        </i>
+      <span class="vel-brow__pill" :class="`vel-brow__pill--${statusKind}`">
+        <s v-if="statusKind === 'active'" aria-hidden="true" />
+        {{ statusLabel }}
       </span>
     </div>
 
-    <span class="vel-brow__spacer" aria-hidden="true" />
-    <span class="vel-brow__sep" aria-hidden="true" />
+    <span class="vel-brow__sep vel-brow__sep--before-bal" aria-hidden="true" />
 
     <button type="button" class="vel-brow__cell vel-brow__cell--bal" @click="goBalance">
       <span class="vel-brow__lbl">{{ t('account.brow.available') }}</span>
@@ -188,9 +180,9 @@ function goBalance(): void {
 
 <style scoped>
 /*
-  Макет 1:1 с HTML-макетом «бровь»:
-  flex row + sep + spacer + bal.
-  Sticky: top = высота fixed-шапки кабинета (не 0.35rem — иначе уезжает под header).
+  Все поля в одной строке, без overflow-x.
+  flex + min-width:0 + ellipsis — длинное сжимается, короткие (sesso/stato/saldo) фиксированы.
+  Sticky под fixed-header.
 */
 .vel-brow {
   position: sticky;
@@ -199,27 +191,23 @@ function goBalance(): void {
   display: flex;
   align-items: center;
   gap: 0;
-  min-block-size: 4.75rem;
+  width: 100%;
+  max-width: 100%;
+  min-block-size: 4.5rem;
   margin-block-end: var(--vel-cab-gap, 0.7rem);
-  padding: 0 0.25rem 0 0;
-  /* overflow-x scroll на узких — overflow-y visible для тени */
-  overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-x: contain;
-  -webkit-overflow-scrolling: touch;
+  padding: 0.35rem 0.5rem 0.35rem 0.65rem;
+  overflow: hidden;
   border: 1px solid color-mix(in oklab, var(--color-accent) 22%, var(--color-line));
   border-radius: 1rem;
-  background:
-    linear-gradient(
-      105deg,
-      color-mix(in oklab, var(--color-accent) 16%, #eef2ff) 0%,
-      color-mix(in oklab, var(--color-accent) 8%, var(--color-surface)) 42%,
-      var(--color-surface) 100%
-    );
+  background: linear-gradient(
+    105deg,
+    color-mix(in oklab, var(--color-accent) 16%, #eef2ff) 0%,
+    color-mix(in oklab, var(--color-accent) 8%, var(--color-surface)) 42%,
+    var(--color-surface) 100%
+  );
   box-shadow:
-    0 0.85rem 2rem -1.2rem color-mix(in oklab, var(--color-accent) 40%, transparent),
+    0 0.75rem 1.75rem -1rem color-mix(in oklab, var(--color-accent) 35%, transparent),
     inset 0 1px 0 color-mix(in oklab, #fff 70%, transparent);
-  scrollbar-width: thin;
 }
 
 .vel-brow::before {
@@ -247,59 +235,56 @@ function goBalance(): void {
   color: inherit;
   text-align: start;
   cursor: pointer;
-  flex: none;
+  min-width: 0;
 }
 
 .vel-brow__who {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  block-size: 100%;
-  min-block-size: 4.75rem;
-  padding: 0 0.85rem 0 1.1rem;
-  transition: background-color 160ms ease;
+  gap: 0.55rem;
+  flex: 1.15 1 0;
+  max-width: 12rem;
+  padding: 0.2rem 0.45rem 0.2rem 0.15rem;
+  border-radius: var(--radius-control);
 }
 
 .vel-brow__cell {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.2rem;
-  min-block-size: 4.75rem;
-  padding: 0 1.05rem;
-  transition: background-color 160ms ease;
+  gap: 0.15rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: var(--radius-control);
 }
 
-.vel-brow__cell--flush {
-  padding: 0;
-  min-block-size: 0;
-}
-
-.vel-brow__cell--static {
-  cursor: default;
-}
-
-.vel-brow__cell--static:hover {
-  background: transparent;
+.vel-brow__cell--email {
+  flex: 1.2 1 0;
+  max-width: 11rem;
 }
 
 .vel-brow__cell--sesso {
-  min-inline-size: 5.25rem;
+  flex: 0 0 auto;
 }
 
 .vel-brow__cell--iban {
-  min-inline-size: 6.5rem;
+  flex: 0 0 auto;
+}
+
+.vel-brow__cell--status {
+  flex: 0 0 auto;
+  cursor: default;
 }
 
 .vel-brow__cell--bal {
+  flex: 0 0 auto;
   align-items: flex-end;
-  padding-inline-end: 1.25rem;
-  min-inline-size: 7rem;
+  margin-inline-start: auto;
+  padding-inline-end: 0.35rem;
 }
 
 .vel-brow__who:hover,
-.vel-brow__cell:not(.vel-brow__cell--static):hover {
-  background: color-mix(in oklab, var(--color-accent) 6%, transparent);
+.vel-brow__cell:not(.vel-brow__cell--status):hover {
+  background: color-mix(in oklab, var(--color-accent) 7%, transparent);
 }
 
 .vel-brow__ava {
@@ -307,81 +292,88 @@ function goBalance(): void {
   display: grid;
   place-items: center;
   flex: none;
-  inline-size: 2.6rem;
-  block-size: 2.6rem;
-  border-radius: 0.8rem;
+  inline-size: 2.35rem;
+  block-size: 2.35rem;
+  border-radius: 0.72rem;
   background: linear-gradient(135deg, var(--color-accent), var(--color-accent-deep));
   color: var(--color-accent-ink);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 800;
-  letter-spacing: 0.02em;
-  box-shadow: 0 0.5rem 1.1rem -0.35rem color-mix(in oklab, var(--color-accent) 55%, transparent);
+  box-shadow: 0 0.4rem 0.9rem -0.3rem color-mix(in oklab, var(--color-accent) 50%, transparent);
 }
 
 .vel-brow__ava-ok {
   position: absolute;
-  right: -0.2rem;
-  bottom: -0.2rem;
+  right: -0.15rem;
+  bottom: -0.15rem;
   display: grid;
   place-items: center;
-  inline-size: 0.95rem;
-  block-size: 0.95rem;
-  border: 2.5px solid var(--color-surface);
+  inline-size: 0.85rem;
+  block-size: 0.85rem;
+  border: 2px solid var(--color-surface);
   border-radius: 999px;
   background: var(--color-success);
   color: #fff;
 }
 
 .vel-brow__ava-ok svg {
-  width: 0.5rem;
-  height: 0.5rem;
+  width: 0.48rem;
+  height: 0.48rem;
+}
+
+.vel-brow__stack {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.1rem;
 }
 
 .vel-brow__lbl {
-  color: color-mix(in oklab, var(--color-accent-deep) 40%, var(--color-faint));
-  font-size: 0.625rem;
+  color: color-mix(in oklab, var(--color-accent-deep) 42%, var(--color-faint));
+  font-size: 0.55rem;
   font-weight: 700;
-  letter-spacing: 0.13em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
+  line-height: 1.1;
 }
 
 .vel-brow__val {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  max-inline-size: 11rem;
-  overflow: hidden;
+  gap: 0.3rem;
+  min-width: 0;
   color: var(--color-fg);
-  font-size: 0.94rem;
+  font-size: 0.84rem;
   font-weight: 650;
+  line-height: 1.2;
   white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
-.vel-brow__cell--sesso .vel-brow__val {
-  max-inline-size: none;
+.vel-brow__ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .vel-brow__val--big {
-  max-inline-size: none;
-  font-size: 1.35rem;
+  font-size: clamp(0.95rem, 2.4vw, 1.2rem);
   font-weight: 800;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
-  color: var(--color-fg);
 }
 
 .vel-brow__check {
   flex: none;
-  width: 0.88rem;
-  height: 0.88rem;
+  width: 0.78rem;
+  height: 0.78rem;
   color: var(--color-success);
 }
 
 .vel-brow__mono {
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 0.88rem;
+  font-size: 0.78rem;
   font-weight: 650;
   letter-spacing: 0.02em;
   color: var(--color-accent-deep);
@@ -389,42 +381,33 @@ function goBalance(): void {
 
 .vel-brow__sep {
   flex: none;
+  align-self: center;
   inline-size: 1px;
-  block-size: 2.35rem;
+  block-size: 2rem;
   background: linear-gradient(
     180deg,
     transparent,
-    color-mix(in oklab, var(--color-accent) 20%, var(--color-line)) 18%,
-    color-mix(in oklab, var(--color-accent) 20%, var(--color-line)) 82%,
+    color-mix(in oklab, var(--color-accent) 18%, var(--color-line)) 20%,
+    color-mix(in oklab, var(--color-accent) 18%, var(--color-line)) 80%,
     transparent
   );
 }
 
-.vel-brow__spacer {
-  flex: 1 1 0.5rem;
-  min-inline-size: 0.5rem;
-}
-
-.vel-brow__pills {
-  display: flex;
-  align-items: center;
-}
-
-/* Pill как в HTML-макете */
 .vel-brow__pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.25rem 0.65rem;
+  gap: 0.3rem;
+  max-width: 100%;
+  padding: 0.2rem 0.5rem;
   border: 1px solid var(--color-line);
   border-radius: 999px;
   background: #f3f6fe;
   color: #5b678f;
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   font-style: normal;
   font-weight: 700;
   white-space: nowrap;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .vel-brow__pill--active {
@@ -436,11 +419,10 @@ function goBalance(): void {
 .vel-brow__pill--active s {
   display: block;
   flex: none;
-  inline-size: 0.44rem;
-  block-size: 0.44rem;
+  inline-size: 0.38rem;
+  block-size: 0.38rem;
   border-radius: 999px;
   background: var(--color-success);
-  animation: vel-brow-blip 2s infinite;
 }
 
 .vel-brow__pill--busy {
@@ -461,75 +443,94 @@ function goBalance(): void {
   color: var(--color-danger);
 }
 
-@keyframes vel-brow-blip {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-success) 45%, transparent);
-  }
-
-  70% {
-    box-shadow: 0 0 0 0.45rem transparent;
-  }
-
-  100% {
-    box-shadow: 0 0 0 0 transparent;
-  }
-}
-
-/* Узкий экран: та же полоса, горизонтальный скролл (дизайн не ломаем) */
-@media (max-width: 48rem) {
+/* --- mobile: still one row, tighter --- */
+@media (max-width: 40rem) {
   .vel-brow {
-    min-block-size: 4.4rem;
-  }
-
-  .vel-brow__who,
-  .vel-brow__cell {
-    min-block-size: 4.4rem;
+    min-block-size: 3.85rem;
+    padding: 0.3rem 0.4rem 0.3rem 0.45rem;
+    gap: 0;
   }
 
   .vel-brow__who {
-    padding-inline: 0.75rem 0.65rem;
-  }
-
-  .vel-brow__cell {
-    padding-inline: 0.8rem;
-  }
-
-  .vel-brow__val {
-    max-inline-size: 8.5rem;
-    font-size: 0.86rem;
-  }
-
-  .vel-brow__cell--sesso .vel-brow__val {
-    max-inline-size: none;
-  }
-
-  .vel-brow__val--big {
-    font-size: 1.15rem;
-  }
-
-  .vel-brow__lbl {
-    font-size: 0.55rem;
-    letter-spacing: 0.1em;
+    gap: 0.4rem;
+    max-width: 28%;
+    padding-inline-end: 0.25rem;
   }
 
   .vel-brow__ava {
-    inline-size: 2.35rem;
-    block-size: 2.35rem;
+    inline-size: 2rem;
+    block-size: 2rem;
+    font-size: 0.68rem;
+    border-radius: 0.55rem;
   }
 
-  .vel-brow__spacer {
-    min-inline-size: 0.75rem;
+  .vel-brow__ava-ok {
+    inline-size: 0.7rem;
+    block-size: 0.7rem;
+  }
+
+  .vel-brow__cell {
+    padding: 0.15rem 0.35rem;
+  }
+
+  .vel-brow__cell--email {
+    max-width: 22%;
+  }
+
+  .vel-brow__lbl {
+    font-size: 0.48rem;
+    letter-spacing: 0.06em;
+  }
+
+  .vel-brow__val {
+    font-size: 0.7rem;
+  }
+
+  .vel-brow__val--big {
+    font-size: 0.85rem;
+  }
+
+  .vel-brow__mono {
+    font-size: 0.65rem;
+  }
+
+  .vel-brow__check {
+    display: none;
+  }
+
+  .vel-brow__sep {
+    block-size: 1.5rem;
+  }
+
+  .vel-brow__pill {
+    padding: 0.12rem 0.35rem;
+    font-size: 0.58rem;
+  }
+
+  .vel-brow__sep--before-bal {
+    display: none;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .vel-brow__pill--active s {
-    animation: none;
+@media (min-width: 40.01rem) and (max-width: 56rem) {
+  .vel-brow__who {
+    max-width: 9.5rem;
   }
 
-  .vel-brow__who,
-  .vel-brow__cell {
-    transition: none;
+  .vel-brow__cell--email {
+    max-width: 9rem;
+  }
+
+  .vel-brow__lbl {
+    font-size: 0.52rem;
+  }
+
+  .vel-brow__val {
+    font-size: 0.78rem;
+  }
+
+  .vel-brow__val--big {
+    font-size: 1rem;
   }
 }
 </style>
@@ -541,8 +542,8 @@ function goBalance(): void {
   }
 
   40% {
-    transform: scale(1.025);
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent) 30%, transparent);
+    transform: scale(1.02);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent) 28%, transparent);
   }
 
   100% {
