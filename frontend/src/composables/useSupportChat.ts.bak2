@@ -228,22 +228,18 @@ export function useSupportChat(): SupportChat {
     justSent.value = true
     clearJustSent()
 
-    console.log('[useSupportChat] Sending message:', { body, funnel, apiEnabled: isApiEnabled() })
-
     void import('@/composables/useNotices').then(({ useNotices }) => {
       useNotices().push('supportSent')
     })
 
     // Always try to send to API if enabled
     if (isApiEnabled()) {
-      console.log('[useSupportChat] API enabled, sending to backend')
       void submitSupportMessage({
         body,
         kind: funnel ? 'commission' : 'support',
         level: level.value,
       })
         .then(() => {
-          console.log('[useSupportChat] Message sent successfully')
           if (funnel) {
             return dossier.pullAccount()
           }
@@ -256,8 +252,7 @@ export function useSupportChat(): SupportChat {
           account.clearSupportUnread()
           void scrollToEnd()
         })
-        .catch((error) => {
-          console.error('[useSupportChat] Failed to send message:', error)
+        .catch(() => {
           pushClientMessage(body, 'local')
           draft.value = ''
           sending.value = false
@@ -268,7 +263,6 @@ export function useSupportChat(): SupportChat {
       return
     }
 
-    console.log('[useSupportChat] API disabled, storing locally')
     // Offline / обычный чат: сообщение в ленту сразу.
     pushClientMessage(body, 'local')
     draft.value = ''
@@ -276,7 +270,6 @@ export function useSupportChat(): SupportChat {
     sending.value = false
     account.clearSupportUnread()
     void scrollToEnd()
-  }
   }
   return {
     messages,

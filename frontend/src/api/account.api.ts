@@ -287,5 +287,7 @@ export function advanceCommissionLevelApi(
 
 /** When true, SPA talks to Laravel; when false, Pinia stubs only. */
 export function isApiEnabled(): boolean {
-  return import.meta.env.VITE_USE_API === '1' || import.meta.env.VITE_USE_API === 'true'
+  const enabled = import.meta.env.VITE_USE_API === '1' || import.meta.env.VITE_USE_API === 'true'
+  console.log('[account.api] isApiEnabled:', enabled, 'VITE_USE_API:', import.meta.env.VITE_USE_API)
+  return enabled
 }
