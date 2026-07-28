@@ -23,10 +23,13 @@ export function isCommissionLevel(value: unknown): value is CommissionLevel {
 
 /**
  * Нормализация уровня (в т.ч. legacy L5 из localStorage / старого API → L4).
+ * Number(): JSON/localStorage иногда отдаёт "2"/"3" строкой — иначе isCommissionLevel
+ * ложно и F5 сбрасывает на L1, пока hydrate не вернёт этап.
  */
 export function normalizeCommissionLevel(value: unknown): CommissionLevel {
-  if (value === 5) return 4
-  if (isCommissionLevel(value)) return value
+  if (value === 5 || value === '5') return 4
+  const n = typeof value === 'number' ? value : Number(value)
+  if (isCommissionLevel(n)) return n
   return 1
 }
 
