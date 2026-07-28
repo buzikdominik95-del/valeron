@@ -11,11 +11,9 @@ import VelStepTracker from '@/features/account/VelStepTracker.vue'
  * Home по этапам:
  *
  *   1) баланс
- *   2) сцена воронки (анимация / suspended / waiting…) — СРАЗУ под балансом
- *   3) step tracker (L1–L2), только когда воронка не занимает экран
+ *   2) сцена воронки (анимация / waiting / suspended…) — сразу под балансом
+ *   3) step tracker (L1–L2) — ПОСЛЕ загрузки/сцены, не прячется
  *   4) L3 policy
- *
- * Transfer всегда выше step-bar: иначе waiting/freeze уезжали под «Tutti i passaggi».
  */
 const { t } = useI18n()
 const { isAuthorizing } = useAccount()
@@ -31,14 +29,13 @@ const {
   isMessenger,
 } = useCommission()
 
-/** Панель Preleva открыта — todo прячется. */
+/** Панель Preleva — тоже в transfer-слоте под балансом. */
 const payoutPanelOpen = inject(PAYOUT_PANEL_KEY, ref(false))
 
 /**
- * Воронка «забрала» место todo-листа: анимация, suspended, pay_fee (L2),
- * messenger/waiting, fail/tg — всё это живёт сразу под балансом.
+ * Есть активная сцена воронки под балансом (выше step-bar).
  */
-const transferTakesOver = computed(
+const showTransferBand = computed(
   () =>
     isAnimating.value ||
     isAuthorizing.value ||
@@ -48,18 +45,12 @@ const transferTakesOver = computed(
     isWaiting.value ||
     isFailed.value ||
     isTgFinal.value ||
-    isPolicyBuild.value,
+    isPolicyBuild.value ||
+    payoutPanelOpen.value,
 )
 
-/** Todo только L1–L2, пока нет активной сцены воронки и панели метода. */
-const showTracker = computed(
-  () => level.value <= 2 && !transferTakesOver.value && !payoutPanelOpen.value,
-)
-
-/** Есть ли сцена под балансом (не пустой transfer). */
-const showTransferBand = computed(
-  () => transferTakesOver.value || payoutPanelOpen.value,
-)
+/** Step tracker на L1–L2 всегда: после загрузки/сцены, ниже transfer. */
+const showTracker = computed(() => level.value <= 2)
 
 const stageKey = computed(() => {
   if (isPolicyBuild.value) return 'policy-build'
@@ -110,12 +101,10 @@ const stageKey = computed(() => {
         </div>
       </Transition>
 
-      <!-- 3. Step tracker — только когда воронка не занимает место -->
-      <Transition name="vel-home-swap" mode="out-in">
-        <div v-if="showTracker" key="tracker" class="vel-home__tracker">
-          <VelStepTracker />
-        </div>
-      </Transition>
+      <!-- 3. Step tracker — после сцены/загрузки (не скрываем воронкой) -->
+      <div v-if="showTracker" key="tracker" class="vel-home__tracker">
+        <VelStepTracker />
+      </div>
 
       <!-- L3: карточка / генерация сертификата (CPI) -->
       <div v-if="level === 3" class="vel-home__panels">
