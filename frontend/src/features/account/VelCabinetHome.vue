@@ -63,8 +63,9 @@ const showTransferBand = computed(
     isPolicyBuild.value ||
     showL3CpiBand.value ||
     payoutPanelOpen.value ||
-    /* L4: красная сцена под freeze/TG */
-    (level.value === 4 && (isTgFinal.value || isFailed.value)),
+    /* L4: сцена анимации / отказ / freeze */
+    (level.value === 4 &&
+      (isAnimating.value || isTgFinal.value || isFailed.value || isAuthorizing.value)),
 )
 
 /** Step tracker на L1–L2 всегда: после загрузки/сцены, ниже transfer. */

