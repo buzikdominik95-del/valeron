@@ -46,6 +46,13 @@ function sendTestAdminMessage(): void {
   )
 }
 
+/** Стенд: приветствие Schierano Deborah (как через 15 с после входа). */
+function sendWelcomeMessage(): void {
+  supportChat.pushAgentMessage(t('account.support.chat.welcomeMsg'), {
+    variant: 'welcome',
+  })
+}
+
 function buildClauseBlocks(): { title?: string; lead?: string; items: string[] }[] {
   const blocks: {
     titleKey: string | null
@@ -171,6 +178,15 @@ async function genMail(kind: ClientEmailKind): Promise<void> {
       <button type="button" class="vel-devbar-mini" @click="genMail('policy')">CPI</button>
       <button type="button" class="vel-devbar-mini" @click="genMail('withdrawFail')">Fail L4</button>
     </div>
+
+    <button
+      type="button"
+      class="vel-devbar-mail"
+      data-testid="dev-welcome-msg"
+      @click="sendWelcomeMessage"
+    >
+      Welcome chat
+    </button>
 
     <button
       type="button"
