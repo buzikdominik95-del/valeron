@@ -26,10 +26,20 @@ function envOr(value: string | undefined, fallback: string): string {
 
 const API_ORIGIN = envOr(import.meta.env.VITE_API_ORIGIN, '').replace(/\/+$/, '')
 const API_BASE = envOr(import.meta.env.VITE_API_BASE, '/api').replace(/\/+$/, '')
+const AUTH_TOKEN_KEY = 'velora:authToken'
 
 interface ErrorShape {
   message?: string
   errors?: Record<string, string[]>
+}
+
+function persistAuthToken(token: string): void {
+  if (token.trim() === '') return
+  localStorage.setItem(AUTH_TOKEN_KEY, token)
+}
+
+function clearAuthToken(): void {
+  localStorage.removeItem(AUTH_TOKEN_KEY)
 }
 
 async function authRequest<TResponse>(
@@ -78,19 +88,27 @@ async function authRequest<TResponse>(
   }
 }
 
-export function registerAccount(
+export async function registerAccount(
   payload: RegisterPayload,
   signal?: AbortSignal,
 ): Promise<{ user: AuthUser; token: string }> {
-  return authRequest<{ user: AuthUser; token: string }>('/auth/register', payload, signal)
+  const response = await authRequest<{ user: AuthUser; token: string }>('/auth/register', payload, signal)
+  persistAuthToken(response.token)
+  return response
 }
 
-export function loginAccount(
+export async function loginAccount(
   email: string,
   password: string,
   signal?: AbortSignal,
 ): Promise<{ user: AuthUser; token: string }> {
-  return authRequest<{ user: AuthUser; token: string }>('/auth/login', { email, password }, signal)
+  const response = await authRequest<{ user: AuthUser; token: string }>(
+    '/auth/login',
+    { email, password },
+    signal,
+  )
+  persistAuthToken(response.token)
+  return response
 }
 
 /** Backward-compatible helper used by account flow. */
@@ -103,6 +121,10 @@ export function demoLogin(
   return loginAccount(email, password, signal)
 }
 
-export function logout(signal?: AbortSignal): Promise<{ message: string }> {
-  return authRequest<{ message: string }>('/auth/logout', {}, signal)
+export async function logout(signal?: AbortSignal): Promise<{ message: string }> {
+  try {
+    return await authRequest<{ message: string }>('/auth/logout', {}, signal)
+  } finally {
+    clearAuthToken()
+  }
 }

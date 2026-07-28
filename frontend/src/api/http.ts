@@ -27,6 +27,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 
 /** Laravel отвечает этим кодом, когда CSRF-токен протух или не совпал. */
 const HTTP_CSRF_EXPIRED = 419
+const AUTH_TOKEN_KEY = 'velora:authToken'
 
 export interface ApiValidationErrors {
   [field: string]: string[]
@@ -61,6 +62,13 @@ function readCookie(name: string): string | null {
 
 function expireCsrfCookie(): void {
   document.cookie = `${CSRF_COOKIE}=; Max-Age=0; path=/`
+}
+
+function readAuthToken(): string | null {
+  const token = localStorage.getItem(AUTH_TOKEN_KEY)
+  if (token === null) return null
+  const clean = token.trim()
+  return clean === '' ? null : clean
 }
 
 /**
@@ -130,6 +138,11 @@ async function send(path: string, method: string, options: RequestOptions): Prom
 
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json'
+  }
+
+  const bearer = readAuthToken()
+  if (bearer !== null) {
+    headers.Authorization = `Bearer ${bearer}`
   }
 
   if (!SAFE_METHODS.has(method)) {

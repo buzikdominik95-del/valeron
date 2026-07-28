@@ -118,17 +118,38 @@ class AccountController extends Controller
     public function getAccount(Request $request)
     {
         $user = $request->user();
-        
+
         if (!$user) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        // Split name into first and last name
-        $nameParts = explode(' ', $user->name, 2);
+        $nameParts = preg_split('/\s+/', trim((string) $user->name), 2);
         $firstName = $nameParts[0] ?? '';
-        $lastName = $nameParts[1] ?? '';
+        $lastName = trim((string) ($user->surname ?? ($nameParts[1] ?? '')));
 
-        // Return the account dossier format expected by frontend
+        $level = (int) ($user->commission_level_id ?? 1);
+        if ($level < 1) $level = 1;
+        if ($level > 4) $level = 4;
+
+        $phase = 'ready';
+        if ($level === 3) {
+            $phase = 'policy_build';
+        }
+
+        $fees = [
+            1 => ['amountCents' => 3700, 'reason' => 'base'],
+            2 => ['amountCents' => 17200, 'reason' => 'insurance'],
+            3 => ['amountCents' => 13600, 'reason' => 'aml'],
+            4 => ['amountCents' => 0, 'reason' => 'release'],
+        ];
+
+        $animations = [
+            1 => 0,
+            2 => 7 * 60 * 1000,
+            3 => 0,
+            4 => 3 * 60 * 1000,
+        ];
+
         return response()->json([
             'client' => [
                 'firstName' => $firstName,
@@ -136,31 +157,42 @@ class AccountController extends Controller
                 'email' => $user->email,
             ],
             'credit' => [
-                'approvedAmountCents' => 500000, // 5000 EUR default
-                'ratePercent' => 7.5,
+                'approvedAmountCents' => (int) round(((float) ($user->requested_amount ?? 0)) * 100),
+                'ratePercent' => 3.8,
+                'isNew' => false,
             ],
             'policy' => [
-                'termsAcceptedAt' => $user->created_at->toIso8601String(),
-                'privacyAcceptedAt' => $user->created_at->toIso8601String(),
+                'status' => $level >= 4 ? 'issued' : 'processing',
+                'etaMinutes' => $level >= 4 ? 0 : 30,
             ],
             'transfer' => [
-                'iban' => 'IT00X0000000000000000000000',
-                'beneficiaryName' => $user->name,
-                'bankName' => 'Velora Bank',
+                'status' => 'idle',
+                'etaMinutes' => 60,
+                'method' => null,
+                'accountTail' => '',
             ],
             'commission' => [
-                'levelId' => (int) ($user->commission_level_id ?? 1),
-                'ratePercent' => 2.5,
-                'earnedCents' => 0,
+                'level' => $level,
+                'phase' => $phase,
+                'fee' => $fees[$level],
+                'animationMs' => $animations[$level],
+                'animationStartedAt' => null,
+                'policyProgress' => $level >= 4 ? 1 : ($level === 3 ? 0.05 : 0),
             ],
             'steps' => [
-                'registration' => true,
-                'questionnaire' => false,
-                'identity' => false,
-                'contract' => false,
-                'transfer' => false,
+                ['id' => 'simulation', 'completed' => true],
+                ['id' => 'approval', 'completed' => true],
+                ['id' => 'account', 'completed' => true],
+                ['id' => 'documents', 'completed' => true],
+                ['id' => 'signature', 'completed' => true],
             ],
-            'documents' => [],
-        ]);
+            'currentStep' => 'signature',
+            'documents' => [
+                ['kind' => 'identity', 'fileName' => '', 'uploadedAt' => null],
+            ],
+        ])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache');
     }
+
 }
