@@ -490,20 +490,17 @@ const transferStage = computed((): { key: string; view: Component } | null => {
 })
 
 /**
- * L4 failed → модалка «оплати» (закрывается крестиком; CTA снова открывает).
- * Phase остаётся failed до confirm оплаты — сцена не пропадает при закрытии IBAN.
- * tg_final / L5 → Telegram, без закрытия.
+ * L4 failed → модалка «оплати» (крестик; CTA снова открывает).
+ * L5 tg_final → Telegram-модалка (тоже крестик); после закрытия —
+ * красная «Contatta il manager» на Home → снова open.
  */
 const freezeDismissed = ref(false)
 const freezeOpen = computed({
   get: () => {
-    if (isTgFinal.value) return true
-    if (!isFailed.value) return false
-    return !freezeDismissed.value
+    if (isTgFinal.value || isFailed.value) return !freezeDismissed.value
+    return false
   },
   set: (next) => {
-    /* Telegram нельзя закрыть. Reject — X / Esc. */
-    if (isTgFinal.value) return
     freezeDismissed.value = !next
   },
 })
@@ -512,9 +509,16 @@ const freezeMode = computed<'reject' | 'telegram'>(() =>
   isTgFinal.value ? 'telegram' : 'reject',
 )
 
+/** L5: модалка закрыта — на Home только красная кнопка к менеджеру. */
+const tgContactMode = computed(() => isTgFinal.value && freezeDismissed.value)
+
 watch(isFailed, (failed) => {
-  /* Новый отказ — снова показать модалку. */
   if (failed) freezeDismissed.value = false
+})
+
+watch(isTgFinal, (tg) => {
+  /* Вход на L5 — сразу показать Telegram-модалку. */
+  if (tg) freezeDismissed.value = false
 })
 
 function onFreezePay(): void {
@@ -526,6 +530,11 @@ function onFreezePay(): void {
 
 function openFreezeReject(): void {
   if (!isFailed.value) return
+  freezeDismissed.value = false
+}
+
+function openFreezeTelegram(): void {
+  if (!isTgFinal.value) return
   freezeDismissed.value = false
 }
 
@@ -545,8 +554,10 @@ const showDevBar = !(
     <template #summary>
       <VelPayoutCard
         :panel-open="payoutPanelOpen"
+        :tg-contact-mode="tgContactMode"
         @withdraw="onWithdraw"
         @open-loan="openLoan"
+        @contact-manager="openFreezeTelegram"
       />
       <!-- Выпадающая форма метода (шаг 1 после Preleva) — не модалка -->
       <VelPayoutPanel

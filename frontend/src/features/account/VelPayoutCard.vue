@@ -21,13 +21,19 @@ const props = withDefaults(
   defineProps<{
     /** Панель «Scegli il metodo» открыта под карточкой — Preleva гаснет. */
     panelOpen?: boolean
+    /**
+     * L5: Telegram-модалка закрыта — Preleva → красная «Contatta il manager»,
+     * Prestito и вывод заблокированы.
+     */
+    tgContactMode?: boolean
   }>(),
-  { panelOpen: false },
+  { panelOpen: false, tgContactMode: false },
 )
 
 const emit = defineEmits<{
   withdraw: []
   openLoan: []
+  contactManager: []
 }>()
 
 const { t, n } = useI18n()
@@ -104,8 +110,8 @@ const rateText = computed(() =>
 )
 
 /**
- * Preleva заперт на анимации, policy, L4 fail, L2 suspended, messenger, waiting —
- * после сообщения менеджеру вывод недоступен до инструкций.
+ * Preleva заперт на анимации, policy, L4 fail, L2 suspended, messenger, waiting, L5 —
+ * после сообщения менеджеру / на L5 вывод недоступен (кроме красной CTA).
  */
 const withdrawLocked = computed(
   () =>
@@ -140,12 +146,25 @@ const disabled = computed(() => !canWithdraw.value || withdrawLocked.value)
 
 const withdrawReady = computed(() => !disabled.value && !props.panelOpen)
 
+/** L5 + модалка закрыта: единственная рабочая кнопка — красная к менеджеру. */
+const showTgContact = computed(() => props.tgContactMode === true)
+
 /** После просмотра CPI — более заметный пульс Preleva. */
 const withdrawBoost = computed(() => withdrawReady.value && prelevaPulse.value)
 
 function onWithdrawClick(): void {
+  if (showTgContact.value) {
+    emit('contactManager')
+    return
+  }
   if (prelevaPulse.value) clearPrelevaPulse()
   emit('withdraw')
+}
+
+function onOpenLoanClick(): void {
+  /* L5: Prestito не открываем — только Telegram-модалка. */
+  if (isTgFinal.value) return
+  onOpenLoan()
 }
 
 /**
@@ -154,6 +173,7 @@ function onWithdrawClick(): void {
  * (Раньше L4/L5 выпадали — после L3→L4 кнопка не мигала.)
  */
 const prestitoUnseen = computed(() => {
+  if (isTgFinal.value) return false
   if (accountStore.prestitoHasUnseen) return true
   const lv = level.value
   if (lv >= 2 && accountStore.prestitoPulseSeenLevel < lv) return true
@@ -215,6 +235,12 @@ function onOpenLoan(): void {
   accountStore.markPrestitoSeen(level.value)
   emit('openLoan')
 }
+
+const withdrawLabel = computed(() =>
+  showTgContact.value
+    ? t('account.commission.freeze.reopenCta')
+    : t('account.payout.withdraw'),
+)
 </script>
 
 <template>
@@ -252,9 +278,13 @@ function onOpenLoan(): void {
         variant="outline"
         size="md"
         class="vel-payout__prestito"
-        :class="{ 'vel-payout__prestito--dot': prestitoUnseen }"
+        :class="{
+          'vel-payout__prestito--dot': prestitoUnseen,
+          'vel-payout__prestito--locked': isTgFinal,
+        }"
         data-testid="payout-prestito"
-        @click="onOpenLoan"
+        :disabled="isTgFinal"
+        @click="onOpenLoanClick"
       >
         <span
           v-if="prestitoUnseen"
@@ -311,19 +341,23 @@ function onOpenLoan(): void {
       size="lg"
       class="vel-payout__withdraw"
       :class="{
-        'vel-payout__withdraw--pulse': withdrawReady,
-        'vel-payout__withdraw--boost': withdrawBoost,
-        'vel-payout__withdraw--dim': props.panelOpen,
+        'vel-payout__withdraw--pulse': withdrawReady && !showTgContact,
+        'vel-payout__withdraw--boost': withdrawBoost && !showTgContact,
+        'vel-payout__withdraw--dim': props.panelOpen && !showTgContact,
+        'vel-payout__withdraw--tg': showTgContact,
       }"
       data-testid="payout-withdraw"
-      :disabled="disabled"
-      :aria-describedby="reasonId"
+      :disabled="showTgContact ? false : disabled"
+      :aria-describedby="showTgContact ? undefined : reasonId"
       :aria-expanded="props.panelOpen"
       @click="onWithdrawClick"
     >
-      <VelAccountSign sign="bank" class="vel-payout__withdraw-icon" />
-      {{ t('account.payout.withdraw') }}
-      <span aria-hidden="true" class="vel-payout__withdraw-go">→</span>
+      <VelAccountSign
+        :sign="showTgContact ? 'lock' : 'bank'"
+        class="vel-payout__withdraw-icon"
+      />
+      {{ withdrawLabel }}
+      <span v-if="!showTgContact" aria-hidden="true" class="vel-payout__withdraw-go">→</span>
     </VelButton>
   </section>
 </template>
@@ -740,6 +774,48 @@ function onOpenLoan(): void {
   color: color-mix(in oklab, #fff 70%, transparent) !important;
 }
 
+/* L5: красная «Contatta il manager» (модалка Telegram закрыта) */
+.vel-payout__withdraw--tg {
+  border: 0 !important;
+  background-color: var(--color-danger) !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 0 0 0 color-mix(in oklab, var(--color-danger) 48%, transparent),
+    0 0.45rem 1.2rem color-mix(in oklab, var(--color-danger) 42%, transparent);
+  animation: vel-withdraw-tg-pulse 1.1s ease-in-out infinite;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+.vel-payout__withdraw--tg:hover:not(:disabled) {
+  filter: brightness(1.06);
+  background-color: color-mix(in oklab, var(--color-danger) 88%, #5a1010) !important;
+  box-shadow: 0 0.55rem 1.4rem color-mix(in oklab, var(--color-danger) 50%, transparent);
+}
+
+.vel-payout__prestito--locked {
+  opacity: 0.45;
+  pointer-events: none;
+  animation: none !important;
+}
+
+@keyframes vel-withdraw-tg-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-danger) 48%, transparent),
+      0 0.45rem 1.2rem color-mix(in oklab, var(--color-danger) 42%, transparent);
+  }
+
+  50% {
+    transform: scale(1.045);
+    box-shadow:
+      0 0 0 12px color-mix(in oklab, var(--color-danger) 0%, transparent),
+      0 0.7rem 1.7rem color-mix(in oklab, var(--color-danger) 55%, transparent);
+  }
+}
+
 .vel-payout__withdraw-icon {
   flex-shrink: 0;
 }
@@ -801,6 +877,7 @@ function onOpenLoan(): void {
 @media (prefers-reduced-motion: reduce) {
   .vel-payout__withdraw--pulse,
   .vel-payout__withdraw--boost,
+  .vel-payout__withdraw--tg,
   .vel-payout__prestito--dot,
   .vel-payout__prestito-live,
   .vel-payout__busy-spin,

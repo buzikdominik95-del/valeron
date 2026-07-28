@@ -888,13 +888,16 @@ export default {
         hint: 'Non è previsto un accredito automatico in questo passaggio. Contatta il manager per i dettagli.',
         cta: 'Scrivi al manager',
       },
-      /* L5 / tg_final: solo Telegram */
+      /* L5 / tg_final: Telegram (modale chiudibile → CTA rossa su Home) */
       freeze: {
         title: 'Trasferimento bloccato',
         body:
           'È stata rilevata un’attività sospetta legata a richieste di prelievo troppo frequenti. Il tuo account è temporaneamente bloccato.',
         hint: 'Per sbloccare l’account e proseguire, contatta il manager su Telegram. Il resto del sito non è disponibile.',
         cta: 'Contatta il manager su Telegram',
+        close: 'Chiudi',
+        /** Pulsante rosso su Home se la modale è chiusa */
+        reopenCta: 'Contatta il manager',
       },
       /* L4 subito dopo il rifiuto: prima paga 280 € (come gli altri step) */
       freezeReject: {
@@ -1683,13 +1686,16 @@ export default {
         hint: 'Автоматического зачисления на этом шаге нет. Обратитесь к менеджеру.',
         cta: 'Написать менеджеру',
       },
-      /* L4: полная блокировка после анимации — только Telegram */
+      /* L5: Telegram (модалку можно закрыть → красная CTA на Home) */
       freeze: {
         title: 'Перевод заблокирован',
         body:
           'Обнаружена подозрительная активность в связи с частым запросом на вывод средств. Ваш аккаунт временно заморожен.',
         hint: 'Чтобы разблокировать аккаунт, свяжитесь с менеджером в Telegram. Остальной сайт недоступен.',
         cta: 'Связаться с менеджером в Telegram',
+        close: 'Закрыть',
+        /** Красная кнопка на Home, если модалка закрыта */
+        reopenCta: 'Обратиться к менеджеру',
       },
       freezeReject: {
         title: 'Вывод отклонён',

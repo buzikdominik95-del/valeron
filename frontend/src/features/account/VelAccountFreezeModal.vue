@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watchEffect, useTemplateRef } from 'vue'
+import { computed, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
@@ -8,14 +8,15 @@ import VelTextAnimate from '@/components/magic/VelTextAnimate.vue'
 import VelBorderBeam from '@/components/magic/VelBorderBeam.vue'
 
 /**
- * L4 failed: отказ + CTA на оплату 280 € (можно закрыть крестиком).
- * L5 / tg_final: конечный экран — только Telegram, без закрытия.
+ * L4 failed: отказ + CTA на оплату 280 € (крестик без обводки).
+ * L5 / tg_final: Telegram-модалка — тоже закрывается крестиком;
+ *   на Home остаётся красная «Contatta il manager» → снова открыть.
  */
 const MANAGER_TELEGRAM = 'https://telegram.me/Matteo_Urbano'
 
 const props = withDefaults(
   defineProps<{
-    /** reject = после анимации L4; telegram = финал после чата / L5 */
+    /** reject = после анимации L4; telegram = финал L5 */
     mode?: 'reject' | 'telegram'
   }>(),
   { mode: 'telegram' },
@@ -30,8 +31,6 @@ const dialog = useTemplateRef<HTMLDialogElement>('dialog')
 useNativeDialog(dialog, open)
 
 const isTelegram = computed(() => props.mode === 'telegram')
-/** Reject можно закрыть; telegram — блокирующий финал. */
-const canClose = computed(() => !isTelegram.value)
 
 const titleKey = computed(() =>
   isTelegram.value ? 'account.commission.freeze.title' : 'account.commission.freezeReject.title',
@@ -43,23 +42,17 @@ const hintKey = computed(() =>
   isTelegram.value ? 'account.commission.freeze.hint' : 'account.commission.freezeReject.hint',
 )
 
-watchEffect((onCleanup) => {
-  const el = dialog.value
-  if (!el) return
-  const blockCancel = (e: Event): void => {
-    /* Telegram-финал: Esc не закрывает. Reject: Esc = close. */
-    if (!canClose.value) e.preventDefault()
-  }
-  el.addEventListener('cancel', blockCancel)
-  onCleanup(() => el.removeEventListener('cancel', blockCancel))
-})
+const closeLabel = computed(() =>
+  isTelegram.value
+    ? t('account.commission.freeze.close')
+    : t('account.commission.freezeReject.close'),
+)
 
 function onPay(): void {
   emit('pay')
 }
 
 function close(): void {
-  if (!canClose.value) return
   open.value = false
 }
 </script>
@@ -78,11 +71,10 @@ function close(): void {
       <VelBorderBeam :duration-ms="5200" :size="56" />
 
       <button
-        v-if="canClose"
         type="button"
         class="vel-freeze__x"
         data-testid="account-freeze-close"
-        :aria-label="t('account.commission.freezeReject.close')"
+        :aria-label="closeLabel"
         @click="close"
       >
         ×
