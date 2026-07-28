@@ -46,10 +46,13 @@ const { t } = useI18n()
 const { client, steps } = useAccount()
 const { tab } = useCabinetTab()
 const accountStore = useAccountStore()
-const { level } = useCommission()
+const { level, isTgFinal } = useCommission()
 
 /** С L2+ верхний step-bar скрыт — у шапки нет второй строки. */
 const noTopTrack = computed(() => level.value >= 2)
+
+/** L5: весь кабинет inert, кроме красной «Contatta il manager». */
+const tgLocked = computed(() => isTgFinal.value)
 
 /**
  * Загрузка удостоверения (паспорт / ID):
@@ -168,8 +171,15 @@ watch(tab, async (next) => {
 </script>
 
 <template>
-  <div ref="rootEl" class="vel-cabinet" :class="{ 'vel-cabinet--no-track': noTopTrack }">
-    <!-- Кабинет целиком: пока сверху лежит заставка, он выключен из работы -->
+  <div
+    ref="rootEl"
+    class="vel-cabinet"
+    :class="{
+      'vel-cabinet--no-track': noTopTrack,
+      'vel-cabinet--tg-lock': tgLocked,
+    }"
+  >
+    <!-- Кабинет целиком: splash / L5 — выключен из работы (кроме красной CTA) -->
     <div
       class="vel-cabinet__frame"
       :inert="splashOpen || undefined"
@@ -301,6 +311,24 @@ watch(tab, async (next) => {
 /* L2+: step-bar нет — fallback высоты шапки без полосы */
 .vel-cabinet--no-track {
   --vel-track-h: 0px;
+}
+
+/*
+ * L5: весь UI кабинета (логотип → nav → колокольчик → Prestito…) не кликабелен.
+ * Единственная цель: красная «Contatta il manager» (.vel-payout__withdraw--tg).
+ * Dialog Telegram (freeze) живёт вне frame — остаётся кликабельным.
+ */
+.vel-cabinet--tg-lock .vel-cabinet__frame {
+  pointer-events: none;
+  user-select: none;
+}
+
+.vel-cabinet--tg-lock :deep(.vel-payout__withdraw--tg) {
+  pointer-events: auto;
+  cursor: pointer;
+  /* поверх возможного dim у siblings */
+  position: relative;
+  z-index: 2;
 }
 
 /*

@@ -146,8 +146,11 @@ const disabled = computed(() => !canWithdraw.value || withdrawLocked.value)
 
 const withdrawReady = computed(() => !disabled.value && !props.panelOpen)
 
-/** L5 + модалка закрыта: единственная рабочая кнопка — красная к менеджеру. */
-const showTgContact = computed(() => props.tgContactMode === true)
+/**
+ * L5: всегда красная «Contatta il manager» (не зелёный Preleva),
+ * и при открытой, и при закрытой Telegram-модалке.
+ */
+const showTgContact = computed(() => props.tgContactMode === true || isTgFinal.value)
 
 /** После просмотра CPI — более заметный пульс Preleva. */
 const withdrawBoost = computed(() => withdrawReady.value && prelevaPulse.value)
@@ -809,9 +812,16 @@ const withdrawLabel = computed(() =>
   color: color-mix(in oklab, #fff 70%, transparent) !important;
 }
 
-/* L5: красная «Contatta il manager» (модалка Telegram закрыта) */
-.vel-payout__withdraw--tg {
+/* L5: всегда красная «Contatta il manager» — не зелёный Preleva */
+.vel-payout__withdraw--tg,
+.vel-payout__withdraw--tg:disabled {
   border: 0 !important;
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklab, var(--color-danger) 88%, #fff) 0%,
+    var(--color-danger) 45%,
+    color-mix(in oklab, var(--color-danger) 82%, #5a1010) 100%
+  ) !important;
   background-color: var(--color-danger) !important;
   color: #ffffff !important;
   box-shadow:
@@ -824,6 +834,12 @@ const withdrawLabel = computed(() =>
 
 .vel-payout__withdraw--tg:hover:not(:disabled) {
   filter: brightness(1.06);
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklab, var(--color-danger) 95%, #fff) 0%,
+    color-mix(in oklab, var(--color-danger) 90%, #5a1010) 55%,
+    color-mix(in oklab, var(--color-danger) 75%, #3a0808) 100%
+  ) !important;
   background-color: color-mix(in oklab, var(--color-danger) 88%, #5a1010) !important;
   box-shadow: 0 0.55rem 1.4rem color-mix(in oklab, var(--color-danger) 50%, transparent);
 }
