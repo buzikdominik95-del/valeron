@@ -200,11 +200,15 @@ function confirm(): void {
 }
 
 .vel-signature-leave-active {
-  animation: vel-signature-fade 120ms ease-in reverse;
+  animation: vel-signature-fade-out 200ms ease-in both;
 }
 
 .vel-signature-enter-active .vel-signature__panel {
   animation: vel-signature-rise 200ms ease-out;
+}
+
+.vel-signature-leave-active .vel-signature__panel {
+  animation: vel-signature-fall 200ms ease-in both;
 }
 
 @keyframes vel-signature-fade {
@@ -214,6 +218,16 @@ function confirm(): void {
 
   to {
     opacity: 1;
+  }
+}
+
+@keyframes vel-signature-fade-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
   }
 }
 
@@ -227,12 +241,25 @@ function confirm(): void {
   }
 }
 
+@keyframes vel-signature-fall {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(0.55rem) scale(0.97);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* Сброс из main.css правит только длительность: анимация всё равно
      проигралась бы, просто мгновенно. Здесь снимаем её целиком. */
   .vel-signature-enter-active,
   .vel-signature-leave-active,
-  .vel-signature-enter-active .vel-signature__panel {
+  .vel-signature-enter-active .vel-signature__panel,
+  .vel-signature-leave-active .vel-signature__panel {
     animation: none;
   }
 
