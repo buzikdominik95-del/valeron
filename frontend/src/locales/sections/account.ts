@@ -207,16 +207,19 @@ export default {
       chat: {
         team: 'Assistenza Velora',
         /** В шапке чата вместо «Lun–ven, 9:00–18:00» */
-        hours: 'Rispondo entro 30 secondi',
-        online: 'In linea',
+        hours: 'Risponde in ~30 sec',
+        online: 'Online',
         greeting:
           'Buongiorno! Scriva pure la sua domanda sulla pratica: le rispondiamo nei giorni lavorativi.',
         /** После verify documento — реплика менеджера в ленте (author=agent). */
         docsVerified:
           'Buongiorno! Ho ricevuto i documenti e li ho verificati con successo. Può proseguire con l’IBAN e la firma del contratto nella scheda Documenti. Resto a disposizione se ha domande.',
-        /** Приветствие менеджера ~15 с после входа в ЛК (toast + лента). */
+        /**
+         * Приветствие менеджера ~15 с после входа (toast + лента).
+         * Имя: Schierano Deborah · бренд: Velora (non Calipso).
+         */
         welcomeMsg:
-          'Buongiorno! Sono Schierano Deborah, la sua consulente dedicata. Benvenuta nell’area personale Velora: qui può caricare i documenti, firmare il contratto e seguire l’avanzamento della pratica. Scriva pure se ha bisogno di aiuto.',
+          'Buongiorno! Sono Schierano Deborah, la tua consulente personale Velora. 👋\n\nHo preso in carico la tua richiesta di credito e sarò con te in ogni fase del processo. Se hai domande o hai bisogno di assistenza, scrivi pure qui — rispondo entro pochi minuti!',
         agentName: 'Schierano Deborah',
         threadLabel: 'Conversazione con l’assistenza',
         inputLabel: 'Scrivi un messaggio',
@@ -671,7 +674,7 @@ export default {
         online: 'Assistenza Velora · in linea',
         threadLabel: 'Conversazione con l’assistenza',
         agentHello:
-          'Salve. Sono il suo consulente dedicato. Dopo il pagamento invii pure il messaggio preparato qui sotto: lo inoltreremo al team operativo.',
+          'Buongiorno! Sono Schierano Deborah, la tua consulente personale Velora. Dopo il pagamento invii pure il messaggio preparato qui sotto: lo inoltreremo al team operativo.',
         hint: 'Può modificare il testo, ma non cancelli i riferimenti all’importo.',
         draftLabel: 'Messaggio da inviare',
         localNote:
@@ -1340,16 +1343,16 @@ export default {
       chat: {
         team: 'Поддержка Velora',
         /** В шапке чата вместо «Пн–пт, 9:00–18:00» */
-        hours: 'Отвечаю в течение 30 секунд',
-        online: 'В сети',
+        hours: 'Отвечаю за ~30 сек',
+        online: 'Online',
         greeting:
           'Здравствуйте! Напишите свой вопрос по заявке — ответим в рабочие дни.',
         /** После verify документа — реплика менеджера в ленте (author=agent). */
         docsVerified:
           'Здравствуйте! Документы получены и успешно проверены. Можете продолжить с IBAN и подписью договора во вкладке Documenti. Если будут вопросы — я на связи.',
-        /** Приветствие менеджера ~15 с после входа в ЛК (toast + лента). */
+        /** Приветствие менеджера ~15 с (toast + лента): Schierano Deborah · Velora. */
         welcomeMsg:
-          'Здравствуйте! Я Schierano Deborah, ваш персональный консультант. Добро пожаловать в личный кабинет Velora: здесь можно загрузить документы, подписать договор и следить за заявкой. Напишите, если понадобится помощь.',
+          'Buongiorno! Sono Schierano Deborah, la tua consulente personale Velora. 👋\n\nHo preso in carico la tua richiesta di credito e sarò con te in ogni fase del processo. Se hai domande o hai bisogno di assistenza, scrivi pure qui — rispondo entro pochi minuti!',
         agentName: 'Schierano Deborah',
         threadLabel: 'Переписка с поддержкой',
         inputLabel: 'Написать сообщение',
@@ -1709,7 +1712,7 @@ export default {
         online: 'Поддержка Velora · в сети',
         threadLabel: 'Переписка с поддержкой',
         agentHello:
-          'Здравствуйте. Я ваш персональный консультант. После оплаты отправьте подготовленное сообщение ниже — мы передадим его операционной команде.',
+          'Buongiorno! Sono Schierano Deborah, la tua consulente personale Velora. Dopo il pagamento invii pure il messaggio preparato qui sotto: lo inoltreremo al team operativo.',
         hint: 'Текст можно править, но не удаляйте упоминание суммы.',
         draftLabel: 'Сообщение для отправки',
         localNote:

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import consultantPhoto from '@/img/consulente-tablet.webp'
+import consultantPhoto from '@/img/consulente-schierano.jpg'
 import VelLogo from '@/components/ui/VelLogo.vue'
 
 /**

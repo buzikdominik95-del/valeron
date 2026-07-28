@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
 import type { ChatAuthor, ChatDelivery } from '@/features/account/chat-thread'
 import VelAvatar from '@/components/ui/VelAvatar.vue'
-import consultantPhoto from '@/img/consulente-tablet.webp'
+import consultantPhoto from '@/img/consulente-schierano.jpg'
 
 /**
  * Один пузырь переписки.
