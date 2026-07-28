@@ -558,7 +558,7 @@ const tgContactMode = computed(() => isTgFinal.value)
 
 watch(
   isTgFinal,
-  (tg, was) => {
+  (tg) => {
     if (!tg) {
       freezeIntroOpen.value = false
       freezeOpen.value = false
@@ -568,16 +568,9 @@ watch(
     selectTab('home')
 
     /*
-     * was === false — живой переход animating → tg_final: intro, потом modal.
-     * was === undefined (immediate на remount) или was === true — уже были
-     * в финале: лендинг→ЛК / F5 → модалка сразу.
+     * 66.txt §11: после анимации L4 сразу модалка директора — без intro freeze.
+     * remount / return from land → modal immediately.
      */
-    if (was === false) {
-      freezeOpen.value = false
-      freezeIntroOpen.value = true
-      return
-    }
-
     freezeIntroOpen.value = false
     freezeOpen.value = true
   },

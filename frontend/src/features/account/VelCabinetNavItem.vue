@@ -133,7 +133,7 @@ const { t } = useI18n()
   justify-content: center;
 }
 
-/* Счётчик как на эталоне Calipso: кружок поверх иконки Assistenza. */
+/* Счётчик: прыгает, чтобы было заметно (66.txt §15) */
 .vel-cabinet-nav__badge {
   position: absolute;
   top: -0.35rem;
@@ -148,6 +148,30 @@ const { t } = useI18n()
   line-height: 1.2;
   text-align: center;
   box-shadow: 0 0 0 1.5px var(--color-surface);
+  animation: vel-nav-badge-bounce 0.85s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+  transform-origin: center bottom;
+}
+
+@keyframes vel-nav-badge-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  35% {
+    transform: translateY(-0.35rem) scale(1.22);
+  }
+  55% {
+    transform: translateY(0.08rem) scale(0.94);
+  }
+  70% {
+    transform: translateY(-0.12rem) scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-cabinet-nav__badge {
+    animation: none;
+  }
 }
 
 .vel-cabinet-nav__link--cta .vel-cabinet-nav__badge {

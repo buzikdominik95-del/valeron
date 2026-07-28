@@ -204,6 +204,8 @@ export function useSupportChat(): SupportChat {
       delivery: 'sent',
     }
     messages.value = [...messages.value, message].slice(-CHAT_KEEP)
+    /* Бейдж Assistenza + прыжок (66.txt §14–15): менеджер / backend → agent */
+    account.bumpSupportUnread(1)
     void scrollToEnd()
   }
 

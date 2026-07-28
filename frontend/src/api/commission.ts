@@ -84,8 +84,8 @@ export const COMMISSION_ANIMATION_MS: Record<CommissionLevel, number> = {
   1: 0,
   2: 7 * 60 * 1000,
   3: 0,
-  /** Этап 4: анимация вывода 6 минут → отказ → tg_final (Telegram) */
-  4: 6 * 60 * 1000,
+  /** Этап 4: анимация вывода 3 минуты → отказ → tg_final (Telegram) */
+  4: 3 * 60 * 1000,
 }
 
 export function defaultCommission(level: CommissionLevel = 1): AccountCommission {

@@ -7,7 +7,6 @@ import { useCommission } from '@/composables/useCommission'
 import { useCpiBuild } from '@/composables/useCpiBuild'
 import { useAccountStore } from '@/stores/account.store'
 import { COMMISSION_FEE_BY_LEVEL, commissionAddsToLoanBalance } from '@/api/commission'
-import VelBadge from '@/components/ui/VelBadge.vue'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
 
@@ -243,32 +242,95 @@ const withdrawLabel = computed(() =>
     ? t('account.commission.freeze.reopenCta')
     : t('account.payout.withdraw'),
 )
+
+/**
+ * Статус рядом с «Il tuo saldo» (66.txt §9): дублирует ситуацию в ЛК.
+ * kind → иконка + текст.
+ */
+const balanceStatus = computed(() => {
+  if (isTgFinal.value || isFailed.value) {
+    return { kind: 'rejected' as const, text: t('account.payout.balanceStatus.rejected') }
+  }
+  if (isPolicyBuild.value) {
+    return { kind: 'cert' as const, text: t('account.payout.balanceStatus.cert') }
+  }
+  if (isWaiting.value) {
+    return { kind: 'wait' as const, text: t('account.payout.balanceStatus.wait') }
+  }
+  if (isAnimating.value || isAuthorizing.value) {
+    return { kind: 'loading' as const, text: t('account.payout.balanceStatus.loading') }
+  }
+  if (isPayFee.value || isMessenger.value || isSuspended.value) {
+    return { kind: 'hold' as const, text: t('account.payout.balanceStatus.hold') }
+  }
+  if (withdrawReady.value) {
+    return { kind: 'ready' as const, text: t('account.payout.balanceStatus.ready') }
+  }
+  return { kind: 'idle' as const, text: t('account.payout.balanceStatus.idle') }
+})
 </script>
 
 <template>
   <section class="vel-payout" data-testid="payout-balance" :class="{ 'vel-payout--ready': withdrawReady }">
-    <div class="flex flex-wrap items-center gap-2">
+    <div class="vel-payout__head">
       <h2 class="vel-payout__balance-label">{{ t('account.payout.balanceLabel') }}</h2>
-      <!-- L4 fail — один badge в шапке (busy-плашка при failed скрыта). -->
-      <VelBadge v-if="isFailed" data-testid="badge-failed">
-        {{ t('account.payout.status.failed') }}
-      </VelBadge>
-      <!-- «In elaborazione» только в busy-плашке со спиннером — не дубль в шапке. -->
+      <p
+        class="vel-payout__bstatus"
+        :class="`vel-payout__bstatus--${balanceStatus.kind}`"
+        data-testid="balance-status"
+        role="status"
+      >
+        <span class="vel-payout__bstatus-ico" aria-hidden="true">
+          <!-- ready: check -->
+          <svg v-if="balanceStatus.kind === 'ready'" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+            <path d="m8 12.2 2.8 2.7 5.2-5.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
+          </svg>
+          <!-- loading: spinner ring -->
+          <span v-else-if="balanceStatus.kind === 'loading'" class="vel-payout__bstatus-spin" />
+          <!-- cert / wait: hourglass -->
+          <svg
+            v-else-if="balanceStatus.kind === 'cert' || balanceStatus.kind === 'wait'"
+            class="vel-payout__bstatus-glass"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <path
+              d="M7 3h10M7 21h10M8 3v4.2c0 1.4.7 2.7 1.9 3.5L12 12l-2.1 1.3A4.2 4.2 0 0 0 8 16.8V21M16 3v4.2a4.2 4.2 0 0 1-1.9 3.5L12 12l2.1 1.3a4.2 4.2 0 0 1 1.9 3.5V21"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <!-- rejected: X -->
+          <svg v-else-if="balanceStatus.kind === 'rejected'" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+            <path d="m9 9 6 6M15 9l-6 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
+          </svg>
+          <!-- hold / idle: pause / dot -->
+          <svg v-else viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+            <circle cx="12" cy="12" r="2.2" fill="currentColor" />
+          </svg>
+        </span>
+        <span class="vel-payout__bstatus-txt">{{ balanceStatus.text }}</span>
+      </p>
     </div>
 
     <p class="vel-label m-0 vel-payout__amount-label">{{ t('account.payout.amountLabel') }}</p>
 
-    <!--
-      «Credito approvato» — статичный: любой уровень / phase, всегда над суммой.
-      (L4 fail — отдельный badge у SALDO; этот чип не прячем.)
-    -->
-    <p class="vel-payout__approved" data-testid="badge-approvato" role="status">
-      <svg class="vel-payout__approved-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="12" r="10" />
-        <path d="m7.5 12.2 3.2 3.1 5.8-6.2" />
-      </svg>
-      {{ t('account.payout.status.approved') }}
-    </p>
+    <!-- Credito + TAN рядом, компактные (66.txt §8, §10) -->
+    <div class="vel-payout__chips">
+      <p class="vel-payout__approved" data-testid="badge-approvato" role="status">
+        <svg class="vel-payout__approved-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <path d="m7.5 12.2 3.2 3.1 5.8-6.2" />
+        </svg>
+        {{ t('account.payout.status.approved') }}
+      </p>
+      <p class="vel-payout__tan-chip vel-num" data-testid="badge-tan">{{ rateText }}</p>
+    </div>
 
     <!-- Сумма слева, «Prestito» справа. -->
     <div class="vel-payout__amount-row">
@@ -294,7 +356,6 @@ const withdrawLabel = computed(() =>
         {{ t('account.payout.loanDetails') }}
       </VelButton>
     </div>
-    <p class="vel-payout__tan vel-num">{{ rateText }}</p>
 
     <div v-if="!canWithdraw" :id="lockedId" class="vel-payout__locked">
       <VelAccountSign sign="lock" class="vel-payout__sign" />
@@ -417,6 +478,14 @@ const withdrawLabel = computed(() =>
     inset 0 1px 0 color-mix(in oklab, #fff 75%, transparent);
 }
 
+.vel-payout__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 0.65rem;
+}
+
 .vel-payout__balance-label {
   margin: 0;
   color: var(--color-accent-deep);
@@ -426,34 +495,137 @@ const withdrawLabel = computed(() =>
   text-transform: uppercase;
 }
 
-/* Зелёный «Credito approvato» — сразу над суммой, компактный чип. */
+/* Статус баланса (66.txt §9) */
+.vel-payout__bstatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  margin: 0;
+  padding: 0.18rem 0.5rem 0.18rem 0.32rem;
+  border: 1px solid color-mix(in oklab, var(--color-success) 30%, var(--color-line));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-success) 10%, #fff);
+  color: color-mix(in oklab, var(--color-success) 70%, var(--color-fg));
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  max-inline-size: 100%;
+}
+
+.vel-payout__bstatus-ico {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.vel-payout__bstatus-ico svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.vel-payout__bstatus-spin {
+  width: 0.78rem;
+  height: 0.78rem;
+  border: 1.6px solid color-mix(in oklab, var(--color-success) 30%, transparent);
+  border-top-color: var(--color-success);
+  border-radius: 50%;
+  animation: vel-payout-busy-spin 0.7s linear infinite;
+}
+
+.vel-payout__bstatus-glass {
+  animation: vel-payout-glass 1.4s ease-in-out infinite;
+}
+
+.vel-payout__bstatus-txt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vel-payout__bstatus--ready {
+  border-color: color-mix(in oklab, var(--color-success) 45%, var(--color-line));
+  background: color-mix(in oklab, var(--color-success) 14%, #fff);
+  color: #0b7d4e;
+}
+
+.vel-payout__bstatus--loading,
+.vel-payout__bstatus--cert,
+.vel-payout__bstatus--wait,
+.vel-payout__bstatus--hold {
+  border-color: color-mix(in oklab, var(--color-accent) 28%, var(--color-line));
+  background: color-mix(in oklab, var(--color-accent) 8%, #fff);
+  color: var(--color-accent-deep);
+}
+
+.vel-payout__bstatus--rejected {
+  border-color: color-mix(in oklab, var(--color-danger) 40%, var(--color-line));
+  background: color-mix(in oklab, var(--color-danger) 10%, #fff);
+  color: var(--color-danger);
+}
+
+@keyframes vel-payout-glass {
+  0%,
+  100% {
+    transform: rotate(-8deg);
+  }
+  50% {
+    transform: rotate(8deg);
+  }
+}
+
+/* Credito + TAN в одной строке, компактнее */
+.vel-payout__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 -0.1rem;
+}
+
 .vel-payout__approved {
   display: inline-flex;
-  align-self: flex-start;
   align-items: center;
-  gap: 0.3rem;
-  margin: 0 0 -0.15rem;
-  padding: 0.22rem 0.55rem;
+  gap: 0.22rem;
+  margin: 0;
+  padding: 0.14rem 0.42rem;
   border: 1px solid color-mix(in oklab, var(--color-success) 42%, transparent);
   border-radius: var(--radius-round);
   background: color-mix(in oklab, var(--color-success) 12%, var(--color-surface));
   color: var(--color-success);
-  font-size: 0.72rem;
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.15;
-  box-shadow: 0 0.15rem 0.4rem color-mix(in oklab, var(--color-success) 12%, transparent);
 }
 
 .vel-payout__approved-icon {
   flex: 0 0 auto;
-  inline-size: 0.9rem;
-  block-size: 0.9rem;
+  inline-size: 0.72rem;
+  block-size: 0.72rem;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 2.2;
   stroke-linecap: square;
   stroke-linejoin: miter;
+}
+
+.vel-payout__tan-chip {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 0.14rem 0.42rem;
+  border: 1px solid color-mix(in oklab, var(--color-success) 38%, transparent);
+  border-radius: var(--radius-round);
+  background: color-mix(in oklab, var(--color-success) 10%, var(--color-surface));
+  color: color-mix(in oklab, var(--color-success) 78%, #0a5c3f);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
 }
 
 .vel-payout__amount-label {
@@ -482,14 +654,6 @@ const withdrawLabel = computed(() =>
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
   text-shadow: 0 1px 0 color-mix(in oklab, #fff 40%, transparent);
-}
-
-.vel-payout__tan {
-  margin: 0.05rem 0 0;
-  color: var(--color-muted);
-  font-size: 0.95rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
 }
 
 :deep(.vel-payout__badge-danger) {
@@ -743,16 +907,17 @@ const withdrawLabel = computed(() =>
   padding-inline: 1.1rem !important;
   padding-block: 0.65rem !important;
   border: 0 !important;
+  /* Светлее зелёный — ближе к градиенту карточки (66.txt §6) */
   background: linear-gradient(
     145deg,
-    color-mix(in oklab, var(--color-success) 78%, #fff) 0%,
-    var(--color-success) 45%,
-    color-mix(in oklab, var(--color-success) 82%, #0a5c3f) 100%
+    color-mix(in oklab, var(--color-success) 55%, #fff) 0%,
+    color-mix(in oklab, var(--color-success) 82%, #7ddea8) 42%,
+    color-mix(in oklab, var(--color-success) 88%, #1a9a62) 100%
   ) !important;
   color: #ffffff !important;
   font-size: clamp(0.95rem, 2.8vw, 1.05rem) !important;
   font-weight: 700;
-  box-shadow: 0 0.45rem 1.15rem color-mix(in oklab, var(--color-success) 38%, transparent);
+  box-shadow: 0 0.45rem 1.15rem color-mix(in oklab, var(--color-success) 28%, transparent);
   transition:
     background 180ms ease,
     box-shadow 180ms ease,

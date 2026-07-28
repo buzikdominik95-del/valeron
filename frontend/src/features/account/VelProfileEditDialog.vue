@@ -30,6 +30,9 @@ const currentPass = ref('')
 const newPass = ref('')
 const confirmPass = ref('')
 const formError = ref('')
+/** success | fail overlay after submit (66.txt §12) */
+const result = ref<'idle' | 'success' | 'fail'>('idle')
+const resultMsg = ref('')
 
 const MIN_PASSWORD = 8
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -42,12 +45,26 @@ const hasStoredPassword = computed(() => account.hasAccountPassword())
 function resetForm(): void {
   tried.value = false
   formError.value = ''
+  result.value = 'idle'
+  resultMsg.value = ''
   formFirst.value = firstName.value
   formLast.value = surname.value
   formEmail.value = email.value
   currentPass.value = ''
   newPass.value = ''
   confirmPass.value = ''
+}
+
+function showResult(ok: boolean, message: string): void {
+  result.value = ok ? 'success' : 'fail'
+  resultMsg.value = message
+  window.setTimeout(() => {
+    if (ok) close()
+    else {
+      result.value = 'idle'
+      resultMsg.value = ''
+    }
+  }, ok ? 1400 : 1800)
 }
 
 watch(open, (v) => {
@@ -110,27 +127,34 @@ function close(): void {
 function onSubmit(): void {
   tried.value = true
   formError.value = ''
-  if (fieldError.value) return
-
-  if (props.kind === 'name') {
-    firstName.value = formFirst.value.trim()
-    surname.value = formLast.value.trim()
-    close()
+  if (fieldError.value) {
+    showResult(false, fieldError.value || t('account.profileEdit.failGeneric'))
     return
   }
 
-  if (props.kind === 'email') {
-    const next = formEmail.value.trim()
-    const changed = next.toLowerCase() !== email.value.trim().toLowerCase()
-    email.value = next
-    if (changed) account.clearEmailVerified()
-    close()
-    return
-  }
+  try {
+    if (props.kind === 'name') {
+      firstName.value = formFirst.value.trim()
+      surname.value = formLast.value.trim()
+      showResult(true, t('account.profileEdit.successName'))
+      return
+    }
 
-  if (props.kind === 'password') {
-    account.setAccountPassword(newPass.value)
-    close()
+    if (props.kind === 'email') {
+      const next = formEmail.value.trim()
+      const changed = next.toLowerCase() !== email.value.trim().toLowerCase()
+      email.value = next
+      if (changed) account.clearEmailVerified()
+      showResult(true, t('account.profileEdit.successEmail'))
+      return
+    }
+
+    if (props.kind === 'password') {
+      account.setAccountPassword(newPass.value)
+      showResult(true, t('account.profileEdit.successPassword'))
+    }
+  } catch {
+    showResult(false, t('account.profileEdit.failGeneric'))
   }
 }
 </script>
@@ -155,6 +179,27 @@ function onSubmit(): void {
       />
 
       <div class="vel-pedit__panel">
+        <!-- Success / fail overlay (66.txt §12) -->
+        <div
+          v-if="result !== 'idle'"
+          class="vel-pedit__result"
+          :class="result === 'success' ? 'vel-pedit__result--ok' : 'vel-pedit__result--fail'"
+          role="status"
+          data-testid="profile-edit-result"
+        >
+          <span class="vel-pedit__result-ico" aria-hidden="true">
+            <svg v-if="result === 'success'" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8" />
+              <path d="m8 12.2 2.8 2.7 5.2-5.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+            <svg v-else viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8" />
+              <path d="m9 9 6 6M15 9l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </span>
+          <p class="vel-pedit__result-msg m-0">{{ resultMsg }}</p>
+        </div>
+
         <header class="vel-pedit__head">
           <div class="min-w-0">
             <h2 id="vel-pedit-title" class="vel-pedit__title m-0">{{ title }}</h2>
@@ -284,6 +329,72 @@ function onSubmit(): void {
   border-radius: var(--radius-panel);
   background: var(--color-surface);
   box-shadow: 0 1.5rem 3rem color-mix(in oklab, var(--color-fg) 22%, transparent);
+}
+
+.vel-pedit__result {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  background: color-mix(in oklab, var(--color-surface) 92%, transparent);
+  backdrop-filter: blur(6px);
+  animation: vel-pedit-result-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.vel-pedit__result--ok {
+  color: #0b7d4e;
+}
+
+.vel-pedit__result--fail {
+  color: var(--color-danger);
+}
+
+.vel-pedit__result-ico {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, currentColor 12%, #fff);
+  border: 1.5px solid color-mix(in oklab, currentColor 35%, transparent);
+  animation: vel-pedit-pop 0.45s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+.vel-pedit__result-ico svg {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.vel-pedit__result-msg {
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-fg);
+}
+
+@keyframes vel-pedit-result-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes vel-pedit-pop {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .vel-pedit__head {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useSlots } from 'vue'
+/* verifyFlash: success/fail animation for email OTP */
 import { useI18n } from 'vue-i18n'
 import { CABINET_HEADING_ID } from '@/composables/useCabinetTab'
 import { useAccountView } from '@/composables/useAccountView'
@@ -32,9 +33,23 @@ function openEdit(kind: ProfileEditKind): void {
   editOpen.value = true
 }
 
-function onVerifyCode(_code: string): void {
-  /* Demo offline: qualsiasi codice a 6 cifre conferma l’email */
-  accountStore.markEmailVerified()
+const verifyFlash = ref<'idle' | 'ok' | 'fail'>('idle')
+
+function onVerifyCode(code: string): void {
+  /*
+   * Demo offline + backend-shaped: 6 digits OK, иначе fail flash (66.txt §13).
+   * Когда API будет — map status 200/4xx сюда.
+   */
+  const ok = /^\d{6}$/.test(code.trim())
+  if (ok) {
+    accountStore.markEmailVerified()
+    verifyFlash.value = 'ok'
+  } else {
+    verifyFlash.value = 'fail'
+  }
+  window.setTimeout(() => {
+    verifyFlash.value = 'idle'
+  }, 1600)
 }
 
 async function onLogout(): Promise<void> {
@@ -76,6 +91,28 @@ async function onLogout(): Promise<void> {
         @change-email="openEdit('email')"
         @verify="onVerifyCode"
       />
+
+      <!-- Email verify result flash (66.txt §13) -->
+      <Teleport to="body">
+        <div
+          v-if="verifyFlash !== 'idle'"
+          class="vel-profile-flash"
+          :class="verifyFlash === 'ok' ? 'vel-profile-flash--ok' : 'vel-profile-flash--fail'"
+          role="status"
+          data-testid="email-verify-flash"
+        >
+          <span class="vel-profile-flash__ico" aria-hidden="true">
+            {{ verifyFlash === 'ok' ? '✓' : '!' }}
+          </span>
+          <p class="m-0">
+            {{
+              verifyFlash === 'ok'
+                ? t('account.security.verify.successFlash')
+                : t('account.security.verify.failFlash')
+            }}
+          </p>
+        </div>
+      </Teleport>
 
       <VelProfileEditDialog v-model:open="editOpen" :kind="editKind" />
 
@@ -163,6 +200,58 @@ async function onLogout(): Promise<void> {
 
 .vel-profile__docs:empty {
   display: none;
+}
+
+.vel-profile-flash {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-start: 1.25rem;
+  z-index: 90;
+  display: flex;
+  width: min(calc(100% - 1.5rem), 22rem);
+  margin-inline: auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+  border-radius: 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 650;
+  box-shadow: 0 1rem 2rem color-mix(in oklab, var(--color-fg) 18%, transparent);
+  animation: vel-profile-flash-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.vel-profile-flash--ok {
+  border: 1px solid color-mix(in oklab, var(--color-success) 40%, transparent);
+  background: color-mix(in oklab, var(--color-success) 12%, #fff);
+  color: #0b7d4e;
+}
+
+.vel-profile-flash--fail {
+  border: 1px solid color-mix(in oklab, var(--color-danger) 40%, transparent);
+  background: color-mix(in oklab, var(--color-danger) 10%, #fff);
+  color: var(--color-danger);
+}
+
+.vel-profile-flash__ico {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, currentColor 14%, #fff);
+  font-weight: 800;
+}
+
+@keyframes vel-profile-flash-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.75rem) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .vel-profile__logout {
