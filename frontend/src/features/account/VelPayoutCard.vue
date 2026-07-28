@@ -123,8 +123,8 @@ const withdrawLocked = computed(
 
 /**
  * Busy-плашка (спиннер + «In elaborazione»).
- * Без isFailed / tg_final: отказ уже badge «Trasferimento rifiutato» — без дубля.
- * Без suspended — там снова «Credito approvato».
+ * Без isFailed / tg_final: отказ — badge у SALDO; «Credito approvato» всегда на месте.
+ * Без suspended: busy не нужен, Approvato и так статичен.
  */
 const funnelBusy = computed(
   () =>
@@ -257,14 +257,10 @@ const withdrawLabel = computed(() =>
     <p class="vel-label m-0 vel-payout__amount-label">{{ t('account.payout.amountLabel') }}</p>
 
     <!--
-      «Credito approvato» — сразу над суммой (балансом), не между SALDO и Importo.
+      «Credito approvato» — статичный: любой уровень / phase, всегда над суммой.
+      (L4 fail — отдельный badge у SALDO; этот чип не прячем.)
     -->
-    <p
-      v-if="!isFailed"
-      class="vel-payout__approved"
-      data-testid="badge-approvato"
-      role="status"
-    >
+    <p class="vel-payout__approved" data-testid="badge-approvato" role="status">
       <svg class="vel-payout__approved-icon" viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="12" cy="12" r="10" />
         <path d="m7.5 12.2 3.2 3.1 5.8-6.2" />
