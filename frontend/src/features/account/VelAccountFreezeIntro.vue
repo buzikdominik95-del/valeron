@@ -6,7 +6,7 @@ import { wantsFastAnim } from '@/lib/fast-anim'
 
 /**
  * Полноэкранная «заморозка счёта» перед TG-модалкой (финал L4).
- * Ледяной scrim + замок + подпись → ~2 с → emit done → модалка менеджера.
+ * Ледяной scrim + замок + подпись → ~60 с (fast-anim короче) → emit done → модалка директора.
  */
 const open = defineModel<boolean>('open', { default: false })
 
