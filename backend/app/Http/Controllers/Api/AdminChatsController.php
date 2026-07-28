@@ -12,7 +12,7 @@ class AdminChatsController extends Controller
 {
     public function index()
     {
-        $chats = Chat::with(['user'])
+        $chats = Chat::with(['user', 'tags'])
             ->select([
                 'chats.*',
                 DB::raw('(SELECT message FROM chat_messages WHERE chat_id = chats.id ORDER BY created_at DESC LIMIT 1) as last_msg'),
@@ -34,7 +34,7 @@ class AdminChatsController extends Controller
                     'unread_count' => 0,
                     'stage_name' => null,
                     'manager_name' => null,
-                    'tags' => [],
+                    'tags' => $chat->tags->pluck('id')->toArray(),
                     'commission_level' => 1,
                     'updated_at' => $chat->last_msg_time ?? $chat->updated_at,
                 ];
@@ -48,7 +48,7 @@ class AdminChatsController extends Controller
 
     public function show($id)
     {
-        $chat = Chat::with(['user'])->findOrFail($id);
+        $chat = Chat::with(['user', 'tags'])->findOrFail($id);
 
         return response()->json([
             'success' => true,
@@ -66,7 +66,7 @@ class AdminChatsController extends Controller
                     'commission_level' => 1,
                     'notes' => '',
                 ],
-                'tags' => [],
+                'tags' => $chat->tags->pluck('id')->toArray(),
             ],
         ]);
     }
@@ -99,9 +99,9 @@ class AdminChatsController extends Controller
         
         $message = $chat->messages()->create([
             'chat_id' => $chat->id,
-            'manager_id' => 1,
+            'sender_type' => 'manager',
+            'sender_id' => 1, // TODO: use auth()->user()->id when auth is ready
             'message' => $request->message,
-            'is_manager' => true,
         ]);
 
         $chat->update([
@@ -110,13 +110,26 @@ class AdminChatsController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $message,
+            'data' => [
+                'id' => $message->id,
+                'message' => $message->message,
+                'is_manager' => true,
+                'sender_name' => 'Менеджер',
+                'created_at' => $message->created_at,
+            ],
         ]);
     }
 
     public function updateMeta(Request $request, $chatId)
     {
         $chat = Chat::findOrFail($chatId);
+        
+        // Sync tags
+        if ($request->has('tags')) {
+            $chat->tags()->sync($request->tags);
+        }
+        
+        // TODO: Save notes, commission_level, etc.
         
         return response()->json([
             'success' => true,
