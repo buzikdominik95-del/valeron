@@ -208,6 +208,10 @@ function onDocumentsVerified(): void {
   notices.push('documentVerified')
   showAgentMessageToast()
   showToast(t('account.docs.toastReady'))
+  /* Сообщение менеджера — в ленту Assistenza (author=agent). */
+  void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
+    useSupportChat().pushAgentMessage(t('account.support.chat.docsVerified'))
+  })
 }
 
 function onAgentToastOpen(): void {

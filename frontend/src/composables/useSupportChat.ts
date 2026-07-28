@@ -38,6 +38,8 @@ export interface SupportChat {
   funnelAgentHello: ComputedRef<string>
   funnelHint: ComputedRef<string>
   send: () => void
+  /** Реплика менеджера в ленту (после verify docs и т.п.). */
+  pushAgentMessage: (text: string) => void
   threadEl: Ref<HTMLElement | null>
   /** true сразу после успешной отправки — для анимации кнопки. */
   justSent: Ref<boolean>
@@ -183,6 +185,28 @@ export function useSupportChat(): SupportChat {
     messages.value = [...messages.value, message].slice(-CHAT_KEEP)
   }
 
+  /**
+   * Сообщение от менеджера (author=agent) — в ленту Assistenza.
+   * После verify документов: toast сверху + эта реплика в чате.
+   */
+  function pushAgentMessage(text: string): void {
+    const body = text.trim()
+    if (body === '') return
+    /* Не дублируем тот же текст подряд (повторный verify / remount). */
+    const last = messages.value[messages.value.length - 1]
+    if (last?.author === 'agent' && last.text === body) return
+
+    const message: ChatMessage = {
+      id: nextId(),
+      author: 'agent',
+      text: body,
+      at: new Date().toISOString(),
+      delivery: 'sent',
+    }
+    messages.value = [...messages.value, message].slice(-CHAT_KEEP)
+    void scrollToEnd()
+  }
+
   function advanceFunnel(): void {
     if (!isMessenger.value) return
     confirmMessageSent()
@@ -253,6 +277,7 @@ export function useSupportChat(): SupportChat {
     funnelAgentHello,
     funnelHint,
     send,
+    pushAgentMessage,
     threadEl,
     justSent,
   }
