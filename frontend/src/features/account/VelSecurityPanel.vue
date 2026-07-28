@@ -221,7 +221,9 @@ function confirmCode(): void {
           <template #action>
             <VelButton
               v-if="!emailVerified && !codeRequested"
+              class="vel-security__verify-btn"
               :disabled="confirming"
+              data-testid="email-verify-send"
               @click="requestCode"
             >
               {{ t('account.security.verify.send') }}
@@ -328,15 +330,64 @@ function confirmCode(): void {
 }
 
 .vel-security__badge-pending {
-  border-color: color-mix(in oklab, #f59e0b 40%, var(--color-line)) !important;
-  background: color-mix(in oklab, #fbbf24 14%, #fff) !important;
-  color: #9a6410 !important;
+  border-color: color-mix(in oklab, #f59e0b 45%, var(--color-line)) !important;
+  background: color-mix(in oklab, #fbbf24 18%, #fff) !important;
+  color: #9a3412 !important;
+  animation: vel-security-verify-pulse 1.15s ease-in-out infinite;
 }
 
 .vel-security__badge-ok {
   border-color: color-mix(in oklab, var(--color-success) 40%, var(--color-line)) !important;
   background: color-mix(in oklab, var(--color-success) 14%, #fff) !important;
   color: #0b7d4e !important;
+}
+
+/* Кнопка «Verifica» — оранжевая + мигание, пока email не подтверждён */
+.vel-security__verify-btn {
+  border-color: transparent !important;
+  background: linear-gradient(145deg, #fb923c 0%, #ea580c 55%, #c2410c 100%) !important;
+  color: #fff !important;
+  box-shadow:
+    0 0 0 0 color-mix(in oklab, #f97316 45%, transparent),
+    0 0.35rem 0.9rem color-mix(in oklab, #ea580c 35%, transparent) !important;
+  animation: vel-security-verify-btn 1.05s ease-in-out infinite;
+}
+
+.vel-security__verify-btn:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.vel-security__verify-btn:disabled {
+  animation: none;
+  opacity: 0.65;
+}
+
+@keyframes vel-security-verify-btn {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, #f97316 0%, transparent),
+      0 0.35rem 0.9rem color-mix(in oklab, #ea580c 32%, transparent);
+  }
+  50% {
+    transform: scale(1.045);
+    box-shadow:
+      0 0 0 10px color-mix(in oklab, #fb923c 0%, transparent),
+      0 0.55rem 1.25rem color-mix(in oklab, #ea580c 48%, transparent);
+  }
+}
+
+@keyframes vel-security-verify-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 color-mix(in oklab, #f59e0b 0%, transparent);
+  }
+  50% {
+    opacity: 0.92;
+    box-shadow: 0 0 0 4px color-mix(in oklab, #fbbf24 28%, transparent);
+  }
 }
 
 /* ─── Result animation overlay ─── */
@@ -583,6 +634,8 @@ function confirmCode(): void {
 
 @media (prefers-reduced-motion: reduce) {
   .vel-security__q,
+  .vel-security__verify-btn,
+  .vel-security__badge-pending,
   .vel-security__anim,
   .vel-security__anim-spin,
   .vel-security__anim-circle,
