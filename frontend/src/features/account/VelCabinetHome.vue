@@ -28,6 +28,7 @@ const {
   isWaiting,
   isMessenger,
   isReady,
+  /* isReady used for L4 unlock intro band */
 } = useCommission()
 
 /** Панель Preleva — тоже в transfer-слоте под балансом. */
@@ -63,9 +64,13 @@ const showTransferBand = computed(
     isPolicyBuild.value ||
     showL3CpiBand.value ||
     payoutPanelOpen.value ||
-    /* L4: сцена анимации / отказ / freeze */
+    /* L4: intro unlock + animazione / rifiuto / freeze */
     (level.value === 4 &&
-      (isAnimating.value || isTgFinal.value || isFailed.value || isAuthorizing.value)),
+      (isReady.value ||
+        isAnimating.value ||
+        isTgFinal.value ||
+        isFailed.value ||
+        isAuthorizing.value)),
 )
 
 /** Step tracker на L1–L2 всегда: после загрузки/сцены, ниже transfer. */

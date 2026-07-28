@@ -30,6 +30,7 @@ import VelLevelTransition from '@/features/account/VelLevelTransition.vue'
 import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
 import VelTransferAnim from '@/features/account/VelTransferAnim.vue'
+import VelL4UnlockAnim from '@/features/account/VelL4UnlockAnim.vue'
 import VelAccountFreezeModal from '@/features/account/VelAccountFreezeModal.vue'
 import VelAccountFreezeIntro from '@/features/account/VelAccountFreezeIntro.vue'
 import VelRejectFlash from '@/features/account/VelRejectFlash.vue'
@@ -642,9 +643,25 @@ const showL3CpiCard = computed(() => {
   return false
 })
 
+/**
+ * L4 до Preleva: intro canvas «sblocco fondi».
+ * После Preleva → isAnimating → VelTransferAnim (come L2).
+ */
+const showL4UnlockIntro = computed(
+  () =>
+    Number(level.value) === 4 &&
+    isReady.value &&
+    !isAnimating.value &&
+    !isTgFinal.value &&
+    !isFailed.value &&
+    !isRejectAnim.value,
+)
+
 const transferStage = computed((): { key: string; view: Component } | null => {
   if (isAnimating.value) return { key: `anim-${phase.value}`, view: VelTransferAnim }
   if (showL2SuspensionCard.value) return { key: 'suspended', view: VelSuspensionCard }
+  /* L4 ready: intro unlock (finché non preme Preleva) */
+  if (showL4UnlockIntro.value) return { key: 'l4-unlock', view: VelL4UnlockAnim }
   /* После сообщения менеджеру: «ожидайте инструкций» + hourglass на Preleva. */
   if (isWaiting.value) return { key: 'waiting', view: VelWaitingAdmin }
   /* L4 tg_final / failed: красная VelTransferAnim ниже (не success-карточка) */
