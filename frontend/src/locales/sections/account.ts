@@ -178,6 +178,13 @@ export default {
       },
       profile: {
         title: 'Il tuo profilo',
+        /** Esci dall’area personale → landing; i dati restano per il gate «hai già un account». */
+        logoutSection: 'Uscita dall’area personale',
+        logoutTitle: 'Esci dall’area personale',
+        logoutLead:
+          'Torni al sito. La tua pratica resta salvata: per un nuovo credito dovrai accedere al tuo account esistente.',
+        logout: 'Esci',
+        logoutBusy: 'Uscita…',
       },
       documents: {
         title: 'I tuoi documenti',
@@ -1160,6 +1167,13 @@ export default {
       },
       profile: {
         title: 'Ваш профиль',
+        /** Выход → лендинг; данные заявки остаются, чтобы gate «уже есть ЛК» сработал. */
+        logoutSection: 'Выход из личного кабинета',
+        logoutTitle: 'Выйти из личного кабинета',
+        logoutLead:
+          'Вы вернётесь на сайт. Заявка сохранится: чтобы снова взять кредит, нужно войти в существующий аккаунт.',
+        logout: 'Выйти',
+        logoutBusy: 'Выход…',
       },
       documents: {
         title: 'Ваши документы',
