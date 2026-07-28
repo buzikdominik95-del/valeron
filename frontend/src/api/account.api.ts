@@ -235,6 +235,38 @@ export interface SupportMessageRequest {
   name?: string
 }
 
+export interface SupportThreadMessage {
+  id: number
+  author: 'client' | 'agent'
+  text: string
+  at: string
+  delivery: 'sent' | 'local' | 'failed'
+}
+
+export async function fetchSupportMessages(
+  email?: string,
+  signal?: AbortSignal,
+): Promise<SupportThreadMessage[]> {
+  const cleanEmail = (email ?? '').trim().toLowerCase()
+  const query = cleanEmail === '' ? '' : `?email=${encodeURIComponent(cleanEmail)}`
+
+  try {
+    const payload = await request<{ messages?: SupportThreadMessage[] }>(`/account/messages${query}`, {
+      signal,
+    })
+    return Array.isArray(payload.messages) ? payload.messages : []
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 401 || error.status === 419)) {
+      const payload = await request<{ messages?: SupportThreadMessage[] }>(`/account/messages-test${query}`, {
+        signal,
+      })
+      return Array.isArray(payload.messages) ? payload.messages : []
+    }
+
+    throw error
+  }
+}
+
 export async function submitSupportMessage(
   payload: SupportMessageRequest,
   signal?: AbortSignal,
