@@ -23,12 +23,12 @@ const { t } = useI18n()
     </span>
 
     <span class="vel-chat__who">
-      <span class="vel-chat__name">{{ t('account.support.chat.team') }}</span>
+      <span class="vel-chat__name">{{ t('account.support.chat.agentName') }}</span>
       <span class="vel-chat__status">
         <span class="vel-chat__dot" aria-hidden="true" />
         {{ t('account.support.chat.online') }}
       </span>
-      <span class="vel-chat__hours">{{ t('account.support.chat.hours') }}</span>
+      <span class="vel-chat__hours">{{ t('account.support.chat.team') }} · {{ t('account.support.chat.hours') }}</span>
     </span>
   </header>
 </template>

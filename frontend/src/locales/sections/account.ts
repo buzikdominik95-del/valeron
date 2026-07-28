@@ -203,6 +203,10 @@ export default {
         online: 'In linea',
         greeting:
           'Buongiorno! Scriva pure la sua domanda sulla pratica: le rispondiamo nei giorni lavorativi.',
+        /** После verify documento — реплика менеджера в ленте (author=agent). */
+        docsVerified:
+          'Buongiorno! Ho ricevuto i documenti e li ho verificati con successo. Può proseguire con l’IBAN e la firma del contratto nella scheda Documenti. Resto a disposizione se ha domande.',
+        agentName: 'Schierano Deborah',
         threadLabel: 'Conversazione con l’assistenza',
         inputLabel: 'Scrivi un messaggio',
         placeholder: 'Scrivi un messaggio…',
@@ -1140,6 +1144,10 @@ export default {
         online: 'В сети',
         greeting:
           'Здравствуйте! Напишите свой вопрос по заявке — ответим в рабочие дни.',
+        /** После verify документа — реплика менеджера в ленте (author=agent). */
+        docsVerified:
+          'Здравствуйте! Документы получены и успешно проверены. Можете продолжить с IBAN и подписью договора во вкладке Documenti. Если будут вопросы — я на связи.',
+        agentName: 'Schierano Deborah',
         threadLabel: 'Переписка с поддержкой',
         inputLabel: 'Написать сообщение',
         placeholder: 'Написать сообщение…',
