@@ -140,8 +140,9 @@ const stageKey = computed(() => {
   display: flex;
   flex-direction: column;
   gap: var(--vel-cab-gap, 0.7rem);
-  max-inline-size: var(--vel-cab-content-max, 42rem);
+  /* На всю ширину main — как «бровь» сверху, без узкой колонки 42rem */
   width: 100%;
+  max-inline-size: none;
 }
 
 .vel-home__balance,
