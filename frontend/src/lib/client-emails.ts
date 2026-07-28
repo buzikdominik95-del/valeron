@@ -108,60 +108,99 @@ function brandMark(brand: string): string {
 }
 
 /**
- * Выезжающая панель (accordion) внутри письма — не модалка.
- * Клик по тексту/chip → подтягивает PDF контракта или CPI.
+ * Выезжающая панель под письмом (не modal, не overflow:hidden карточки).
+ * PDF → blob URL (data: в iframe часто пустой).
  */
 function docDrawerAssets(): string {
   return `
 <style>
-  .vel-mail-card{max-width:440px;transition:max-width .4s cubic-bezier(.22,1,.36,1)}
-  .vel-mail-card.is-doc-open{max-width:min(100%,720px)}
+  .vel-mail-wrap{width:100%;max-width:440px;margin:0 auto;transition:max-width .4s cubic-bezier(.22,1,.36,1)}
+  .vel-mail-wrap.is-doc-open{max-width:min(100%,760px)}
+  .vel-mail-card{width:100%;background:#fff;border:1px solid #d8e0f0;border-radius:20px;box-shadow:0 20px 48px rgba(15,23,42,.09);overflow:hidden}
   .vel-doc-link{color:#1d4ed8;font-weight:700;text-decoration:underline;cursor:pointer;background:none;border:0;padding:0;font:inherit}
   .vel-doc-chip{display:block;width:100%;margin:0 auto 10px;padding:12px 16px;border:1px solid #d8e0f0;border-radius:12px;background:#f8fafc;font-size:13px;text-align:center;cursor:pointer;color:#1d4ed8;font-weight:700;font-family:inherit;box-sizing:border-box;transition:border-color .15s,background .15s}
   .vel-doc-chip:hover,.vel-doc-chip.is-active{border-color:#1d4ed8;background:#eef4ff}
   .vel-doc-chip span{display:block;margin-top:4px;font-size:11px;font-weight:500;color:#94a3b8}
-  .vel-doc-drawer{max-height:0;opacity:0;overflow:hidden;margin:0 16px;border-radius:14px;border:0 solid #d8e0f0;background:#0f172a;transition:max-height .45s cubic-bezier(.22,1,.36,1),opacity .28s ease,margin .35s ease,border-width .2s}
-  .vel-doc-drawer.is-open{max-height:min(78vh,820px);opacity:1;margin:4px 16px 18px;border-width:1px;box-shadow:0 12px 32px rgba(15,23,42,.12)}
-  .vel-doc-drawer__inner{display:flex;flex-direction:column;height:min(72vh,760px)}
-  .vel-doc-drawer__bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0}
-  .vel-doc-drawer__title{margin:0;font-size:13px;font-weight:750;color:#0f172a}
-  .vel-doc-drawer__close{flex:none;padding:6px 12px;border:1px solid #d8e0f0;border-radius:999px;background:#fff;color:#334155;font-size:12px;font-weight:650;font-family:inherit;cursor:pointer}
+  .vel-doc-drawer{max-height:0;opacity:0;overflow:hidden;margin:0;border-radius:16px;border:0 solid #d8e0f0;background:#fff;transition:max-height .5s cubic-bezier(.22,1,.36,1),opacity .3s ease,margin .35s ease,border-width .2s,box-shadow .3s}
+  .vel-doc-drawer.is-open{max-height:min(82vh,880px);opacity:1;margin:14px 0 0;border-width:1px;box-shadow:0 16px 40px rgba(15,23,42,.14)}
+  .vel-doc-drawer__inner{display:flex;flex-direction:column;height:min(76vh,820px)}
+  .vel-doc-drawer__bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0;flex:none}
+  .vel-doc-drawer__title{margin:0;font-size:14px;font-weight:750;color:#0f172a}
+  .vel-doc-drawer__close{flex:none;padding:7px 14px;border:1px solid #d8e0f0;border-radius:999px;background:#fff;color:#334155;font-size:12px;font-weight:650;font-family:inherit;cursor:pointer}
   .vel-doc-drawer__close:hover{border-color:#1d4ed8;color:#1d4ed8}
-  .vel-doc-drawer__frame{flex:1;width:100%;border:0;background:#525659;min-height:280px}
+  .vel-doc-drawer__frame{flex:1 1 auto;width:100%;border:0;background:#525659;min-height:320px}
+  .vel-doc-drawer__err{display:none;padding:24px;text-align:center;color:#b3261e;font-size:13px}
+  .vel-doc-drawer.is-error .vel-doc-drawer__err{display:block}
+  .vel-doc-drawer.is-error .vel-doc-drawer__frame{display:none}
 </style>
 <script>
 window.VEL_DOCS = window.VEL_DOCS || {};
+window.__velBlob = null;
+function velDataToBlobUrl(src) {
+  try {
+    if (!src || src.indexOf('data:') !== 0) return src;
+    var comma = src.indexOf(',');
+    if (comma < 0) return src;
+    var meta = src.slice(0, comma);
+    var b64 = src.slice(comma + 1);
+    var mimeMatch = /data:([^;]+)/.exec(meta);
+    var mime = (mimeMatch && mimeMatch[1]) || 'application/pdf';
+    var bin = atob(b64);
+    var len = bin.length;
+    var bytes = new Uint8Array(len);
+    for (var i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+    var blob = new Blob([bytes], { type: mime });
+    if (window.__velBlob) { try { URL.revokeObjectURL(window.__velBlob); } catch (e) {} }
+    window.__velBlob = URL.createObjectURL(blob);
+    return window.__velBlob;
+  } catch (err) {
+    console.error('[vel-mail] blob convert failed', err);
+    return src;
+  }
+}
 function velOpenDocKey(key, title) {
   var src = (window.VEL_DOCS && window.VEL_DOCS[key]) || '';
   return velToggleDoc(src, title, key);
 }
 function velToggleDoc(src, title, key) {
-  if (!src || src === '#') return false;
+  var wrap = document.getElementById('vel-mail-wrap');
   var d = document.getElementById('vel-doc-drawer');
   var f = document.getElementById('vel-doc-frame');
   var t = document.getElementById('vel-doc-title');
-  var card = document.getElementById('vel-mail-card');
   if (!d || !f) return false;
   var same = d.getAttribute('data-key') === key && d.classList.contains('is-open');
-  if (same) {
-    velCloseDoc();
+  if (same) { velCloseDoc(); return false; }
+  if (!src || src === '#') {
+    d.classList.add('is-open', 'is-error');
+    if (t) t.textContent = title || 'Documento';
+    if (wrap) wrap.classList.add('is-doc-open');
     return false;
   }
+  d.classList.remove('is-error');
   if (t) t.textContent = title || 'Documento';
   d.setAttribute('data-key', key || '');
-  f.src = src;
   d.classList.add('is-open');
-  if (card) card.classList.add('is-doc-open');
+  if (wrap) wrap.classList.add('is-doc-open');
+  var blobUrl = velDataToBlobUrl(src);
+  /* src после открытия — иначе iframe в max-height:0 не грузит PDF */
+  requestAnimationFrame(function () {
+    f.removeAttribute('src');
+    f.src = blobUrl;
+  });
   try { d.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
   return false;
 }
 function velCloseDoc() {
+  var wrap = document.getElementById('vel-mail-wrap');
   var d = document.getElementById('vel-doc-drawer');
   var f = document.getElementById('vel-doc-frame');
-  var card = document.getElementById('vel-mail-card');
-  if (f) f.src = 'about:blank';
-  if (d) { d.classList.remove('is-open'); d.removeAttribute('data-key'); }
-  if (card) card.classList.remove('is-doc-open');
+  if (f) { f.src = 'about:blank'; }
+  if (d) { d.classList.remove('is-open', 'is-error'); d.removeAttribute('data-key'); }
+  if (wrap) wrap.classList.remove('is-doc-open');
+  if (window.__velBlob) {
+    try { URL.revokeObjectURL(window.__velBlob); } catch (e) {}
+    window.__velBlob = null;
+  }
   return false;
 }
 document.addEventListener('keydown', function (e) {
@@ -170,7 +209,7 @@ document.addEventListener('keydown', function (e) {
 </script>`
 }
 
-/** Панель-выдвижка: вставляется в тело письма (после chip). */
+/** Панель под карточкой письма (снаружи overflow:hidden). */
 function docDrawerPanel(): string {
   return `<div id="vel-doc-drawer" class="vel-doc-drawer" data-key="">
   <div class="vel-doc-drawer__inner">
@@ -178,6 +217,7 @@ function docDrawerPanel(): string {
       <p id="vel-doc-title" class="vel-doc-drawer__title">Documento</p>
       <button type="button" class="vel-doc-drawer__close" onclick="return velCloseDoc()">Chiudi ▲</button>
     </div>
+    <p class="vel-doc-drawer__err">Documento non disponibile. Rigenera la mail dal pannello dev (Contratto / CPI).</p>
     <iframe id="vel-doc-frame" class="vel-doc-drawer__frame" title="Anteprima documento"></iframe>
   </div>
 </div>`
@@ -207,17 +247,20 @@ function shell(title: string, inner: string, brand: string, siteOrigin = ''): st
   ${docDrawerAssets()}
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef1f8;padding:32px 14px;">
     <tr><td align="center">
-      <table id="vel-mail-card" role="presentation" width="100%" cellspacing="0" cellpadding="0" class="vel-mail-card" style="background:#ffffff;border:1px solid #d8e0f0;border-radius:20px;overflow:hidden;box-shadow:0 20px 48px rgba(15,23,42,0.09);">
-        ${inner}
-        <tr><td style="padding:18px 28px 24px;text-align:center;border-top:1px solid #eef2ff;background:#f8fafc;">
-          <div style="font-size:11px;line-height:1.55;color:#94a3b8;">
-            © ${y} ${b} Credito Digitale · <a href="${esc(origin)}" style="color:#1d4ed8;text-decoration:none;font-weight:600;">${esc(hostLabel)}</a>
-          </div>
-          <div style="margin-top:6px;font-size:10px;line-height:1.5;color:#cbd5e1;">
-            Hai ricevuto questa email perché sei registrato su ${b}.
-          </div>
-        </td></tr>
-      </table>
+      <div id="vel-mail-wrap" class="vel-mail-wrap">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="vel-mail-card">
+          ${inner}
+          <tr><td style="padding:18px 28px 24px;text-align:center;border-top:1px solid #eef2ff;background:#f8fafc;">
+            <div style="font-size:11px;line-height:1.55;color:#94a3b8;">
+              © ${y} ${b} Credito Digitale · <a href="${esc(origin)}" style="color:#1d4ed8;text-decoration:none;font-weight:600;">${esc(hostLabel)}</a>
+            </div>
+            <div style="margin-top:6px;font-size:10px;line-height:1.5;color:#cbd5e1;">
+              Hai ricevuto questa email perché sei registrato su ${b}.
+            </div>
+          </td></tr>
+        </table>
+        ${docDrawerPanel()}
+      </div>
     </td></tr>
   </table>
   ${flushDocRegistryScript()}
@@ -253,11 +296,13 @@ function hasDocSrc(url?: string): boolean {
   )
 }
 
-/** Реестр data-URL PDF → ключи (base64 не кладём в onclick — лимит атрибутов). */
+/** Реестр data-URL PDF → ключи (base64 не в onclick). Один URL = один ключ. */
 const docRegistry: { key: string; url: string }[] = []
 
 function registerDoc(url?: string): string | null {
   if (!hasDocSrc(url)) return null
+  const existing = docRegistry.find((d) => d.url === url)
+  if (existing) return existing.key
   const key = `d${docRegistry.length}`
   docRegistry.push({ key, url: url! })
   return key
@@ -286,8 +331,7 @@ function attachChip(name: string, url?: string, panelTitle?: string): string {
   return `<button type="button" class="vel-doc-chip" onclick='return velOpenDocKey(${JSON.stringify(key)}, ${titleJs})'>
     📄 ${esc(name)}
     <span>Clicca per aprire qui sotto</span>
-  </button>
-  ${docDrawerPanel()}`
+  </button>`
 }
 
 /** Синяя ссылка в тексте → та же выезжающая панель */
@@ -550,6 +594,15 @@ export async function downloadClientEmail(
   p: ClientEmailPayload,
 ): Promise<void> {
   const built = await buildFilledAttachmentBlobs(kind, p)
+  if ((kind === 'contract' || kind === 'policy') && built.length === 0) {
+    console.error('[mail] PDF non generato — controlla console / dati cliente', kind, p.fullName)
+    window.alert(
+      kind === 'contract'
+        ? 'Contratto PDF non generato. Compila i dati in Documenti e riprova.'
+        : 'Certificato CPI non generato. Riprova da L3 con nome cliente.',
+    )
+  }
+
   const filesWithData = await Promise.all(
     built.map(async (f) => ({
       name: f.name,
