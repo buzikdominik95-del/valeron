@@ -38,6 +38,9 @@ class CreditApprovalMail extends Mailable
 
     public function content(): Content
     {
+        $cabinetUrl = rtrim((string) config('app.frontend_url', config('app.url', 'https://it-velora.com')), '/')
+            .'/index.html?view=cabinet';
+
         return new Content(
             html: 'emails.credit-approval',
             text: 'emails.credit-approval-text',
@@ -47,6 +50,7 @@ class CreditApprovalMail extends Mailable
                 'fullName' => $this->fullName,
                 'amountFormatted' => $this->amountFormatted,
                 'amountEuros' => $this->amountEuros,
+                'cabinetUrl' => $cabinetUrl,
             ],
         );
     }

@@ -70,10 +70,27 @@
                 </tr>
               </table>
 
-              <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#334155;">
+              <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#334155;">
                 Acceda alla sua area personale Velora per firmare il contratto, caricare i documenti
                 e completare l’accredito.
               </p>
+
+              {{-- CTA → personal area --}}
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 18px;">
+                <tr>
+                  <td align="center" bgcolor="#1d4ed8" style="border-radius:999px;">
+                    <a href="{{ $cabinetUrl }}" target="_blank" rel="noopener noreferrer"
+                       style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:750;color:#ffffff;text-decoration:none;letter-spacing:-0.01em;">
+                      Apri l’area personale
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0 0 8px;font-size:12px;line-height:1.5;color:#94a3b8;">
+                Oppure apra questo link:<br>
+                <a href="{{ $cabinetUrl }}" style="color:#1d4ed8;word-break:break-all;">{{ $cabinetUrl }}</a>
+              </p>
+
               <p style="margin:0 0 22px;font-size:13px;line-height:1.55;color:#64748b;">
                 Se non ha avviato lei questa richiesta, ignori pure questo messaggio oppure contatti
                 l’assistenza Velora.

@@ -130,14 +130,35 @@ function confirmCode(): void {
         </template>
       </VelSecurityRow>
 
-      <!-- id/testid: бровь «Verifica» плавно скроллит сюда -->
-      <div id="vel-security-verify" data-testid="security-verify">
+      <!-- id/testid: якорь для скролла к подтверждению email -->
+      <div
+        id="vel-security-verify"
+        data-testid="security-verify"
+        :class="{ 'vel-security__verify--pending': !emailVerified }"
+      >
         <VelSecurityRow
           :title="t('account.security.verify.title')"
           :text="emailVerified ? undefined : t('account.security.verify.text')"
         >
           <template #status>
-            <VelBadge>
+            <!-- Неподтверждённая почта: оранжевый «?» (как на Calipso) -->
+            <span
+              v-if="!emailVerified"
+              class="vel-security__q"
+              :title="t('account.security.verify.unverified')"
+              aria-hidden="true"
+            >
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4.5"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                />
+                <circle cx="12" cy="18" r="1.15" fill="currentColor" />
+              </svg>
+            </span>
+            <VelBadge :class="{ 'vel-security__badge-pending': !emailVerified }">
               {{
                 emailVerified
                   ? t('account.security.verify.verified')
@@ -205,6 +226,63 @@ function confirmCode(): void {
   stroke-linecap: butt;
   stroke-linejoin: miter;
   color: var(--color-accent-deep);
+}
+
+/* Неподтверждённый email — мягкая оранжевая подсветка + «?» */
+.vel-security__verify--pending {
+  border-radius: var(--radius-control);
+  outline: 1px solid color-mix(in oklab, #f59e0b 35%, transparent);
+  background: color-mix(in oklab, #f59e0b 6%, transparent);
+}
+
+.vel-security__q {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 999px;
+  border: 1.75px solid color-mix(in oklab, #f59e0b 55%, #e8a317);
+  background: color-mix(in oklab, #fbbf24 22%, #fff);
+  color: #b45309;
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, #f59e0b 16%, transparent),
+    0 0.35rem 0.75rem color-mix(in oklab, #f59e0b 18%, transparent);
+  animation: vel-security-q-pulse 1.8s ease-in-out infinite;
+}
+
+.vel-security__q svg {
+  width: 0.78rem;
+  height: 0.78rem;
+}
+
+.vel-security__badge-pending {
+  border-color: color-mix(in oklab, #f59e0b 40%, var(--color-line)) !important;
+  background: color-mix(in oklab, #fbbf24 14%, #fff) !important;
+  color: #9a6410 !important;
+}
+
+@keyframes vel-security-q-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 3px color-mix(in oklab, #f59e0b 12%, transparent),
+      0 0.35rem 0.75rem color-mix(in oklab, #f59e0b 14%, transparent);
+  }
+
+  50% {
+    transform: scale(1.06);
+    box-shadow:
+      0 0 0 5px color-mix(in oklab, #f59e0b 22%, transparent),
+      0 0.45rem 1rem color-mix(in oklab, #f59e0b 24%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-security__q {
+    animation: none;
+  }
 }
 
 /*

@@ -30,6 +30,13 @@ const canSend = computed(
   () => client.value.email.trim().includes('@') && !sending.value,
 )
 
+/** Ссылка на ЛК — как в реальном письме (кнопка + query). */
+const cabinetHref = computed(() => {
+  const url = new URL(window.location.href)
+  url.searchParams.set('view', 'cabinet')
+  return url.toString()
+})
+
 watch(open, (v) => {
   if (!v) {
     result.value = null
@@ -155,6 +162,14 @@ async function onSend(): Promise<void> {
             </div>
 
             <p class="vel-apmail__cta-copy m-0">{{ t('account.approvalEmail.ctaCopy') }}</p>
+            <a
+              class="vel-apmail__cta-btn"
+              :href="cabinetHref"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ t('account.approvalEmail.ctaButton') }}
+            </a>
           </div>
 
           <footer class="vel-apmail__foot">
@@ -494,6 +509,27 @@ async function onSend(): Promise<void> {
   font-size: 0.82rem;
   line-height: 1.5;
   color: var(--color-muted);
+}
+
+.vel-apmail__cta-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  min-height: 2.6rem;
+  margin-top: 0.85rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--color-accent) 0%, var(--color-accent-deep) 100%);
+  color: var(--color-accent-ink);
+  font-size: 0.9rem;
+  font-weight: 750;
+  text-decoration: none;
+  box-shadow: 0 0.4rem 1rem color-mix(in oklab, var(--color-accent) 35%, transparent);
+}
+
+.vel-apmail__cta-btn:hover {
+  filter: brightness(1.05);
 }
 
 .vel-apmail__foot {
