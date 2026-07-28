@@ -5,14 +5,15 @@ import consultantPhoto from '@/img/consulente-tablet.webp'
 import VelLogo from '@/components/ui/VelLogo.vue'
 
 /**
- * Toast сверху:
+ * Toast менеджера / системы — справа снизу, над нижней навигацией ЛК.
  *  · agent — «Nuovo messaggio» от консультанта (после verify docs);
  *  · system — системное (после L4: оплата+сообщение → Home).
  */
 const props = withDefaults(
   defineProps<{
     open: boolean
-    variant?: 'agent' | 'system'
+    /** agent | welcome — UI консультанта; system — Velora */
+    variant?: 'agent' | 'system' | 'welcome'
   }>(),
   { variant: 'agent' },
 )
@@ -24,6 +25,11 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const isSystem = computed(() => props.variant === 'system')
+const toastBody = computed(() => {
+  if (props.variant === 'system') return t('account.agentToast.systemBody')
+  if (props.variant === 'welcome') return t('account.agentToast.welcomeBody')
+  return t('account.agentToast.body')
+})
 </script>
 
 <template>
@@ -79,13 +85,7 @@ const isSystem = computed(() => props.variant === 'system')
               <span class="vel-agent-toast__dot" aria-hidden="true" />
               {{ t('account.agentToast.systemOnline') }}
             </span>
-            <span class="vel-agent-toast__body">
-              {{
-                isSystem
-                  ? t('account.agentToast.systemBody')
-                  : t('account.agentToast.body')
-              }}
-            </span>
+            <span class="vel-agent-toast__body">{{ toastBody }}</span>
           </span>
         </div>
       </button>
@@ -103,26 +103,35 @@ const isSystem = computed(() => props.variant === 'system')
 
 <style scoped>
 .vel-agent-toast {
+  /* Справа снизу: над tab bar (+ safe-area), не «в пол» */
   position: fixed;
-  inset-block-start: calc(var(--vel-header-h, 3.5rem) + 0.65rem);
-  inset-inline: 0.75rem;
+  inset-block-end: calc(
+    var(--vel-tabbar-h, 4rem) + var(--vel-tabbar-gap, 0.4rem) + 0.75rem +
+      env(safe-area-inset-bottom, 0px)
+  );
+  inset-inline-end: max(0.75rem, env(safe-area-inset-right, 0px));
+  inset-inline-start: auto;
+  inset-block-start: auto;
   z-index: 85;
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: flex-end;
   gap: 0;
-  max-inline-size: 22rem;
-  margin-inline: auto;
+  width: min(22rem, calc(100vw - 1.5rem));
+  max-inline-size: min(22rem, calc(100vw - 1.5rem));
+  margin: 0;
   pointer-events: none;
 }
 
 .vel-agent-toast__card {
+  position: relative;
   pointer-events: auto;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
   gap: 0.45rem;
   min-inline-size: 0;
+  width: 100%;
   margin: 0;
   padding: 0.7rem 2.25rem 0.8rem 0.85rem;
   border: 1px solid var(--color-line);
@@ -140,7 +149,7 @@ const isSystem = computed(() => props.variant === 'system')
 }
 
 .vel-agent-toast__card:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   box-shadow:
     0 0.65rem 1.75rem color-mix(in oklab, var(--color-fg) 14%, transparent),
     0 0 0 1px color-mix(in oklab, var(--color-success) 22%, transparent);
@@ -278,17 +287,18 @@ const isSystem = computed(() => props.variant === 'system')
   color: var(--color-fg);
 }
 
+/* Выезд справа снизу (не сверху) */
 .vel-agent-toast-enter-active,
 .vel-agent-toast-leave-active {
   transition:
-    opacity 220ms ease,
-    transform 220ms ease;
+    opacity 240ms ease,
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .vel-agent-toast-enter-from,
 .vel-agent-toast-leave-to {
   opacity: 0;
-  transform: translateY(-0.65rem);
+  transform: translate3d(1.1rem, 0.55rem, 0);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -296,6 +306,11 @@ const isSystem = computed(() => props.variant === 'system')
   .vel-agent-toast-enter-active,
   .vel-agent-toast-leave-active {
     transition: none;
+  }
+
+  .vel-agent-toast-enter-from,
+  .vel-agent-toast-leave-to {
+    transform: none;
   }
 }
 </style>

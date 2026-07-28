@@ -1,51 +1,74 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
+import { useCpiBuild } from '@/composables/useCpiBuild'
 import { accountStepHref } from '@/features/account/account-anchors'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
+import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
+import VelCpiViewConfirm from '@/features/account/VelCpiViewConfirm.vue'
 
 /**
- * Полис CPI в двух состояниях: сертификат на проверке либо выпущен.
+ * Полис CPI: processing → documents; issued → «Показать сертификат».
  *
- * Состояние берётся из дела клиента (useAccount) и здесь не досочиняется:
- * карточка не переключает себя по таймеру и не решает, выпущен ли полис.
- * До появления API состояние остаётся тем, что пришло в заглушке контракта.
- *
- * Один компонент на оба состояния, а не два файла: это одна карточка, у которой
- * меняются надзаголовок, заголовок, текст и подпись кнопки. Разложив её на два
- * файла, мы получили бы две копии одной вёрстки, расходящиеся при первой правке.
- * Различие вынесено в ключи локали — account.policy.pending.* и .issued.*.
- *
- * Вместо эмодзи оригинала (🛡️ ⏳ ✅) — линейные знаки: щит, часы и щит
- * с галочкой, см. VelAccountSign.
- *
- * Куда ведут кнопки, карточка не решает: события уходят наружу.
+ * После первого закрытия превью — модалка с галочкой «видел сертификат».
+ * Подтверждение → markCertViewed (если ещё не viewed) + emit confirm.
  */
 const emit = defineEmits<{
-  /** «Consulta e conferma» — полис выпущен, деньги можно забирать. */
+  /** После галочки подтверждения (или повторный просмотр, если уже viewed). */
   review: []
+  confirm: []
 }>()
 
+const CPI_POLICY_IMG = `${import.meta.env.BASE_URL}cpi/policy-template.png`
+
 const { t } = useI18n()
+const { isPolicyIssued, policyEtaMinutes, client } = useAccount()
+const { certViewed, markCertViewed } = useCpiBuild()
 
-const { isPolicyIssued, policyEtaMinutes } = useAccount()
-
-/** Ветка локали. Обе половины ключей лежат под account.policy.<state>. */
 const state = computed(() => (isPolicyIssued.value ? 'issued' : 'pending'))
 
 const etaText = computed(() =>
   t('account.policy.pending.eta', { minutes: policyEtaMinutes.value }),
 )
 
-/*
- * «Vai ai documenti» — переход к панели документов на этом же экране, поэтому
- * настоящая ссылка на якорь, а не кнопка: тот же довод, что в account-anchors.
- * У выпущенного полиса действие другое — «посмотреть и подтвердить», — и оно
- * уходит наружу событием: что показывать, решает экран, а не карточка.
- */
 const documentsHref = computed(() => accountStepHref('documents'))
+
+const holderName = computed(
+  () =>
+    client.value.fullName.trim() ||
+    [client.value.lastName, client.value.firstName].filter(Boolean).join(' ').trim() ||
+    '—',
+)
+
+const previewOpen = ref(false)
+const confirmOpen = ref(false)
+/** В этой сессии открывали сертификат (ждём закрытия → confirm). */
+const openedCert = ref(false)
+
+function openCertificate(): void {
+  if (!isPolicyIssued.value) return
+  openedCert.value = true
+  previewOpen.value = true
+}
+
+watch(previewOpen, (open, was) => {
+  if (!(was && !open && openedCert.value)) return
+  /* Первый просмотр без галочки → модалка подтверждения */
+  if (!certViewed.value) {
+    confirmOpen.value = true
+    return
+  }
+  /* Уже подтверждал — просто emit review (родитель может ничего не делать) */
+  emit('review')
+})
+
+function onConfirmViewed(): void {
+  markCertViewed()
+  emit('confirm')
+  emit('review')
+}
 </script>
 
 <template>
@@ -63,21 +86,33 @@ const documentsHref = computed(() => accountStepHref('documents'))
 
     <p class="text-sm text-muted">{{ t(`account.policy.${state}.body`) }}</p>
 
-    <!-- Строка проверки есть только у полиса на рассмотрении: у выпущенного
-         ждать нечего, и пустая строка с часами читалась бы как «всё ещё идёт». -->
     <p v-if="!isPolicyIssued" class="vel-policy__status">
       <VelAccountSign sign="clock" class="vel-policy__status-sign" />
       <span class="flex-1">{{ t('account.policy.pending.status') }}</span>
       <span class="vel-num vel-policy__eta">{{ etaText }}</span>
     </p>
 
-    <VelButton v-if="isPolicyIssued" block @click="emit('review')">
+    <VelButton
+      v-if="isPolicyIssued"
+      block
+      data-testid="policy-show-cert"
+      @click="openCertificate"
+    >
       {{ t('account.policy.issued.cta') }}
     </VelButton>
 
     <VelButton v-else variant="outline" block :href="documentsHref">
       {{ t('account.policy.pending.cta') }}
     </VelButton>
+
+    <VelPdfDialog
+      v-model:open="previewOpen"
+      :preview-image="CPI_POLICY_IMG"
+      :holder-name="holderName"
+      :title="t('account.commission.cpi.stub.readyTitle')"
+    />
+
+    <VelCpiViewConfirm v-model:open="confirmOpen" @confirm="onConfirmViewed" />
   </section>
 </template>
 
@@ -92,9 +127,6 @@ const documentsHref = computed(() => accountStepHref('documents'))
   background-color: var(--color-surface);
 }
 
-/* Выпущенный полис — единственное место карточки, где рамка меняет цвет.
-   Сам по себе цвет ничего не сообщает: состояние названо словами в
-   надзаголовке и показано другим знаком (щит с галочкой). */
 .vel-policy--issued {
   border-color: var(--color-accent);
 }
@@ -102,48 +134,39 @@ const documentsHref = computed(() => accountStepHref('documents'))
 .vel-policy__head {
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
+  gap: 0.85rem;
 }
 
 .vel-policy__mark {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: 3rem;
-  height: 3rem;
-  border: 1px solid var(--color-line-strong);
-  border-radius: var(--radius-control);
-  background-color: var(--color-raised);
+  display: inline-flex;
+  flex-shrink: 0;
   color: var(--color-accent-deep);
 }
 
 .vel-policy--issued .vel-policy__mark {
-  border-color: var(--color-accent);
-  background-color: var(--color-accent);
-  color: var(--color-accent-ink);
+  color: var(--color-success);
 }
 
 .vel-policy__status {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  margin: 0;
+  padding: 0.65rem 0.75rem;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-control);
-  background-color: var(--color-ground);
-  color: var(--color-fg);
-  font-size: 0.875rem;
+  background: var(--color-ground);
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .vel-policy__status-sign {
-  color: var(--color-accent);
+  flex: none;
+  color: var(--color-accent-deep);
 }
 
 .vel-policy__eta {
-  color: var(--color-accent-deep);
-  font-weight: 600;
-  white-space: nowrap;
+  color: var(--color-fg);
 }
 </style>

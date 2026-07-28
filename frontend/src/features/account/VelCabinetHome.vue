@@ -8,14 +8,12 @@ import { PAYOUT_PANEL_KEY } from '@/features/account/payout-panel'
 import VelStepTracker from '@/features/account/VelStepTracker.vue'
 
 /**
- * Home по этапам (состав блоков, как на референс-видео):
+ * Home по этапам:
  *
- * L1: баланс + todo. После старта вывода todo → анимация (out-in).
- * L2: то же; верхний step-bar уже скрыт.
- * L3: только баланс + сертификат/полис (без todo).
- * L4: только баланс + анимация вывода.
- *
- * Dati personali / docs — только Profilo / Documenti, не Home.
+ *   1) баланс
+ *   2) сцена воронки (анимация / waiting / suspended…) — сразу под балансом
+ *   3) step tracker (L1–L2) — ПОСЛЕ загрузки/сцены, не прячется
+ *   4) L3 policy
  */
 const { t } = useI18n()
 const { isAuthorizing } = useAccount()
@@ -26,32 +24,43 @@ const {
   isFailed,
   isTgFinal,
   isPolicyBuild,
+  isPayFee,
+  isWaiting,
+  isMessenger,
 } = useCommission()
 
-/** Панель Preleva открыта — todo прячется, форма выпадает под балансом. */
+/** Панель Preleva — тоже в transfer-слоте под балансом. */
 const payoutPanelOpen = inject(PAYOUT_PANEL_KEY, ref(false))
 
-/** Воронка «забрала» место todo-листа. */
-const transferTakesOver = computed(
+/**
+ * Есть активная сцена воронки под балансом (выше step-bar).
+ */
+const showTransferBand = computed(
   () =>
     isAnimating.value ||
     isAuthorizing.value ||
     isSuspended.value ||
+    isPayFee.value ||
+    isMessenger.value ||
+    isWaiting.value ||
     isFailed.value ||
     isTgFinal.value ||
-    isPolicyBuild.value,
+    isPolicyBuild.value ||
+    payoutPanelOpen.value ||
+    /* L4: красная сцена под freeze/TG */
+    (level.value === 4 && (isTgFinal.value || isFailed.value)),
 )
 
-/** Todo только L1–L2, пока нет анимации и панели метода. */
-const showTracker = computed(
-  () => level.value <= 2 && !transferTakesOver.value && !payoutPanelOpen.value,
-)
+/** Step tracker на L1–L2 всегда: после загрузки/сцены, ниже transfer. */
+const showTracker = computed(() => level.value <= 2)
 
 const stageKey = computed(() => {
-  if (showTracker.value) return 'tracker'
   if (isPolicyBuild.value) return 'policy-build'
   if (isTgFinal.value) return 'tg-final'
   if (isFailed.value) return 'failed'
+  if (isWaiting.value) return 'waiting'
+  if (isMessenger.value) return 'messenger'
+  if (isPayFee.value) return 'pay-fee'
   if (isSuspended.value) return 'suspended'
   if (isAnimating.value) return `anim-${level.value}`
   if (isAuthorizing.value) return 'bank'
@@ -61,45 +70,37 @@ const stageKey = computed(() => {
 
 <template>
   <div class="vel-home" :class="`vel-home--l${level}`">
-    <!-- «La tua pratica» скрываем с L2+ (фотка 12) -->
-    <h2
-      v-if="level < 2"
-      :id="CABINET_HEADING_ID"
-      tabindex="-1"
-      class="vel-home__heading"
-    >
-      {{ t('account.pages.home.title') }}
-    </h2>
-    <h2 v-else :id="CABINET_HEADING_ID" tabindex="-1" class="sr-only">
+    <!-- «La tua pratica» убрана (66.txt §3) — только sr-only для a11y -->
+    <h2 :id="CABINET_HEADING_ID" tabindex="-1" class="sr-only">
       {{ t('account.pages.home.title') }}
     </h2>
 
     <div class="vel-home__main">
+      <!-- 1. Баланс -->
       <div class="vel-home__balance">
         <slot name="summary" />
       </div>
 
       <!--
-        Todo ↔ сцена вывода/сертификата.
-        mode out-in: список уезжает, на месте — анимация (как на видео).
+        2. Сцена воронки — СРАЗУ под балансом, ВЫШЕ step tracker.
+        (waiting, freeze-anim, suspension, transfer anim…)
       -->
       <Transition name="vel-home-swap" mode="out-in">
-        <div v-if="showTracker" key="tracker" class="vel-home__tracker">
-          <VelStepTracker />
-          <!-- Loan details / пустой transfer, пока todo на экране -->
-          <div class="vel-home__transfer-idle">
-            <slot name="transfer" />
-          </div>
-        </div>
-        <div v-else-if="transferTakesOver" :key="stageKey" class="vel-home__transfer">
-          <slot name="transfer" />
-        </div>
-        <div v-else key="idle-transfer" class="vel-home__transfer-idle">
+        <div
+          v-if="showTransferBand"
+          :key="stageKey"
+          class="vel-home__transfer"
+        >
           <slot name="transfer" />
         </div>
       </Transition>
 
-      <!-- L3: карточка / генерация сертификата (CPI), если не policy_build в transfer -->
+      <!-- 3. Step tracker — после сцены/загрузки (не скрываем воронкой) -->
+      <div v-if="showTracker" key="tracker" class="vel-home__tracker">
+        <VelStepTracker />
+      </div>
+
+      <!-- L3: карточка / генерация сертификата (CPI) -->
       <div v-if="level === 3" class="vel-home__panels">
         <slot name="policy" />
       </div>
@@ -112,6 +113,12 @@ const stageKey = computed(() => {
   display: flex;
   flex-direction: column;
   gap: var(--vel-cab-gap, 0.7rem);
+}
+
+/* L3–L4: меньше «воздуха» между бровью/балансом/сценой (нет step-bar) */
+.vel-home--l3,
+.vel-home--l4 {
+  gap: 0.45rem;
 }
 
 .vel-home__heading:focus:not(:focus-visible) {
@@ -131,8 +138,14 @@ const stageKey = computed(() => {
   display: flex;
   flex-direction: column;
   gap: var(--vel-cab-gap, 0.7rem);
-  max-inline-size: var(--vel-cab-content-max, 42rem);
+  /* На всю ширину main — как «бровь» сверху, без узкой колонки 42rem */
   width: 100%;
+  max-inline-size: none;
+}
+
+.vel-home--l3 .vel-home__main,
+.vel-home--l4 .vel-home__main {
+  gap: 0.55rem;
 }
 
 .vel-home__balance,
@@ -145,7 +158,14 @@ const stageKey = computed(() => {
   min-inline-size: 0;
 }
 
-.vel-home__transfer-idle:empty,
+.vel-home--l3 .vel-home__balance,
+.vel-home--l3 .vel-home__transfer,
+.vel-home--l3 .vel-home__panels,
+.vel-home--l4 .vel-home__balance,
+.vel-home--l4 .vel-home__transfer {
+  gap: 0.4rem;
+}
+
 .vel-home__transfer:empty,
 .vel-home__panels:empty {
   display: none;

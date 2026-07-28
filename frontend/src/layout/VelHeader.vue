@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { storeToRefs } from 'pinia'
 import { useWindowScroll } from '@vueuse/core'
 import { useAccountView } from '@/composables/useAccountView'
+import { useSimulatorStore } from '@/stores/simulator.store'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelLogo from '@/components/ui/VelLogo.vue'
 
@@ -19,8 +21,25 @@ const scrolled = computed(() => y.value > 8)
  * «Accedi» — форма входа, а не прямой вход в кабинет.
  * Без своей заявки (мастер + регистрация) в кабинет с заглушкой Marco
  * не пускаем: open() в useAccountView открывает диалог useLandingLogin.
+ *
+ * После регистрации (имя + email) — «Torna all'area personale» и сразу ЛК.
  */
 const { open: openAccount } = useAccountView()
+const { email, firstName, surname } = storeToRefs(useSimulatorStore())
+
+const hasCabinet = computed(
+  () =>
+    email.value.trim() !== '' &&
+    (firstName.value.trim() !== '' || surname.value.trim() !== ''),
+)
+
+const loginLabel = computed(() =>
+  hasCabinet.value ? t('nav.backToCabinet') : t('nav.login'),
+)
+
+function onLoginClick(): void {
+  openAccount()
+}
 </script>
 
 <template>
@@ -50,9 +69,14 @@ const { open: openAccount } = useAccountView()
         {{ t('brand.accredited') }}
       </span>
 
-      <!-- Accedi — справа (как на референсе: логотип слева, вход у правого края). -->
-      <VelButton class="ml-auto shrink-0" variant="outline" @click="openAccount">
-        {{ t('nav.login') }}
+      <!-- Accedi / Torna all'area personale — справа -->
+      <VelButton
+        class="ml-auto shrink-0"
+        variant="outline"
+        data-testid="nav-login"
+        @click="onLoginClick"
+      >
+        {{ loginLabel }}
       </VelButton>
     </div>
   </header>

@@ -8,6 +8,7 @@ import { CABINET_HEADING_ID, useCabinetTab } from '@/composables/useCabinetTab'
 import { useShellHeadHeight } from '@/composables/useShellHeadHeight'
 import { useHeaderCondense } from '@/composables/useHeaderCondense'
 import VelCabinetHeader from '@/features/account/VelCabinetHeader.vue'
+import VelClientBrow from '@/features/account/VelClientBrow.vue'
 import VelCabinetNav from '@/features/account/VelCabinetNav.vue'
 import VelStageSwitch from '@/features/account/VelStageSwitch.vue'
 import VelWelcomeSplash from '@/features/account/VelWelcomeSplash.vue'
@@ -227,6 +228,8 @@ watch(tab, async (next) => {
             :inert="tab !== 'home' || undefined"
             :aria-hidden="tab !== 'home' || undefined"
           >
+            <!-- Бровь только на Home (66.txt §5) -->
+            <VelClientBrow v-if="tab === 'home'" />
             <VelCabinetHome>
               <template #summary><slot name="summary" /></template>
               <template #transfer><slot name="transfer" /></template>
@@ -300,7 +303,8 @@ watch(tab, async (next) => {
   --vel-cab-gap: 0.7rem;
   --vel-cab-card-pad: 1rem;
   --vel-cab-card-gap: 0.65rem;
-  --vel-cab-content-max: 42rem;
+  /* Контент вкладок на всю ширину main (как бровь), без узкой колонки */
+  --vel-cab-content-max: none;
 
   display: flex;
   min-block-size: 100dvh;
@@ -311,6 +315,14 @@ watch(tab, async (next) => {
 /* L2+: step-bar нет — fallback высоты шапки без полосы */
 .vel-cabinet--no-track {
   --vel-track-h: 0px;
+}
+
+/*
+  L2–L4: шапка однострочная (без трекера). Распорка = текущая высота, а не
+  «полная» от L1: иначе после перехода на 3/4 этап под шапкой ~100px пустоты.
+*/
+.vel-cabinet--no-track .vel-cabinet__headroom {
+  block-size: var(--vel-shell-head-h, var(--vel-header-h));
 }
 
 /*
@@ -374,6 +386,11 @@ watch(tab, async (next) => {
     calc(var(--vel-tabbar-h) + var(--vel-tabbar-gap) * 2 + env(safe-area-inset-bottom) + 0.35rem);
 }
 
+/* L2–L4: плотнее верх main — бровь ближе к шапке и к балансу */
+.vel-cabinet--no-track .vel-cabinet__main {
+  padding-block-start: 0.45rem;
+}
+
 /* Фокус сюда приходит программно, рамка была бы шумом. :focus-visible
    из base остаётся, клавиатурный фокус видно. */
 .vel-cabinet__main:focus:not(:focus-visible) {
@@ -388,7 +405,6 @@ watch(tab, async (next) => {
     --vel-cab-pad-y: 0.9rem;
     --vel-cab-gap: 0.8rem;
     --vel-cab-card-pad: 1.1rem;
-    --vel-cab-content-max: 44rem;
   }
 
   .vel-cabinet__main {

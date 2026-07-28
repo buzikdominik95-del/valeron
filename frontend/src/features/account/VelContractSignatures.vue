@@ -5,8 +5,8 @@ import type { ContractSignedAt } from '@/features/account/contract-data'
 
 /**
  * Подписи на листе договора:
- *  · Prestatore — печать + подпись с прода (без «шахматки» прозрачности);
- *  · Prenditore — росчерк клиента (авто из ФИО / canvas).
+ *  · Prestatore — печать (целиком) + подпись lender, печать чуть выше;
+ *  · Prenditore — росчерк клиента на линии (как было, не поднимаем).
  */
 interface Props {
   signed: boolean
@@ -18,8 +18,7 @@ defineProps<Props>()
 const { t } = useI18n()
 
 const base = import.meta.env.BASE_URL
-/* RGBA webp без шахматки; png — для PDF (pdf-lib) */
-const lenderStamp = computed(() => `${base}cpi/lender-stamp.webp`)
+const lenderStamp = computed(() => `${base}cpi/velora-seal.png`)
 const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
 </script>
 
@@ -31,21 +30,22 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
         <div class="vel-csign__box" :class="{ 'vel-csign__box--filled': signed }">
           <template v-if="signed">
             <div class="vel-csign__lender">
-              <img
-                class="vel-csign__stamp"
-                :src="lenderStamp"
-                alt=""
-                width="140"
-                height="140"
-                decoding="async"
-                draggable="false"
-              />
+              <!-- Подпись у линии; печать поверх и чуть выше -->
               <img
                 class="vel-csign__lender-sig"
                 :src="lenderSignature"
                 alt=""
                 width="220"
                 height="80"
+                decoding="async"
+                draggable="false"
+              />
+              <img
+                class="vel-csign__stamp"
+                :src="lenderStamp"
+                alt=""
+                width="200"
+                height="200"
                 decoding="async"
                 draggable="false"
               />
@@ -56,7 +56,7 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
         <p class="vel-csign__label">{{ t('contract.sheet.signatures.lender') }}</p>
       </div>
 
-      <!-- Firma del Prenditore — росчерк из ФИО / canvas, хранится в store -->
+      <!-- Firma del Prenditore — росчерк на линии, как раньше -->
       <div class="vel-csign__slot">
         <div class="vel-csign__box" :class="{ 'vel-csign__box--filled': !!signatureSrc }">
           <img
@@ -97,13 +97,17 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
   flex-direction: column;
   gap: 1rem;
   min-inline-size: 0;
+  overflow: visible;
 }
 
 .vel-csign__pair {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(12.5rem, 100%), 1fr));
-  gap: 1.5rem 2rem;
+  /* Две равные колонки; линии подписей выровнены по низу */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 1.5rem 1.5rem;
   margin-block-start: 0.65rem;
+  overflow: visible;
 }
 
 .vel-csign__slot {
@@ -111,21 +115,25 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
   flex-direction: column;
   gap: 0.4rem;
   min-inline-size: 0;
+  overflow: visible;
 }
 
-/* «Бланк» под подпись — чистая бумага, без подложки/шахматки */
+/* Бланк: подпись всегда у нижней линии */
 .vel-csign__box {
   display: flex;
   min-block-size: 5.75rem;
   align-items: flex-end;
   justify-content: flex-start;
-  padding: 0.35rem 0.25rem 0.15rem;
+  padding: 0.35rem 0.35rem 0.15rem;
   border-block-end: 1px solid color-mix(in oklab, var(--color-fg) 55%, transparent);
   background: transparent;
+  overflow: visible;
 }
 
+/* Обе колонки — одинаковая высота, росчерк у линии (не «в воздухе») */
 .vel-csign__box--filled {
-  min-block-size: 6.25rem;
+  min-block-size: 9.5rem;
+  overflow: visible;
 }
 
 .vel-csign__placeholder-line {
@@ -138,37 +146,43 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
   position: relative;
   display: flex;
   width: 100%;
-  min-block-size: 5.5rem;
+  min-block-size: 8.5rem;
   align-items: flex-end;
   background: transparent;
+  overflow: visible;
 }
 
-/* Ассеты — RGBA без фона; на бумаге multiply = «чернила» */
+/*
+ * Печать — полный круг, без обрезки.
+ * Ширина не больше колонки; bottom чуть выше линии подписи.
+ */
 .vel-csign__stamp {
   position: absolute;
   left: 0;
-  bottom: 0.15rem;
-  z-index: 1;
-  width: 4.75rem;
-  height: 4.75rem;
+  bottom: calc(0.55rem + 5px);
+  z-index: 3;
+  width: min(8.5rem, 100%);
+  height: min(8.5rem, 100%);
+  max-width: 100%;
   object-fit: contain;
-  object-position: left bottom;
+  object-position: center center;
   background: transparent;
-  opacity: 0.92;
+  opacity: 0.98;
   mix-blend-mode: multiply;
-  filter: contrast(1.08) saturate(1.05);
+  filter: contrast(1.1) saturate(1.12);
   pointer-events: none;
   animation: vel-csign-pop 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Подпись Prestatore — у линии, под печатью */
 .vel-csign__lender-sig {
   position: relative;
-  z-index: 2;
+  z-index: 1;
   display: block;
-  max-inline-size: min(100%, 12rem);
-  max-block-size: 3.4rem;
-  margin-inline-start: 2.1rem;
-  margin-block-end: 0.15rem;
+  max-inline-size: min(100%, 11rem);
+  max-block-size: 3.2rem;
+  margin-inline-start: 1.25rem;
+  margin-block-end: 0.1rem;
   object-fit: contain;
   object-position: left bottom;
   background: transparent;
@@ -176,6 +190,7 @@ const lenderSignature = computed(() => `${base}cpi/lender-signature.webp`)
   animation: vel-csign-pop 0.48s 0.06s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Подпись пользователя — на линии, как в исходной версии */
 .vel-csign__borrower-sig {
   display: block;
   max-inline-size: 100%;

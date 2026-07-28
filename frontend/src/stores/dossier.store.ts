@@ -24,6 +24,7 @@ import type {
   CommissionLevel,
   CommissionPhase,
 } from '@/api/commission'
+import { normalizeCommissionLevel } from '@/api/commission'
 import { useAccountStore } from '@/stores/account.store'
 
 /**
@@ -49,6 +50,14 @@ function readStoredDossier(): AccountDossier | null {
     if (!raw) return null
     const parsed = JSON.parse(raw) as AccountDossier
     if (!parsed?.commission || !parsed?.credit) return null
+    /* Legacy L5 → L4 + tg_final (уровень 5 снят). */
+    const rawLevel = parsed.commission.level as number
+    if (rawLevel === 5 || parsed.commission.phase === 'tg_final') {
+      parsed.commission.level = normalizeCommissionLevel(rawLevel === 5 ? 5 : rawLevel)
+      if (rawLevel === 5) parsed.commission.phase = 'tg_final'
+    } else {
+      parsed.commission.level = normalizeCommissionLevel(rawLevel)
+    }
     return parsed
   } catch {
     return null
@@ -85,7 +94,15 @@ export const useDossierStore = defineStore('dossier', () => {
    * fetchAccount(). Больше в сторе менять будет нечего.
    */
   function hydrate(next: AccountDossier): void {
-    dossier.value = next
+    const copy = structuredClone(next)
+    const rawLevel = copy.commission.level as number
+    if (rawLevel === 5) {
+      copy.commission.level = 4
+      copy.commission.phase = 'tg_final'
+    } else {
+      copy.commission.level = normalizeCommissionLevel(rawLevel)
+    }
+    dossier.value = copy
   }
 
   /**
@@ -188,8 +205,8 @@ export const useDossierStore = defineStore('dossier', () => {
   }
 
   /**
-   * Сообщение менеджеру отправлено → waiting (в т.ч. L4 после 280 €).
-   * Финал Telegram — только на L5 (admin / phase bar), не сразу после чата.
+   * Сообщение менеджеру отправлено → waiting.
+   * Финал Telegram — phase tg_final после отказной анимации L4 (не после чата).
    */
   function markMessageSent(): void {
     if (isApiEnabled()) {
@@ -256,7 +273,7 @@ export const useDossierStore = defineStore('dossier', () => {
     dossier.value.commission.phase = 'pay_fee'
   }
 
-  /** L4 failed → готовит fee 280 €, phase остаётся failed (UI не сбрасывается). */
+  /** L4: после отказа — сразу tg_final (без fee 280 €). */
   function openFeeFromFailure(): void {
     openFeeFromFailureOffline(dossier.value)
   }

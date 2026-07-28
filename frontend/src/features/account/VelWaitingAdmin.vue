@@ -41,9 +41,10 @@ const { t } = useI18n()
 </template>
 
 <style scoped>
+/* Стрелки крутятся в VelAccountSign; снаружи — лёгкое свечение */
 .vel-wait-spin {
   display: inline-flex;
-  animation: vel-wait-pulse 2s ease-in-out infinite;
+  animation: vel-wait-pulse 2.4s ease-in-out infinite;
 }
 
 .vel-wait-ring {

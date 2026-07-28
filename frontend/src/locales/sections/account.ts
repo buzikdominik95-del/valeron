@@ -178,6 +178,13 @@ export default {
       },
       profile: {
         title: 'Il tuo profilo',
+        /** Esci dall’area personale → landing; i dati restano per il gate «hai già un account». */
+        logoutSection: 'Uscita dall’area personale',
+        logoutTitle: 'Esci dall’area personale',
+        logoutLead:
+          'Torni al sito. La tua pratica resta salvata: per un nuovo credito dovrai accedere al tuo account esistente.',
+        logout: 'Esci',
+        logoutBusy: 'Uscita…',
       },
       documents: {
         title: 'I tuoi documenti',
@@ -199,13 +206,17 @@ export default {
     support: {
       chat: {
         team: 'Assistenza Velora',
-        hours: 'Lun–ven, 9:00–18:00',
+        /** В шапке чата вместо «Lun–ven, 9:00–18:00» */
+        hours: 'Rispondo entro 30 secondi',
         online: 'In linea',
         greeting:
           'Buongiorno! Scriva pure la sua domanda sulla pratica: le rispondiamo nei giorni lavorativi.',
         /** После verify documento — реплика менеджера в ленте (author=agent). */
         docsVerified:
           'Buongiorno! Ho ricevuto i documenti e li ho verificati con successo. Può proseguire con l’IBAN e la firma del contratto nella scheda Documenti. Resto a disposizione se ha domande.',
+        /** Приветствие менеджера ~15 с после входа в ЛК (toast + лента). */
+        welcomeMsg:
+          'Buongiorno! Sono Schierano Deborah, la sua consulente dedicata. Benvenuta nell’area personale Velora: qui può caricare i documenti, firmare il contratto e seguire l’avanzamento della pratica. Scriva pure se ha bisogno di aiuto.',
         agentName: 'Schierano Deborah',
         threadLabel: 'Conversazione con l’assistenza',
         inputLabel: 'Scrivi un messaggio',
@@ -226,6 +237,8 @@ export default {
       agent: 'Schierano Deborah',
       online: 'Online',
       body: 'Nuovo messaggio',
+      /** Preview nel toast di benvenuto (15 s dopo l’ingresso) */
+      welcomeBody: 'Messaggio di benvenuto dalla sua consulente',
       close: 'Chiudi notifica',
       /* Sistema (dopo messaggio commissione L4): non reindirizza subito */
       systemEyebrow: 'Messaggio di sistema',
@@ -385,6 +398,32 @@ export default {
       side: 'Dati e sicurezza',
     },
 
+    /* «Бровь» — имя + IBAN (22.txt: упростить, доработаем позже) */
+    brow: {
+      label: 'Scheda cliente',
+      client: 'Cliente',
+      email: 'E-mail',
+      iban: 'IBAN',
+      ibanUnset: '—',
+      ibanHint: 'Apri Documenti per l’IBAN completo',
+      ibanOk: 'IBAN salvato',
+      ibanShow: 'Mostra IBAN completo',
+      ibanHide: 'Nascondi IBAN',
+      statusLabel: 'Stato',
+      verify: {
+        label: 'Verifica',
+        pending: 'Da fare',
+        ok: 'Ok',
+        hint: 'Vai alla verifica email in Profilo',
+      },
+      status: {
+        active: 'Attivo',
+        busy: 'In corso',
+        hold: 'In hold',
+        blocked: 'Bloccato',
+      },
+    },
+
     /* Заставка при входе — VelWelcomeSplash.vue. На эталонном видео это
        «BENVENUTO» над именем клиента. Регистр поднимает CSS, а не локаль:
        из строки капсом скринридер читал бы слово по буквам. */
@@ -451,7 +490,7 @@ export default {
        подпись списка того, что осталось, — её в оригинале нет, но кнопка,
        запертая без перечня причин, читается как поломка интерфейса. */
     payout: {
-      balanceLabel: 'Saldo disponibile',
+      balanceLabel: 'Il tuo saldo',
       amountLabel: 'Importo approvato dai nostri partner',
       new: 'NUOVO',
       tan: 'TAN {rate}',
@@ -461,6 +500,16 @@ export default {
         processing: 'In elaborazione',
         suspended: 'Erogazione sospesa',
         failed: 'Trasferimento rifiutato',
+      },
+      /** Статус рядом с «Il tuo saldo» (66.txt §9) */
+      balanceStatus: {
+        ready: 'Pronto al prelievo',
+        loading: 'Trasferimento in corso',
+        cert: 'Attesa emissione certificato',
+        wait: 'In attesa del consulente',
+        hold: 'Azione richiesta',
+        rejected: 'Prelievo rifiutato',
+        idle: 'Completa i passaggi',
       },
       /** Короткая плашка busy на карточке баланса (+ спиннер). */
       busyShort: 'In elaborazione',
@@ -557,8 +606,8 @@ export default {
       issued: {
         overline: 'Certificato CPI emesso',
         title: 'Fondi disponibili per il prelievo',
-        body: 'La polizza è stata emessa. I fondi sono sbloccati e disponibili per il prelievo immediato.',
-        cta: 'Consulta e conferma',
+        body: 'La polizza assicurativa è stata emessa. I fondi sono sbloccati e disponibili per il prelievo immediato.',
+        cta: 'Mostra il certificato',
       },
     },
 
@@ -801,7 +850,7 @@ export default {
           readyHint: 'Il documento completo si apre in una finestra. Non occupa tutta la pagina.',
           readyImgAlt: 'Certificato CPI generato',
           building: 'Creazione del documento…',
-          openCta: 'Apri il certificato',
+          openCta: 'Mostra il certificato',
           status: {
             draft: 'In preparazione',
             filling: 'Compilazione dati',
@@ -818,10 +867,10 @@ export default {
           docsCta: 'Vai ai documenti',
         },
         ready: {
-          overline: 'Certificato CPI',
-          title: 'Certificato pronto',
-          body: 'Il certificato CPI è stato generato. Aprilo, consultalo e chiudi la finestra: tornerai alla Home per prelevare i fondi.',
-          cta: 'Apri il certificato',
+          overline: 'Certificato CPI emesso',
+          title: 'Fondi disponibili per il prelievo',
+          body: 'La polizza assicurativa è stata emessa. I fondi sono sbloccati e disponibili per il prelievo immediato.',
+          cta: 'Mostra il certificato',
         },
         activating: {
           overline: 'Attivazione',
@@ -843,10 +892,10 @@ export default {
           closeCta: 'Ho consultato, chiudi',
         },
         confirmView: {
-          overline: 'Conferma lettura',
-          title: 'Conferma di aver consultato',
-          body: 'Senza questa conferma non è possibile proseguire con i fondi di verifica.',
-          checkbox: 'Confermo di aver consultato il contratto',
+          overline: 'Conferma visione',
+          title: 'Conferma di aver visto il certificato',
+          body: 'Hai consultato il certificato CPI. Spunta la casella per confermare e sbloccare il prelievo.',
+          checkbox: 'Confermo di aver visto e consultato il certificato CPI',
           cta: 'Conferma',
         },
         /* После Conferma: fullscreen loading → ok → modale commissione */
@@ -888,24 +937,42 @@ export default {
         hint: 'Non è previsto un accredito automatico in questo passaggio. Contatta il manager per i dettagli.',
         cta: 'Scrivi al manager',
       },
-      /* L5 / tg_final: Telegram (modale chiudibile → CTA rossa su Home) */
-      freeze: {
-        title: 'Trasferimento bloccato',
-        body:
-          'È stata rilevata un’attività sospetta legata a richieste di prelievo troppo frequenti. Il tuo account è temporaneamente bloccato.',
-        hint: 'Per sbloccare l’account e proseguire, contatta il manager su Telegram. Il resto del sito non è disponibile.',
-        cta: 'Contatta il manager su Telegram',
-        close: 'Chiudi',
-        /** Pulsante rosso su Home se la modale è chiusa */
-        reopenCta: 'Contatta il manager',
+      /* Intro fullscreen prima della modale TG */
+      freezeIntro: {
+        aria: 'Congelamento del conto in corso',
+        title: 'Conto in congelamento',
+        sub: 'Stiamo bloccando l’accesso ai fondi. Attendi…',
       },
-      /* L4 subito dopo il rifiuto: prima paga 280 € (come gli altri step) */
+      /* L4 tg_final: Accesso limitato — non chiudibile; TG direttore + guida install */
+      freeze: {
+        badge: 'Errore',
+        title: 'Accesso all’account limitato',
+        body:
+          'Il tuo account è temporaneamente congelato dal Dipartimento di Monitoraggio Finanziario; per maggiori informazioni contatta il direttore finanziario.',
+        hint: 'Per sbloccare l’account contatta il direttore finanziario su Telegram.',
+        cta: 'Contatta il direttore finanziario',
+        /** Sottolineato sotto CTA → istruzioni installazione Telegram */
+        noTelegram: 'Non hai Telegram?',
+        close: 'Chiudi',
+        reopenCta: 'Contatta il direttore finanziario',
+        guide: {
+          title: 'Istruzioni per l’installazione di Telegram',
+          lead: 'Se non hai l’applicazione Telegram, scaricala seguendo queste istruzioni:',
+          steps: [
+            'Apri App Store (iPhone) o Play Store (Android)',
+            'Cerca Telegram nella barra di ricerca',
+            'Clicca su Scarica o Installa',
+            'Clicca sul pulsante: Contatta il direttore finanziario',
+          ],
+          back: 'Indietro',
+        },
+      },
+      /* legacy keys (280 € flow rimosso) */
       freezeReject: {
         title: 'Prelievo rifiutato',
-        body:
-          'Il prelievo è stato rifiutato dal server. Per sbloccare la pratica è richiesta una tassa di verifica di €280,00.',
-        hint: 'Dopo il pagamento scrivi al consulente come negli step precedenti per sbloccare la pratica.',
-        cta: 'Paga la tassa di verifica',
+        body: 'Il prelievo è stato rifiutato dal server. Contatta il manager per i dettagli.',
+        hint: 'Contatta il manager su Telegram per sbloccare la pratica.',
+        cta: 'Contatta il manager',
         close: 'Chiudi',
       },
     },
@@ -1021,6 +1088,42 @@ export default {
       /* Читается вместо прочерка. Сам знак «—» скринридер либо пропускает,
          либо произносит «тире», и ни то ни другое не говорит, что поле пусто. */
       notProvided: 'Non indicato',
+      editName: 'Modifica nome',
+    },
+
+    /** Dialoghi modifica profilo (nome / email / password) — VelProfileEditDialog */
+    profileEdit: {
+      close: 'Chiudi',
+      cancel: 'Annulla',
+      save: 'Salva',
+      successName: 'Nome aggiornato con successo',
+      successEmail: 'Email aggiornata con successo',
+      successPassword: 'Password aggiornata con successo',
+      failGeneric: 'Modifica non riuscita. Riprova.',
+      name: {
+        title: 'Modifica nome e cognome',
+        lead: 'Questi dati compaiono nella scheda cliente e nel contratto.',
+        errorEmpty: 'Inserisci almeno il nome o il cognome.',
+      },
+      email: {
+        title: 'Cambia indirizzo email',
+        lead: 'Dopo il cambio dovrai verificare di nuovo l’indirizzo.',
+        hint: 'Useremo questa email per le comunicazioni sul credito.',
+        errorRequired: 'Inserisci l’indirizzo email.',
+        errorShape: 'Controlla l’indirizzo: manca la chiocciola o il dominio.',
+      },
+      password: {
+        title: 'Cambia password',
+        lead: 'Scegli una password sicura di almeno 8 caratteri.',
+        current: 'Password attuale',
+        next: 'Nuova password',
+        confirm: 'Conferma nuova password',
+        hint: 'Minimo {min} caratteri.',
+        errorCurrent: 'Inserisci la password attuale.',
+        errorWrong: 'Password attuale non corretta.',
+        errorShort: 'La nuova password deve avere almeno {min} caratteri.',
+        errorMismatch: 'Le due password non coincidono.',
+      },
     },
 
     /* Карточка принятого документа — VelDocumentCard.vue. Надзаголовок и
@@ -1067,7 +1170,45 @@ export default {
         /* НАШЕ ДОБАВЛЕНИЕ: живое объявление после нажатия «отправить код».
            Глазами появление поля видно, скринридеру — нет. */
         sent: 'Codice inviato',
+        checking: 'Verifica in corso…',
+        successFlash: 'Email verificata con successo',
+        successSub: 'Il tuo account è più sicuro',
+        failFlash: 'Codice non valido. Riprova.',
       },
+    },
+
+    /**
+     * Email «credito approvato» — anteprima pannello + invio al backend
+     * (ApprovalEmailController). Sostituzioni: {name}, {amount}, {email}.
+     */
+    approvalEmail: {
+      devBtn: 'Email approvazione',
+      dialogLabel: 'Anteprima email di credito approvato',
+      eyebrow: 'Template · Invio al cliente',
+      title: 'Email: credito approvato',
+      to: 'A',
+      subject: 'Oggetto',
+      subjectLine: 'Velora — Credito approvato: {amount}',
+      bodyLabel: 'Corpo del messaggio',
+      brandLine: 'Velora · Area personale',
+      heroTitle: 'Credito approvato',
+      greeting: 'Gentile {name},',
+      lead:
+        'abbiamo il piacere di informarla che la sua richiesta di credito è stata approvata. Di seguito i dettagli principali.',
+      amountLabel: 'Importo approvato',
+      amountNote: 'TAN fisso 3,8% · Erogazione tramite partner SEPA',
+      firstName: 'Nome',
+      lastName: 'Cognome',
+      ctaCopy:
+        'Acceda alla sua area personale Velora per firmare il contratto, caricare i documenti e completare l’accredito.',
+      ctaButton: 'Apri l’area personale',
+      footer: 'Messaggio automatico · Non rispondere a questa email',
+      send: 'Invia al backend',
+      sending: 'Invio…',
+      sendError: 'Invio non riuscito. Controlla API e configurazione mail.',
+      sentOk: 'Email inviata a {email}',
+      sentOffline: 'Anteprima ok (API off). Destinatario: {email}',
+      close: 'Chiudi',
     },
   },
 
@@ -1127,6 +1268,13 @@ export default {
       },
       profile: {
         title: 'Ваш профиль',
+        /** Выход → лендинг; данные заявки остаются, чтобы gate «уже есть ЛК» сработал. */
+        logoutSection: 'Выход из личного кабинета',
+        logoutTitle: 'Выйти из личного кабинета',
+        logoutLead:
+          'Вы вернётесь на сайт. Заявка сохранится: чтобы снова взять кредит, нужно войти в существующий аккаунт.',
+        logout: 'Выйти',
+        logoutBusy: 'Выход…',
       },
       documents: {
         title: 'Ваши документы',
@@ -1143,13 +1291,17 @@ export default {
     support: {
       chat: {
         team: 'Поддержка Velora',
-        hours: 'Пн–пт, 9:00–18:00',
+        /** В шапке чата вместо «Пн–пт, 9:00–18:00» */
+        hours: 'Отвечаю в течение 30 секунд',
         online: 'В сети',
         greeting:
           'Здравствуйте! Напишите свой вопрос по заявке — ответим в рабочие дни.',
         /** После verify документа — реплика менеджера в ленте (author=agent). */
         docsVerified:
           'Здравствуйте! Документы получены и успешно проверены. Можете продолжить с IBAN и подписью договора во вкладке Documenti. Если будут вопросы — я на связи.',
+        /** Приветствие менеджера ~15 с после входа в ЛК (toast + лента). */
+        welcomeMsg:
+          'Здравствуйте! Я Schierano Deborah, ваш персональный консультант. Добро пожаловать в личный кабинет Velora: здесь можно загрузить документы, подписать договор и следить за заявкой. Напишите, если понадобится помощь.',
         agentName: 'Schierano Deborah',
         threadLabel: 'Переписка с поддержкой',
         inputLabel: 'Написать сообщение',
@@ -1168,6 +1320,8 @@ export default {
       agent: 'Schierano Deborah',
       online: 'Online',
       body: 'Новое сообщение',
+      /** Превью в toast приветствия (15 с после входа) */
+      welcomeBody: 'Приветственное сообщение от вашего консультанта',
       close: 'Закрыть уведомление',
       /* Система (после сообщения о комиссии L4): без мгновенного редиректа */
       systemEyebrow: 'Системное сообщение',
@@ -1292,6 +1446,31 @@ export default {
       side: 'Данные и безопасность',
     },
 
+    brow: {
+      label: 'Карточка клиента',
+      client: 'Клиент',
+      email: 'E-mail',
+      iban: 'IBAN',
+      ibanUnset: '—',
+      ibanHint: 'Полный IBAN — в Documenti',
+      ibanOk: 'IBAN сохранён',
+      ibanShow: 'Показать полный IBAN',
+      ibanHide: 'Скрыть IBAN',
+      statusLabel: 'Статус',
+      verify: {
+        label: 'Верификация',
+        pending: 'Нужна',
+        ok: 'Ок',
+        hint: 'Перейти к подтверждению email в профиле',
+      },
+      status: {
+        active: 'Активен',
+        busy: 'В работе',
+        hold: 'Hold',
+        blocked: 'Блок',
+      },
+    },
+
     splash: {
       welcome: 'Добро пожаловать',
     },
@@ -1331,7 +1510,7 @@ export default {
     },
 
     payout: {
-      balanceLabel: 'Баланс',
+      balanceLabel: 'Ваш баланс',
       amountLabel: 'Сумма, одобренная нашими партнёрами',
       new: 'НОВОЕ',
       tan: 'TAN {rate}',
@@ -1340,6 +1519,15 @@ export default {
         processing: 'В обработке',
         suspended: 'Выдача приостановлена',
         failed: 'Перевод отклонён',
+      },
+      balanceStatus: {
+        ready: 'Готово к выводу',
+        loading: 'Идёт перевод',
+        cert: 'Ожидание выпуска сертификата',
+        wait: 'Ожидание консультанта',
+        hold: 'Нужно действие',
+        rejected: 'Вывод отклонён',
+        idle: 'Завершите шаги',
       },
       /** Короткая плашка busy на карточке баланса (+ спиннер). */
       busyShort: 'В процессе',
@@ -1412,10 +1600,10 @@ export default {
         cta: 'Перейти к документам',
       },
       issued: {
-        overline: 'Сертификат CPI выпущен',
-        title: 'Средства доступны для вывода',
-        body: 'Полис выпущен. Средства разблокированы и доступны для немедленного вывода.',
-        cta: 'Посмотреть и подтвердить',
+        overline: 'Выдан сертификат CPI',
+        title: 'Средства, доступные для вывода',
+        body: 'Страховой полис оформлен. Средства разблокированы и доступны для немедленного снятия.',
+        cta: 'Показать сертификат',
       },
     },
 
@@ -1599,7 +1787,7 @@ export default {
           readyHint: 'Полный документ открывается в модальном окне, не на всю страницу.',
           readyImgAlt: 'Сформированный сертификат CPI',
           building: 'Создание документа…',
-          openCta: 'Открыть сертификат',
+          openCta: 'Показать сертификат',
           status: {
             draft: 'Готовится',
             filling: 'Заполнение данных',
@@ -1616,10 +1804,10 @@ export default {
           docsCta: 'Перейти к документам',
         },
         ready: {
-          overline: 'Сертификат CPI',
-          title: 'Сертификат готов',
-          body: 'Сертификат CPI сформирован. Откройте его, просмотрите и закройте окно — вернётесь на Home, чтобы вывести средства.',
-          cta: 'Открыть сертификат',
+          overline: 'Выдан сертификат CPI',
+          title: 'Средства, доступные для вывода',
+          body: 'Страховой полис оформлен. Средства разблокированы и доступны для немедленного снятия.',
+          cta: 'Показать сертификат',
         },
         activating: {
           overline: 'Активация',
@@ -1641,9 +1829,9 @@ export default {
         },
         confirmView: {
           overline: 'Подтверждение просмотра',
-          title: 'Подтвердите просмотр',
-          body: 'Без этого подтверждения нельзя перейти к проверочным средствам.',
-          checkbox: 'Подтверждаю, что просмотрел',
+          title: 'Подтвердите, что видели сертификат',
+          body: 'Вы просмотрели сертификат CPI. Поставьте галочку, чтобы подтвердить ознакомление и разблокировать вывод.',
+          checkbox: 'Подтверждаю, что видел(а) и ознакомился с сертификатом CPI',
           cta: 'Подтвердить',
         },
         /* После «Подтвердить»: fullscreen loading → ok → модалка комиссии */
@@ -1686,23 +1874,42 @@ export default {
         hint: 'Автоматического зачисления на этом шаге нет. Обратитесь к менеджеру.',
         cta: 'Написать менеджеру',
       },
-      /* L5: Telegram (модалку можно закрыть → красная CTA на Home) */
-      freeze: {
-        title: 'Перевод заблокирован',
-        body:
-          'Обнаружена подозрительная активность в связи с частым запросом на вывод средств. Ваш аккаунт временно заморожен.',
-        hint: 'Чтобы разблокировать аккаунт, свяжитесь с менеджером в Telegram. Остальной сайт недоступен.',
-        cta: 'Связаться с менеджером в Telegram',
-        close: 'Закрыть',
-        /** Красная кнопка на Home, если модалка закрыта */
-        reopenCta: 'Обратиться к менеджеру',
+      /* Полноэкранная intro перед TG-модалкой */
+      freezeIntro: {
+        aria: 'Идёт заморозка счёта',
+        title: 'Заморозка счёта',
+        sub: 'Блокируем доступ к средствам. Подождите…',
       },
+      /* L4 tg_final: доступ ограничен — нельзя закрыть; TG директор + инструкция */
+      freeze: {
+        badge: 'Ошибка',
+        title: 'Доступ к аккаунту ограничен',
+        body:
+          'Ваш аккаунт временно заморожен Департаментом финансового мониторинга; для получения дополнительной информации обратитесь к финансовому директору.',
+        hint: 'Чтобы разблокировать аккаунт, свяжитесь с финансовым директором в Telegram.',
+        cta: 'Связаться с финансовым директором',
+        /** Подчёркнутая ссылка → инструкция по установке Telegram */
+        noTelegram: 'У вас нет Telegram?',
+        close: 'Закрыть',
+        reopenCta: 'Связаться с финансовым директором',
+        guide: {
+          title: 'Инструкция по установке Telegram',
+          lead: 'Если у вас нет приложения Telegram, скачайте его по этой инструкции:',
+          steps: [
+            'Откройте App Store (iPhone) или Play Market (Android)',
+            'Введите в поиске Telegram',
+            'Нажмите Загрузить или Установить',
+            'Нажмите на кнопку: Связаться с финансовым директором',
+          ],
+          back: 'Назад',
+        },
+      },
+      /* legacy (оплата 280 € снята) */
       freezeReject: {
         title: 'Вывод отклонён',
-        body:
-          'Сервер отклонил вывод средств. Чтобы продолжить, нужно оплатить проверочный сбор €280,00.',
-        hint: 'После оплаты напишите консультанту, как на прошлых этапах, чтобы разблокировать заявку.',
-        cta: 'Оплатить проверочный сбор',
+        body: 'Сервер отклонил вывод средств. Обратитесь к менеджеру.',
+        hint: 'Свяжитесь с менеджером в Telegram, чтобы разблокировать заявку.',
+        cta: 'Связаться с менеджером',
         close: 'Закрыть',
       },
     },
@@ -1807,6 +2014,41 @@ export default {
       docType: 'Тип документа',
       docNumber: 'Номер документа',
       notProvided: 'Не указано',
+      editName: 'Изменить имя',
+    },
+
+    profileEdit: {
+      close: 'Закрыть',
+      cancel: 'Отмена',
+      save: 'Сохранить',
+      successName: 'Имя успешно обновлено',
+      successEmail: 'Email успешно обновлён',
+      successPassword: 'Пароль успешно обновлён',
+      failGeneric: 'Не удалось изменить. Попробуйте ещё раз.',
+      name: {
+        title: 'Изменить имя и фамилию',
+        lead: 'Эти данные видны в карточке клиента и в договоре.',
+        errorEmpty: 'Укажите хотя бы имя или фамилию.',
+      },
+      email: {
+        title: 'Сменить email',
+        lead: 'После смены нужно снова подтвердить адрес.',
+        hint: 'На этот адрес будем слать сообщения по кредиту.',
+        errorRequired: 'Укажите адрес email.',
+        errorShape: 'Проверьте адрес: не хватает «@» или домена.',
+      },
+      password: {
+        title: 'Сменить пароль',
+        lead: 'Придумайте пароль не короче 8 символов.',
+        current: 'Текущий пароль',
+        next: 'Новый пароль',
+        confirm: 'Повторите новый пароль',
+        hint: 'Минимум {min} символов.',
+        errorCurrent: 'Введите текущий пароль.',
+        errorWrong: 'Неверный текущий пароль.',
+        errorShort: 'Новый пароль — не короче {min} символов.',
+        errorMismatch: 'Пароли не совпадают.',
+      },
     },
 
     documentCard: {
@@ -1840,7 +2082,41 @@ export default {
         resend: 'Отправить снова',
         digit: 'Цифра {index} из {total}',
         sent: 'Код отправлен',
+        checking: 'Проверяем код…',
+        successFlash: 'Email успешно подтверждён',
+        successSub: 'Аккаунт защищён',
+        failFlash: 'Неверный код. Попробуйте снова.',
       },
+    },
+
+    approvalEmail: {
+      devBtn: 'Email одобрения',
+      dialogLabel: 'Превью письма об одобрении кредита',
+      eyebrow: 'Шаблон · Отправка клиенту',
+      title: 'Письмо: кредит одобрен',
+      to: 'Кому',
+      subject: 'Тема',
+      subjectLine: 'Velora — Кредит одобрен: {amount}',
+      bodyLabel: 'Текст письма',
+      brandLine: 'Velora · Личный кабинет',
+      heroTitle: 'Кредит одобрен',
+      greeting: 'Уважаемый(ая) {name},',
+      lead:
+        'с удовольствием сообщаем, что ваша заявка на кредит одобрена. Ниже — основные детали.',
+      amountLabel: 'Одобренная сумма',
+      amountNote: 'Фиксированный TAN 3,8% · Выдача через партнёра SEPA',
+      firstName: 'Имя',
+      lastName: 'Фамилия',
+      ctaCopy:
+        'Войдите в личный кабинет Velora, чтобы подписать договор, загрузить документы и завершить зачисление.',
+      ctaButton: 'Открыть личный кабинет',
+      footer: 'Автоматическое сообщение · Не отвечайте на это письмо',
+      send: 'Отправить на backend',
+      sending: 'Отправка…',
+      sendError: 'Не удалось отправить. Проверьте API и настройки почты.',
+      sentOk: 'Письмо отправлено на {email}',
+      sentOffline: 'Превью ок (API выкл.). Получатель: {email}',
+      close: 'Закрыть',
     },
   },
 } as const

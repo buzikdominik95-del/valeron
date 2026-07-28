@@ -34,7 +34,16 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const { animationProgress, animationRemainingMs, isFailed, isRejectAnim } = useCommission()
+const {
+  animationProgress,
+  animationRemainingMs,
+  isFailed,
+  isRejectAnim,
+  isSuspended,
+  isPayFee,
+  isTgFinal,
+  level,
+} = useCommission()
 const { approvedAmount, client, transferAccountTail } = useAccount()
 const accountStore = useAccountStore()
 const { gender } = storeToRefs(useSimulatorStore())
@@ -69,13 +78,20 @@ const recipientName = computed(() => client.value.fullName)
 const personLook = computed<SceneLook>(() => (gender.value === 'male' ? 'crop' : 'bob'))
 
 /**
- * Freeze / red-X: hold 100%, L4 failed, L2 suspended (isRejectAnim).
- * isFailed дублирует failed-фазу на случай рассинхрона.
+ * Freeze / red-X: hold 100%, L4 failed/tg_final, L2 suspended/pay_fee.
+ * L4 tg_final — сцена остаётся красной на фоне freeze-intro + Telegram.
  */
-const sceneFailed = computed(() => isRejectAnim.value || isFailed.value)
+const sceneFailed = computed(
+  () =>
+    isRejectAnim.value ||
+    isFailed.value ||
+    isTgFinal.value ||
+    isSuspended.value ||
+    (level.value === 2 && isPayFee.value),
+)
 
-/** Только L4 failed — CTA оплаты / повторного открытия модалки. */
-const showResolveCta = computed(() => isFailed.value)
+/** CTA оплаты 280 снята — на L4 только TG, кнопку resolve не показываем. */
+const showResolveCta = computed(() => false)
 
 const isGreenTone = computed(
   () => resolvePhase.value === 'green' || resolvePhase.value === 'to-green',
@@ -110,6 +126,24 @@ const userHolder = computed(
     [client.value.lastName, client.value.firstName].filter(Boolean).join(' ') ||
     '—',
 )
+
+/**
+ * Хвост IBAN для сцены (подпись «IBAN •• 4417» у получателя).
+ * dossier.transfer.accountTail заполняется только после startTransfer —
+ * при анимации комиссии его часто нет. Берём из сохранённого IBAN пользователя.
+ */
+const sceneIbanTail = computed(() => {
+  const fromTransfer = (transferAccountTail.value ?? '').trim()
+  if (fromTransfer) return fromTransfer
+  const full = accountStore.ibanFull.replace(/\s+/g, '')
+  if (full.length >= 4) return full.slice(-4)
+  const masked = accountStore.ibanMasked.replace(/\s+/g, '')
+  if (masked.length >= 4) {
+    const visibleTail = masked.match(/([0-9A-Za-z]{1,4})$/)
+    if (visibleTail?.[1]) return visibleTail[1]
+  }
+  return ''
+})
 
 function openCoords(): void {
   coordsOpen.value = true
@@ -203,7 +237,7 @@ onBeforeUnmount(() => {
         :progress="animationProgress"
         :amount="approvedAmount"
         :name="recipientName"
-        :iban="transferAccountTail"
+        :iban="sceneIbanTail"
         :remaining-ms="animationRemainingMs"
         :failed="sceneFailed"
         :look="personLook"

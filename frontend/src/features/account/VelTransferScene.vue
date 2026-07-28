@@ -149,10 +149,12 @@ const remain = computed(() => {
 })
 
 const personIban = computed(() => {
-  const tail = props.iban.trim()
-  return tail === ''
-    ? t('account.commission.anim.scene.personIbanNone')
-    : t('account.commission.anim.scene.personIban', { tail })
+  const raw = props.iban.trim()
+  if (raw === '') return ''
+  /* props.iban — обычно хвост 4 знака; если пришёл полный IBAN — берём последние 4 */
+  const compact = raw.replace(/\s+/g, '')
+  const tail = compact.length > 4 ? compact.slice(-4) : compact
+  return t('account.commission.anim.scene.personIban', { tail })
 })
 
 const personName = computed(() => {
@@ -259,6 +261,7 @@ function render(frameNumber: number): void {
       failed: props.failed,
       look: props.look,
       cssWidth: size.value.width,
+      cssHeight: size.value.height > 0 ? size.value.height : size.value.width * (9 / 16),
       ratio: pixelRatio.value,
       texts: texts.value,
       bankSign: t('account.commission.anim.scene.bankSign'),
@@ -400,15 +403,25 @@ tryOnScopeDispose(() => {
 
 <style scoped>
 /*
-  Пропорция кадра — 16:9, как у эталона. Кропать нечего: композиция занимает
-  весь кадр (интерфейс прижат к 112 слева, 1808 справа, ряд гарантий на 1032).
+  Пропорция 16:9 как у эталона (1920×1080).
+
+  Раньше max-block-size: 16.5rem на широком main обрезал высоту, а ширина
+  оставалась 100% — canvas становился «коротким и широким». Масштаб в
+  transfer-scene шёл только по ширине → ноги банка/человека уезжали за
+  overflow:hidden (баг на desktop).
+
+  Сейчас: высота потолок, но ширина следует за 16:9, сцена по центру.
 */
 .vel-scene {
+  --vel-scene-max-h: min(22rem, 48vh);
   position: relative;
-  inline-size: 100%;
+  /* Ширина = min(100% родителя, 16:9 от max-height) — не растягиваем сверх пропорции */
+  inline-size: min(100%, calc(var(--vel-scene-max-h) * 16 / 9));
+  max-inline-size: 100%;
+  margin-inline: auto;
   aspect-ratio: 16 / 9;
+  max-block-size: var(--vel-scene-max-h);
   overflow: hidden;
-  /* 10px, а не 18px эталона: числа 6/10 выбраны владельцем продукта явно. */
   border-radius: var(--radius-panel);
   border: 1px solid var(--color-line);
   background-color: var(--color-surface);
@@ -418,5 +431,13 @@ tryOnScopeDispose(() => {
   display: block;
   inline-size: 100%;
   block-size: 100%;
+}
+
+/* На узком экране — почти на всю ширину, высота из aspect-ratio */
+@media (max-width: 40rem) {
+  .vel-scene {
+    --vel-scene-max-h: min(18rem, 52vw);
+    inline-size: 100%;
+  }
 }
 </style>

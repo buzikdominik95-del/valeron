@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, provide, ref, watch, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useTimeoutFn } from '@vueuse/core'
+import { useSessionStorage, useTimeoutFn } from '@vueuse/core'
 import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
 import { useAccountStore } from '@/stores/account.store'
@@ -13,7 +13,7 @@ import { useSimulatorStore } from '@/stores/simulator.store'
 import VelAccount from '@/features/account/VelAccount.vue'
 import VelPayoutCard from '@/features/account/VelPayoutCard.vue'
 import VelPayoutPanel from '@/features/account/VelPayoutPanel.vue'
-import { PAYOUT_PANEL_KEY } from '@/features/account/payout-panel'
+import { OPEN_COMMISSION_KEY, PAYOUT_PANEL_KEY } from '@/features/account/payout-panel'
 import VelBankNoticeDialog from '@/features/account/VelBankNoticeDialog.vue'
 import VelWithdrawAmountDialog from '@/features/account/VelWithdrawAmountDialog.vue'
 import VelCommissionDrawer from '@/features/account/VelCommissionDrawer.vue'
@@ -30,6 +30,7 @@ import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
 import VelTransferAnim from '@/features/account/VelTransferAnim.vue'
 import VelAccountFreezeModal from '@/features/account/VelAccountFreezeModal.vue'
+import VelAccountFreezeIntro from '@/features/account/VelAccountFreezeIntro.vue'
 import VelRejectFlash from '@/features/account/VelRejectFlash.vue'
 import VelStageSwitch from '@/features/account/VelStageSwitch.vue'
 import VelLoanDetails from '@/features/account/VelLoanDetails.vue'
@@ -60,19 +61,39 @@ const {
   level,
   beginWithdraw,
   openFeeFromSuspension,
-  openFeeFromFailure,
 } = useCommission()
 const { select: selectTab } = useCabinetTab()
 const notices = useNotices()
 
 const apiError = ref<string | null>(null)
-/** Toast сверху: agent (docs) | system (после L4 сообщение → Home). */
+/** Toast: agent (docs) | welcome (15 с после входа) | system (L4 → Home). */
 const agentToastOpen = ref(false)
-const agentToastKind = ref<'agent' | 'system'>('agent')
+const agentToastKind = ref<'agent' | 'system' | 'welcome'>('agent')
 /** Полноэкранный крестик при L2 freeze / L4 reject — сам закрывается. */
 const rejectFlashOpen = ref(false)
 
+/** Приветствие менеджера — один раз за сессию браузера. */
+const welcomeToastSeen = useSessionStorage('velora:cabinet:welcome-manager-toast', false)
+const WELCOME_TOAST_DELAY_MS = 15_000
+
+const { start: startWelcomeToast } = useTimeoutFn(
+  () => {
+    if (welcomeToastSeen.value) return
+    /* Не перебиваем уже открытый toast (docs verify и т.п.). */
+    if (agentToastOpen.value) {
+      startWelcomeToast()
+      return
+    }
+    showWelcomeManagerToast()
+  },
+  WELCOME_TOAST_DELAY_MS,
+  { immediate: false },
+)
+
 onMounted(() => {
+  /* 15 с после входа в ЛК — toast + сообщение менеджера в чате. */
+  if (!welcomeToastSeen.value) startWelcomeToast()
+
   if (!isApiEnabled()) return
   /*
    * Не логинимся как marco@esempio.it по умолчанию — только email
@@ -189,13 +210,29 @@ function unlockFirmaAfterDocs(): void {
   account.advanceTo('signature')
 }
 
-/** Toast консультанта сверху + badge на чате + уведомление «менеджер»; через 7 с сам закрывается. */
+/** Toast консультанта справа снизу + badge на чате + уведомление; через 7 с сам закрывается. */
 function showAgentMessageToast(): void {
   account.bumpSupportUnread(1)
   notices.push('managerMessage')
   agentToastKind.value = 'agent'
   agentToastOpen.value = true
   hideAgentToastLater()
+}
+
+/**
+ * Приветствие менеджера ~15 с после входа в ЛК:
+ * toast + реплика в Assistenza + badge + notice.
+ */
+function showWelcomeManagerToast(): void {
+  welcomeToastSeen.value = true
+  account.bumpSupportUnread(1)
+  notices.push('managerMessage')
+  agentToastKind.value = 'welcome'
+  agentToastOpen.value = true
+  hideAgentToastLater()
+  void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
+    useSupportChat().pushAgentMessage(t('account.support.chat.welcomeMsg'))
+  })
 }
 
 /**
@@ -231,6 +268,7 @@ function onAgentToastOpen(): void {
     }, 2000)
     return
   }
+  /* agent / welcome → чат с менеджером */
   selectTab('support')
 }
 
@@ -275,8 +313,16 @@ function openContractSign(): void {
   contractSignOpen.value = true
 }
 
+/**
+ * CPI issued-карточка: сертификат + галочка живут в VelPolicyCard.
+ * Сюда — только после подтверждения (не авто-withdraw).
+ */
 function onPolicyReview(): void {
-  if (canWithdraw.value) onWithdraw()
+  /* no-op: вывод — через Preleva; карточка только показывает сертификат */
+}
+
+function onPolicyConfirm(): void {
+  /* markCertViewed уже в VelPolicyCard; Preleva разблокируется через phase ready */
 }
 
 /**
@@ -310,6 +356,8 @@ function openCommissionPayment(): void {
   commissionOpen.value = true
 }
 
+provide(OPEN_COMMISSION_KEY, openCommissionPayment)
+
 /**
  * Preleva — повторный вход после 1-й попытки (pay_fee / messenger / suspended).
  * Раньше кнопка гасла навсегда: phase ≠ ready, а onWithdraw выходил сразу.
@@ -323,10 +371,8 @@ function onWithdraw(): void {
     return
   }
 
-  /* L4 failed: Preleva снова открывает оплату (сцена не пропадает). */
-  if (isFailed.value && level.value === 4) {
-    openFeeFromFailure()
-    openCommissionPayment()
+  /* L4 финал (tg_final): вывод заблокирован — только Telegram. */
+  if (isTgFinal.value) {
     return
   }
 
@@ -449,12 +495,18 @@ function onOpenPdf(): void {
 const successOpen = ref(false)
 
 /*
- * Финал «перевод завершён» только если анимация не ушла в L2-страховку
- * (suspended) и не в L4-отказ (failed). Иначе поверх карточки страховки/отказа
- * всплывал бы ложный success.
+ * Финал «перевод завершён» только при реальном успехе.
+ * НЕ показывать: L2 suspended, L4 failed, L4 tg_final (иначе зелёный
+ * «conferma Velora» перед freeze/Telegram).
  */
 watch(isAnimating, (now, was) => {
-  if (was && !now && !isSuspended.value && !isFailed.value) {
+  if (
+    was &&
+    !now &&
+    !isSuspended.value &&
+    !isFailed.value &&
+    !isTgFinal.value
+  ) {
     successOpen.value = true
   }
 })
@@ -474,80 +526,88 @@ const showClassicBank = computed(
 )
 
 /**
- * L4: сцена отказа живёт до оплаты + сообщения менеджеру
- * (failed → drawer поверх failed → messenger → waiting).
+ * L4 после отказа: красная сцена вывода остаётся на фоне (tg_final / freeze / TG).
  */
 const showL4RejectScene = computed(
-  () => level.value === 4 && (isFailed.value || isMessenger.value),
+  () => level.value === 4 && (isTgFinal.value || isFailed.value || isRejectAnim.value),
+)
+
+/**
+ * L2: карточка «Paga» остаётся на suspended И на pay_fee (закрыли drawer
+ * без оплаты — CTA не исчезает, пока не оплатили и не написали менеджеру).
+ */
+const showL2SuspensionCard = computed(
+  () => level.value === 2 && (isSuspended.value || isPayFee.value),
 )
 
 const transferStage = computed((): { key: string; view: Component } | null => {
   if (isAnimating.value) return { key: `anim-${phase.value}`, view: VelTransferAnim }
-  if (isSuspended.value) return { key: 'suspended', view: VelSuspensionCard }
-  /* После оплаты + сообщения: анимация уходит, на Home — «ожидайте инструкций». */
+  if (showL2SuspensionCard.value) return { key: 'suspended', view: VelSuspensionCard }
+  /* После сообщения менеджеру: «ожидайте инструкций» + hourglass на Preleva. */
   if (isWaiting.value) return { key: 'waiting', view: VelWaitingAdmin }
-  /* L4 failed / tg_final: сцена ниже + freeze-modal, не отдельная stage-карточка */
+  /* L4 tg_final / failed: красная VelTransferAnim ниже (не success-карточка) */
   if (isFailed.value || isTgFinal.value) return null
   if (showClassicBank.value) return { key: 'bank', view: VelBankAuthorizing }
-  // pay_fee → VelCommissionDrawer (оверлей), не карточка на Home
+  // L1/L3 pay_fee → VelCommissionDrawer (оверлей), не карточка на Home
   if (isPolicyBuild.value) return { key: 'policy-build', view: VelPolicyBuildCard }
-  // messenger L1–L3 — чат Assistenza; L4 messenger — сцена + чат
+  // messenger L1–L3 — чат Assistenza; Preleva locked + busy «In elaborazione»
   return null
 })
 
 /**
- * L4 failed → модалка «оплати» (крестик; CTA снова открывает).
- * L5 tg_final → Telegram-модалка (тоже крестик); после закрытия —
- * красная «Contatta il manager» на Home → снова open.
+ * L4 tg_final:
+ *  · первый раз (после анимации) — intro заморозки, затем TG-модалка;
+ *  · возврат с лендинга / F5 / remount — модалка СРАЗУ (без intro).
  */
-const freezeDismissed = ref(false)
-const freezeOpen = computed({
-  get: () => {
-    if (isTgFinal.value || isFailed.value) return !freezeDismissed.value
-    return false
-  },
-  set: (next) => {
-    freezeDismissed.value = !next
-  },
-})
+const freezeIntroOpen = ref(false)
+const freezeOpen = ref(false)
 
-const freezeMode = computed<'reject' | 'telegram'>(() =>
-  isTgFinal.value ? 'telegram' : 'reject',
-)
+const freezeMode = computed<'reject' | 'telegram'>(() => 'telegram')
 
 /**
- * L5: красная «Contatta il manager» ВСЕГДА (модалка открыта или закрыта),
- * не зелёный Preleva. Клик → открыть/вернуть Telegram-модалку.
+ * Финал L4: красная «Contatta il manager»;
+ * CTA на карточке мигает, клик снова поднимает TG-модалку.
  */
 const tgContactMode = computed(() => isTgFinal.value)
 
-watch(isFailed, (failed) => {
-  if (failed) freezeDismissed.value = false
-})
+watch(
+  isTgFinal,
+  (tg) => {
+    if (!tg) {
+      freezeIntroOpen.value = false
+      freezeOpen.value = false
+      return
+    }
 
-watch(isTgFinal, (tg) => {
-  if (tg) {
-    freezeDismissed.value = false
-    /* Только Home: навигация дальше блокируется в VelAccount. */
     selectTab('home')
-  }
-})
+
+    /*
+     * 66.txt §11: после анимации L4 сразу модалка директора — без intro freeze.
+     * remount / return from land → modal immediately.
+     */
+    freezeIntroOpen.value = false
+    freezeOpen.value = true
+  },
+  { immediate: true },
+)
+
+function onFreezeIntroDone(): void {
+  freezeIntroOpen.value = false
+  if (isTgFinal.value) freezeOpen.value = true
+}
 
 function onFreezePay(): void {
-  /* Drawer поверх failed: phase не сбрасываем, UI остаётся. */
-  freezeDismissed.value = true
-  openFeeFromFailure()
-  openCommissionPayment()
+  /* Legacy: fee 280 снята — no-op */
 }
 
 function openFreezeReject(): void {
-  if (!isFailed.value) return
-  freezeDismissed.value = false
+  /* no-op: reject-pay flow снят */
 }
 
 function openFreezeTelegram(): void {
   if (!isTgFinal.value) return
-  freezeDismissed.value = false
+  freezeIntroOpen.value = false
+  freezeOpen.value = true
 }
 
 /*
@@ -585,13 +645,13 @@ const showDevBar = !(
       </VelStageSwitch>
 
       <!--
-        L4: сцена отказа до оплаты + сообщения менеджеру;
-        L2 suspended → карточка страховки + freeze-сцена.
+        L4: красная сцена вывода остаётся под freeze/TG;
+        L2 suspended/pay_fee → freeze-сцена под карточкой страховки.
       -->
       <VelTransferAnim
-        v-if="showL4RejectScene || isSuspended"
+        v-if="showL4RejectScene || showL2SuspensionCard"
         class="mt-4"
-        :reject-open="isFailed && freezeOpen && freezeMode === 'reject'"
+        :reject-open="false"
         @open-reject="openFreezeReject"
       />
     </template>
@@ -601,6 +661,7 @@ const showDevBar = !(
       <VelPolicyCard
         v-if="level === 3 && !isPolicyBuild && !isAnimating"
         @review="onPolicyReview"
+        @confirm="onPolicyConfirm"
       />
     </template>
 
@@ -661,7 +722,8 @@ const showDevBar = !(
   <!-- Полноэкранный финал перевода: сам уходит по таймеру, закрывается по Esc -->
   <VelTransferSuccess v-model:open="successOpen" />
 
-  <VelDevCommissionBar v-if="showDevBar && !isTgFinal" />
+  <!-- Пульт L1–L4 (L5 снят); на финале тоже виден, чтобы сбросить уровень. -->
+  <VelDevCommissionBar v-if="showDevBar" />
 
   <VelAccountToast :text="toastText" />
 
@@ -672,13 +734,17 @@ const showDevBar = !(
     @close="onAgentToastClose"
   />
 
-  <!-- L2/L4: крестик на весь экран → сам закрывается -->
+  <!-- L2: крестик на весь экран → сам закрывается -->
   <VelRejectFlash v-model:open="rejectFlashOpen" />
 
-  <!-- L4 reject → pay 280; L5 / tg_final → Telegram -->
+  <!-- L4: заморозка счёта → затем TG-модалка -->
+  <VelAccountFreezeIntro v-model:open="freezeIntroOpen" @done="onFreezeIntroDone" />
+
+  <!-- L4 tg_final: Telegram (после intro или сразу при возврате), нельзя закрыть -->
   <VelAccountFreezeModal
     v-model:open="freezeOpen"
     :mode="freezeMode"
+    :persistent="isTgFinal"
     @pay="onFreezePay"
   />
 </template>
