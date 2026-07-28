@@ -160,8 +160,8 @@ function createCommission(): CommissionApi {
       }
       pause()
       rejectHold.value = false
-      /* L2 suspended / L4 tg_final: freeze на 100% — сцена при возврате на Home. */
-      if (p === 'failed' || p === 'suspended' || p === 'tg_final') {
+      /* L2 suspended/pay_fee / L4 tg_final: freeze на 100% — не откатывать в «успех». */
+      if (p === 'failed' || p === 'suspended' || p === 'tg_final' || p === 'pay_fee') {
         pinRejectProgress()
       }
     },
