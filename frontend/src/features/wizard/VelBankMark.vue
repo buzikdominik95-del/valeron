@@ -131,20 +131,21 @@ const logoSrc = computed(() => bankLogoFile(props.name))
   стояли одинаковыми фигурами; заливка даёт PNG фон и глушит кольцо изнутри.
 */
 /*
-  Логотипы — квадратные 64×64 тайлы. Без padding: inset сжимал широкий
-  wordmark (HSBC/Santander) до «палочки». contain + cover-safe: иконка
-  заполняет знак без растяжения.
+  Логотипы — и квадратные знаки (DB, ING…), и широкие wordmark (HSBC, SG…).
+  contain + небольшой inset: wordmark не обрезается cover’ом и не
+  растягивается; фон surface гасит кольцо изнутри.
 */
 .vel-mark__logo {
   z-index: 1;
   inline-size: 100%;
   block-size: 100%;
-  padding: 0;
+  padding: var(--vel-mark-inset, 0.2rem);
   border-radius: var(--vel-mark-radius);
   clip-path: var(--vel-mark-clip);
   background-color: var(--color-surface);
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
+  box-sizing: border-box;
 }
 
 /*
