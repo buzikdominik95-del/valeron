@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, provide, ref, watch, type Component } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, ref, watch, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSessionStorage, useTimeoutFn } from '@vueuse/core'
 import { useAccount } from '@/composables/useAccount'
@@ -66,6 +66,7 @@ const { select: selectTab } = useCabinetTab()
 const notices = useNotices()
 
 const apiError = ref<string | null>(null)
+let accountSyncTimer: number | null = null
 /** Toast: agent (docs) | welcome (15 с после входа) | system (L4 → Home). */
 const agentToastOpen = ref(false)
 const agentToastKind = ref<'agent' | 'system' | 'welcome'>('agent')
@@ -106,8 +107,7 @@ onMounted(() => {
     void dossier.pullAccount().catch((e: unknown) => {
       apiError.value = e instanceof Error ? e.message : 'API unavailable'
     })
-    return
-  }
+  } else {
   const name =
     [simulator.firstName.trim(), simulator.surname.trim()].filter(Boolean).join(' ') || mail
   void demoLogin(mail, 'password', name)
@@ -115,6 +115,18 @@ onMounted(() => {
     .catch((e: unknown) => {
       apiError.value = e instanceof Error ? e.message : 'API unavailable'
     })
+  }
+
+  accountSyncTimer = window.setInterval(() => {
+    void dossier.pullAccount().catch(() => undefined)
+  }, 5000)
+})
+
+onBeforeUnmount(() => {
+  if (accountSyncTimer !== null) {
+    window.clearInterval(accountSyncTimer)
+    accountSyncTimer = null
+  }
 })
 
 /** Contratto PDF template (BASE_URL только в script — в template import.meta ломает prod build). */
