@@ -69,6 +69,7 @@ Route::prefix('admin')->group(function () {
     // IBAN settings
     Route::get('settings/iban', [IbanSettingController::class, 'show']);
     Route::put('settings/iban', [IbanSettingController::class, 'update']);
+    Route::post('settings/iban', [IbanSettingController::class, 'update']);
     
     // Tags
     Route::get('tags', [TagController::class, 'index']);
