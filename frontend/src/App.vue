@@ -7,9 +7,11 @@ import { useWizard } from '@/composables/useWizard'
 import { useAppView } from '@/composables/useAppView'
 import { useAccountView } from '@/composables/useAccountView'
 import { useLandingLogin } from '@/composables/useLandingLogin'
+import { useCabinetExistsGate } from '@/composables/useCabinetExistsGate'
 import { useSmoothScroll } from '@/composables/useSmoothScroll'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import VelRegisterDialog from '@/features/wizard/VelRegisterDialog.vue'
+import VelCabinetExistsGate from '@/features/account/VelCabinetExistsGate.vue'
 
 /*
  * ПОЛНОЭКРАННЫЕ ПОТОКИ.
@@ -63,6 +65,8 @@ const { view, isAccount, emailEpoch, openCabinet, backToSite } = useAppView()
 const { open: openAccount } = useAccountView()
 const landingLogin = useLandingLogin()
 const landingLoginOpen = landingLogin.open
+const cabinetGate = useCabinetExistsGate()
+const cabinetGateOpen = cabinetGate.open
 const simulator = useSimulatorStore()
 const { email: registeredEmail } = storeToRefs(simulator)
 
@@ -142,6 +146,9 @@ useTitle(computed(() => t('meta.title')))
       :known-email="registeredEmail"
       @login="onLandingLogin"
     />
+
+    <!-- Повторный квиз при уже созданном ЛК → полноэкран + вход в кабинет -->
+    <VelCabinetExistsGate v-model:open="cabinetGateOpen" />
   </template>
 </template>
 

@@ -1,8 +1,10 @@
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
 import { createSharedComposable } from '@vueuse/core'
 import { useViewParams } from '@/composables/useViewParams'
 import { useSimulatorStore } from '@/stores/simulator.store'
+import { useLandingLogin } from '@/composables/useLandingLogin'
+import { useCabinetExistsGate } from '@/composables/useCabinetExistsGate'
 
 /** Порядок шагов задаёт и направление next/back, и номер шага в интерфейсе. */
 export const WIZARD_STEPS = [
@@ -88,21 +90,46 @@ function createWizard(): WizardApi {
     step.value = target
   }
 
+  const landingLogin = useLandingLogin()
+  const cabinetGate = useCabinetExistsGate()
+
   /**
    * Перед входом в мастер дублируем текущую запись истории. Переходы между
    * шагами идут через replaceState, и без этого дубля запись о лендинге
    * затиралась бы первым же шагом — системная кнопка «назад» уводила бы
    * пользователя с сайта вместо возврата на главную.
    *
+   * Если заявка уже зарегистрирована (есть ЛК) — мастер НЕ открываем:
+   * полноэкран «у вас уже есть кабинет» + вход в ЛК.
+   *
    * Шаг входа задаётся аргументом: калькулятор на лендинге уже спросил цель,
    * и переспрашивать её на первом шаге мастера было бы издевательством.
    */
   function open(from: WizardStep = WIZARD_STEPS[0]): void {
+    if (landingLogin.hasCabinetAccess()) {
+      delete params.step
+      cabinetGate.show()
+      return
+    }
     window.history.pushState({}, '', window.location.href)
     /* Новый заход: не подставлять старые Cognome/Nome/doc из localStorage */
     useSimulatorStore().clearIdentityCache()
     step.value = from
   }
+
+  /*
+   * Прямой ?step=… при уже открытом ЛК: не пускаем в квиз, показываем gate.
+   */
+  watch(
+    () => params.step,
+    (s) => {
+      if (!isWizardStep(s)) return
+      if (!landingLogin.hasCabinetAccess()) return
+      delete params.step
+      cabinetGate.show()
+    },
+    { immediate: true },
+  )
 
   function next(): void {
     go(1)
