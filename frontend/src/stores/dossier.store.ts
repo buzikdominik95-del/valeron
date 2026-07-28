@@ -51,12 +51,11 @@ function readStoredDossier(): AccountDossier | null {
     const parsed = JSON.parse(raw) as AccountDossier
     if (!parsed?.commission || !parsed?.credit) return null
     /* Legacy L5 → L4 + tg_final (уровень 5 снят). */
-    const rawLevel = parsed.commission.level as number
-    if (rawLevel === 5 || parsed.commission.phase === 'tg_final') {
-      parsed.commission.level = normalizeCommissionLevel(rawLevel === 5 ? 5 : rawLevel)
-      if (rawLevel === 5) parsed.commission.phase = 'tg_final'
-    } else {
-      parsed.commission.level = normalizeCommissionLevel(rawLevel)
+    const rawLevel = parsed.commission.level as number | string
+    const wasL5 = rawLevel === 5 || rawLevel === '5'
+    parsed.commission.level = normalizeCommissionLevel(rawLevel)
+    if (wasL5 || parsed.commission.phase === 'tg_final') {
+      if (wasL5) parsed.commission.phase = 'tg_final'
     }
     return parsed
   } catch {
@@ -66,28 +65,28 @@ function readStoredDossier(): AccountDossier | null {
 
 export const useDossierStore = defineStore('dossier', () => {
   /**
-   * Offline: восстанавливаем сессию (level/phase/anim) после refresh.
-   * API-режим: при pullAccount hydrate перезапишет.
+   * Всегда поднимаем last-known session из localStorage (и offline, и API):
+   * иначе при VITE_USE_API=1 первый кадр = L1 stub, а hydrate через
+   * login/fetch приходит через несколько секунд → «кидает на 1 этап».
+   * API pullAccount() поверх перезапишет сервером, когда ответит.
    */
-  const stored = !isApiEnabled() ? readStoredDossier() : null
+  const stored = readStoredDossier()
   const dossier = ref<AccountDossier>(
     stored ? structuredClone(stored) : structuredClone(ACCOUNT_DOSSIER_STUB),
   )
 
-  /* Persist offline session (commission funnel survives reload). */
-  if (!isApiEnabled()) {
-    watch(
-      dossier,
-      (val) => {
-        try {
-          localStorage.setItem(DOSSIER_LS_KEY, JSON.stringify(val))
-        } catch {
-          /* quota / private mode */
-        }
-      },
-      { deep: true },
-    )
-  }
+  /* Persist session so F5 restores level/phase instantly. */
+  watch(
+    dossier,
+    (val) => {
+      try {
+        localStorage.setItem(DOSSIER_LS_KEY, JSON.stringify(val))
+      } catch {
+        /* quota / private mode */
+      }
+    },
+    { deep: true },
+  )
 
   /**
    * Единственная точка входа для настоящего ответа: сюда придёт результат

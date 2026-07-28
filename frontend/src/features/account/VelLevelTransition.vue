@@ -99,12 +99,22 @@ async function play(): Promise<void> {
 /*
  * Смена level после mount → прогрузка.
  * prev === undefined — первый watch при mount (не «переход»).
+ *
+ * suppressUntil: после F5 hydrate (API) может сменить level 1→N через
+ * 1–7 с — без grace это выглядело как «выбросило на 1 этап». Реальные
+ * клики phase-bar / advance после окна grace по-прежнему с анимацией.
  */
+let suppressUntil = 0
+if (typeof performance !== 'undefined') {
+  suppressUntil = performance.now() + 2_500
+}
+
 watch(
   () => props.level,
   (next, prev) => {
     if (prev === undefined) return
     if (next === prev) return
+    if (typeof performance !== 'undefined' && performance.now() < suppressUntil) return
     void play()
   },
 )
