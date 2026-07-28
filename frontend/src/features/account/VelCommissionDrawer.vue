@@ -120,28 +120,33 @@ const showBack = computed(() => step.value > 1 || !hasIban.value)
     :aria-labelledby="titleId"
   >
     <form class="vel-cdraw__form" @submit.prevent>
-      <header class="flex items-start justify-between gap-3">
-        <div class="flex min-w-0 items-start gap-2">
-          <!-- Аккуратная кнопка назад (фотка 11) -->
-          <button
-            v-if="showBack"
-            type="button"
-            class="vel-cdraw__back"
-            :aria-label="t('account.commissionDrawer.back')"
-            @click="goBack"
-          >
-            <svg class="vel-cdraw__back-ico" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M15 6 9 12l6 6" />
-            </svg>
-          </button>
-          <div class="min-w-0">
-            <p class="vel-label m-0">{{ t('account.commissionDrawer.overlinePlain') }}</p>
-            <h2 :id="titleId" class="m-0 text-xl font-semibold text-fg">{{ stepTitle }}</h2>
-          </div>
+      <!--
+        Шапка: назад и × — одинаковый hit-box 2.75rem, без обводки,
+        в одной линии (items-center) на всех 3 шагах.
+      -->
+      <header class="vel-cdraw__head">
+        <button
+          v-if="showBack"
+          type="button"
+          class="vel-cdraw__icon-btn vel-cdraw__back"
+          :aria-label="t('account.commissionDrawer.back')"
+          @click="goBack"
+        >
+          <svg class="vel-cdraw__back-ico" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15 6 9 12l6 6" />
+          </svg>
+        </button>
+        <!-- Спейсер, если назад скрыт — × остаётся справа на том же уровне -->
+        <span v-else class="vel-cdraw__icon-btn vel-cdraw__icon-btn--ghost" aria-hidden="true" />
+
+        <div class="vel-cdraw__titles min-w-0">
+          <p class="vel-label m-0">{{ t('account.commissionDrawer.overlinePlain') }}</p>
+          <h2 :id="titleId" class="vel-cdraw__title m-0">{{ stepTitle }}</h2>
         </div>
+
         <button
           type="button"
-          class="vel-cdraw__x"
+          class="vel-cdraw__icon-btn vel-cdraw__x"
           :aria-label="t('account.commissionDrawer.close')"
           @click="onDismiss"
         >
@@ -240,69 +245,84 @@ const showBack = computed(() => step.value > 1 || !hasIban.value)
   min-block-size: 1px;
 }
 
-/* Назад: круглая мягкая стрелка без тяжёлой рамки */
-.vel-cdraw__back {
-  display: inline-flex;
-  flex: 0 0 auto;
+/* Сетка шапки: [назад 2.75] | title | [× 2.75] — одна линия, все шаги */
+.vel-cdraw__head {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
   align-items: center;
+  column-gap: 0.35rem;
+  min-block-size: 2.75rem;
+}
+
+.vel-cdraw__titles {
+  display: flex;
+  flex-direction: column;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  margin-block-start: 0.1rem;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-round);
-  background: var(--color-raised);
-  color: var(--color-accent-deep);
-  cursor: pointer;
-  transition:
-    background-color 150ms ease,
-    color 150ms ease,
-    transform 150ms ease;
+  gap: 0.1rem;
+  text-align: center;
+  padding-inline: 0.15rem;
 }
 
-.vel-cdraw__back:hover {
-  background: color-mix(in oklab, var(--color-accent) 14%, var(--color-raised));
-  color: var(--color-accent);
+.vel-cdraw__title {
+  color: var(--color-fg);
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
-.vel-cdraw__back:active {
-  transform: translateX(-1px);
-}
-
-.vel-cdraw__back-ico {
-  width: 1.15rem;
-  height: 1.15rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-/* Крестик без обводки — только иконка */
-.vel-cdraw__x {
+/* Общий hit-box для ← и ×: без border/outline/круга, pixel-match */
+.vel-cdraw__icon-btn {
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: 2.75rem;
   height: 2.75rem;
-  border: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
   border-radius: var(--radius-round);
   background: transparent;
+  box-shadow: none;
   color: var(--color-muted);
-  font-size: 1.45rem;
-  line-height: 1;
   cursor: pointer;
   transition:
-    color 150ms ease,
-    background-color 150ms ease;
+    color 140ms ease,
+    background-color 140ms ease;
 }
 
-.vel-cdraw__x:hover {
+.vel-cdraw__icon-btn:hover {
   background: var(--color-raised);
   color: var(--color-fg);
+}
+
+.vel-cdraw__icon-btn:focus,
+.vel-cdraw__icon-btn:focus-visible {
+  outline: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.vel-cdraw__icon-btn--ghost {
+  visibility: hidden;
+  pointer-events: none;
+  cursor: default;
+}
+
+.vel-cdraw__back-ico {
+  width: 1.2rem;
+  height: 1.2rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.vel-cdraw__x {
+  font-size: 1.4rem;
+  line-height: 1;
 }
 
 .vel-cdraw__seg {
