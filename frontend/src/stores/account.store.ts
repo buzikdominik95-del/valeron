@@ -4,6 +4,7 @@ import { useLocalStorage } from '@vueuse/core'
 import { formatIbanGroups, maskIban } from '@/lib/iban'
 import {
   COMMISSION_FEE_BY_LEVEL,
+  commissionAddsToLoanBalance,
   type CommissionFeeReason,
   type CommissionLevel,
   isCommissionLevel,
@@ -369,12 +370,13 @@ export const useAccountStore = defineStore('account', () => {
   }
 
   /**
-   * Записать оплату комиссии этапа (один раз на level).
+   * Записать оплату комиссии этапа (один раз на level) — только если она
+   * идёт в баланс/Prestito (L2…L4). L1 base в список не пишем.
    * Вызывается после confirmFeePaid и при admin advance уровней.
    */
   function recordPaidCommission(level: number, paidAt = new Date()): void {
     if (!isCommissionLevel(level)) return
-    if (level === 5) return
+    if (!commissionAddsToLoanBalance(level)) return
     if (paidCommissionExpenses.value.some((e) => e.level === level)) return
     const fee = COMMISSION_FEE_BY_LEVEL[level]
     if (fee.amountCents <= 0) return
@@ -390,11 +392,17 @@ export const useAccountStore = defineStore('account', () => {
     ]
   }
 
-  /** Все комиссии уровней &lt; targetLevel считаются оплаченными (admin / advance). */
+  /** Все комиссии уровней &lt; targetLevel, которые идут в баланс (admin / advance). */
   function recordPaidCommissionsUpTo(targetLevel: number): void {
     const cap = Math.min(targetLevel, 5)
     for (let lv = 1; lv < cap; lv++) {
       recordPaidCommission(lv)
+    }
+    /* Старые сессии могли сохранить L1 37 € — вычищаем из списка трат. */
+    if (paidCommissionExpenses.value.some((e) => !commissionAddsToLoanBalance(e.level))) {
+      paidCommissionExpenses.value = paidCommissionExpenses.value.filter((e) =>
+        commissionAddsToLoanBalance(e.level),
+      )
     }
   }
 

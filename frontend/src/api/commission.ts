@@ -61,6 +61,16 @@ export const COMMISSION_FEE_BY_LEVEL: Record<CommissionLevel, CommissionFee> = {
   5: { amountCents: 0, reason: 'release' },
 }
 
+/**
+ * Комиссии, которые увеличивают Saldo / тело Prestito / строки графика.
+ * L1 (37 € base) — только «оплата доступа», к кредиту и счёту НЕ идёт.
+ * L2 insurance + L3 AML — да; L4 release — тоже (после fail-анимации).
+ * L5 — суммы нет.
+ */
+export function commissionAddsToLoanBalance(level: number): boolean {
+  return level === 2 || level === 3 || level === 4
+}
+
 export const COMMISSION_ANIMATION_MS: Record<CommissionLevel, number> = {
   1: 0,
   2: 7 * 60 * 1000,
