@@ -272,6 +272,17 @@ function createSupportChat(): SupportChat {
       useNotices().push('supportSent')
     })
 
+    /*
+     * Offline-first: сообщение в ленту + waiting сразу.
+     * API (если жив) — fire-and-forget; воронка L2 не ждёт бэкенд.
+     */
+    pushClientMessage(body, funnel && isApiEnabled() ? 'sent' : 'local')
+    draft.value = ''
+    if (funnel) advanceFunnel()
+    sending.value = false
+    account.clearSupportUnread()
+    void scrollToEnd()
+
     if (funnel && isApiEnabled()) {
       void submitSupportMessage({
         body,
@@ -279,31 +290,8 @@ function createSupportChat(): SupportChat {
         level: level.value,
       })
         .then(() => dossier.pullAccount())
-        .then(() => {
-          pushClientMessage(body, 'sent')
-          draft.value = ''
-          sending.value = false
-          account.clearSupportUnread()
-          void scrollToEnd()
-        })
-        .catch(() => {
-          pushClientMessage(body, 'local')
-          draft.value = ''
-          sending.value = false
-          advanceFunnel()
-          account.clearSupportUnread()
-          void scrollToEnd()
-        })
-      return
+        .catch(() => undefined)
     }
-
-    // Offline / обычный чат: сообщение в ленту сразу.
-    pushClientMessage(body, 'local')
-    draft.value = ''
-    if (funnel) advanceFunnel()
-    sending.value = false
-    account.clearSupportUnread()
-    void scrollToEnd()
   }
 
   return {

@@ -368,6 +368,12 @@ function openCommissionPayment(): void {
 
 provide(OPEN_COMMISSION_KEY, openCommissionPayment)
 
+/*
+ * «Trasferimento completato» — только реальный успех (не L2/L4).
+ * Объявлен здесь: openL2CommissionAuto / watch'и гасят его до template.
+ */
+const successOpen = ref(false)
+
 /**
  * Preleva — повторный вход после 1-й попытки (pay_fee / messenger / suspended).
  * Раньше кнопка гасла навсегда: phase ≠ ready, а onWithdraw выходил сразу.
@@ -482,8 +488,21 @@ function onBankNoticeContinue(): void {
 }
 
 /**
- * L2 шаг 7: «Оплатил» в drawer → messenger + Assistenza + заготовка.
- * (confirmFeePaid уже вызван в drawer.)
+ * L2: после отказа анимации — drawer оплаты САМ (без клика «Paga…»).
+ * Карточка suspended остаётся как fallback, если drawer закрыли.
+ */
+function openL2CommissionAuto(): void {
+  if (Number(level.value) !== 2) return
+  if (!isSuspended.value && !isPayFee.value) return
+  selectTab('home')
+  successOpen.value = false
+  if (isSuspended.value) openFeeFromSuspension()
+  openCommissionPayment()
+}
+
+/**
+ * L2 шаг 7: «Conferma pagamento» → messenger + Assistenza + заготовка.
+ * (confirmFeePaid / markFeePaidOffline уже в drawer — phase = messenger.)
  */
 function onCommissionConfirmed(): void {
   commissionOpen.value = false
@@ -498,32 +517,35 @@ function onCommissionConfirmed(): void {
 }
 
 /**
- * Комиссия в pay_fee → drawer.
- * L2: после timer → suspended → (ниже) auto pay_fee + drawer.
+ * pay_fee → drawer. Не закрываем drawer при уходе с pay_fee, если
+ * пользователь просто dismiss — закрытие только в onCommissionConfirmed /
+ * messenger watch (иначе гонка с auto-open).
  */
 watch(isPayFee, (on) => {
-  if (!on) {
-    commissionOpen.value = false
-    return
-  }
+  if (!on) return
   openCommissionPayment()
 })
 
 /**
- * L2 после 7‑мин таймера: suspended → через ~1.5 с (reject flash)
- * автоматически модалка/drawer оплаты комиссии.
+ * L2 после 7‑мин таймера: suspended → reject flash → auto drawer комиссии.
+ * Два триггера: (1) вход в suspended, (2) закрытие reject flash — чтобы
+ * модалка точно вылезла без клика «Paga la copertura».
  */
 watch(isSuspended, (on, was) => {
   if (!(on && was === false)) return
   if (Number(level.value) !== 2) return
   selectTab('home')
   successOpen.value = false
-  window.setTimeout(() => {
-    if (Number(level.value) !== 2) return
-    if (!isSuspended.value && !isPayFee.value) return
-    openFeeFromSuspension()
-    openCommissionPayment()
-  }, 1_600)
+  /* ~reject flash 1.4s + кадр — drawer поверх карточки */
+  window.setTimeout(() => openL2CommissionAuto(), 1_650)
+})
+
+watch(rejectFlashOpen, (open, wasOpen) => {
+  if (open || wasOpen !== true) return
+  if (Number(level.value) !== 2) return
+  if (!isSuspended.value && !isPayFee.value) return
+  /* Flash ушёл — сразу оплата, без клика по красной кнопке */
+  openL2CommissionAuto()
 })
 
 /** После оплаты → Assistenza + заготовка (L1…L4). */
@@ -567,13 +589,9 @@ function onOpenPdf(): void {
  *
  * Окно живёт ЗДЕСЬ, а не внутри VelTransferAnim: как только фаза сменилась,
  * тот экран размонтируется, и финал ушёл бы вместе с ним, не успев показаться.
- */
-const successOpen = ref(false)
-
-/*
- * «Trasferimento completato» — только если перевод реально успешен.
+ *
  * L2 / L4 всегда кончаются отказом (таймер → suspended / tg_final):
- * зелёный success здесь = баг (мигал после canvas/таймера и сбрасывал UX).
+ * зелёный success здесь = баг.
  */
 watch(isAnimating, (now, was) => {
   if (!was || now) return

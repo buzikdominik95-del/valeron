@@ -209,46 +209,62 @@ export const useDossierStore = defineStore('dossier', () => {
     return true
   }
 
-  /** Оплата комиссии подтверждена. */
+  /**
+   * Оплата комиссии подтверждена.
+   * СНАЧАЛА offline (L2: pay_fee → messenger), иначе при VITE_USE_API=1
+   * «Conferma pagamento» зависала на pay_fee и чат/waiting не открывались.
+   * API — fire-and-forget, воронка клиента не ждёт бэкенд.
+   */
   function markFeePaid(): void {
-    const level = dossier.value.commission.level
+    const level = normalizeCommissionLevel(dossier.value.commission.level)
+    dossier.value.commission.level = level
     /* Трата в Prestito + точка на кнопке, пока не открыли детали. */
     useAccountStore().recordPaidCommission(level)
 
-    if (isApiEnabled()) {
-      void submitCommissionPaid(level)
-        .then((commission) => {
-          dossier.value.commission = commission
+    /* Клиентская воронка: messenger сразу (без API). */
+    markFeePaidOffline(dossier.value)
+
+    if (!isApiEnabled()) return
+
+    void submitCommissionPaid(level)
+      .then((commission) => {
+        /* Не откатывать messenger/waiting, если сервер отстаёт. */
+        if (
+          dossier.value.commission.phase === 'messenger' ||
+          dossier.value.commission.phase === 'waiting'
+        ) {
           if (level === 3 && commission.phase === 'messenger') {
             dossier.value.policy.status = 'issued'
             dossier.value.policy.etaMinutes = 0
           }
-        })
-        .catch(() => undefined)
-      return
-    }
-
-    markFeePaidOffline(dossier.value)
+          return
+        }
+        dossier.value.commission = commission
+        if (level === 3 && commission.phase === 'messenger') {
+          dossier.value.policy.status = 'issued'
+          dossier.value.policy.etaMinutes = 0
+        }
+      })
+      .catch(() => undefined)
   }
 
   /**
    * Сообщение менеджеру отправлено → waiting.
+   * Offline-first: waiting сразу; API опционален.
    * Финал Telegram — phase tg_final после отказной анимации L4 (не после чата).
    */
   function markMessageSent(): void {
-    if (isApiEnabled()) {
-      void submitSupportMessage({
-        body: 'Commission receipt confirmed',
-        kind: 'commission',
-        level: dossier.value.commission.level,
-      })
-        .then(() => pullAccount())
-        .catch(() => {
-          dossier.value.commission.phase = 'waiting'
-        })
-      return
-    }
     dossier.value.commission.phase = 'waiting'
+
+    if (!isApiEnabled()) return
+
+    void submitSupportMessage({
+      body: 'Commission receipt confirmed',
+      kind: 'commission',
+      level: dossier.value.commission.level,
+    })
+      .then(() => pullAccount())
+      .catch(() => undefined)
   }
 
   /**
