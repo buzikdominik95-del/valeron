@@ -538,21 +538,31 @@ function onOpenPdf(): void {
 const successOpen = ref(false)
 
 /*
- * Финал «перевод завершён» только при реальном успехе.
- * НЕ показывать: L2 suspended, L4 failed, L4 tg_final (иначе зелёный
- * «conferma Velora» перед freeze/Telegram).
+ * «Trasferimento completato» — только если перевод реально успешен.
+ * L2 / L4 всегда кончаются отказом (таймер → suspended / tg_final):
+ * зелёный success здесь = баг (мигал после canvas/таймера и сбрасывал UX).
  */
 watch(isAnimating, (now, was) => {
-  if (
-    was &&
-    !now &&
-    !isSuspended.value &&
-    !isFailed.value &&
-    !isTgFinal.value
-  ) {
-    successOpen.value = true
+  if (!was || now) return
+  /* L2/L4: никогда success — только отказ по таймеру */
+  if (level.value === 2 || level.value === 4) {
+    successOpen.value = false
+    return
   }
+  if (isSuspended.value || isFailed.value || isTgFinal.value || isRejectAnim.value) {
+    successOpen.value = false
+    return
+  }
+  successOpen.value = true
 })
+
+/* Если phase уже reject — гасим success, даже если успел открыться */
+watch(
+  () => isSuspended.value || isFailed.value || isTgFinal.value || isRejectAnim.value,
+  (reject) => {
+    if (reject) successOpen.value = false
+  },
+)
 
 /*
  * Конец анимации L2/L4: полноэкранный крестик «вылетает» и через ~1.4 с уходит.
