@@ -487,7 +487,6 @@ function onCommissionConfirmed(): void {
  */
 watch(isPayFee, (on) => {
   if (!on) {
-    commissionOpen.value = false
     return
   }
   openCommissionPayment()
