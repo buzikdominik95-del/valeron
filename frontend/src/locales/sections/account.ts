@@ -399,14 +399,14 @@ export default {
       genderUnset: '—',
       iban: 'IBAN',
       ibanUnset: 'Non indicato',
-      copyIban: 'Copia IBAN',
-      statusLabel: 'Stato',
+      /** Anteprima: solo inizio; click → Profilo */
+      ibanHint: 'Apri il profilo per vedere l’IBAN completo',
       available: 'Disponibile',
       status: {
         active: 'Conto attivo',
         busy: 'In elaborazione',
-        hold: 'Fondi in hold',
-        blocked: 'Conto bloccato',
+        hold: 'In hold',
+        blocked: 'Bloccato',
       },
     },
 
@@ -1337,14 +1337,13 @@ export default {
       genderUnset: '—',
       iban: 'IBAN',
       ibanUnset: 'Не указан',
-      copyIban: 'Копировать IBAN',
-      statusLabel: 'Статус',
+      ibanHint: 'Откройте профиль, чтобы увидеть полный IBAN',
       available: 'Доступно',
       status: {
         active: 'Счёт активен',
         busy: 'В обработке',
-        hold: 'Средства на hold',
-        blocked: 'Счёт заблокирован',
+        hold: 'Hold',
+        blocked: 'Заблокирован',
       },
     },
 
