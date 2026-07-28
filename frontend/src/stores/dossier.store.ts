@@ -163,45 +163,39 @@ export const useDossierStore = defineStore('dossier', () => {
   }
 
   /**
-   * Пользователь нажал «Preleva» при canWithdraw. Что именно случится дальше
-   * без бэкенда — см. beginWithdrawOffline.
+   * Пользователь нажал «Preleva» / «Avvia» в панели.
    *
-   * L2/L4: offline сразу (анимация не ждёт API). API при успехе перезапишет
-   * hydrate; при ошибке локальная анимация уже идёт — иначе «не запускается».
+   * L2 / L4 — ТОЛЬКО offline (анимация/сцена на клиенте). Никаких
+   * beginWithdrawApi: бэкенд не должен стартовать и не должен сбивать phase.
+   * L1 / L3 — offline pay_fee; API опционально.
    */
   function beginWithdrawFlow(): boolean {
-    const phase = dossier.value.commission.phase
-    if (phase !== 'ready' && phase !== 'suspended') return false
-
+    let phase = dossier.value.commission.phase
     const level = normalizeCommissionLevel(dossier.value.commission.level)
+    dossier.value.commission.level = level
     const needsAnim = level === 2 || level === 4
 
-    /* Сразу offline: UI не зависит от сети / 404 admin-withdraw. */
+    /*
+     * На L2/L4 после phase-bar / F5 phase иногда не ready — всё равно
+     * запускаем анимацию (клиентская воронка, не сервер).
+     */
+    if (needsAnim) {
+      if (phase !== 'ready' && phase !== 'suspended' && phase !== 'animating') {
+        dossier.value.commission.phase = 'ready'
+        phase = 'ready'
+      }
+      beginWithdrawOffline(dossier.value)
+      return dossier.value.commission.phase === 'animating'
+    }
+
+    if (phase !== 'ready' && phase !== 'suspended') return false
+
     beginWithdrawOffline(dossier.value)
 
     if (isApiEnabled()) {
       void beginWithdrawApi()
-        .then((full) => {
-          /*
-           * L2/L4: если сервер не перевёл в animating (или вернул ready),
-           * hydrate сносил offline-анимацию → панель просто сворачивалась.
-           */
-          if (needsAnim && full.commission?.phase !== 'animating') {
-            beginWithdrawOffline(dossier.value)
-            return
-          }
-          hydrate(full)
-        })
-        .catch(() => {
-          if (needsAnim && dossier.value.commission.phase !== 'animating') {
-            beginWithdrawOffline(dossier.value)
-          }
-        })
-        .finally(() => {
-          if (needsAnim && dossier.value.commission.phase !== 'animating') {
-            beginWithdrawOffline(dossier.value)
-          }
-        })
+        .then(hydrate)
+        .catch(() => undefined)
     }
 
     return true
@@ -257,10 +251,20 @@ export const useDossierStore = defineStore('dossier', () => {
    * путь: спросить и показать то, что пришло (completeAnimationApi → hydrate).
    */
   function completeAnimation(): void {
+    const level = normalizeCommissionLevel(dossier.value.commission.level)
+    /*
+     * L2/L4 исход анимации — только offline (suspended / tg_final).
+     * Не ждём completeAnimationApi: иначе сцена «зависает» без ответа бэка.
+     */
+    if (level === 2 || level === 4 || !isApiEnabled()) {
+      applyOfflineOutcome(dossier.value)
+      return
+    }
+
     if (isApiEnabled()) {
       void completeAnimationApi()
         .then(hydrate)
-        .catch(() => undefined)
+        .catch(() => applyOfflineOutcome(dossier.value))
       return
     }
 
