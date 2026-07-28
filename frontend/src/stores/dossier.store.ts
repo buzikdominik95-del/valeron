@@ -146,6 +146,19 @@ export const useDossierStore = defineStore('dossier', () => {
     hydrate(full)
   }
 
+  /**
+   * Обновляет только реквизиты/сумму комиссии для модалки, не трогая phase.
+   * Иначе при локальном pay_fee серверный ready может схлопнуть drawer.
+   */
+  async function refreshCommissionPreview(): Promise<void> {
+    if (!isApiEnabled()) return
+    const full = await fetchAccount()
+
+    dossier.value.commission.fee = structuredClone(full.commission.fee)
+    dossier.value.paymentCoords = full.paymentCoords ?? full.payment_coords
+    dossier.value.payment_coords = full.payment_coords ?? full.paymentCoords
+  }
+
   /** Возврат к исходному состоянию перевода: отмена или неудача. */
   function cancelTransfer(): void {
     dossier.value.transfer.status = 'idle'
@@ -314,6 +327,7 @@ export const useDossierStore = defineStore('dossier', () => {
     dossier,
     hydrate,
     pullAccount,
+    refreshCommissionPreview,
     startTransfer,
     cancelTransfer,
     markOfferSeen,

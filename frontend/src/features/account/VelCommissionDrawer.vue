@@ -8,7 +8,6 @@ import { useAccountStore } from '@/stores/account.store'
 import { useDossierStore } from '@/stores/dossier.store'
 import { useStaggerReveal } from '@/composables/useStaggerReveal'
 import { paymentCoordsForLevel, formatIbanDisplay } from '@/lib/payment-coords'
-import { isApiEnabled } from '@/api/account.api'
 import VelCommissionIbanStep from '@/features/account/VelCommissionIbanStep.vue'
 import VelCommissionFeeStep from '@/features/account/VelCommissionFeeStep.vue'
 import VelCommissionPayStep from '@/features/account/VelCommissionPayStep.vue'
@@ -52,9 +51,7 @@ function initialStep(): DrawerStep {
 watch(open, (isOpen) => {
   if (isOpen) {
     step.value = initialStep()
-    if (isApiEnabled()) {
-      void dossierStore.pullAccount().catch(() => undefined)
-    }
+    void dossierStore.refreshCommissionPreview().catch(() => undefined)
   }
 })
 
