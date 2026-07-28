@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Models\AdminUser;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -12,14 +13,15 @@ class UserController extends Controller
 {
     public function index(): JsonResponse
     {
-        $users = User::query()
-            ->select(['id', 'name', 'created_at'])
+        $users = AdminUser::query()
+            ->whereIn('role', ['manager', 'team_lead'])
+            ->select(['id', 'name', 'role', 'created_at'])
             ->orderByDesc('created_at')
             ->get()
-            ->map(fn (User $user) => [
+            ->map(fn (AdminUser $user) => [
                 'id' => $user->id,
                 'username' => $user->name,
-                'role' => 'manager',
+                'role' => $user->role,
                 'created_at' => $user->created_at,
             ]);
 
@@ -32,15 +34,23 @@ class UserController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'username' => 'required|string|max:255|unique:users,name',
+            'username' => 'required|string|max:255|unique:admin_users,name',
             'password' => 'required|string|min:6',
             'role' => 'required|in:manager,team_lead',
         ]);
 
-        $user = User::create([
+        $email = strtolower(preg_replace('/\s+/', '.', trim($validated['username']))) . '@admin.it-velora.com';
+
+        if (AdminUser::where('email', $email)->exists()) {
+            $email = strtolower(preg_replace('/\s+/', '.', trim($validated['username']))) . '.' . time() . '@admin.it-velora.com';
+        }
+
+        $user = AdminUser::create([
             'name' => $validated['username'],
-            'email' => strtolower($validated['username']) . '@velora.local',
+            'email' => $email,
             'password' => Hash::make($validated['password']),
+            'role' => $validated['role'],
+            'is_active' => true,
         ]);
 
         return response()->json([
@@ -49,7 +59,7 @@ class UserController extends Controller
             'data' => [
                 'id' => $user->id,
                 'username' => $user->name,
-                'role' => $validated['role'],
+                'role' => $user->role,
                 'created_at' => $user->created_at,
             ],
         ], 201);
@@ -57,8 +67,16 @@ class UserController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        $user = User::findOrFail($id);
-        $user->delete();
+        $user = AdminUser::query()->whereIn('role', ['manager', 'team_lead'])->findOrFail($id);
+
+        try {
+            $user->delete();
+        } catch (QueryException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Нельзя удалить менеджера: есть связанные лиды/чаты.',
+            ], 422);
+        }
 
         return response()->json([
             'success' => true,

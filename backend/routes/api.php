@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\ApprovalEmailController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\AdminLeadController;
+use App\Http\Controllers\Api\ManagerController;
 
 // Test Sentry endpoint
 Route::get("/test-sentry", function() {
@@ -65,6 +66,11 @@ Route::prefix('admin')->group(function () {
     Route::get('leads/{id}', [AdminLeadController::class, 'show']);
     Route::delete('leads/{id}', [AdminLeadController::class, 'destroy']);
     Route::delete('leads', [AdminLeadController::class, 'destroyAll']);
+
+    // Managers
+    Route::get('managers', [ManagerController::class, 'index']);
+    Route::post('managers/{id}/toggle-status', [ManagerController::class, 'toggleStatus']);
+    Route::put('managers/{id}/traffic', [ManagerController::class, 'updateTraffic']);
     
     // IBAN settings
     Route::get('settings/iban', [IbanSettingController::class, 'show']);
