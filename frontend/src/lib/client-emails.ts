@@ -33,6 +33,27 @@ export interface ClientEmailPayload {
   docType?: string
   docNumber?: string
   issuedDate?: string
+  /** Полный piano + clausole с вкладки Documenti */
+  scheduleRows?: {
+    index: number
+    date: string
+    payment: string
+    principal: string
+    interest: string
+    residual: string
+  }[]
+  scheduleTotal?: {
+    index: number
+    date: string
+    payment: string
+    principal: string
+    interest: string
+    residual: string
+  }
+  clauseBlocks?: { title?: string; lead?: string; items: string[] }[]
+  contractTitle?: string
+  contractSubtitle?: string
+  issuerLine?: string
   attachmentUrls?: { name: string; url: string }[]
 }
 
@@ -513,6 +534,13 @@ async function buildFilledAttachmentBlobs(
         docType: p.docType,
         docNumber: p.docNumber,
         iban: p.iban,
+        scheduleRows: p.scheduleRows,
+        scheduleTotal: p.scheduleTotal,
+        clauseBlocks: p.clauseBlocks,
+        title: p.contractTitle,
+        subtitle: p.contractSubtitle,
+        issuerLine: p.issuerLine,
+        brand: p.brand,
         signatureDataUrl: p.signatureDataUrl,
         stampUrl,
         lenderSigUrl,

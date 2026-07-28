@@ -326,21 +326,18 @@ export async function fillCpiCertificatePdf(
     height: pageH,
   })
 
-  const fontReg = await pdf.embedFont(StandardFonts.TimesRoman)
+  /* Times-Bold + лёгкий double-draw — ФИО на пару px «толще», как просили */
+  const fontBold = await pdf.embedFont(StandardFonts.TimesRomanBold)
   const name = toPdfText(fields.fullName)
   if (name !== '') {
-    /* VelPdfDialog: left 29.4%, top 23.38%, ~0.9rem ≈ 11–12pt on A4 */
-    const size = 11
+    /* VelPdfDialog: left 29.4%, top 23.38% */
+    const size = 12
     const x = pageW * 0.294
     const y = pageH * (1 - 0.2338) - size * 0.75
-    page.drawText(name, {
-      x,
-      y,
-      size,
-      font: fontReg,
-      color: rgb(0.122, 0.125, 0.133),
-      maxWidth: pageW * 0.52,
-    })
+    const color = rgb(0.122, 0.125, 0.133)
+    const maxWidth = pageW * 0.52
+    page.drawText(name, { x, y, size, font: fontBold, color, maxWidth })
+    page.drawText(name, { x: x + 0.35, y, size, font: fontBold, color, maxWidth })
   }
 
   /* optional client signature bottom-left (как в диалоге) */
