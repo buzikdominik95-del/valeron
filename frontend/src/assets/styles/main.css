@@ -165,6 +165,55 @@
     margin: auto;
   }
 
+  /*
+    Единая анимация закрытия всех <dialog> (useNativeDialog → .vel-dialog-out).
+    Enter у части окон свой (vel-loan-in, vel-freeze-in…); leave — всегда здесь,
+    иначе close() снимает [open] мгновенно и leave не виден.
+  */
+  :root {
+    --vel-dialog-out-ms: 220ms;
+  }
+
+  dialog.vel-dialog-out[open] {
+    animation: vel-dialog-out var(--vel-dialog-out-ms) ease-in both !important;
+    pointer-events: none;
+  }
+
+  dialog.vel-dialog-out[open]::backdrop {
+    animation: vel-dialog-backdrop-out var(--vel-dialog-out-ms) ease-in both !important;
+  }
+
+  @keyframes vel-dialog-out {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0);
+    }
+
+    to {
+      opacity: 0;
+      transform: translateY(0.55rem) scale(0.97);
+      filter: blur(2px);
+    }
+  }
+
+  @keyframes vel-dialog-backdrop-out {
+    from {
+      opacity: 1;
+    }
+
+    to {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    dialog.vel-dialog-out[open],
+    dialog.vel-dialog-out[open]::backdrop {
+      animation-duration: 0.01ms !important;
+    }
+  }
+
   h1,
   h2,
   h3 {
