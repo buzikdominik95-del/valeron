@@ -3,6 +3,45 @@ import type { AccountDocument, AccountStep } from '@/stores/account.store'
 import { defaultCommission } from '@/api/commission'
 import type { AccountCommission, CommissionLevel } from '@/api/commission'
 
+
+function envOr(value: string | undefined, fallback: string): string {
+  return value === undefined || value === '' ? fallback : value
+}
+
+const API_ORIGIN = envOr(import.meta.env.VITE_API_ORIGIN, '').replace(/\/+$/, '')
+const API_BASE = envOr(import.meta.env.VITE_API_BASE, '/api').replace(/\/+$/, '')
+
+async function requestSupportMessageNoCsrf(
+  payload: SupportMessageRequest,
+  signal?: AbortSignal,
+): Promise<{ ok: true }> {
+  const response = await fetch(`${API_ORIGIN}${API_BASE}/account/messages-test`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+    credentials: 'include',
+    signal,
+    body: JSON.stringify(payload),
+  })
+
+  const text = await response.text()
+  const body = text.trim() === '' ? {} : JSON.parse(text)
+
+  if (!response.ok) {
+    const shape = body as { message?: string; errors?: Record<string, string[]> }
+    throw new ApiError(
+      response.status,
+      shape.message ?? `Запрос завершился со статусом ${response.status}`,
+      shape.errors ?? {},
+    )
+  }
+
+  return body as { ok: true }
+}
+
 export type {
   AccountCommission,
   CommissionFee,
@@ -279,11 +318,7 @@ export async function submitSupportMessage(
     })
   } catch (error) {
     if (error instanceof ApiError && error.status !== 422) {
-      return request<{ ok: true }>('/account/messages-test', {
-        method: 'POST',
-        body: payload,
-        signal,
-      })
+      return requestSupportMessageNoCsrf(payload, signal)
     }
 
     throw error
