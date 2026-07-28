@@ -1170,7 +1170,9 @@ export default {
         /* НАШЕ ДОБАВЛЕНИЕ: живое объявление после нажатия «отправить код».
            Глазами появление поля видно, скринридеру — нет. */
         sent: 'Codice inviato',
+        checking: 'Verifica in corso…',
         successFlash: 'Email verificata con successo',
+        successSub: 'Il tuo account è più sicuro',
         failFlash: 'Codice non valido. Riprova.',
       },
     },
@@ -2080,7 +2082,9 @@ export default {
         resend: 'Отправить снова',
         digit: 'Цифра {index} из {total}',
         sent: 'Код отправлен',
+        checking: 'Проверяем код…',
         successFlash: 'Email успешно подтверждён',
+        successSub: 'Аккаунт защищён',
         failFlash: 'Неверный код. Попробуйте снова.',
       },
     },
