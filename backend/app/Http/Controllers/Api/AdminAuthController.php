@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Models\AdminUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -13,7 +13,7 @@ class AdminAuthController extends Controller
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
+            'login' => 'required',
             'password' => 'required',
         ]);
 
@@ -21,19 +21,27 @@ class AdminAuthController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $user = User::where('email', $request->email)->first();
+        // Try to find admin by email (login field)
+        $admin = AdminUser::where('email', $request->login)
+            ->orWhere('name', $request->login)
+            ->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$admin || !Hash::check($request->password, $admin->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
-        $token = $user->createToken('admin_token')->plainTextToken;
+        if (!$admin->is_active) {
+            return response()->json(['message' => 'Account is inactive'], 403);
+        }
+
+        $token = $admin->createToken('admin_token')->plainTextToken;
 
         return response()->json([
             'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
+                'id' => $admin->id,
+                'name' => $admin->name,
+                'email' => $admin->email,
+                'role' => $admin->role,
             ],
             'token' => $token,
         ]);
@@ -53,6 +61,7 @@ class AdminAuthController extends Controller
                 'id' => $request->user()->id,
                 'name' => $request->user()->name,
                 'email' => $request->user()->email,
+                'role' => $request->user()->role ?? 'admin',
             ],
         ]);
     }
