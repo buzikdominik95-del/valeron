@@ -517,6 +517,8 @@ export default {
       waitingShort: 'In attesa',
       withdraw: 'Preleva i fondi',
       loanDetails: 'Prestito',
+      /** Aria: pulsante Prestito con aggiornamento non visto */
+      prestitoUnseenHint: 'Nuovo aggiornamento sul prestito',
       remaining: 'Step ancora da completare',
       /* Вторая причина запертой кнопки вывода: перевод уже запрошен. Сказано
          только то, что известно фронту из состояния, — заявка принята и её
@@ -1580,6 +1582,7 @@ export default {
       waitingShort: 'Ожидание',
       withdraw: 'Вывести средства',
       loanDetails: 'Кредит',
+      prestitoUnseenHint: 'Есть обновление по кредиту',
       remaining: 'Осталось пройти',
       inProgress: 'Перевод уже запрошен: банк его авторизует.',
 
