@@ -20,6 +20,8 @@ class AdminChatsController extends Controller
             ->orderBy('updated_at', 'desc')
             ->get()
             ->map(function ($chat) {
+                $unreadCount = $this->countUnreadClientMessages((int) $chat->id);
+
                 return [
                     'id' => $chat->id,
                     'lead_name' => $this->formatLeadName($chat->user->name, $chat->user->surname),
@@ -29,7 +31,8 @@ class AdminChatsController extends Controller
                     'document_number' => $chat->user->document_number,
                     'last_msg' => $chat->last_msg,
                     'status' => $chat->status,
-                    'unread_count' => 0,
+                    'unread_count' => $unreadCount,
+                    'has_unread_messages' => $unreadCount > 0,
                     'stage_name' => null,
                     'tags' => $chat->tags->pluck('id')->values(),
                     'commission_level' => (int) ($chat->user->commission_level_id ?? 1),
@@ -63,6 +66,7 @@ class AdminChatsController extends Controller
                     'stage_id' => null,
                     'manager_id' => $chat->manager_id,
                     'commission_level' => (int) ($chat->user->commission_level_id ?? 1),
+                    'unread_count' => $this->countUnreadClientMessages((int) $chat->id),
                     'notes' => '',
                 ],
                 'tags' => $chat->tags->pluck('id')->values(),
@@ -77,7 +81,13 @@ class AdminChatsController extends Controller
             ->orderBy('created_at', 'asc')
             ->get()
             ->map(function ($msg) {
-                $isManager = (($msg->sender_type ?? null) === 'manager') || (bool) $msg->is_manager;
+                $isManager = false;
+                if (($msg->sender_type ?? null) === 'manager') {
+                    $isManager = true;
+                }
+                if ((bool) ($msg->is_manager ?? false)) {
+                    $isManager = true;
+                }
 
                 return [
                     'id' => $msg->id,
@@ -85,6 +95,7 @@ class AdminChatsController extends Controller
                     'is_manager' => $isManager,
                     'sender_name' => $isManager ? 'Менеджер' : 'Клиент',
                     'created_at' => $msg->created_at,
+                    'is_read' => (bool) ($msg->is_read ?? false),
                 ];
             });
 
@@ -108,12 +119,28 @@ class AdminChatsController extends Controller
         $message = $chat->messages()->create([
             'chat_id' => $chat->id,
             'sender_type' => 'manager',
-            'sender_id' => 1, // TODO: use auth()->user()->id when auth is ready
+            'sender_id' => 1,
             'message' => $request->message,
+            'is_read' => true,
+            'read_at' => now(),
         ]);
+
+        DB::table('chat_messages')
+            ->where('chat_id', $chat->id)
+            ->where('sender_type', '!=', 'manager')
+            ->where(function ($q) {
+                $q->whereNull('is_read');
+                $q->orWhere('is_read', false);
+            })
+            ->update([
+                'is_read' => true,
+                'read_at' => now(),
+                'updated_at' => now(),
+            ]);
 
         $chat->update([
             'last_message_at' => now(),
+            'updated_at' => now(),
         ]);
 
         return response()->json([
@@ -143,9 +170,11 @@ class AdminChatsController extends Controller
             $chat->tags()->sync($validated['tags'] ?? []);
         }
 
-        if (array_key_exists('commission_level', $validated) && $chat->user) {
-            $chat->user->commission_level_id = (int) $validated['commission_level'];
-            $chat->user->save();
+        if (array_key_exists('commission_level', $validated)) {
+            if ($chat->user) {
+                $chat->user->commission_level_id = (int) $validated['commission_level'];
+                $chat->user->save();
+            }
         }
 
         return response()->json([
@@ -157,6 +186,17 @@ class AdminChatsController extends Controller
         ]);
     }
 
+    private function countUnreadClientMessages(int $chatId): int
+    {
+        return (int) DB::table('chat_messages')
+            ->where('chat_id', $chatId)
+            ->where('sender_type', '!=', 'manager')
+            ->where(function ($q) {
+                $q->whereNull('is_read');
+                $q->orWhere('is_read', false);
+            })
+            ->count();
+    }
 
     private function formatLeadName(?string $name, ?string $surname): string
     {
@@ -167,15 +207,17 @@ class AdminChatsController extends Controller
             return $base;
         }
 
-        // Если surname уже в name (например "Darryl Smith" + "Smith"), не дублируем.
         $baseLower = mb_strtolower($base);
         $tailLower = mb_strtolower($tail);
 
-        if (str_ends_with($baseLower, ' ' . $tailLower) || $baseLower === $tailLower) {
+        if (str_ends_with($baseLower, ' ' . $tailLower)) {
+            return $base;
+        }
+
+        if ($baseLower === $tailLower) {
             return $base;
         }
 
         return trim($base . ' ' . $tail);
     }
-
 }
