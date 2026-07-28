@@ -390,7 +390,7 @@ export default {
       side: 'Dati e sicurezza',
     },
 
-    /* Fixed «бровь» клиента — VelClientBrow.vue (под шапкой, всегда сверху при скролле) */
+    /* «Бровь» клиента — VelClientBrow.vue (в потоке, при скролле уезжает под шапку) */
     brow: {
       label: 'Scheda cliente',
       client: 'Cliente',
