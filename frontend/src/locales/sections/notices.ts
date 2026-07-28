@@ -58,6 +58,10 @@ export default {
         title: 'Prelievo non andato a buon fine',
         body: 'Il trasferimento non è stato completato. Controlla la Home per i passi successivi.',
       },
+      waitingInstructions: {
+        title: 'In attesa di istruzioni',
+        body: 'Pagamento e messaggio registrati. Apri la Home e attendi le istruzioni del sistema.',
+      },
     },
   },
 
@@ -102,6 +106,10 @@ export default {
       withdrawRejected: {
         title: 'Вывод не выполнен',
         body: 'Перевод не завершён. Откройте Home, чтобы продолжить.',
+      },
+      waitingInstructions: {
+        title: 'Ожидайте инструкций',
+        body: 'Оплата и сообщение зафиксированы. Откройте Home и ждите инструкций системы.',
       },
     },
   },

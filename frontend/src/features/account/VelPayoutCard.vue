@@ -104,8 +104,8 @@ const rateText = computed(() =>
 )
 
 /**
- * Preleva заперт на анимации, policy, L4 fail и L2 suspended —
- * внимание на «Paga la copertura», не на вывод.
+ * Preleva заперт на анимации, policy, L4 fail, L2 suspended, messenger, waiting —
+ * после сообщения менеджеру вывод недоступен до инструкций.
  */
 const withdrawLocked = computed(
   () =>
@@ -113,7 +113,9 @@ const withdrawLocked = computed(
     isPolicyBuild.value ||
     isFailed.value ||
     isTgFinal.value ||
-    isSuspended.value,
+    isSuspended.value ||
+    isMessenger.value ||
+    isWaiting.value,
 )
 
 /**
@@ -176,7 +178,11 @@ const busyDetail = computed(() => {
   return t('account.payout.inProgress')
 })
 
-const busyText = computed(() => t('account.payout.busyShort'))
+const busyText = computed(() =>
+  isWaiting.value ? t('account.payout.waitingShort') : t('account.payout.busyShort'),
+)
+
+const busyIsWaiting = computed(() => isWaiting.value)
 
 const busyNote = useTemplateRef<HTMLElement>('busyNote')
 
@@ -281,10 +287,23 @@ function onOpenLoan(): void {
       ref="busyNote"
       tabindex="-1"
       class="vel-payout__busy"
+      :class="{ 'vel-payout__busy--waiting': busyIsWaiting }"
       role="status"
       :aria-label="busyDetail"
     >
-      <span class="vel-payout__busy-spin" aria-hidden="true" />
+      <!-- Waiting: переворачивающиеся песочные часы; иначе кружок-спиннер -->
+      <span
+        v-if="busyIsWaiting"
+        class="vel-payout__busy-hourglass"
+        aria-hidden="true"
+      >
+        <svg class="vel-payout__busy-hourglass-ico" viewBox="0 0 24 24">
+          <path
+            d="M6 3h12M6 21h12M8 3v3.5c0 1.7 1.1 3.2 2.7 3.8L12 11l1.3-.7C15 9.7 16 8.2 16 6.5V3M8 21v-3.5c0-1.7 1.1-3.2 2.7-3.8L12 13l1.3.7c1.6.6 2.7 2.1 2.7 3.8V21"
+          />
+        </svg>
+      </span>
+      <span v-else class="vel-payout__busy-spin" aria-hidden="true" />
       <span class="vel-payout__busy-text">{{ busyText }}</span>
     </p>
 
@@ -498,6 +517,39 @@ function onOpenLoan(): void {
   animation: vel-payout-busy-spin 0.7s linear infinite;
 }
 
+/* Песочные часы: flip 180° (переворот) */
+.vel-payout__busy-hourglass {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  inline-size: 0.9rem;
+  block-size: 0.9rem;
+  color: var(--color-success);
+  animation: vel-payout-hourglass-flip 1.6s ease-in-out infinite;
+  transform-origin: 50% 50%;
+}
+
+.vel-payout__busy-hourglass-ico {
+  width: 0.88rem;
+  height: 0.88rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.vel-payout__busy--waiting {
+  border-color: color-mix(in oklab, var(--color-success) 42%, var(--color-line));
+  background:
+    linear-gradient(
+      120deg,
+      color-mix(in oklab, var(--color-success) 16%, var(--color-surface)) 0%,
+      color-mix(in oklab, var(--color-success) 8%, var(--color-surface)) 100%
+    );
+}
+
 .vel-payout__busy-text {
   min-inline-size: 0;
   color: color-mix(in oklab, var(--color-success) 72%, var(--color-fg));
@@ -509,6 +561,22 @@ function onOpenLoan(): void {
 
 @keyframes vel-payout-busy-spin {
   to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes vel-payout-hourglass-flip {
+  0%,
+  35% {
+    transform: rotate(0deg);
+  }
+
+  50%,
+  85% {
+    transform: rotate(180deg);
+  }
+
+  100% {
     transform: rotate(360deg);
   }
 }
@@ -735,13 +803,18 @@ function onOpenLoan(): void {
   .vel-payout__withdraw--boost,
   .vel-payout__prestito--dot,
   .vel-payout__prestito-live,
-  .vel-payout__busy-spin {
+  .vel-payout__busy-spin,
+  .vel-payout__busy-hourglass {
     animation: none;
   }
 
   .vel-payout__busy-spin {
     border-color: var(--color-success);
     opacity: 0.65;
+  }
+
+  .vel-payout__busy-hourglass {
+    opacity: 0.85;
   }
 
   .vel-payout__withdraw {

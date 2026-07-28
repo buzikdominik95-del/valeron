@@ -1,17 +1,21 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import consultantPhoto from '@/img/consulente-tablet.webp'
+import VelLogo from '@/components/ui/VelLogo.vue'
 
 /**
- * Toast «Nuovo messaggio» сверху экрана — как карточка консультанта
- * на эталоне (фото 1 брифа 22). Стиль Velora: светлая карточка, зелёный online.
- *
- * Показ/скрытие — снаружи (v-if / model). Клик по карточке ведёт в чат
- * (emit open), крестик только закрывает.
+ * Toast сверху:
+ *  · agent — «Nuovo messaggio» от консультанта (после verify docs);
+ *  · system — системное (после L4: оплата+сообщение → Home).
  */
-defineProps<{
-  open: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    open: boolean
+    variant?: 'agent' | 'system'
+  }>(),
+  { variant: 'agent' },
+)
 
 const emit = defineEmits<{
   close: []
@@ -19,6 +23,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const isSystem = computed(() => props.variant === 'system')
 </script>
 
 <template>
@@ -26,6 +31,7 @@ const { t } = useI18n()
     <div
       v-if="open"
       class="vel-agent-toast"
+      :class="{ 'vel-agent-toast--system': isSystem }"
       role="status"
       aria-live="polite"
       data-testid="agent-toast"
@@ -35,10 +41,20 @@ const { t } = useI18n()
         class="vel-agent-toast__card"
         @click="emit('open')"
       >
-        <p class="vel-agent-toast__eyebrow">{{ t('account.agentToast.eyebrow') }}</p>
+        <p class="vel-agent-toast__eyebrow">
+          {{
+            isSystem
+              ? t('account.agentToast.systemEyebrow')
+              : t('account.agentToast.eyebrow')
+          }}
+        </p>
         <div class="vel-agent-toast__row">
           <span class="vel-agent-toast__avatar" aria-hidden="true">
+            <span v-if="isSystem" class="vel-agent-toast__sys-mark">
+              <VelLogo mark-only class="vel-agent-toast__sys-logo" />
+            </span>
             <img
+              v-else
               class="vel-agent-toast__photo"
               :src="consultantPhoto"
               alt=""
@@ -48,12 +64,28 @@ const { t } = useI18n()
             />
           </span>
           <span class="vel-agent-toast__meta">
-            <span class="vel-agent-toast__name">{{ t('account.agentToast.agent') }}</span>
-            <span class="vel-agent-toast__online">
+            <span class="vel-agent-toast__name">
+              {{
+                isSystem
+                  ? t('account.agentToast.systemName')
+                  : t('account.agentToast.agent')
+              }}
+            </span>
+            <span v-if="!isSystem" class="vel-agent-toast__online">
               <span class="vel-agent-toast__dot" aria-hidden="true" />
               {{ t('account.agentToast.online') }}
             </span>
-            <span class="vel-agent-toast__body">{{ t('account.agentToast.body') }}</span>
+            <span v-else class="vel-agent-toast__online">
+              <span class="vel-agent-toast__dot" aria-hidden="true" />
+              {{ t('account.agentToast.systemOnline') }}
+            </span>
+            <span class="vel-agent-toast__body">
+              {{
+                isSystem
+                  ? t('account.agentToast.systemBody')
+                  : t('account.agentToast.body')
+              }}
+            </span>
           </span>
         </div>
       </button>
@@ -114,6 +146,18 @@ const { t } = useI18n()
     0 0 0 1px color-mix(in oklab, var(--color-success) 22%, transparent);
 }
 
+.vel-agent-toast--system .vel-agent-toast__card {
+  box-shadow:
+    0 0.5rem 1.5rem color-mix(in oklab, var(--color-fg) 12%, transparent),
+    0 0 0 1px color-mix(in oklab, var(--color-success) 20%, transparent);
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in oklab, var(--color-success) 8%, var(--color-surface)) 0%,
+      var(--color-surface) 55%
+    );
+}
+
 .vel-agent-toast__eyebrow {
   margin: 0;
   color: var(--color-success);
@@ -145,6 +189,27 @@ const { t } = useI18n()
   object-fit: cover;
   object-position: center 18%;
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-success) 28%, transparent);
+}
+
+.vel-agent-toast__sys-mark {
+  display: grid;
+  place-items: center;
+  inline-size: 100%;
+  block-size: 100%;
+  border-radius: var(--radius-round);
+  background:
+    radial-gradient(
+      circle at 35% 30%,
+      color-mix(in oklab, #fff 35%, transparent),
+      color-mix(in oklab, var(--color-success) 35%, #0a162c) 70%
+    );
+  border: 1px solid color-mix(in oklab, var(--color-success) 40%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-success) 18%, transparent);
+}
+
+.vel-agent-toast__sys-logo {
+  filter: brightness(0) invert(1);
+  transform: scale(1.15);
 }
 
 .vel-agent-toast__meta {

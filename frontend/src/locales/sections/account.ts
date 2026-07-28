@@ -223,6 +223,11 @@ export default {
       online: 'Online',
       body: 'Nuovo messaggio',
       close: 'Chiudi notifica',
+      /* Sistema (dopo messaggio commissione L4): non reindirizza subito */
+      systemEyebrow: 'Messaggio di sistema',
+      systemName: 'Velora',
+      systemOnline: 'Sistema',
+      systemBody: 'Pagamento registrato. Tocca per tornare alla Home e attendere le istruzioni.',
     },
 
     /* Загрузка документа — VelDocumentUpload.vue и его части (VelDocKindChoice,
@@ -455,6 +460,8 @@ export default {
       },
       /** Короткая плашка busy на карточке баланса (+ спиннер). */
       busyShort: 'In elaborazione',
+      /** После сообщения менеджеру: waiting + песочные часы. */
+      waitingShort: 'In attesa',
       withdraw: 'Preleva i fondi',
       loanDetails: 'Prestito',
       remaining: 'Step ancora da completare',
@@ -1151,6 +1158,11 @@ export default {
       online: 'Online',
       body: 'Новое сообщение',
       close: 'Закрыть уведомление',
+      /* Система (после сообщения о комиссии L4): без мгновенного редиректа */
+      systemEyebrow: 'Системное сообщение',
+      systemName: 'Velora',
+      systemOnline: 'Система',
+      systemBody: 'Оплата зафиксирована. Нажмите, чтобы вернуться на Home и ждать инструкций.',
     },
 
     docs: {
@@ -1320,6 +1332,7 @@ export default {
       },
       /** Короткая плашка busy на карточке баланса (+ спиннер). */
       busyShort: 'В процессе',
+      waitingShort: 'Ожидание',
       withdraw: 'Вывести средства',
       loanDetails: 'Кредит',
       remaining: 'Осталось пройти',
