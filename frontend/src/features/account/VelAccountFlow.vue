@@ -509,16 +509,22 @@ const freezeMode = computed<'reject' | 'telegram'>(() =>
   isTgFinal.value ? 'telegram' : 'reject',
 )
 
-/** L5: модалка закрыта — на Home только красная кнопка к менеджеру. */
-const tgContactMode = computed(() => isTgFinal.value && freezeDismissed.value)
+/**
+ * L5: красная «Contatta il manager» ВСЕГДА (модалка открыта или закрыта),
+ * не зелёный Preleva. Клик → открыть/вернуть Telegram-модалку.
+ */
+const tgContactMode = computed(() => isTgFinal.value)
 
 watch(isFailed, (failed) => {
   if (failed) freezeDismissed.value = false
 })
 
 watch(isTgFinal, (tg) => {
-  /* Вход на L5 — сразу показать Telegram-модалку. */
-  if (tg) freezeDismissed.value = false
+  if (tg) {
+    freezeDismissed.value = false
+    /* Только Home: навигация дальше блокируется в VelAccount. */
+    selectTab('home')
+  }
 })
 
 function onFreezePay(): void {
