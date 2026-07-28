@@ -307,8 +307,16 @@ function openContractSign(): void {
   contractSignOpen.value = true
 }
 
+/**
+ * CPI issued-карточка: сертификат + галочка живут в VelPolicyCard.
+ * Сюда — только после подтверждения (не авто-withdraw).
+ */
 function onPolicyReview(): void {
-  if (canWithdraw.value) onWithdraw()
+  /* no-op: вывод — через Preleva; карточка только показывает сертификат */
+}
+
+function onPolicyConfirm(): void {
+  /* markCertViewed уже в VelPolicyCard; Preleva разблокируется через phase ready */
 }
 
 /**
@@ -647,6 +655,7 @@ const showDevBar = !(
       <VelPolicyCard
         v-if="level === 3 && !isPolicyBuild && !isAnimating"
         @review="onPolicyReview"
+        @confirm="onPolicyConfirm"
       />
     </template>
 

@@ -11,12 +11,13 @@ import VelMeter from '@/components/ui/VelMeter.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
 import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
 import VelCpiGenAnim from '@/features/account/VelCpiGenAnim.vue'
+import VelCpiViewConfirm from '@/features/account/VelCpiViewConfirm.vue'
 
 /**
  * Documenti · CPI:
- * loading → анимация файла (как Home)
- * ready   → пульс «Apri» (первый раз) → модалка → Home
- * viewed / после оплаты / L4+ → карточка остаётся, можно снова открыть сертификат
+ * loading → анимация файла
+ * ready   → «Показать сертификат» → превью → галочка → Home
+ * viewed / L4+ → можно снова открыть сертификат
  */
 const CPI_POLICY_IMG = `${import.meta.env.BASE_URL}cpi/policy-template.png`
 
@@ -35,6 +36,7 @@ const {
 } = useCpiBuild()
 
 const previewOpen = ref(false)
+const confirmOpen = ref(false)
 const openedCert = ref(false)
 
 /**
@@ -81,12 +83,16 @@ function openCertificate(): void {
 }
 
 watch(previewOpen, (open, was) => {
-  /* Первый просмотр: закрыл → Home + Preleva. Повторный open — только закрыть модалку. */
+  /* Первый просмотр: закрыл → модалка с галочкой. */
   if (was && !open && openedCert.value && step.value === 'ready' && !certViewed.value) {
-    markCertViewed()
-    selectTab('home')
+    confirmOpen.value = true
   }
 })
+
+function onConfirmViewed(): void {
+  markCertViewed()
+  selectTab('home')
+}
 </script>
 
 <template>
@@ -145,7 +151,7 @@ watch(previewOpen, (open, was) => {
         data-testid="policy-stub-open"
         @click="openCertificate"
       >
-        {{ t('account.commission.cpi.stub.openCta') }}
+        {{ t('account.commission.cpi.ready.cta') }}
       </button>
     </template>
 
@@ -168,7 +174,7 @@ watch(previewOpen, (open, was) => {
         data-testid="policy-stub-reopen"
         @click="openCertificate"
       >
-        {{ t('account.commission.cpi.stub.openCta') }}
+        {{ t('account.commission.cpi.ready.cta') }}
       </button>
     </template>
 
@@ -178,6 +184,8 @@ watch(previewOpen, (open, was) => {
       :holder-name="holderName"
       :title="t('account.commission.cpi.stub.readyTitle')"
     />
+
+    <VelCpiViewConfirm v-model:open="confirmOpen" @confirm="onConfirmViewed" />
   </section>
 </template>
 
