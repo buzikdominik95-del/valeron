@@ -6,20 +6,51 @@ export interface AuthUser {
   email: string
 }
 
-/** Demo SPA login (Sanctum session cookie). */
-export function demoLogin(
-  email = 'marco@esempio.it',
-  password = 'password',
-  name = 'Marco Rossi',
+export interface RegisterPayload {
+  name: string
+  email: string
+  password: string
+  password_confirmation: string
+  surname?: string
+  phone?: string
+  requested_amount?: number
+  document_type?: string
+  document_number?: string
+}
+
+export function registerAccount(
+  payload: RegisterPayload,
   signal?: AbortSignal,
-): Promise<{ user: AuthUser }> {
-  return request<{ user: AuthUser }>('/auth/login', {
+): Promise<{ user: AuthUser; token: string }> {
+  return request<{ user: AuthUser; token: string }>('/auth/register', {
     method: 'POST',
-    body: { email, password, name },
+    body: payload,
     signal,
   })
 }
 
-export function logout(signal?: AbortSignal): Promise<{ ok: true }> {
-  return request<{ ok: true }>('/auth/logout', { method: 'POST', signal })
+export function loginAccount(
+  email: string,
+  password: string,
+  signal?: AbortSignal,
+): Promise<{ user: AuthUser; token: string }> {
+  return request<{ user: AuthUser; token: string }>('/auth/login', {
+    method: 'POST',
+    body: { email, password },
+    signal,
+  })
+}
+
+/** Backward-compatible helper used by account flow. */
+export function demoLogin(
+  email = 'marco@esempio.it',
+  password = 'password',
+  _name = 'Marco Rossi',
+  signal?: AbortSignal,
+): Promise<{ user: AuthUser; token: string }> {
+  return loginAccount(email, password, signal)
+}
+
+export function logout(signal?: AbortSignal): Promise<{ message: string }> {
+  return request<{ message: string }>('/auth/logout', { method: 'POST', signal })
 }

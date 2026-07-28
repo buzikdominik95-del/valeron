@@ -6,56 +6,29 @@ import VelField from '@/components/ui/VelField.vue'
 import VelInput from '@/components/ui/VelInput.vue'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelLogo from '@/components/ui/VelLogo.vue'
+import { ApiError } from '@/api/http'
+import { loginAccount, registerAccount } from '@/api/auth.api'
+import { useSimulatorStore } from '@/stores/simulator.store'
 
-/**
- * Создание личного кабинета в конце расчёта.
- *
- * Этого шага не хватало: кнопка «Registrazione» на экране результата вела сразу
- * к письму, а между ними на эталоне стоит окно с почтой и паролем.
- *
- * ПАРОЛЬ НИКУДА НЕ СОХРАНЯЕТСЯ И НЕ ВЫХОДИТ ИЗ ЭТОГО ФАЙЛА. Он живёт в
- * локальных ref, которые умирают вместе с окном; ни в стор, ни в localStorage,
- * ни в адресную строку не попадает — там он пережил бы вкладку и достался бы
- * любому, кто откроет тот же браузер. Наружу компонент отдаёт СОБЫТИЕ и почту,
- * а отправлять пару на сервер будет слой api, когда тот появится.
- *
- * ДВА РЕЖИМА В ОДНОМ ОКНЕ — как на эталоне: создать кабинет или войти в
- * существующий. Разница между ними ровно в одном поле (повтор пароля) и в
- * подписи кнопки, поэтому это переключатель внутри окна, а не два окна.
- */
 const open = defineModel<boolean>('open', { required: true })
 
 const props = withDefaults(
   defineProps<{
-    /** Стартовый режим вкладок (лендинг Accedi → login). */
     startMode?: 'create' | 'login'
-    /**
-     * Только «Accedi» (без Crea account) — вход с лендинга.
-     * Create остаётся в конце мастера.
-     */
     loginOnly?: boolean
-    /**
-     * Email, под которым уже создали кабинет (simulator.email).
-     * Login сверяет ввод с ним; без совпадения в кабинет не пускаем.
-     */
     knownEmail?: string
   }>(),
   { startMode: 'create', loginOnly: false, knownEmail: '' },
 )
 
 const emit = defineEmits<{
-  /** Пользователь завершил регистрацию / успешный вход: наружу только email. */
   (event: 'registered', email: string): void
-  /** Успешный вход (режим Accedi). */
   (event: 'login', email: string): void
 }>()
 
 const { t } = useI18n()
-
+const simulator = useSimulatorStore()
 const dialog = useTemplateRef<HTMLDialogElement>('dialog')
-
-/* Запирает прокрутку под окном и держит open в согласии с DOM — того и другого
-   нативный <dialog> сам не делает. Подробности в композабле. */
 useNativeDialog(dialog, open)
 
 type Mode = 'create' | 'login'
@@ -66,24 +39,13 @@ const isCreate = computed(() => mode.value === 'create' && !props.loginOnly)
 const email = ref('')
 const password = ref('')
 const confirm = ref('')
-/* Показывать ошибки начинаем только после первой попытки отправки: подсвечивать
-   пустое поле, к которому человек ещё не притронулся, — это ругань авансом. */
 const tried = ref(false)
-/** Ошибка входа (нет аккаунта / неверная почта) — не поле, а форма целиком. */
 const authError = ref('')
+const submitting = ref(false)
 
 const uid = useId()
 const tabsId = `vel-reg-tabs-${uid}`
-
-/** Минимальная длина пароля. Ниже восьми — не пароль, а формальность. */
 const MIN_PASSWORD = 8
-
-/*
- * Проверка адреса нарочно грубая: «что-то, собака, что-то, точка, что-то».
- * Точные правила почтовых адресов сложнее, чем кажется, и строгое регулярное
- * выражение чаще отвергает живой адрес, чем ловит опечатку. Настоящая проверка
- * — письмо, которое придёт следующим экраном.
- */
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const emailError = computed(() => {
@@ -111,54 +73,83 @@ const isValid = computed(
   () => emailError.value === '' && passwordError.value === '' && confirmError.value === '',
 )
 
-/** Смена режима сбрасывает разбор ошибок: поля у режимов разные. */
 watch(mode, () => {
   tried.value = false
   confirm.value = ''
   authError.value = ''
 })
 
-/* Открыли — выставляем стартовый режим (лендинг: Accedi). */
 watch(open, (isOpen) => {
   if (isOpen) {
     mode.value = props.loginOnly ? 'login' : props.startMode
     authError.value = ''
+    if (email.value.trim() === '' && props.knownEmail.trim() !== '') {
+      email.value = props.knownEmail.trim()
+    }
     return
   }
-  /* Закрыли окно — стираем пароль немедленно, не дожидаясь размонтирования. */
   password.value = ''
   confirm.value = ''
   tried.value = false
   authError.value = ''
+  submitting.value = false
 })
 
-function onSubmit(): void {
+function firstApiError(error: unknown): string {
+  if (error instanceof ApiError) {
+    const firstField = Object.values(error.errors)[0]
+    if (Array.isArray(firstField) && firstField.length > 0) {
+      return String(firstField[0])
+    }
+    return error.message || t('wizard.register.errors.noAccount')
+  }
+
+  return t('wizard.register.errors.noAccount')
+}
+
+async function onSubmit(): Promise<void> {
   tried.value = true
   authError.value = ''
   if (!isValid.value) return
+  if (submitting.value) return
 
-  const address = email.value.trim()
+  const address = email.value.trim().toLowerCase()
+  submitting.value = true
 
-  /*
-   * Вход: только если кабинет уже создан после мастера и почта совпадает.
-   * Иначе — отказ, без демо-профиля Marco Rossi.
-   */
-  if (!isCreate.value) {
-    const known = (props.knownEmail ?? '').trim().toLowerCase()
-    if (known === '' || address.toLowerCase() !== known) {
-      authError.value = t('wizard.register.errors.noAccount')
+  try {
+    if (!isCreate.value) {
+      await loginAccount(address, password.value)
+      simulator.email = address
+      password.value = ''
+      confirm.value = ''
+      emit('login', address)
       return
     }
+
+    const firstName = simulator.firstName.trim()
+    const surname = simulator.surname.trim()
+    const fullName = [firstName, surname].filter(Boolean).join(' ') || String(address.split('@')[0] ?? address)
+
+    await registerAccount({
+      name: fullName,
+      email: address,
+      password: password.value,
+      password_confirmation: confirm.value,
+      surname: surname || undefined,
+      requested_amount: simulator.amount,
+      document_type: simulator.docType || undefined,
+      document_number: simulator.docNumber || undefined,
+    })
+
+    simulator.email = address
     password.value = ''
     confirm.value = ''
-    emit('login', address)
-    return
+    emit('registered', address)
+  } catch (error) {
+    authError.value = firstApiError(error)
+  } finally {
+    submitting.value = false
   }
-
-  // Пароль наружу не отдаём — см. шапку файла.
-  password.value = ''
-  confirm.value = ''
-  emit('registered', address)
 }
 
 function close(): void {
