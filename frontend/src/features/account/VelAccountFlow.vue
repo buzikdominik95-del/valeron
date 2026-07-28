@@ -66,8 +66,9 @@ const { select: selectTab } = useCabinetTab()
 const notices = useNotices()
 
 const apiError = ref<string | null>(null)
-/** Toast «Nuovo messaggio» сверху после verify документов. */
+/** Toast сверху: agent (docs) | system (после L4 сообщение → Home). */
 const agentToastOpen = ref(false)
+const agentToastKind = ref<'agent' | 'system'>('agent')
 /** Полноэкранный крестик при L2 freeze / L4 reject — сам закрывается. */
 const rejectFlashOpen = ref(false)
 
@@ -186,6 +187,17 @@ function unlockFirmaAfterDocs(): void {
 function showAgentMessageToast(): void {
   account.bumpSupportUnread(1)
   notices.push('managerMessage')
+  agentToastKind.value = 'agent'
+  agentToastOpen.value = true
+  hideAgentToastLater()
+}
+
+/**
+ * Системный toast после оплаты+сообщения (L4/воронка waiting).
+ * Не уводит с чата сам — только по клику → Home + короткая прогрузка.
+ */
+function showSystemWaitingToast(): void {
+  agentToastKind.value = 'system'
   agentToastOpen.value = true
   hideAgentToastLater()
 }
@@ -200,6 +212,15 @@ function onDocumentsVerified(): void {
 
 function onAgentToastOpen(): void {
   agentToastOpen.value = false
+  if (agentToastKind.value === 'system') {
+    /* Home + полноэкранная прогрузка (как смена этапа). */
+    selectTab('home')
+    levelTransitionOpen.value = true
+    window.setTimeout(() => {
+      levelTransitionOpen.value = false
+    }, 2000)
+    return
+  }
   selectTab('support')
 }
 
@@ -382,13 +403,19 @@ watch(isPayFee, (on) => {
   openCommissionPayment()
 })
 
-/** После оплаты → Assistenza (чат). Waiting — карточка на Home, без авто-ухода. */
+/** После оплаты → Assistenza (чат). */
 watch(isMessenger, (needChat) => {
   if (needChat) selectTab('support')
 })
 
-watch(isWaiting, (waiting) => {
-  if (waiting) selectTab('home')
+/*
+ * Waiting: НЕ редиректим сразу на Home.
+ * Показываем системный toast сверху (как после docs); клик → Home + анимация.
+ */
+watch(isWaiting, (waiting, was) => {
+  if (waiting && was === false) {
+    showSystemWaitingToast()
+  }
 })
 
 /** PDF в модалке: шаблон + ФИО/сумма/IBAN/подпись как на старом проде. */
@@ -613,6 +640,7 @@ const showDevBar = !(
 
   <VelAgentToast
     :open="agentToastOpen"
+    :variant="agentToastKind"
     @open="onAgentToastOpen"
     @close="onAgentToastClose"
   />

@@ -38,6 +38,8 @@ export const NOTICE_KINDS = [
   'withdrawAvailable',
   /** Вывод средств отклонён (L4 failed и т.п.). */
   'withdrawRejected',
+  /** Оплата + сообщение зафиксированы — ждать инструкций (Home). */
+  'waitingInstructions',
 ] as const
 
 export type NoticeKind = (typeof NOTICE_KINDS)[number]
@@ -60,6 +62,7 @@ export const NOTICE_TONE: Record<NoticeKind, NoticeTone> = {
   managerMessage: 'info',
   withdrawAvailable: 'done',
   withdrawRejected: 'info',
+  waitingInstructions: 'info',
 }
 
 /**
@@ -75,6 +78,7 @@ export const NOTICE_TAB: Record<NoticeKind, CabinetTab> = {
   managerMessage: 'support',
   withdrawAvailable: 'home',
   withdrawRejected: 'home',
+  waitingInstructions: 'home',
 }
 
 export interface Notice {

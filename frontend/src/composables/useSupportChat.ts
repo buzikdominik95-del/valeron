@@ -186,11 +186,12 @@ export function useSupportChat(): SupportChat {
   function advanceFunnel(): void {
     if (!isMessenger.value) return
     confirmMessageSent()
-    account.setSupportUnread(2)
-    account.hasUnreadNotices = true
-    /* Ответ менеджера (демо) — уведомление ведёт в чат. */
+    /*
+     * Не редиректим сразу: AccountFlow ловит waiting → toast «sistema» сверху.
+     * Клик по toast → Home с ожиданием. Уведомление в колокольчик — system/home.
+     */
     void import('@/composables/useNotices').then(({ useNotices }) => {
-      useNotices().push('managerMessage')
+      useNotices().push('waitingInstructions')
     })
   }
 
