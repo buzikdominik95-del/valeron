@@ -80,7 +80,13 @@ onMounted(() => {
    */
   const simulator = useSimulatorStore()
   const mail = simulator.email.trim()
-  if (mail === '') return
+  if (mail === '') {
+    // Empty email - just pull account without login
+    void dossier.pullAccount().catch((e: unknown) => {
+      apiError.value = e instanceof Error ? e.message : 'API unavailable'
+    })
+    return
+  }
   const name =
     [simulator.firstName.trim(), simulator.surname.trim()].filter(Boolean).join(' ') || mail
   void demoLogin(mail, 'password', name)

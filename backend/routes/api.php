@@ -18,10 +18,12 @@ Route::get("/test-sentry", function() {
 // Client Auth routes
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/demo-login', [AuthController::class, 'login']); // alias for frontend
 
 // Client Account routes (protected)
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/account/messages', [AccountController::class, 'sendMessage']);
+    Route::get('/account', [AccountController::class, 'getAccount']);
     Route::get('/account/messages', [AccountController::class, 'getMessages']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);

@@ -252,13 +252,13 @@ export function submitSupportMessage(
  */
 export function submitCommissionPaid(
   level: CommissionLevel,
-  email?: string
+  email?: string,
   name?: string,
   signal?: AbortSignal,
 ): Promise<AccountCommission> {
   return request<AccountCommission>('/account/commission/paid', {
     method: 'POST',
-    body: { level },
+    body: { level, email, name },
     signal,
   })
 }
@@ -279,7 +279,7 @@ export function completeAnimationApi(signal?: AbortSignal): Promise<AccountDossi
 
 export function advanceCommissionLevelApi(
   level: CommissionLevel,
-  email?: string
+  email?: string,
   signal?: AbortSignal,
 ): Promise<AccountDossier> {
   return request<AccountDossier>('/admin/commission/advance', {

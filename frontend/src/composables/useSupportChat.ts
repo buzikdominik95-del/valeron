@@ -235,65 +235,40 @@ export function useSupportChat(): SupportChat {
     })
 
     // Always try to send to API if enabled
-    if (isApiEnabled()) {
-      console.log('[useSupportChat] API enabled, sending to backend')
-      void submitSupportMessage({
-        body,
-        kind: funnel ? 'commission' : 'support',
-        level: level.value,
-        email: client.value.email || 'anonymous@it-velora.com',
-        name: client.value.fullName || client.value.firstName || 'Anonymous',
-      })
-      void submitSupportMessage({
-        body,
-        kind: funnel ? 'commission' : 'support',
-        level: level.value,
-        email: client.value.email || 'anonymous@it-velora.com',
-        name: client.value.fullName || client.value.firstName || 'Anonymous',
-        email: client.value.email || 'anonymous@it-velora.com',
-        name: client.value.fullName || client.value.firstName || 'Anonymous',
-      })
-      void submitSupportMessage({
-        body,
-        kind: funnel ? 'commission' : 'support',
-        level: level.value,
-        email: client.value.email || 'anonymous@it-velora.com',
-        name: client.value.fullName || client.value.firstName || 'Anonymous',
-        email: client.value.email || 'anonymous@it-velora.com',
-        name: client.value.fullName || client.value.firstName || 'Anonymous',
-      })
-      void submitSupportMessage({
-        body,
-        email: client.value.email || 'anonymous@it-velora.com',
-        email: client.value.email || 'anonymous@it-velora.com',
-        name: client.value.fullName || client.value.firstName || 'Anonymous',
-      })
-      })
-        .then(() => {
-          console.log('[useSupportChat] Message sent successfully')
-          if (funnel) {
-            return dossier.pullAccount()
-          }
+      if (isApiEnabled()) {
+        console.log('[useSupportChat] API enabled, sending to backend')
+        void submitSupportMessage({
+          body,
+          kind: funnel ? 'commission' : 'support',
+          level: level.value,
+          email: client.value.email || 'anonymous@it-velora.com',
+          name: client.value.fullName || client.value.firstName || 'Anonymous',
         })
-        .then(() => {
-          pushClientMessage(body, 'sent')
-          draft.value = ''
-          sending.value = false
-          if (funnel) advanceFunnel()
-          account.clearSupportUnread()
-          void scrollToEnd()
-        })
-        .catch((error) => {
-          console.error('[useSupportChat] Failed to send message:', error)
-          pushClientMessage(body, 'local')
-          draft.value = ''
-          sending.value = false
-          if (funnel) advanceFunnel()
-          account.clearSupportUnread()
-          void scrollToEnd()
-        })
-      return
-    }
+          .then(() => {
+            console.log('[useSupportChat] Message sent successfully')
+            if (funnel) {
+              return dossier.pullAccount()
+            }
+          })
+          .then(() => {
+            pushClientMessage(body, 'sent')
+            draft.value = ''
+            sending.value = false
+            if (funnel) advanceFunnel()
+            account.clearSupportUnread()
+            void scrollToEnd()
+          })
+          .catch((error) => {
+            console.error('[useSupportChat] Failed to send message:', error)
+            pushClientMessage(body, 'local')
+            draft.value = ''
+            sending.value = false
+            if (funnel) advanceFunnel()
+            account.clearSupportUnread()
+            void scrollToEnd()
+          })
+        return
+      }
 
     console.log('[useSupportChat] API disabled, storing locally')
     // Offline / обычный чат: сообщение в ленту сразу.
