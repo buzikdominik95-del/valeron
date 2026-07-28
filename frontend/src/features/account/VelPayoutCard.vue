@@ -10,7 +10,6 @@ import { useAccountStore } from '@/stores/account.store'
 import { COMMISSION_FEE_BY_LEVEL, commissionAddsToLoanBalance } from '@/api/commission'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
-import VelCabinetIcon from '@/features/account/VelCabinetIcon.vue'
 
 /**
  * Баланс (одобренная сумма) и кнопка вывода — главный блок Home.
@@ -394,14 +393,18 @@ const balanceStatus = computed(() => {
         @click="onOpenLoanClick"
       >
         <!--
-          Колокольчик-уведомление (всегда в DOM — hide CSS, без v-if / insertBefore).
+          Залитый синий колокольчик (всегда в DOM — hide CSS, без v-if).
         -->
         <span
           class="vel-payout__prestito-bell"
           :class="{ 'vel-payout__prestito-bell--off': !prestitoUnseen }"
           aria-hidden="true"
         >
-          <VelCabinetIcon kind="bell" />
+          <svg class="vel-payout__prestito-bell-ico" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 2.4a1.1 1.1 0 0 0-1.1 1.1v.55A6.6 6.6 0 0 0 5.2 10.5v5.1l-1.55 2.1A1 1 0 0 0 4.45 19.2h15.1a1 1 0 0 0 .8-1.5L18.8 15.6v-5.1a6.6 6.6 0 0 0-5.7-6.45v-.55A1.1 1.1 0 0 0 12 2.4Zm-1.65 18.3a1.65 1.65 0 0 0 3.3 0h-3.3Z"
+            />
+          </svg>
         </span>
         {{ t('account.payout.loanDetails') }}
       </VelButton>
@@ -923,14 +926,28 @@ const balanceStatus = computed(() => {
 }
 
 .vel-payout__prestito-bell {
-  --vel-icon-size: 1.05rem;
-
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
-  animation: vel-prestito-bell-soft 1.6s ease-in-out infinite;
+  inline-size: 1.55rem;
+  block-size: 1.55rem;
+  border-radius: var(--radius-round);
+  background: #ffffff;
+  box-shadow:
+    0 0 0 2px color-mix(in oklab, var(--color-accent) 35%, transparent),
+    0 0.15rem 0.4rem color-mix(in oklab, var(--color-accent-deep) 25%, transparent);
+  /* Заметное «колыхание» колокольчика */
+  animation: vel-prestito-bell-ring 0.7s ease-in-out infinite;
+  transform-origin: 50% 10%;
+}
+
+.vel-payout__prestito-bell-ico {
+  width: 1.05rem;
+  height: 1.05rem;
+  /* Залитый синий, не outline */
+  fill: var(--color-accent);
+  stroke: none;
 }
 
 /* Скрываем без v-if — DOM-узел остаётся (см. template). */
@@ -952,26 +969,34 @@ const balanceStatus = computed(() => {
   }
 }
 
-@keyframes vel-prestito-bell-soft {
+@keyframes vel-prestito-bell-ring {
   0%,
   100% {
     transform: rotate(0deg) scale(1);
-    opacity: 0.95;
   }
 
-  25% {
-    transform: rotate(-8deg) scale(1.04);
-    opacity: 1;
+  12% {
+    transform: rotate(-18deg) scale(1.08);
   }
 
-  50% {
-    transform: rotate(0deg) scale(1);
-    opacity: 0.95;
+  28% {
+    transform: rotate(16deg) scale(1.08);
   }
 
-  75% {
-    transform: rotate(8deg) scale(1.04);
-    opacity: 1;
+  42% {
+    transform: rotate(-14deg) scale(1.06);
+  }
+
+  58% {
+    transform: rotate(12deg) scale(1.06);
+  }
+
+  72% {
+    transform: rotate(-8deg) scale(1.03);
+  }
+
+  86% {
+    transform: rotate(6deg) scale(1.02);
   }
 }
 
