@@ -296,7 +296,7 @@ function close(): void {
 /*
  * ФИО на CPI-бланке (policy-template.png):
  *   Cliente label ~23.32%; имя left 29.4%, top 23.38% (+2px вниз).
- *   Кегль ~1.8cqw.
+ *   Кегль ~1.8cqw − 0.5px (этап 3: чуть мельче, ровнее на строке).
  */
 .vel-pdf-dlg__name {
   position: absolute;
@@ -306,8 +306,8 @@ function close(): void {
   overflow: hidden;
   color: #1f2022;
   font-family: 'Times New Roman', Times, 'Liberation Serif', 'Noto Serif', serif;
-  font-size: 0.9rem;
-  font-size: 1.8cqw;
+  font-size: calc(0.9rem - 0.5px);
+  font-size: calc(1.8cqw - 0.5px);
   font-weight: 600;
   font-style: normal;
   line-height: 1;
