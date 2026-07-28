@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, useId, useTemplateRef, watch } from 'vue'
+/* busy-плашка под суммой снята — один статус в шапке */
 import { useI18n } from 'vue-i18n'
 import { useTimeoutFn } from '@vueuse/core'
 import { useAccount } from '@/composables/useAccount'
@@ -64,7 +65,8 @@ const { prelevaPulse, clearPrelevaPulse } = useCpiBuild()
 
 const uid = useId()
 const lockedId = `vel-payout-locked-${uid}`
-const busyId = `vel-payout-busy-${uid}`
+/** Единый статус действий — в шапке рядом с «Ваш баланс» (без дубля busy-плашки). */
+const statusId = `vel-payout-status-${uid}`
 
 /**
  * Одобрено + комиссии L2…L4 (не L1 base 37 € — к счёту не идёт).
@@ -183,29 +185,12 @@ const prestitoUnseen = computed(() => {
 
 const reasonId = computed(() => {
   if (!canWithdraw.value) return lockedId
-  if (funnelBusy.value) return busyId
+  /* Статус в шапке описывает, почему Preleva заперта / busy */
+  if (funnelBusy.value || isFailed.value || isTgFinal.value) return statusId
   return undefined
 })
 
-/** Короткий label + полный detail для aria (скринридер). */
-const busyDetail = computed(() => {
-  if (isFailed.value) return t('account.commission.failed.badge')
-  if (isAnimating.value) return t('account.commission.anim.busy')
-  if (isPayFee.value) return t('account.commission.fee.busy')
-  if (isMessenger.value) return t('account.commission.messenger.busy')
-  if (isWaiting.value) return t('account.commission.waiting.busy')
-  if (isPolicyBuild.value) return t('account.commission.policyBuild.busy')
-  if (isAuthorizing.value) return t('account.payout.inProgress')
-  return t('account.payout.inProgress')
-})
-
-const busyText = computed(() =>
-  isWaiting.value ? t('account.payout.waitingShort') : t('account.payout.busyShort'),
-)
-
-const busyIsWaiting = computed(() => isWaiting.value)
-
-const busyNote = useTemplateRef<HTMLElement>('busyNote')
+const statusNote = useTemplateRef<HTMLElement>('statusNote')
 
 const { start: reclaimFocus } = useTimeoutFn(
   () => {
@@ -214,7 +199,7 @@ const { start: reclaimFocus } = useTimeoutFn(
       active === null || active === document.body || active === document.documentElement
     const unreachable = active instanceof HTMLElement && active.closest('dialog') !== null
 
-    if (nowhere || unreachable) busyNote.value?.focus()
+    if (nowhere || unreachable) statusNote.value?.focus()
   },
   0,
   { immediate: false },
@@ -275,6 +260,9 @@ const balanceStatus = computed(() => {
     <div class="vel-payout__head">
       <h2 class="vel-payout__balance-label">{{ t('account.payout.balanceLabel') }}</h2>
       <p
+        :id="statusId"
+        ref="statusNote"
+        tabindex="-1"
         class="vel-payout__bstatus"
         :class="`vel-payout__bstatus--${balanceStatus.kind}`"
         data-testid="balance-status"
@@ -357,6 +345,7 @@ const balanceStatus = computed(() => {
       </VelButton>
     </div>
 
+    <!-- Онбординг: что ещё сделать (не дубль статуса воронки) -->
     <div v-if="!canWithdraw" :id="lockedId" class="vel-payout__locked">
       <VelAccountSign sign="lock" class="vel-payout__sign" />
       <div class="flex min-w-0 flex-col gap-2">
@@ -372,27 +361,7 @@ const balanceStatus = computed(() => {
       </div>
     </div>
 
-    <p
-      v-else-if="funnelBusy"
-      :id="busyId"
-      ref="busyNote"
-      tabindex="-1"
-      class="vel-payout__busy"
-      :class="{ 'vel-payout__busy--waiting': busyIsWaiting }"
-      role="status"
-      :aria-label="busyDetail"
-    >
-      <!-- Waiting: часы со стрелками; иначе кружок-спиннер -->
-      <span
-        v-if="busyIsWaiting"
-        class="vel-payout__busy-clock"
-        aria-hidden="true"
-      >
-        <VelAccountSign sign="clock" class="vel-payout__busy-clock-ico" />
-      </span>
-      <span v-else class="vel-payout__busy-spin" aria-hidden="true" />
-      <span class="vel-payout__busy-text">{{ busyText }}</span>
-    </p>
+    <!-- Busy «В ходе выполнения» убран: тот же смысл в status справа сверху -->
 
     <VelButton
       size="lg"
