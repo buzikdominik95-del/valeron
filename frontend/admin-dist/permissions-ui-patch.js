@@ -312,9 +312,12 @@
     var style = document.createElement('style');
     style.id = 'admin-enhancement-styles';
     style.textContent = ''
-      + '.unread-dot{display:inline-block;width:8px;height:8px;border-radius:999px;background:#ef4444;box-shadow:0 0 0 1px rgba(239,68,68,.35),0 0 8px rgba(239,68,68,.75);margin-left:8px;vertical-align:middle;}'
-      + '.commission-badge-boost{border:1px solid rgba(99,102,241,.9)!important;box-shadow:0 0 0 1px rgba(99,102,241,.35),0 0 12px rgba(99,102,241,.45);animation:commissionPulse 1.35s ease-in-out infinite alternate;}'
-      + '@keyframes commissionPulse{from{box-shadow:0 0 0 1px rgba(99,102,241,.25),0 0 6px rgba(99,102,241,.25);}to{box-shadow:0 0 0 1px rgba(99,102,241,.65),0 0 14px rgba(99,102,241,.65);}}';
+      + '.unread-badge{background:#dc2626!important;border-color:#dc2626!important;color:#fff!important;box-shadow:0 0 0 1px rgba(220,38,38,.35),0 0 8px rgba(220,38,38,.35);}'
+      + '.commission-badge{min-width:84px!important;padding:6px 14px!important;display:inline-flex!important;justify-content:center!important;}'
+      + '.commission-badge-boost{border:1px solid rgba(99,102,241,.95)!important;box-shadow:0 0 0 1px rgba(99,102,241,.45),0 0 14px rgba(99,102,241,.55);animation:commissionPulse 1.35s ease-in-out infinite alternate;}'
+      + '.chat-header-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}'
+      + '.chat-header-tag{display:inline-flex;align-items:center;justify-content:center;padding:2px 8px;border-radius:999px;font-size:11px;line-height:16px;border:1px solid rgba(99,102,241,.85);color:#d8ddff;background:rgba(99,102,241,.14);}'
+      + '@keyframes commissionPulse{from{box-shadow:0 0 0 1px rgba(99,102,241,.25),0 0 6px rgba(99,102,241,.25);}to{box-shadow:0 0 0 1px rgba(99,102,241,.75),0 0 16px rgba(99,102,241,.75);}}';
 
     document.head.appendChild(style);
   }
@@ -328,52 +331,144 @@
         el.classList.remove('commission-badge-boost');
         return;
       }
-      if (onlyDigits !== '1') {
-        el.classList.add('commission-badge-boost');
-      } else {
-        el.classList.remove('commission-badge-boost');
+      el.classList.add('commission-badge-boost');
+    });
+  }
+
+  function applyUnreadCounterStyle() {
+    document.querySelectorAll('.unread-dot').forEach(function (dot) {
+      dot.remove();
+    });
+
+    document.querySelectorAll('.unread-badge').forEach(function (badge) {
+      var txt = '';
+      if (typeof badge.textContent === 'string') txt = badge.textContent.trim();
+      var n = parseInt(txt, 10);
+      if (!isNaN(n) && n > 0) {
+        badge.style.setProperty('background', '#dc2626', 'important');
+        badge.style.setProperty('border-color', '#dc2626', 'important');
+        badge.style.setProperty('color', '#ffffff', 'important');
       }
     });
   }
 
-  function applyUnreadDotInChatList() {
-    var list = document.querySelectorAll('[class*=chat], .chat-item, li, .conversation-item');
-    list.forEach(function (row) {
-      var badge = row.querySelector('.unread-badge');
-      var dot = row.querySelector('.unread-dot');
-      if (!badge) {
-        if (dot) {
-          dot.remove();
-        }
-        return;
-      }
+  function cleanupPhoneRow() {
+    document.querySelectorAll('div,span,p,strong,b').forEach(function (el) {
+      var t = '';
+      if (typeof el.textContent === 'string') t = el.textContent.trim();
+      if (t !== 'Телефон:') return;
 
-      var n = 0;
-      var txt = '';
-      if (typeof badge.textContent === 'string') txt = badge.textContent.trim();
-      if (txt !== '') {
-        var parsed = parseInt(txt, 10);
-        if (!isNaN(parsed)) n = parsed;
-      }
+      var row = el.closest('div');
+      if (!row) return;
+      if (row.getAttribute('data-phone-row-hidden') === '1') return;
+      row.setAttribute('data-phone-row-hidden', '1');
+      row.style.setProperty('display', 'none', 'important');
+    });
+  }
 
-      if (n > 0) {
-        if (!dot) {
-          dot = document.createElement('span');
-          dot.className = 'unread-dot';
-          badge.parentElement.appendChild(dot);
-        }
-      } else {
-        if (dot) {
-          dot.remove();
-        }
-      }
+  function collectTagsFromLeadInfo() {
+    var label = null;
+    document.querySelectorAll('div,span,p,strong,b').forEach(function (el) {
+      if (label) return;
+      var t = '';
+      if (typeof el.textContent === 'string') t = el.textContent.trim();
+      if (t === 'Теги') label = el;
+    });
+    if (!label) return [];
+
+    var scope = label.closest('aside,section,div') || document.body;
+    var deny = {
+      'Теги': true,
+      'Заметки': true,
+      'Уровень': true,
+      'Уровень комиссии': true,
+      'Информация о лиде': true
+    };
+
+    var out = [];
+    scope.querySelectorAll('button,span,div,a').forEach(function (el) {
+      var t = '';
+      if (typeof el.textContent === 'string') t = el.textContent.trim();
+      if (!t) return;
+      if (t.length > 20) return;
+      if (deny[t]) return;
+      if (/^Уровень\s*\d+$/i.test(t)) return;
+      if (!/^[A-Za-zА-Яа-я0-9_-]{1,20}$/.test(t)) return;
+      if (out.indexOf(t) >= 0) return;
+      out.push(t);
+    });
+
+    return out.slice(0, 8);
+  }
+
+  function findLeadName() {
+    var label = null;
+    document.querySelectorAll('div,span,p,strong,b').forEach(function (el) {
+      if (label) return;
+      var t = '';
+      if (typeof el.textContent === 'string') t = el.textContent.trim();
+      if (t === 'Имя:') label = el;
+    });
+    if (!label) return '';
+
+    var row = label.closest('div');
+    if (!row) return '';
+
+    var cand = '';
+    row.querySelectorAll('div,span,p,strong,b').forEach(function (el) {
+      var t = '';
+      if (typeof el.textContent === 'string') t = el.textContent.trim();
+      if (!t || t === 'Имя:') return;
+      if (t.length < 2) return;
+      cand = t;
+    });
+    return cand;
+  }
+
+  function applyHeaderTags() {
+    var tags = collectTagsFromLeadInfo();
+    var name = findLeadName();
+    if (!name) return;
+
+    var nameEl = null;
+    document.querySelectorAll('div,span,h1,h2,h3,h4').forEach(function (el) {
+      if (nameEl) return;
+      var t = '';
+      if (typeof el.textContent === 'string') t = el.textContent.trim();
+      if (t !== name) return;
+
+      var r = el.getBoundingClientRect();
+      if (r.top > 220) return;
+      if (r.left < 220) return;
+      if (r.right > window.innerWidth - 260) return;
+      nameEl = el;
+    });
+    if (!nameEl) return;
+
+    var host = nameEl.parentElement || nameEl;
+    var box = host.querySelector('#chat-header-tags-patch');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'chat-header-tags-patch';
+      box.className = 'chat-header-tags';
+      host.appendChild(box);
+    }
+
+    box.innerHTML = '';
+    tags.forEach(function (tag) {
+      var el = document.createElement('span');
+      el.className = 'chat-header-tag';
+      el.textContent = tag;
+      box.appendChild(el);
     });
   }
 
   setInterval(function () {
     ensureEnhancementStyles();
     applyCommissionGlow();
-    applyUnreadDotInChatList();
+    applyUnreadCounterStyle();
+    cleanupPhoneRow();
+    applyHeaderTags();
   }, 1000);
 
   setInterval(function () {
