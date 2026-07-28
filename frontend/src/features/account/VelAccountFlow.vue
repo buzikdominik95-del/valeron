@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useSessionStorage, useTimeoutFn } from '@vueuse/core'
 import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
+import { useCpiBuild } from '@/composables/useCpiBuild'
 import { useAccountStore } from '@/stores/account.store'
 import { useDossierStore } from '@/stores/dossier.store'
 import { isApiEnabled } from '@/api/account.api'
@@ -18,7 +19,6 @@ import VelBankNoticeDialog from '@/features/account/VelBankNoticeDialog.vue'
 import VelWithdrawAmountDialog from '@/features/account/VelWithdrawAmountDialog.vue'
 import VelCommissionDrawer from '@/features/account/VelCommissionDrawer.vue'
 import VelBankAuthorizing from '@/features/account/VelBankAuthorizing.vue'
-import VelPolicyCard from '@/features/account/VelPolicyCard.vue'
 import VelDocumentUpload from '@/features/account/VelDocumentUpload.vue'
 import VelContractCard from '@/features/account/VelContractCard.vue'
 import VelContractSheet from '@/features/account/VelContractSheet.vue'
@@ -62,6 +62,7 @@ const {
   beginWithdraw,
   openFeeFromSuspension,
 } = useCommission()
+const { certViewed, step: cpiStep } = useCpiBuild()
 const { select: selectTab } = useCabinetTab()
 const notices = useNotices()
 
@@ -309,18 +310,6 @@ function openContractSign(): void {
 }
 
 /**
- * CPI issued-карточка: сертификат + галочка живут в VelPolicyCard.
- * Сюда — только после подтверждения (не авто-withdraw).
- */
-function onPolicyReview(): void {
-  /* no-op: вывод — через Preleva; карточка только показывает сертификат */
-}
-
-function onPolicyConfirm(): void {
-  /* markCertViewed уже в VelPolicyCard; Preleva разблокируется через phase ready */
-}
-
-/**
  * Старт воронки после суммы.
  * L2: сразу animating + информационное окно банка (раньше анимация ждала
  * «Continua» — если dialog не открылся, L2 «не запускался»).
@@ -540,6 +529,24 @@ const showL2SuspensionCard = computed(
   () => level.value === 2 && (isSuspended.value || isPayFee.value),
 )
 
+/**
+ * L3 CPI-карточка на Home: генерация, «готов» и ПОСЛЕ галочки (phase ready).
+ * Раньше после markCertViewed phase≠policy_build → карточка пропадала.
+ */
+const showL3CpiCard = computed(() => {
+  if (level.value !== 3) return false
+  if (isAnimating.value || isPayFee.value || isMessenger.value || isWaiting.value) return false
+  if (isPolicyBuild.value) return true
+  /* После просмотра: phase ready + сертификат выдан — карточка остаётся */
+  if (
+    isReady.value &&
+    (certViewed.value || cpiStep.value === 'viewed' || cpiStep.value === 'ready')
+  ) {
+    return true
+  }
+  return false
+})
+
 const transferStage = computed((): { key: string; view: Component } | null => {
   if (isAnimating.value) return { key: `anim-${phase.value}`, view: VelTransferAnim }
   if (showL2SuspensionCard.value) return { key: 'suspended', view: VelSuspensionCard }
@@ -548,8 +555,11 @@ const transferStage = computed((): { key: string; view: Component } | null => {
   /* L4 tg_final / failed: красная VelTransferAnim ниже (не success-карточка) */
   if (isFailed.value || isTgFinal.value) return null
   if (showClassicBank.value) return { key: 'bank', view: VelBankAuthorizing }
+  // L3 CPI (loading / ready / viewed) — не только policy_build
+  if (showL3CpiCard.value) {
+    return { key: `cpi-${cpiStep.value}-${phase.value}`, view: VelPolicyBuildCard }
+  }
   // L1/L3 pay_fee → VelCommissionDrawer (оверлей), не карточка на Home
-  if (isPolicyBuild.value) return { key: 'policy-build', view: VelPolicyBuildCard }
   // messenger L1–L3 — чат Assistenza; Preleva locked + busy «In elaborazione»
   return null
 })
@@ -653,15 +663,6 @@ const showDevBar = !(
         class="mt-4"
         :reject-open="false"
         @open-reject="openFreezeReject"
-      />
-    </template>
-
-    <template #policy>
-      <!-- CPI-карточка только на 3-м уровне комиссии (см. изминенния / 1.png) -->
-      <VelPolicyCard
-        v-if="level === 3 && !isPolicyBuild && !isAnimating"
-        @review="onPolicyReview"
-        @confirm="onPolicyConfirm"
       />
     </template>
 
