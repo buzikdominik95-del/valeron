@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminUser;
+use App\Support\AdminUiPermissionStore;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,7 @@ class ManagerController extends Controller
                     'email' => $manager->email,
                     'role' => $manager->role,
                     'is_active' => (bool) $manager->is_active,
+                    'hidden_elements' => AdminUiPermissionStore::getFor((int) $manager->id),
                     'traffic_percent' => (int) ($trafficMap[(string) $manager->id] ?? 0),
                     'total_leads' => $totalLeads,
                     'leads_24h' => $leads24h,

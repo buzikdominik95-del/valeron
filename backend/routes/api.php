@@ -60,6 +60,7 @@ Route::prefix('admin')->group(function () {
     Route::get('users', [UserController::class, 'index']);
     Route::post('users', [UserController::class, 'store']);
     Route::delete('users/{id}', [UserController::class, 'destroy']);
+    Route::put('users/{id}/permissions', [UserController::class, 'updatePermissions']);
 
     // Leads
     Route::get('leads', [AdminLeadController::class, 'index']);

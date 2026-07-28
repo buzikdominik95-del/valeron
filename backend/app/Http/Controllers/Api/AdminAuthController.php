@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminUser;
+use App\Support\AdminUiPermissionStore;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -21,12 +22,15 @@ class AdminAuthController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Try to find admin by email (login field)
         $admin = AdminUser::where('email', $request->login)
             ->orWhere('name', $request->login)
             ->first();
 
-        if (!$admin || !Hash::check($request->password, $admin->password)) {
+        if (!$admin) {
+            return response()->json(['message' => 'Invalid credentials'], 401);
+        }
+
+        if (!Hash::check($request->password, $admin->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
@@ -42,6 +46,7 @@ class AdminAuthController extends Controller
                 'name' => $admin->name,
                 'email' => $admin->email,
                 'role' => $admin->role,
+                'hidden_elements' => AdminUiPermissionStore::getFor((int) $admin->id),
             ],
             'token' => $token,
         ]);
@@ -62,6 +67,7 @@ class AdminAuthController extends Controller
                 'name' => $request->user()->name,
                 'email' => $request->user()->email,
                 'role' => $request->user()->role ?? 'admin',
+                'hidden_elements' => AdminUiPermissionStore::getFor((int) $request->user()->id),
             ],
         ]);
     }
