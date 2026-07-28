@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
+import { usePreferredReducedMotion } from '@vueuse/core'
+import { gsap } from 'gsap'
 import { useAccount } from '@/composables/useAccount'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useCommission } from '@/composables/useCommission'
@@ -16,7 +18,7 @@ import {
  * «Бровь» — обычный блок в потоке (не sticky/fixed).
  * При скролле уезжает вверх под шапку и исчезает, как остальные карточки.
  * Grid-колонки с minmax(0,…) + overflow:hidden — lbl/val не наезжают.
- * IBAN → Documenti; nome/email/sesso → Profilo; saldo → zoom.
+ * IBAN → Documenti; nome/email/sesso → Profilo; saldo → плавный scroll + soft pulse.
  */
 const { t, n } = useI18n()
 const { client, approvedAmount } = useAccount()
@@ -26,6 +28,17 @@ const { level, isTgFinal, isSuspended, isFailed, isWaiting, isMessenger, isPayFe
 const accountStore = useAccountStore()
 const { ibanFull, ibanMasked, paidCommissionExpenses } = storeToRefs(accountStore)
 const { gender } = storeToRefs(useSimulatorStore())
+const reducedMotion = usePreferredReducedMotion()
+
+/** Активный tween скролла к балансу — гасим при повторном клике / unmount. */
+let balanceScrollTween: gsap.core.Tween | null = null
+let balancePulseTimer = 0
+
+onBeforeUnmount(() => {
+  balanceScrollTween?.kill()
+  balanceScrollTween = null
+  if (balancePulseTimer) window.clearTimeout(balancePulseTimer)
+})
 
 const paidFeesEuros = computed(() => {
   const list = paidCommissionExpenses.value
@@ -89,14 +102,75 @@ function goDocuments(): void {
   selectTab('documents')
 }
 
+/** Высота fixed-шапки: баланс не должен уезжать под неё. */
+function shellHeadOffsetPx(): number {
+  const root = document.querySelector('.vel-cabinet')
+  if (root instanceof HTMLElement) {
+    const raw = getComputedStyle(root).getPropertyValue('--vel-shell-head-h').trim()
+    const n = Number.parseFloat(raw)
+    if (Number.isFinite(n) && n > 0) return n
+  }
+  return 56
+}
+
+function pulseBalance(el: HTMLElement): void {
+  el.classList.remove('vel-brow-zoom')
+  /* reflow — чтобы повторный клик снова проиграл анимацию */
+  void el.offsetWidth
+  el.classList.add('vel-brow-zoom')
+  if (balancePulseTimer) window.clearTimeout(balancePulseTimer)
+  balancePulseTimer = window.setTimeout(() => {
+    el.classList.remove('vel-brow-zoom')
+    balancePulseTimer = 0
+  }, 1400)
+}
+
+/**
+ * Клик по Saldo в брови → Home + спокойный скролл к карточке баланса.
+ * Не scrollIntoView: он прыгает резко и не учитывает fixed-шапку.
+ * GSAP ease power2.inOut ~0.9s, затем мягкая подсветка.
+ */
 function goBalance(): void {
   selectTab('home')
-  requestAnimationFrame(() => {
-    const el = document.querySelector<HTMLElement>('[data-testid="payout-balance"]')
-    if (!el) return
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    el.classList.add('vel-brow-zoom')
-    window.setTimeout(() => el.classList.remove('vel-brow-zoom'), 900)
+  void nextTick(() => {
+    requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>('[data-testid="payout-balance"]')
+      if (!el) return
+
+      const gap = 10
+      const topPad = shellHeadOffsetPx() + gap
+      const rect = el.getBoundingClientRect()
+      const targetY = Math.max(0, window.scrollY + rect.top - topPad)
+      const distance = Math.abs(targetY - window.scrollY)
+
+      balanceScrollTween?.kill()
+      balanceScrollTween = null
+
+      /* Уже на месте / reduced motion — без «гонки» скролла */
+      if (reducedMotion.value === 'reduce' || distance < 6) {
+        if (distance >= 1) window.scrollTo({ top: targetY, left: 0, behavior: 'auto' })
+        pulseBalance(el)
+        return
+      }
+
+      /* Длиннее путь — чуть дольше, но в разумных пределах */
+      const duration = Math.min(1.15, Math.max(0.55, distance / 900))
+      const state = { y: window.scrollY }
+
+      balanceScrollTween = gsap.to(state, {
+        y: targetY,
+        duration,
+        ease: 'power2.inOut',
+        onUpdate: () => {
+          window.scrollTo(0, state.y)
+        },
+        onComplete: () => {
+          balanceScrollTween = null
+          /* лёгкая пауза после прилёта — pulse не режет скролл */
+          window.setTimeout(() => pulseBalance(el), 80)
+        },
+      })
+    })
   })
 }
 </script>
@@ -557,22 +631,41 @@ function goBalance(): void {
 </style>
 
 <style>
+/* Мягкая подсветка баланса после скролла — без резкого «прыжка» scale */
 @keyframes vel-brow-balance-zoom {
   0% {
     transform: scale(1);
+    box-shadow:
+      0 0.55rem 1.35rem color-mix(in oklab, var(--color-fg) 6%, transparent),
+      inset 0 1px 0 color-mix(in oklab, #fff 70%, transparent);
   }
 
-  40% {
-    transform: scale(1.02);
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent) 28%, transparent);
+  35% {
+    transform: scale(1.012);
+    box-shadow:
+      0 0 0 2px color-mix(in oklab, var(--color-accent) 22%, transparent),
+      0 0.75rem 1.6rem color-mix(in oklab, var(--color-accent) 12%, transparent),
+      inset 0 1px 0 color-mix(in oklab, #fff 70%, transparent);
   }
 
   100% {
     transform: scale(1);
+    box-shadow:
+      0 0.55rem 1.35rem color-mix(in oklab, var(--color-fg) 6%, transparent),
+      inset 0 1px 0 color-mix(in oklab, #fff 70%, transparent);
   }
 }
 
 .vel-brow-zoom {
-  animation: vel-brow-balance-zoom 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: vel-brow-balance-zoom 1.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-brow-zoom {
+    animation: none;
+    box-shadow:
+      0 0 0 2px color-mix(in oklab, var(--color-accent) 22%, transparent),
+      0 0.55rem 1.35rem color-mix(in oklab, var(--color-fg) 6%, transparent);
+  }
 }
 </style>
