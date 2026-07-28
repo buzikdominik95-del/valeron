@@ -390,7 +390,7 @@ export default {
       side: 'Dati e sicurezza',
     },
 
-    /* Sticky «бровь» клиента — VelClientBrow.vue (под шапкой, над балансом) */
+    /* Fixed «бровь» клиента — VelClientBrow.vue (под шапкой, всегда сверху при скролле) */
     brow: {
       label: 'Scheda cliente',
       client: 'Cliente',
