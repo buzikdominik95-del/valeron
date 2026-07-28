@@ -42,11 +42,14 @@ const thread = computed(() =>
   })),
 )
 
-/** В funnel — реплика консультанта про оплату; иначе общее приветствие. */
+/**
+ * Lead-пузырь только в воронке (оплата / waiting).
+ * Обычное приветствие после регистрации — НЕ сразу: через 15 с вместе
+ * с toast (VelAccountFlow → pushAgentMessage welcomeMsg).
+ */
+const showFunnelLead = computed(() => isFunnelMode.value || isWaitingAdmin.value)
 const agentLead = computed(() =>
-  isFunnelMode.value || isWaitingAdmin.value
-    ? funnelAgentHello.value
-    : t('account.support.chat.greeting'),
+  showFunnelLead.value ? funnelAgentHello.value : '',
 )
 </script>
 
@@ -88,12 +91,15 @@ const agentLead = computed(() =>
           иначе при прокрутке ленты паттерн «съезжал» и оставлял пустые зоны.
         -->
         <div class="vel-chat__stack">
+          <!-- Воронка messenger/waiting: lead про оплату. После регистрации
+               пузыря нет — welcomeMsg падает через 15 с с toast. -->
           <VelChatBubble
+            v-if="showFunnelLead && agentLead"
             author="agent"
             :text="agentLead"
             at=""
             delivery="sent"
-            :last="!isFunnelMode"
+            :last="thread.length === 0"
           />
 
           <p v-if="isFunnelMode" class="vel-chat__funnel-hint">{{ funnelHint }}</p>

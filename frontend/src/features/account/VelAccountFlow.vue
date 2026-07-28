@@ -215,15 +215,16 @@ function showAgentMessageToast(): void {
 
 /**
  * Приветствие менеджера ~15 с после входа в ЛК:
- * toast + реплика в Assistenza + badge + notice.
+ * toast + реплика в Assistenza + badge + notice — всё одновременно.
+ * (Раньше в чате сразу висело статичное greeting, а toast шёл через 15 с.)
  */
 function showWelcomeManagerToast(): void {
   welcomeToastSeen.value = true
-  account.bumpSupportUnread(1)
   notices.push('managerMessage')
   agentToastKind.value = 'welcome'
   agentToastOpen.value = true
   hideAgentToastLater()
+  /* pushAgentMessage сам бампит unread — не дублируем */
   void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
     useSupportChat().pushAgentMessage(t('account.support.chat.welcomeMsg'))
   })
