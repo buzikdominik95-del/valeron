@@ -256,7 +256,7 @@ export async function fetchSupportMessages(
     })
     return Array.isArray(payload.messages) ? payload.messages : []
   } catch (error) {
-    if (error instanceof ApiError && (error.status === 401 || error.status === 419)) {
+    if (error instanceof ApiError && error.status !== 422) {
       const payload = await request<{ messages?: SupportThreadMessage[] }>(`/account/messages-test${query}`, {
         signal,
       })
@@ -278,7 +278,7 @@ export async function submitSupportMessage(
       signal,
     })
   } catch (error) {
-    if (error instanceof ApiError && (error.status === 401 || error.status === 419)) {
+    if (error instanceof ApiError && error.status !== 422) {
       return request<{ ok: true }>('/account/messages-test', {
         method: 'POST',
         body: payload,

@@ -44,6 +44,8 @@ const thread = computed(() =>
 )
 
 /** В funnel — реплика консультанта про оплату; иначе общее приветствие. */
+const showAgentLead = computed(() => isFunnelMode.value || isWaitingAdmin.value || messages.value.length === 0)
+
 const agentLead = computed(() =>
   isFunnelMode.value || isWaitingAdmin.value
     ? funnelAgentHello.value
@@ -88,6 +90,7 @@ const agentLead = computed(() =>
 
         <div class="vel-chat__stack">
           <VelChatBubble
+            v-if="showAgentLead"
             author="agent"
             :text="agentLead"
             at=""
