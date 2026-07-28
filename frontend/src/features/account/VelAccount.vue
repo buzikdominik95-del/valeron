@@ -206,7 +206,7 @@ watch(tab, async (next) => {
           -->
           <h1 class="sr-only">{{ t('account.shell.title') }}</h1>
 
-          <!-- Sticky «бровь» клиента: под шапкой, над балансом, все этапы -->
+          <!-- Fixed «бровь» клиента: всегда под шапкой при скролле, все этапы -->
           <VelClientBrow />
 
           <!--

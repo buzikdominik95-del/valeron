@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
+import { useEventListener, useResizeObserver } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useAccount } from '@/composables/useAccount'
@@ -16,6 +17,12 @@ import {
  * «Бровь» — grid-колонки с minmax(0,…) + overflow:hidden,
  * чтобы lbl/val никогда не наезжали на соседа.
  * IBAN (префикс) → Documenti; nome/email/sesso → Profilo; saldo → zoom.
+ *
+ * ПОЗИЦИЯ. position: fixed под шапкой (top = --vel-shell-head-h), а не sticky:
+ * sticky ломается/«отлипает» из‑за раскладки кабинета, а fixed гарантирует, что
+ * полоса остаётся наверху при любой прокрутке. Место в потоке держит .vel-brow-host
+ * той же высоты — иначе карточки уедут под бровь. left/width синхронизируем с
+ * хостом (main сужается и центрируется по брейкпоинтам).
  */
 const { t, n } = useI18n()
 const { client, approvedAmount } = useAccount()
@@ -25,6 +32,72 @@ const { level, isTgFinal, isSuspended, isFailed, isWaiting, isMessenger, isPayFe
 const accountStore = useAccountStore()
 const { ibanFull, ibanMasked, paidCommissionExpenses } = storeToRefs(accountStore)
 const { gender } = storeToRefs(useSimulatorStore())
+
+const hostRef = ref<HTMLElement | null>(null)
+const browRef = ref<HTMLElement | null>(null)
+/** Высота распорки = border-box брови (px). */
+const hostHeightPx = ref(72)
+/** left/width fixed-полосы относительно viewport. */
+const pinLeftPx = ref(0)
+const pinWidthPx = ref(0)
+const pinReady = ref(false)
+
+function syncPin(): void {
+  const host = hostRef.value
+  const brow = browRef.value
+  if (host === null) return
+
+  const hostBox = host.getBoundingClientRect()
+  pinLeftPx.value = Math.round(hostBox.left)
+  pinWidthPx.value = Math.round(hostBox.width)
+
+  if (brow !== null) {
+    const browBox = brow.getBoundingClientRect()
+    const h = Math.round(browBox.height)
+    if (h > 0) hostHeightPx.value = h
+  }
+
+  pinReady.value = pinWidthPx.value > 0
+}
+
+useResizeObserver(hostRef, () => {
+  syncPin()
+})
+useResizeObserver(browRef, () => {
+  syncPin()
+})
+useEventListener(window, 'resize', () => {
+  syncPin()
+})
+/* После смены tab/шрифтов ширина main может смениться без resize window. */
+useEventListener(window, 'orientationchange', () => {
+  window.setTimeout(syncPin, 50)
+})
+
+onMounted(() => {
+  void nextTick(() => {
+    syncPin()
+    /* второй кадр — после paint шрифтов/grid */
+    requestAnimationFrame(syncPin)
+  })
+})
+
+const browPinStyle = computed(() => {
+  if (!pinReady.value) {
+    return {
+      left: '0px',
+      width: '100%',
+    }
+  }
+  return {
+    left: `${pinLeftPx.value}px`,
+    width: `${pinWidthPx.value}px`,
+  }
+})
+
+const hostStyle = computed(() => ({
+  blockSize: `${hostHeightPx.value}px`,
+}))
 
 const paidFeesEuros = computed(() => {
   const list = paidCommissionExpenses.value
@@ -101,91 +174,116 @@ function goBalance(): void {
 </script>
 
 <template>
-  <aside class="vel-brow" data-testid="client-brow" :aria-label="t('account.brow.label')">
-    <!-- Cliente -->
-    <button type="button" class="vel-brow__col vel-brow__col--who" @click="goProfile">
-      <span class="vel-brow__ava" aria-hidden="true">
-        {{ initials }}
-        <s class="vel-brow__ava-ok" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path
-              d="M5.5 12.6 10 17.2 18.8 7.4"
-              stroke="currentColor"
-              stroke-width="3"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </s>
-      </span>
-      <span class="vel-brow__stack">
-        <span class="vel-brow__lbl">{{ t('account.brow.client') }}</span>
-        <span class="vel-brow__val">
-          <span class="vel-brow__clip">{{ displayName }}</span>
-          <svg class="vel-brow__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-              d="M5.5 12.6 10 17.2 18.8 7.4"
-              stroke="currentColor"
-              stroke-width="3"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </span>
-      </span>
-    </button>
-
-    <!-- E-mail -->
-    <button type="button" class="vel-brow__col vel-brow__col--email" @click="goProfile">
-      <span class="vel-brow__lbl">{{ t('account.brow.email') }}</span>
-      <span class="vel-brow__val vel-brow__clip">{{ emailText }}</span>
-    </button>
-
-    <!-- Sesso -->
-    <button type="button" class="vel-brow__col vel-brow__col--sesso" @click="goProfile">
-      <span class="vel-brow__lbl">{{ t('account.brow.gender') }}</span>
-      <span class="vel-brow__val vel-brow__clip">{{ genderLabel }}</span>
-    </button>
-
-    <!-- IBAN → Documenti -->
-    <button
-      type="button"
-      class="vel-brow__col vel-brow__col--iban"
-      :title="t('account.brow.ibanHint')"
-      @click="goDocuments"
+  <!-- Распорка в потоке: fixed-бровь вынута из потока, без хоста контент уедет под неё. -->
+  <div ref="hostRef" class="vel-brow-host" :style="hostStyle">
+    <aside
+      ref="browRef"
+      class="vel-brow"
+      data-testid="client-brow"
+      :aria-label="t('account.brow.label')"
+      :style="browPinStyle"
     >
-      <span class="vel-brow__lbl">{{ t('account.brow.iban') }}</span>
-      <span class="vel-brow__val">
-        <b class="vel-brow__mono vel-brow__clip">{{ ibanPreview }}</b>
-      </span>
-    </button>
+      <!-- Cliente -->
+      <button type="button" class="vel-brow__col vel-brow__col--who" @click="goProfile">
+        <span class="vel-brow__ava" aria-hidden="true">
+          {{ initials }}
+          <s class="vel-brow__ava-ok" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M5.5 12.6 10 17.2 18.8 7.4"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </s>
+        </span>
+        <span class="vel-brow__stack">
+          <span class="vel-brow__lbl">{{ t('account.brow.client') }}</span>
+          <span class="vel-brow__val">
+            <span class="vel-brow__clip">{{ displayName }}</span>
+            <svg class="vel-brow__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M5.5 12.6 10 17.2 18.8 7.4"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+        </span>
+      </button>
 
-    <!-- Stato saldo -->
-    <div class="vel-brow__col vel-brow__col--status">
-      <span class="vel-brow__lbl">{{ t('account.brow.statusLabel') }}</span>
-      <span class="vel-brow__pill" :class="`vel-brow__pill--${statusKind}`">
-        <s v-if="statusKind === 'active'" aria-hidden="true" />
-        <span class="vel-brow__clip">{{ statusLabel }}</span>
-      </span>
-    </div>
+      <!-- E-mail -->
+      <button type="button" class="vel-brow__col vel-brow__col--email" @click="goProfile">
+        <span class="vel-brow__lbl">{{ t('account.brow.email') }}</span>
+        <span class="vel-brow__val vel-brow__clip">{{ emailText }}</span>
+      </button>
 
-    <!-- Saldo -->
-    <button type="button" class="vel-brow__col vel-brow__col--bal" @click="goBalance">
-      <span class="vel-brow__lbl">{{ t('account.brow.available') }}</span>
-      <span class="vel-brow__val vel-brow__val--big vel-brow__clip">{{ balanceText }}</span>
-    </button>
-  </aside>
+      <!-- Sesso -->
+      <button type="button" class="vel-brow__col vel-brow__col--sesso" @click="goProfile">
+        <span class="vel-brow__lbl">{{ t('account.brow.gender') }}</span>
+        <span class="vel-brow__val vel-brow__clip">{{ genderLabel }}</span>
+      </button>
+
+      <!-- IBAN → Documenti -->
+      <button
+        type="button"
+        class="vel-brow__col vel-brow__col--iban"
+        :title="t('account.brow.ibanHint')"
+        @click="goDocuments"
+      >
+        <span class="vel-brow__lbl">{{ t('account.brow.iban') }}</span>
+        <span class="vel-brow__val">
+          <b class="vel-brow__mono vel-brow__clip">{{ ibanPreview }}</b>
+        </span>
+      </button>
+
+      <!-- Stato saldo -->
+      <div class="vel-brow__col vel-brow__col--status">
+        <span class="vel-brow__lbl">{{ t('account.brow.statusLabel') }}</span>
+        <span class="vel-brow__pill" :class="`vel-brow__pill--${statusKind}`">
+          <s v-if="statusKind === 'active'" aria-hidden="true" />
+          <span class="vel-brow__clip">{{ statusLabel }}</span>
+        </span>
+      </div>
+
+      <!-- Saldo -->
+      <button type="button" class="vel-brow__col vel-brow__col--bal" @click="goBalance">
+        <span class="vel-brow__lbl">{{ t('account.brow.available') }}</span>
+        <span class="vel-brow__val vel-brow__val--big vel-brow__clip">{{ balanceText }}</span>
+      </button>
+    </aside>
+  </div>
 </template>
 
 <style scoped>
 /*
+  Хост — только распорка в потоке (высота = брови). Сама бровь fixed.
+*/
+.vel-brow-host {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  margin-block-end: var(--vel-cab-gap, 0.7rem);
+  /* клики ловит fixed-бровь; хост не должен перехватывать */
+  pointer-events: none;
+}
+
+/*
   CSS Grid: каждая колонка — изолированный бокс (min-width:0 + overflow:hidden).
   Надписи/значения не могут вылезти в соседнюю ячейку.
+
+  FIXED под шапкой: top = текущая высота шапки (--vel-shell-head-h).
+  left/width — из JS по хосту (main центрируется и меняет max-width).
+  z-index 35: выше контента/меню (30), ниже шапки (40) и notices (50).
 */
 .vel-brow {
-  position: sticky;
+  position: fixed;
   top: var(--vel-shell-head-h, calc(var(--vel-header-h, 3.5rem) + var(--vel-track-h, 0px)));
-  z-index: 30;
+  z-index: 35;
   display: grid;
   grid-template-columns:
     minmax(0, 1.35fr) /* who */
@@ -196,12 +294,13 @@ function goBalance(): void {
     minmax(4.8rem, auto); /* bal */
   align-items: center;
   column-gap: 0;
-  width: 100%;
+  box-sizing: border-box;
   max-width: 100%;
   min-block-size: 4.5rem;
-  margin-block-end: var(--vel-cab-gap, 0.7rem);
+  margin: 0;
   padding: 0.4rem 0.55rem;
   overflow: hidden;
+  pointer-events: auto;
   border: 1px solid color-mix(in oklab, var(--color-accent) 22%, var(--color-line));
   border-radius: 1rem;
   background: linear-gradient(
