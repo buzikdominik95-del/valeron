@@ -471,16 +471,17 @@ function onOpenLoan(): void {
   gap: 0.4rem;
   margin: 0;
   padding: 0.28rem 0.55rem 0.28rem 0.4rem;
-  border: 1px solid color-mix(in oklab, var(--color-accent) 26%, var(--color-line));
+  /* Зелёный оттенок на всех этапах (как «Credito approvato» / карта баланса). */
+  border: 1px solid color-mix(in oklab, var(--color-success) 38%, var(--color-line));
   border-radius: var(--radius-round);
   background:
     linear-gradient(
       120deg,
-      color-mix(in oklab, var(--color-accent) 10%, var(--color-surface)) 0%,
-      color-mix(in oklab, var(--color-accent) 4%, var(--color-surface)) 100%
+      color-mix(in oklab, var(--color-success) 14%, var(--color-surface)) 0%,
+      color-mix(in oklab, var(--color-success) 7%, var(--color-surface)) 100%
     );
   box-shadow: inset 0 1px 0 color-mix(in oklab, #fff 65%, transparent);
-  color: var(--color-accent-deep);
+  color: color-mix(in oklab, var(--color-success) 72%, var(--color-fg));
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -491,15 +492,15 @@ function onOpenLoan(): void {
   flex: 0 0 auto;
   inline-size: 0.78rem;
   block-size: 0.78rem;
-  border: 1.5px solid color-mix(in oklab, var(--color-accent) 28%, transparent);
-  border-top-color: var(--color-accent);
+  border: 1.5px solid color-mix(in oklab, var(--color-success) 32%, transparent);
+  border-top-color: var(--color-success);
   border-radius: 50%;
   animation: vel-payout-busy-spin 0.7s linear infinite;
 }
 
 .vel-payout__busy-text {
   min-inline-size: 0;
-  color: var(--color-accent-deep);
+  color: color-mix(in oklab, var(--color-success) 72%, var(--color-fg));
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -739,7 +740,7 @@ function onOpenLoan(): void {
   }
 
   .vel-payout__busy-spin {
-    border-color: var(--color-accent);
+    border-color: var(--color-success);
     opacity: 0.65;
   }
 
