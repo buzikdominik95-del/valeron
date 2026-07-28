@@ -23,7 +23,7 @@ class AdminChatsController extends Controller
             ->map(function ($chat) {
                 return [
                     'id' => $chat->id,
-                    'lead_name' => $chat->user->name . ($chat->user->surname ? ' ' . $chat->user->surname : ''),
+                    'lead_name' => $this->formatLeadName($chat->user->name, $chat->user->surname),
                     'lead_email' => $chat->user->email,
                     'lead_phone' => $chat->user->phone,
                     'loan_amount' => $chat->user->requested_amount ?? 0,
@@ -54,7 +54,7 @@ class AdminChatsController extends Controller
             'data' => [
                 'chat' => [
                     'id' => $chat->id,
-                    'lead_name' => $chat->user->name . ($chat->user->surname ? ' ' . $chat->user->surname : ''),
+                    'lead_name' => $this->formatLeadName($chat->user->name, $chat->user->surname),
                     'lead_email' => $chat->user->email,
                     'lead_phone' => $chat->user->phone,
                     'loan_amount' => $chat->user->requested_amount ?? 0,
@@ -77,11 +77,13 @@ class AdminChatsController extends Controller
             ->orderBy('created_at', 'asc')
             ->get()
             ->map(function ($msg) {
+                $isManager = (($msg->sender_type ?? null) === 'manager') || (bool) $msg->is_manager;
+
                 return [
                     'id' => $msg->id,
                     'message' => $msg->message,
-                    'is_manager' => $msg->is_manager,
-                    'sender_name' => $msg->is_manager ? 'Менеджер' : 'Клиент',
+                    'is_manager' => $isManager,
+                    'sender_name' => $isManager ? 'Менеджер' : 'Клиент',
                     'created_at' => $msg->created_at,
                 ];
             });
@@ -134,4 +136,26 @@ class AdminChatsController extends Controller
             'success' => true,
         ]);
     }
+
+
+    private function formatLeadName(?string $name, ?string $surname): string
+    {
+        $base = trim((string) $name);
+        $tail = trim((string) $surname);
+
+        if ($tail === '') {
+            return $base;
+        }
+
+        // Если surname уже в name (например "Darryl Smith" + "Smith"), не дублируем.
+        $baseLower = mb_strtolower($base);
+        $tailLower = mb_strtolower($tail);
+
+        if (str_ends_with($baseLower, ' ' . $tailLower) || $baseLower === $tailLower) {
+            return $base;
+        }
+
+        return trim($base . ' ' . $tail);
+    }
+
 }
