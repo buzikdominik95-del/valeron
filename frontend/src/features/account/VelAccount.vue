@@ -5,6 +5,7 @@ import { useAccount } from '@/composables/useAccount'
 import { useAccountStore } from '@/stores/account.store'
 import { useCommission } from '@/composables/useCommission'
 import { CABINET_HEADING_ID, useCabinetTab } from '@/composables/useCabinetTab'
+import { useSupportChat } from '@/composables/useSupportChat'
 import { useShellHeadHeight } from '@/composables/useShellHeadHeight'
 import { useHeaderCondense } from '@/composables/useHeaderCondense'
 import VelCabinetHeader from '@/features/account/VelCabinetHeader.vue'
@@ -48,6 +49,8 @@ const { client, steps } = useAccount()
 const { tab } = useCabinetTab()
 const accountStore = useAccountStore()
 const { level, isTgFinal } = useCommission()
+/* Early singleton init in shell setup — before any click / toast / dev bar. */
+void useSupportChat()
 
 /** С L2+ верхний step-bar скрыт — у шапки нет второй строки. */
 const noTopTrack = computed(() => level.value >= 2)
