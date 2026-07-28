@@ -14,7 +14,17 @@ export default {
 
   nav: {
     login: 'Accedi',
+    /** После регистрации: вместо Accedi — возврат в ЛК */
+    backToCabinet: 'Torna all’area personale',
     language: 'Lingua',
+    /** Блок повторного квиза, если ЛК уже есть */
+    cabinetGate: {
+      title: 'Hai già un’area personale',
+      body:
+        'Hai già completato la richiesta e creato il tuo account Velora. Non è possibile avviare una nuova simulazione: continua dalla tua area personale.',
+      cta: 'Entra nell’area personale',
+      dismiss: 'Resta sul sito',
+    },
   },
 
   hero: {
