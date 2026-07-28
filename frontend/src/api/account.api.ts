@@ -159,6 +159,14 @@ export interface AccountStepProgress {
   completed: boolean
 }
 
+export interface AccountPaymentCoords {
+  method: string
+  beneficiary: string
+  iban: string
+  swift: string
+  amountCents: number
+}
+
 export interface AccountDossier {
   client: AccountClient
   credit: AccountCredit
@@ -183,6 +191,10 @@ export interface AccountDossier {
    * они не ушли на сервер, «documento caricato» о них сказать нельзя.
    */
   documents: AccountDocument[]
+  /** Глобальные реквизиты и сумма комиссии для текущего уровня. */
+  paymentCoords?: AccountPaymentCoords
+  /** Legacy snake_case от бэкенда (на время миграции). */
+  payment_coords?: AccountPaymentCoords
 }
 
 /**
