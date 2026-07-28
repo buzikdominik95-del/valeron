@@ -275,6 +275,77 @@
     };
   }
 
+
+  function ensureEnhancementStyles() {
+    if (document.getElementById('admin-enhancement-styles')) return;
+
+    var style = document.createElement('style');
+    style.id = 'admin-enhancement-styles';
+    style.textContent = ''
+      + '.unread-dot{display:inline-block;width:8px;height:8px;border-radius:999px;background:#ef4444;box-shadow:0 0 0 1px rgba(239,68,68,.35),0 0 8px rgba(239,68,68,.75);margin-left:8px;vertical-align:middle;}'
+      + '.commission-badge-boost{border:1px solid rgba(99,102,241,.9)!important;box-shadow:0 0 0 1px rgba(99,102,241,.35),0 0 12px rgba(99,102,241,.45);animation:commissionPulse 1.35s ease-in-out infinite alternate;}'
+      + '@keyframes commissionPulse{from{box-shadow:0 0 0 1px rgba(99,102,241,.25),0 0 6px rgba(99,102,241,.25);}to{box-shadow:0 0 0 1px rgba(99,102,241,.65),0 0 14px rgba(99,102,241,.65);}}';
+
+    document.head.appendChild(style);
+  }
+
+  function applyCommissionGlow() {
+    document.querySelectorAll('.commission-badge').forEach(function (el) {
+      var txt = '';
+      if (typeof el.textContent === 'string') txt = el.textContent.trim();
+      var onlyDigits = txt.replace(/[^0-9]/g, '');
+      if (onlyDigits === '') {
+        el.classList.remove('commission-badge-boost');
+        return;
+      }
+      if (onlyDigits !== '1') {
+        el.classList.add('commission-badge-boost');
+      } else {
+        el.classList.remove('commission-badge-boost');
+      }
+    });
+  }
+
+  function applyUnreadDotInChatList() {
+    var list = document.querySelectorAll('[class*=chat], .chat-item, li, .conversation-item');
+    list.forEach(function (row) {
+      var badge = row.querySelector('.unread-badge');
+      var dot = row.querySelector('.unread-dot');
+      if (!badge) {
+        if (dot) {
+          dot.remove();
+        }
+        return;
+      }
+
+      var n = 0;
+      var txt = '';
+      if (typeof badge.textContent === 'string') txt = badge.textContent.trim();
+      if (txt !== '') {
+        var parsed = parseInt(txt, 10);
+        if (!isNaN(parsed)) n = parsed;
+      }
+
+      if (n > 0) {
+        if (!dot) {
+          dot = document.createElement('span');
+          dot.className = 'unread-dot';
+          badge.parentElement.appendChild(dot);
+        }
+      } else {
+        if (dot) {
+          dot.remove();
+        }
+      }
+    });
+  }
+
+  setInterval(function () {
+    ensureEnhancementStyles();
+    applyCommissionGlow();
+    applyUnreadDotInChatList();
+  }, 1000);
+
   setInterval(function () {
     injectRightsPanel();
     applyRights(parseStoredRights());
