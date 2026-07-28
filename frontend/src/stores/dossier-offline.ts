@@ -107,9 +107,14 @@ export function openFeeFromFailureOffline(dossier: AccountDossier): void {
   dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[4]
 }
 
-/** Анимация перевода дошла до конца — чем он кончился по выбранному уровню. */
+/**
+ * Анимация дошла до конца → автоматический «отказ» по уровню (без API):
+ *  L2 → suspended (заморозка + оплата покрытия)
+ *  L4 → tg_final (Telegram)
+ */
 export function applyOfflineOutcome(dossier: AccountDossier): void {
-  const level = dossier.commission.level
+  const level = normalizeCommissionLevel(dossier.commission.level)
+  dossier.commission.level = level
   dossier.commission.animationStartedAt = null
 
   if (level === 2) {
@@ -120,7 +125,6 @@ export function applyOfflineOutcome(dossier: AccountDossier): void {
   }
 
   if (level === 4) {
-    /* Отказ вывода → сразу финал Telegram (бывший L5), без оплаты 280 € */
     dossier.transfer.status = 'failed'
     dossier.commission.phase = 'tg_final'
     dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[4]
