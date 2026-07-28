@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Chat;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -36,6 +37,12 @@ class AuthController extends Controller
             'document_type' => $request->document_type,
             'document_number' => $request->document_number,
             'password' => Hash::make($request->password),
+        ]);
+
+        // Create chat for new user
+        Chat::create([
+            'user_id' => $user->id,
+            'status' => 'active',
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
