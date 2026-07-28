@@ -1,11 +1,11 @@
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
 import { useLocalStorage, useTimeoutFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import { useAccountStore } from '@/stores/account.store'
 import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
-import { isApiEnabled, submitSupportMessage } from '@/api/account.api'
+import { fetchSupportMessages, isApiEnabled, submitSupportMessage } from '@/api/account.api'
 import { useDossierStore } from '@/stores/dossier.store'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import {
@@ -64,6 +64,7 @@ export function useSupportChat(): SupportChat {
   const stored = useLocalStorage<ChatMessage[]>(CHAT_STORAGE_KEY, [])
   const draft = useLocalStorage<string>(`${CHAT_STORAGE_KEY}:draft`, '')
   const funnelSeeded = useLocalStorage<string>(`${CHAT_STORAGE_KEY}:funnelSeed`, '')
+  const chatOwner = useLocalStorage<string>(`${CHAT_STORAGE_KEY}:owner`, '')
   const threadEl = ref<HTMLElement | null>(null)
   const sending = ref(false)
   const justSent = ref(false)
@@ -110,6 +111,26 @@ export function useSupportChat(): SupportChat {
 
     return 'Anonymous'
   })
+
+
+  function ensureThreadOwner(): void {
+    const owner = outboundEmail.value.trim().toLowerCase() || 'anonymous@it-velora.com'
+    if (chatOwner.value === '') {
+      chatOwner.value = owner
+      return
+    }
+
+    if (chatOwner.value !== owner) {
+      stored.value = []
+      draft.value = ''
+      funnelSeeded.value = ''
+      chatOwner.value = owner
+    }
+  }
+
+  watch(outboundEmail, () => {
+    ensureThreadOwner()
+  }, { immediate: true })
 
   /**
    * Шаблон по этапу l1…l4 (всегда разный текст).
@@ -193,6 +214,38 @@ export function useSupportChat(): SupportChat {
     const last = messages.value[messages.value.length - 1]
     return last === undefined ? CHAT_GREETING_ID + 1 : last.id + 1
   }
+
+  let syncTimer: number | null = null
+
+  async function syncFromServer(): Promise<void> {
+    if (!isApiEnabled()) return
+
+    try {
+      const serverMessages = await fetchSupportMessages(outboundEmail.value)
+      const clean = Array.isArray(serverMessages) ? serverMessages.filter(isChatMessage) : []
+      messages.value = clean.slice(-CHAT_KEEP)
+    } catch (error) {
+      console.warn('[useSupportChat] Failed to sync messages:', error)
+    }
+  }
+
+  watch(outboundEmail, () => {
+    if (!isApiEnabled()) return
+    void syncFromServer()
+  }, { immediate: true })
+
+  if (isApiEnabled()) {
+    syncTimer = window.setInterval(() => {
+      void syncFromServer()
+    }, 8000)
+  }
+
+  onBeforeUnmount(() => {
+    if (syncTimer !== null) {
+      window.clearInterval(syncTimer)
+      syncTimer = null
+    }
+  })
 
   async function scrollToEnd(): Promise<void> {
     await nextTick()
@@ -285,12 +338,13 @@ export function useSupportChat(): SupportChat {
               return dossier.pullAccount()
             }
           })
-          .then(() => {
+          .then(async () => {
             pushClientMessage(body, 'sent')
             draft.value = ''
             sending.value = false
             if (funnel) advanceFunnel()
             account.clearSupportUnread()
+            await syncFromServer()
             void scrollToEnd()
           })
           .catch((error) => {
