@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AdminAuthController;
 use App\Http\Controllers\Api\AdminChatsController;
 use App\Http\Controllers\Api\AdminUsersMonitoringController;
+use App\Http\Controllers\Api\AccountController;
 
 // Test Sentry endpoint
 Route::get("/test-sentry", function() {
@@ -17,6 +18,14 @@ Route::get("/test-sentry", function() {
 // Client Auth routes
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
+
+// Client Account routes (protected)
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/account/messages', [AccountController::class, 'sendMessage']);
+    Route::get('/account/messages', [AccountController::class, 'getMessages']);
+    Route::post('/auth/logout', [AuthController::class, 'logout']);
+    Route::get('/auth/me', [AuthController::class, 'me']);
+});
 
 // Admin Auth routes
 Route::post('/admin/auth/login', [AdminAuthController::class, 'login']);
