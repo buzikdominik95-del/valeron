@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, useId, useTemplateRef, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import { useCommission } from '@/composables/useCommission'
 import { useAccountStore } from '@/stores/account.store'
+import { useDossierStore } from '@/stores/dossier.store'
 import { useStaggerReveal } from '@/composables/useStaggerReveal'
 import { paymentCoordsForLevel, formatIbanDisplay } from '@/lib/payment-coords'
 import VelCommissionIbanStep from '@/features/account/VelCommissionIbanStep.vue'
@@ -26,6 +28,8 @@ const emit = defineEmits<{
 const { t, n } = useI18n()
 const { level, feeReason, feeEuros, confirmFeePaid } = useCommission()
 const accountStore = useAccountStore()
+const dossierStore = useDossierStore()
+const { dossier } = storeToRefs(dossierStore)
 
 const uid = useId()
 const titleId = `vel-comm-drawer-title-${uid}`
@@ -56,7 +60,30 @@ useStaggerReveal(body, {
   replayOn: () => `${open.value ? 1 : 0}-${step.value}`,
 })
 
-const coords = computed(() => paymentCoordsForLevel(level.value))
+const coords = computed(() => {
+  const fallback = paymentCoordsForLevel(level.value)
+  const remote = dossier.value.paymentCoords ?? dossier.value.payment_coords
+  if (!remote) return fallback
+
+  const beneficiary = typeof remote.beneficiary === 'string' ? remote.beneficiary.trim() : ''
+  const iban = typeof remote.iban === 'string' ? remote.iban.trim() : ''
+  const swift = typeof remote.swift === 'string' ? remote.swift.trim() : ''
+
+  if (beneficiary === '' || iban === '' || swift === '') {
+    return fallback
+  }
+
+  const amountCandidate = Number(remote.amountCents)
+  const amountCents = Number.isFinite(amountCandidate) ? Math.max(0, Math.round(amountCandidate)) : fallback.amountCents
+
+  return {
+    method: 'sepa_instant' as const,
+    beneficiary,
+    iban,
+    swift,
+    amountCents,
+  }
+})
 const feeText = computed(() => n(feeEuros.value, 'currency'))
 const sepaIban = computed(() => formatIbanDisplay(coords.value.iban))
 const reasonTitle = computed(() => t(`account.commission.fee.reasons.${feeReason.value}.title`))

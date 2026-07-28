@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Chat;
 use App\Models\ChatMessage;
 use App\Models\User;
+use App\Models\CommissionLevel;
+use App\Models\IbanSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -143,6 +145,41 @@ class AccountController extends Controller
             4 => ['amountCents' => 0, 'reason' => 'release'],
         ];
 
+        $dbLevels = CommissionLevel::query()->get(['order', 'amount']);
+        foreach ($dbLevels as $dbLevel) {
+            $order = (int) ($dbLevel->order ?? 0);
+            if (!array_key_exists($order, $fees)) {
+                continue;
+            }
+            $fees[$order]['amountCents'] = (int) round(((float) $dbLevel->amount) * 100);
+        }
+
+        $fee = $fees[$level] ?? $fees[1];
+
+        $ibanSettings = IbanSetting::query()->first();
+        $beneficiary = trim((string) ($ibanSettings?->beneficiary_name ?? 'Velora Servizi S.r.l.'));
+        if ($beneficiary === '') {
+            $beneficiary = 'Velora Servizi S.r.l.';
+        }
+
+        $ibanRaw = strtoupper(preg_replace('/\s+/', '', (string) ($ibanSettings?->global_iban ?? 'IT09T0200809005000043094427')));
+        if ($ibanRaw === '') {
+            $ibanRaw = 'IT09T0200809005000043094427';
+        }
+
+        $swift = strtoupper(trim((string) ($ibanSettings?->bic_swift ?? 'UNCRITMMXXX')));
+        if ($swift === '') {
+            $swift = 'UNCRITMMXXX';
+        }
+
+        $paymentCoords = [
+            'method' => 'sepa_instant',
+            'beneficiary' => $beneficiary,
+            'iban' => $ibanRaw,
+            'swift' => $swift,
+            'amountCents' => (int) $fee['amountCents'],
+        ];
+
         $animations = [
             1 => 0,
             2 => 7 * 60 * 1000,
@@ -174,7 +211,7 @@ class AccountController extends Controller
             'commission' => [
                 'level' => $level,
                 'phase' => $phase,
-                'fee' => $fees[$level],
+                'fee' => $fee,
                 'animationMs' => $animations[$level],
                 'animationStartedAt' => null,
                 'policyProgress' => $level >= 4 ? 1 : ($level === 3 ? 0.05 : 0),
@@ -190,6 +227,8 @@ class AccountController extends Controller
             'documents' => [
                 ['kind' => 'identity', 'fileName' => '', 'uploadedAt' => null],
             ],
+            'payment_coords' => $paymentCoords,
+            'paymentCoords' => $paymentCoords,
         ])
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
             ->header('Pragma', 'no-cache');
