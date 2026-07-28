@@ -149,10 +149,12 @@ const remain = computed(() => {
 })
 
 const personIban = computed(() => {
-  const tail = props.iban.trim()
-  return tail === ''
-    ? t('account.commission.anim.scene.personIbanNone')
-    : t('account.commission.anim.scene.personIban', { tail })
+  const raw = props.iban.trim()
+  if (raw === '') return ''
+  /* props.iban — обычно хвост 4 знака; если пришёл полный IBAN — берём последние 4 */
+  const compact = raw.replace(/\s+/g, '')
+  const tail = compact.length > 4 ? compact.slice(-4) : compact
+  return t('account.commission.anim.scene.personIban', { tail })
 })
 
 const personName = computed(() => {
