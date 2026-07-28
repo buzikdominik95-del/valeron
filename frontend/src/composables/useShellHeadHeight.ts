@@ -60,7 +60,15 @@ export function useShellHeadHeight(
 
     target.style.setProperty('--vel-shell-head-h', `${height}px`)
 
-    if (!condensed()) {
+    /*
+     * Полную высоту обновляем:
+     *  · когда шапка разжата (обычный случай);
+     *  · на L2+ без полосы шагов (vel-cabinet--no-track): шапка всегда
+     *    однострочная, condense почти не меняет высоту, а если full остался
+     *    от L1 (~152px), под тонкой шапкой на L3/L4 остаётся огромная дыра.
+     */
+    const noTrack = target.classList.contains('vel-cabinet--no-track')
+    if (!condensed() || noTrack) {
       target.style.setProperty('--vel-shell-head-full', `${height}px`)
     }
   })

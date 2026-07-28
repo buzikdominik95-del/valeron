@@ -407,6 +407,8 @@ tryOnScopeDispose(() => {
   position: relative;
   inline-size: 100%;
   aspect-ratio: 16 / 9;
+  /* На широком main (после full-width) 16:9 раздувался — потолок высоты */
+  max-block-size: min(42vw, 16.5rem);
   overflow: hidden;
   /* 10px, а не 18px эталона: числа 6/10 выбраны владельцем продукта явно. */
   border-radius: var(--radius-panel);

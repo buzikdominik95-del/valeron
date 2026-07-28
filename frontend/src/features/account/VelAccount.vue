@@ -319,6 +319,14 @@ watch(tab, async (next) => {
 }
 
 /*
+  L2–L4: шапка однострочная (без трекера). Распорка = текущая высота, а не
+  «полная» от L1: иначе после перехода на 3/4 этап под шапкой ~100px пустоты.
+*/
+.vel-cabinet--no-track .vel-cabinet__headroom {
+  block-size: var(--vel-shell-head-h, var(--vel-header-h));
+}
+
+/*
  * L5: весь UI кабинета (логотип → nav → колокольчик → Prestito…) не кликабелен.
  * Единственная цель: красная «Contatta il manager» (.vel-payout__withdraw--tg).
  * Dialog Telegram (freeze) живёт вне frame — остаётся кликабельным.
@@ -377,6 +385,11 @@ watch(tab, async (next) => {
   /* Нижнее поле = tabbar + gap + safe-area; без лишних 0.5rem «воздуха». */
   padding-block-end:
     calc(var(--vel-tabbar-h) + var(--vel-tabbar-gap) * 2 + env(safe-area-inset-bottom) + 0.35rem);
+}
+
+/* L2–L4: плотнее верх main — бровь ближе к шапке и к балансу */
+.vel-cabinet--no-track .vel-cabinet__main {
+  padding-block-start: 0.45rem;
 }
 
 /* Фокус сюда приходит программно, рамка была бы шумом. :focus-visible

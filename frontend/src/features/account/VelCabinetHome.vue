@@ -123,6 +123,12 @@ const stageKey = computed(() => {
   gap: var(--vel-cab-gap, 0.7rem);
 }
 
+/* L3–L4: меньше «воздуха» между бровью/балансом/сценой (нет step-bar) */
+.vel-home--l3,
+.vel-home--l4 {
+  gap: 0.45rem;
+}
+
 .vel-home__heading:focus:not(:focus-visible) {
   outline: none;
 }
@@ -145,6 +151,11 @@ const stageKey = computed(() => {
   max-inline-size: none;
 }
 
+.vel-home--l3 .vel-home__main,
+.vel-home--l4 .vel-home__main {
+  gap: 0.55rem;
+}
+
 .vel-home__balance,
 .vel-home__tracker,
 .vel-home__transfer,
@@ -153,6 +164,14 @@ const stageKey = computed(() => {
   flex-direction: column;
   gap: 0.55rem;
   min-inline-size: 0;
+}
+
+.vel-home--l3 .vel-home__balance,
+.vel-home--l3 .vel-home__transfer,
+.vel-home--l3 .vel-home__panels,
+.vel-home--l4 .vel-home__balance,
+.vel-home--l4 .vel-home__transfer {
+  gap: 0.4rem;
 }
 
 .vel-home__transfer:empty,

@@ -200,7 +200,8 @@ function goBalance(): void {
   width: 100%;
   max-width: 100%;
   min-block-size: 4.5rem;
-  margin: 0 0 var(--vel-cab-gap, 0.7rem);
+  /* Плотнее к карточкам: на L3/L4 без step-bar пустота бросалась в глаза */
+  margin: 0 0 0.45rem;
   padding: 0.4rem 0.55rem;
   overflow: hidden;
   border: 1px solid color-mix(in oklab, var(--color-accent) 22%, var(--color-line));
