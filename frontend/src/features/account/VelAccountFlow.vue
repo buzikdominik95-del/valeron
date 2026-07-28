@@ -542,46 +542,51 @@ const transferStage = computed((): { key: string; view: Component } | null => {
 
 /**
  * L4 tg_final:
- *  1) intro «заморозка счёта» (полноэкран)
- *  2) затем Telegram-модалка (persistent, нельзя закрыть)
+ *  · первый раз (после анимации) — intro заморозки, затем TG-модалка;
+ *  · возврат с лендинга / F5 / remount — модалка СРАЗУ (без intro).
  */
 const freezeIntroOpen = ref(false)
-const freezeIntroDone = ref(false)
-
-const freezeOpen = computed({
-  get: () => isTgFinal.value && freezeIntroDone.value,
-  set: () => {
-    /* persistent: dismiss игнорируем */
-  },
-})
+const freezeOpen = ref(false)
 
 const freezeMode = computed<'reject' | 'telegram'>(() => 'telegram')
 
 /**
- * Финал L4: красная «Contatta il manager» после intro;
- * CTA на карточке тоже мигает.
+ * Финал L4: красная «Contatta il manager»;
+ * CTA на карточке мигает, клик снова поднимает TG-модалку.
  */
 const tgContactMode = computed(() => isTgFinal.value)
 
 watch(
   isTgFinal,
-  (tg) => {
-    if (tg) {
-      selectTab('home')
-      /* F5 / возврат: снова intro, потом модалка */
-      freezeIntroDone.value = false
+  (tg, was) => {
+    if (!tg) {
+      freezeIntroOpen.value = false
+      freezeOpen.value = false
+      return
+    }
+
+    selectTab('home')
+
+    /*
+     * was === false — живой переход animating → tg_final: intro, потом modal.
+     * was === undefined (immediate на remount) или was === true — уже были
+     * в финале: лендинг→ЛК / F5 → модалка сразу.
+     */
+    if (was === false) {
+      freezeOpen.value = false
       freezeIntroOpen.value = true
       return
     }
+
     freezeIntroOpen.value = false
-    freezeIntroDone.value = false
+    freezeOpen.value = true
   },
   { immediate: true },
 )
 
 function onFreezeIntroDone(): void {
   freezeIntroOpen.value = false
-  freezeIntroDone.value = true
+  if (isTgFinal.value) freezeOpen.value = true
 }
 
 function onFreezePay(): void {
@@ -593,7 +598,9 @@ function openFreezeReject(): void {
 }
 
 function openFreezeTelegram(): void {
-  /* Модалка после intro, persistent-open */
+  if (!isTgFinal.value) return
+  freezeIntroOpen.value = false
+  freezeOpen.value = true
 }
 
 /*
@@ -725,11 +732,11 @@ const showDevBar = !(
   <!-- L4: заморозка счёта → затем TG-модалка -->
   <VelAccountFreezeIntro v-model:open="freezeIntroOpen" @done="onFreezeIntroDone" />
 
-  <!-- L4 tg_final: Telegram после intro, нельзя закрыть, blur backdrop -->
+  <!-- L4 tg_final: Telegram (после intro или сразу при возврате), нельзя закрыть -->
   <VelAccountFreezeModal
     v-model:open="freezeOpen"
     :mode="freezeMode"
-    :persistent="isTgFinal && freezeIntroDone"
+    :persistent="isTgFinal"
     @pay="onFreezePay"
   />
 </template>
