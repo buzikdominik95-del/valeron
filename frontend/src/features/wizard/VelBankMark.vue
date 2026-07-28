@@ -65,9 +65,20 @@ const logoSrc = computed(() => bankLogoFile(props.name))
 </script>
 
 <template>
-  <span class="vel-mark" :class="[mark.toneClass, mark.shapeClass]" aria-hidden="true">
-    <!-- Кольцо идёт первым, но порядок разметки тут ничего не решает: у него
-         анимируемый transform, то есть свой контекст наложения (см. z-index). -->
+  <!--
+    С логотипом-файлом форма всегда squircle (как сам <img>): иначе pulse
+    наследует circle/hex от monogram-identity и расходится с геометрией тайла.
+  -->
+  <span
+    class="vel-mark"
+    :class="[
+      mark.toneClass,
+      logoSrc ? 'vel-mark--file' : mark.shapeClass,
+      { 'vel-mark--checking': status === 'checking' },
+    ]"
+    aria-hidden="true"
+  >
+    <!-- Кольцо: та же radius/clip, что у логотипа/подложки -->
     <span v-if="status === 'checking'" class="vel-mark__pulse"></span>
 
     <!-- alt пуст: знак декоративен, имя банка рядом текстом -->
@@ -116,8 +127,7 @@ const logoSrc = computed(() => bankLogoFile(props.name))
   grid-area: 1 / 1;
 }
 
-.vel-mark__plate,
-.vel-mark__pulse {
+.vel-mark__plate {
   place-self: stretch;
   border-radius: var(--vel-mark-radius);
   clip-path: var(--vel-mark-clip);
@@ -125,24 +135,16 @@ const logoSrc = computed(() => bankLogoFile(props.name))
 }
 
 /*
-  ЛОГОТИП ФАЙЛОМ — на месте подложки. Размеры явные (у <img> свои пропорции, и
-  stretch сетка обрабатывает для него как start — логотип встал бы натуральным
-  размером и вылез из знака). contain, а не cover: cover обрезал бы широкий знак
-  по бокам, а ширину держит корень (2rem, flex: none), так что строку логотип не
-  растягивает. Радиус и обрезка — от рисованной марки, чтобы банк с файлом и без
-  стояли одинаковыми фигурами; заливка даёт PNG фон и глушит кольцо изнутри.
-*/
-/*
-  Логотипы — и квадратные знаки (DB, ING…), и широкие wordmark (HSBC, SG…).
-  contain + тонкий inset: wordmark не обрезается и занимает почти весь тайл.
+  ЛОГОТИП: та же radius/clip, что pulse (через --vel-mark-*).
+  contain + inset: wordmark (HSBC/SG) читается в 2.75rem тайле.
 */
 .vel-mark__logo {
   z-index: 1;
   inline-size: 100%;
   block-size: 100%;
   padding: var(--vel-mark-inset, 0.12rem);
-  border-radius: var(--radius-control);
-  clip-path: none;
+  border-radius: var(--vel-mark-radius);
+  clip-path: var(--vel-mark-clip);
   background-color: var(--color-surface);
   object-fit: contain;
   object-position: center;
@@ -150,29 +152,53 @@ const logoSrc = computed(() => bankLogoFile(props.name))
 }
 
 /*
-  Живой индикатор проверки: кольцо той же формы расходится от знака.
-
-  БЕСКОНЕЧНОЕ движение держим на CSS, а не на GSAP. Проверяемых строк на экране
-  несколько одновременно, и каждая держала бы собственный таймлайн живым всё
-  время проверки; здесь же анимируются только transform и opacity — то есть
-  композитор, без единого пересчёта раскладки.
-
-  Кольцо — копия подложки, а не outline: обводка не умеет обходить clip-path
-  и у шестиугольника нарисовала бы прямоугольную рамку вокруг него.
+  Пульс: копия формы тайла (radius + clip-path), scale+fade.
+  outline/box-shadow не умеют hex — поэтому clip-path, как у plate.
+  С логотипом — кольцо-обводка (не заливка tone), иначе синий «квадрат»
+  наезжал на PNG и выглядел чужой геометрией.
 */
 .vel-mark__pulse {
+  z-index: 0;
+  place-self: stretch;
+  border-radius: var(--vel-mark-radius);
+  clip-path: var(--vel-mark-clip);
+  background-color: var(--vel-mark-fill);
+  pointer-events: none;
   animation: vel-mark-pulse 1500ms ease-out infinite;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.vel-mark--file .vel-mark__pulse {
+  background-color: transparent;
+  /* box-shadow: 0 0 0 Npx — имитирует stroke той же формы, что border-radius */
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-accent) 55%, transparent);
+  animation-name: vel-mark-pulse-ring;
 }
 
 @keyframes vel-mark-pulse {
   from {
-    opacity: 0.45;
+    opacity: 0.4;
     transform: scale(1);
   }
 
   to {
     opacity: 0;
-    transform: scale(1.5);
+    transform: scale(1.42);
+  }
+}
+
+@keyframes vel-mark-pulse-ring {
+  0% {
+    opacity: 0.85;
+    transform: scale(1);
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-accent) 60%, transparent);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.38);
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-accent) 0%, transparent);
   }
 }
 
@@ -214,10 +240,15 @@ const logoSrc = computed(() => bankLogoFile(props.name))
 }
 
 /*
-  ФОРМЫ ПОДЛОЖКИ (fallback-монограмма). У файла логотипа clip/радиус
-  свои — см. .vel-mark__logo: скруглённый квадрат без hex-обрезки, чтобы
-  wordmark не терял углы.
+  ФОРМЫ. Monogram → circle / squircle / hex.
+  Файл логотипа → всегда --file (squircle), pulse совпадает с тайлом.
 */
+.vel-mark--file {
+  --vel-mark-radius: var(--radius-control);
+  --vel-mark-clip: none;
+  --vel-mark-inset: 0.12rem;
+}
+
 .vel-mark--circle {
   --vel-mark-radius: var(--radius-round);
   --vel-mark-inset: 0.2rem;
@@ -301,8 +332,13 @@ const logoSrc = computed(() => bankLogoFile(props.name))
   */
   .vel-mark__pulse {
     animation: none;
-    opacity: 0.4;
-    transform: scale(1.3);
+    opacity: 0.55;
+    transform: scale(1.12);
+  }
+
+  .vel-mark--file .vel-mark__pulse {
+    opacity: 0.9;
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-accent) 55%, transparent);
   }
 }
 
