@@ -35,10 +35,17 @@ withDefaults(defineProps<Props>(), { size: 'md' })
       <path d="M8.5 11.8 11 14.5l4.5-5" />
     </g>
 
-    <!-- Часы: оценка времени ожидания -->
-    <g v-else-if="sign === 'clock'">
-      <path d="M12 3.5a8.5 8.5 0 1 1 0 17 8.5 8.5 0 0 1 0-17z" />
-      <path d="M12 7.5V12l3.5 2.5" />
+    <!-- Часы: циферблат + стрелки (часовая / минутная крутятся) -->
+    <g v-else-if="sign === 'clock'" class="vel-sign__clock">
+      <circle class="vel-sign__clock-face" cx="12" cy="12" r="8.25" />
+      <!-- Центр вращения = 12,12 -->
+      <g class="vel-sign__clock-hour">
+        <path d="M12 12 V7.6" />
+      </g>
+      <g class="vel-sign__clock-minute">
+        <path d="M12 12 V5.4" />
+      </g>
+      <circle class="vel-sign__clock-dot" cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
     </g>
 
     <!-- Замок: вывод пока закрыт -->
@@ -82,5 +89,39 @@ withDefaults(defineProps<Props>(), { size: 'md' })
 .vel-sign--lg {
   width: 2rem;
   height: 2rem;
+}
+
+/* Стрелки: минутная 1 об/4с, часовая 1 об/48с */
+.vel-sign__clock-hour,
+.vel-sign__clock-minute {
+  transform-origin: 12px 12px;
+  transform-box: view-box;
+}
+
+.vel-sign__clock-hour {
+  animation: vel-sign-clock-hour 48s linear infinite;
+}
+
+.vel-sign__clock-minute {
+  animation: vel-sign-clock-minute 4s linear infinite;
+}
+
+@keyframes vel-sign-clock-hour {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes vel-sign-clock-minute {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-sign__clock-hour,
+  .vel-sign__clock-minute {
+    animation: none;
+  }
 }
 </style>

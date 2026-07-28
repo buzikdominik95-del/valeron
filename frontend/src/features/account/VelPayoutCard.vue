@@ -321,17 +321,13 @@ const withdrawLabel = computed(() =>
       role="status"
       :aria-label="busyDetail"
     >
-      <!-- Waiting: переворачивающиеся песочные часы; иначе кружок-спиннер -->
+      <!-- Waiting: часы со стрелками; иначе кружок-спиннер -->
       <span
         v-if="busyIsWaiting"
-        class="vel-payout__busy-hourglass"
+        class="vel-payout__busy-clock"
         aria-hidden="true"
       >
-        <svg class="vel-payout__busy-hourglass-ico" viewBox="0 0 24 24">
-          <path
-            d="M6 3h12M6 21h12M8 3v3.5c0 1.7 1.1 3.2 2.7 3.8L12 11l1.3-.7C15 9.7 16 8.2 16 6.5V3M8 21v-3.5c0-1.7 1.1-3.2 2.7-3.8L12 13l1.3.7c1.6.6 2.7 2.1 2.7 3.8V21"
-          />
-        </svg>
+        <VelAccountSign sign="clock" class="vel-payout__busy-clock-ico" />
       </span>
       <span v-else class="vel-payout__busy-spin" aria-hidden="true" />
       <span class="vel-payout__busy-text">{{ busyText }}</span>
@@ -551,27 +547,18 @@ const withdrawLabel = computed(() =>
   animation: vel-payout-busy-spin 0.7s linear infinite;
 }
 
-/* Песочные часы: flip 180° (переворот) */
-.vel-payout__busy-hourglass {
+/* Часы ожидания: стрелки крутятся внутри VelAccountSign */
+.vel-payout__busy-clock {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  inline-size: 0.9rem;
-  block-size: 0.9rem;
   color: var(--color-success);
-  animation: vel-payout-hourglass-flip 1.6s ease-in-out infinite;
-  transform-origin: 50% 50%;
 }
 
-.vel-payout__busy-hourglass-ico {
-  width: 0.88rem;
-  height: 0.88rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.vel-payout__busy-clock-ico {
+  width: 0.9rem !important;
+  height: 0.9rem !important;
 }
 
 .vel-payout__busy--waiting {
