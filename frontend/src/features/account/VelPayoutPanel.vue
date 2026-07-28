@@ -362,13 +362,18 @@ function close(): void {
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-line);
+  border: 0;
   border-radius: var(--radius-round);
-  background: var(--color-ground);
+  background: transparent;
   color: var(--color-muted);
   font-size: 1.25rem;
   line-height: 1;
   cursor: pointer;
+}
+
+.vel-ppanel__x:hover {
+  color: var(--color-fg);
+  background: color-mix(in oklab, var(--color-fg) 6%, transparent);
 }
 
 .vel-ppanel__form {
