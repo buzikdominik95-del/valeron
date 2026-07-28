@@ -12,7 +12,7 @@ class AdminChatsController extends Controller
 {
     public function index()
     {
-        $chats = Chat::with(['user', 'tags'])
+        $chats = Chat::with(['user'])
             ->select([
                 'chats.*',
                 DB::raw('(SELECT message FROM chat_messages WHERE chat_id = chats.id ORDER BY created_at DESC LIMIT 1) as last_msg'),
@@ -33,8 +33,7 @@ class AdminChatsController extends Controller
                     'status' => $chat->status,
                     'unread_count' => 0,
                     'stage_name' => null,
-                    'manager_name' => null,
-                    'tags' => $chat->tags->pluck('id')->toArray(),
+                    'tags' => [],
                     'commission_level' => 1,
                     'updated_at' => $chat->last_msg_time ?? $chat->updated_at,
                 ];
@@ -48,7 +47,7 @@ class AdminChatsController extends Controller
 
     public function show($id)
     {
-        $chat = Chat::with(['user', 'tags'])->findOrFail($id);
+        $chat = Chat::with(['user'])->findOrFail($id);
 
         return response()->json([
             'success' => true,
@@ -66,7 +65,7 @@ class AdminChatsController extends Controller
                     'commission_level' => 1,
                     'notes' => '',
                 ],
-                'tags' => $chat->tags->pluck('id')->toArray(),
+                'tags' => [],
             ],
         ]);
     }
