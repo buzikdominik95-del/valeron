@@ -38,9 +38,16 @@ const amountEuro = ref(maxEuro.value)
 const rule = computed(() => PAYOUT_ACCOUNT_RULES[method.value])
 const accountInput = useTemplateRef<ComponentPublicInstance>('accountInput')
 
+/** Лимит ввода: как только известна страна — ровно её длина (IT=27), дальше нельзя. */
+const inputMaxLen = computed(() => {
+  if (method.value !== 'iban') return rule.value.max
+  const exp = ibanExpectedLength(accountValue.value.replace(/\s/g, '').toUpperCase())
+  return exp ?? rule.value.max
+})
+
 const { raw: accountRaw, format: formatAccount } = useMaskedInput(() => accountInput.value, {
   model: accountValue,
-  maxLength: () => rule.value.max,
+  maxLength: () => inputMaxLen.value,
   allow: () => rule.value.allow,
   upper: () => rule.value.upper,
 })
@@ -138,12 +145,23 @@ const accountHint = computed(() =>
   }),
 )
 
+/**
+ * Мягкая проверка IBAN: IT + цифры до длины страны.
+ * Кнопка активна, когда набрано достаточно знаков (ожидаемая длина);
+ * контрольную сумму ISO не требуем — не блокируем вывод «строгой» математикой.
+ */
+const ibanExpected = computed(() => {
+  if (method.value !== 'iban') return rule.value.min
+  return ibanExpectedLength(accountRaw.value) ?? rule.value.min
+})
+
 const accountReady = computed(() => {
   if (method.value === 'iban') {
-    if (accountRaw.value.length < rule.value.min) return false
-    return isValidIban(accountRaw.value)
+    const len = accountRaw.value.length
+    if (len < Math.min(rule.value.min, ibanExpected.value)) return false
+    /* Достаточно длины страны (IT=27) или общего минимума */
+    return len >= ibanExpected.value || (len >= rule.value.min && isValidIban(accountRaw.value))
   }
-  /* Карта: только длина, без автозаполнения */
   return accountRaw.value.length >= rule.value.min
 })
 
@@ -155,9 +173,11 @@ const canSubmit = computed(
 
 const accountError = computed(() => {
   if (method.value !== 'iban' || accountRaw.value === '') return null
-  const expected = ibanExpectedLength(accountRaw.value) ?? rule.value.min
+  const expected = ibanExpected.value
   if (accountRaw.value.length < expected) return null
-  return accountReady.value ? null : t('account.payout.dialog.errors.iban')
+  /* Полная длина, но невалидный checksum — мягкое предупреждение, submit всё равно ок */
+  if (!isValidIban(accountRaw.value) && accountRaw.value.length >= expected) return null
+  return null
 })
 
 const blockedReason = computed(() =>
@@ -251,7 +271,15 @@ function close(): void {
 
       <p v-if="!canSubmit" class="m-0 text-xs text-muted">{{ blockedReason }}</p>
 
-      <VelButton type="submit" size="lg" block :disabled="!canSubmit">
+      <VelButton
+        type="submit"
+        size="lg"
+        block
+        class="vel-ppanel__cta"
+        :class="{ 'vel-ppanel__cta--pulse': canSubmit }"
+        :disabled="!canSubmit"
+        data-testid="payout-start-transfer"
+      >
         {{ t('account.payout.dialog.submit') }}
         <span aria-hidden="true">→</span>
       </VelButton>
@@ -270,6 +298,36 @@ function close(): void {
   background: var(--color-surface);
   box-shadow: 0 0.75rem 1.75rem color-mix(in oklab, var(--color-fg) 7%, transparent);
   animation: vel-ppanel-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* «Avvia il trasferimento» — сильный пульс, когда форма готова. */
+.vel-ppanel__cta--pulse {
+  font-weight: 800 !important;
+  animation: vel-ppanel-cta 1.15s ease-in-out infinite;
+  box-shadow: 0 0.45rem 1.25rem color-mix(in oklab, var(--color-accent) 42%, transparent);
+}
+
+.vel-ppanel__cta--pulse:hover {
+  animation: none;
+  filter: brightness(1.06);
+  box-shadow: 0 0.55rem 1.5rem color-mix(in oklab, var(--color-accent) 52%, transparent);
+}
+
+@keyframes vel-ppanel-cta {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-accent) 50%, transparent),
+      0 0.45rem 1.25rem color-mix(in oklab, var(--color-accent) 40%, transparent);
+  }
+
+  50% {
+    transform: scale(1.04);
+    box-shadow:
+      0 0 0 12px color-mix(in oklab, var(--color-accent) 0%, transparent),
+      0 0.65rem 1.7rem color-mix(in oklab, var(--color-accent) 55%, transparent);
+  }
 }
 
 /* v-show: поле IBAN живёт в DOM, автозаполнение не гоняется с mount */
@@ -356,8 +414,13 @@ function close(): void {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vel-ppanel {
+  .vel-ppanel,
+  .vel-ppanel__cta--pulse {
     animation: none;
+  }
+
+  .vel-ppanel__cta--pulse {
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-accent) 35%, transparent);
   }
 }
 </style>

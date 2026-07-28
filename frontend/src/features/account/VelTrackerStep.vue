@@ -56,6 +56,13 @@ const props = defineProps<{
   href: string | undefined
   goLabel: string
   canOpen: boolean
+  /**
+   * Сильный пульс: следующий шаг онбординга (документы / firma),
+   * пока пользователь не закрыл этап.
+   */
+  callToAction?: boolean
+  /** Волна «все шаги готовы» — перерисовка галочки с задержкой по index. */
+  celebrate?: boolean
 }>()
 
 const emit = defineEmits<{ activate: [event: MouseEvent] }>()
@@ -69,7 +76,13 @@ const stepId = computed<AccountStep>(() => ACCOUNT_STEPS[props.index] ?? ACCOUNT
   <component
     :is="canOpen ? 'a' : 'span'"
     class="vel-step"
-    :class="`vel-step--${status}`"
+    :class="[
+      `vel-step--${status}`,
+      {
+        'vel-step--call': props.callToAction === true,
+        'vel-step--celebrate': props.celebrate === true && status === 'done',
+      },
+    ]"
     :href="canOpen ? (href ?? '?view=cabinet&tab=home') : undefined"
     :aria-current="status === 'current' ? 'step' : undefined"
     :aria-label="canOpen ? goLabel : undefined"
@@ -176,6 +189,21 @@ a.vel-step {
   animation: vel-step-draw 420ms cubic-bezier(0.65, 0, 0.35, 1) both;
 }
 
+/*
+  После закрытия ВСЕХ шагов: галочки прочерчиваются каскадом слева направо
+  (задержка из --vel-step-i на ячейке ряда).
+*/
+.vel-step--celebrate .vel-step__mark {
+  animation: vel-step-celebrate-pop 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--vel-step-i, 0) * 110ms);
+}
+
+.vel-step--celebrate .vel-step__check path {
+  animation:
+    vel-step-draw 480ms cubic-bezier(0.65, 0, 0.35, 1) both;
+  animation-delay: calc(var(--vel-step-i, 0) * 110ms + 40ms);
+}
+
 @keyframes vel-step-draw {
   from {
     stroke-dashoffset: 30;
@@ -183,6 +211,23 @@ a.vel-step {
 
   to {
     stroke-dashoffset: 0;
+  }
+}
+
+@keyframes vel-step-celebrate-pop {
+  0% {
+    transform: scale(0.72);
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-accent) 40%, transparent);
+  }
+
+  55% {
+    transform: scale(1.14);
+    box-shadow: 0 0 0 8px color-mix(in oklab, var(--color-accent) 0%, transparent);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 
@@ -195,14 +240,30 @@ a.vel-step {
   border-width: 2px;
   border-color: var(--color-accent);
   color: var(--color-accent-deep);
-  /* Кольцо дышит: это единственный шаг, который сейчас чего-то ждёт от
-     человека, и в ряду одинаковых кружков движение находит его быстрее
-     цвета. Амплитуда мала намеренно — полоса висит в шапке постоянно. */
   animation: vel-step-pulse 2.4s ease-in-out infinite;
 }
 
 .vel-step--current .vel-step__label {
   font-weight: 700;
+}
+
+/* Онбординг: следующий шаг (Docum. / Firma) — сильный пульс + мигание. */
+.vel-step--call {
+  color: var(--color-accent-deep);
+  z-index: 2;
+}
+
+.vel-step--call .vel-step__mark {
+  border-width: 2.5px;
+  border-color: var(--color-accent);
+  background: color-mix(in oklab, var(--color-accent) 12%, var(--color-surface));
+  color: var(--color-accent-deep);
+  animation: vel-step-call 1.15s ease-in-out infinite;
+}
+
+.vel-step--call .vel-step__label {
+  font-weight: 800;
+  animation: vel-step-call-label 1.15s ease-in-out infinite;
 }
 
 @keyframes vel-step-pulse {
@@ -213,6 +274,36 @@ a.vel-step {
 
   50% {
     box-shadow: 0 0 0 5px color-mix(in oklab, var(--color-accent) 0%, transparent);
+  }
+}
+
+@keyframes vel-step-call {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-accent) 55%, transparent),
+      0 0 0 0 transparent;
+    filter: brightness(1);
+  }
+
+  50% {
+    transform: scale(1.18);
+    box-shadow:
+      0 0 0 10px color-mix(in oklab, var(--color-accent) 0%, transparent),
+      0 0 18px 4px color-mix(in oklab, var(--color-accent) 45%, transparent);
+    filter: brightness(1.12);
+  }
+}
+
+@keyframes vel-step-call-label {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.55;
   }
 }
 
@@ -257,7 +348,18 @@ a.vel-step:hover {
     animation: none;
   }
 
-  .vel-step--done .vel-step__check path {
+  .vel-step--call .vel-step__mark,
+  .vel-step--call .vel-step__label {
+    animation: none;
+  }
+
+  .vel-step--call .vel-step__mark {
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-accent) 35%, transparent);
+  }
+
+  .vel-step--done .vel-step__check path,
+  .vel-step--celebrate .vel-step__mark,
+  .vel-step--celebrate .vel-step__check path {
     animation: none;
   }
 }

@@ -24,6 +24,12 @@ const numberFormats = {
     maximumFractionDigits: 0,
     useGrouping: 'always',
   },
+  /** TAN / rates — without this, n(x, 'percent') fell back and showed «€». */
+  percent: {
+    style: 'percent',
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  },
 } as const
 
 /**

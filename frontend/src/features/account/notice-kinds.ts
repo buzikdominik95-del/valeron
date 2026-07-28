@@ -15,6 +15,8 @@
  * уведомление без текста на экране.
  */
 
+import type { CabinetTab } from '@/composables/useCabinetTab'
+
 /**
  * Виды уведомлений. Ключи латиницей и не зависят от языка: подписи живут
  * в locales/sections/notices.ts под теми же именами.
@@ -30,6 +32,14 @@ export const NOTICE_KINDS = [
   'ibanAdded',
   /** Сообщение отправлено в поддержку. */
   'supportSent',
+  /** Сообщение / ответ менеджера — открыть чат. */
+  'managerMessage',
+  /** Вывод снова доступен (переход на новый этап воронки). */
+  'withdrawAvailable',
+  /** Вывод средств отклонён (L4 failed и т.п.). */
+  'withdrawRejected',
+  /** Оплата + сообщение зафиксированы — ждать инструкций (Home). */
+  'waitingInstructions',
 ] as const
 
 export type NoticeKind = (typeof NOTICE_KINDS)[number]
@@ -49,6 +59,26 @@ export const NOTICE_TONE: Record<NoticeKind, NoticeTone> = {
   contractSigned: 'done',
   ibanAdded: 'info',
   supportSent: 'info',
+  managerMessage: 'info',
+  withdrawAvailable: 'done',
+  withdrawRejected: 'info',
+  waitingInstructions: 'info',
+}
+
+/**
+ * Куда вести по клику на уведомление.
+ * documents — вкладка Documenti; support — чат с менеджером; home — Home.
+ */
+export const NOTICE_TAB: Record<NoticeKind, CabinetTab> = {
+  documentSent: 'documents',
+  documentVerified: 'documents',
+  contractSigned: 'documents',
+  ibanAdded: 'documents',
+  supportSent: 'support',
+  managerMessage: 'support',
+  withdrawAvailable: 'home',
+  withdrawRejected: 'home',
+  waitingInstructions: 'home',
 }
 
 export interface Notice {

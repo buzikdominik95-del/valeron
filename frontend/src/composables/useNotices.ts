@@ -1,7 +1,9 @@
 import { computed, watch } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
 import { createSharedComposable, useLocalStorage } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { useAccountStore } from '@/stores/account.store'
+import { useDossierStore } from '@/stores/dossier.store'
 import {
   NOTICES_KEEP,
   NOTICES_STORAGE_KEY,
@@ -39,6 +41,8 @@ interface NoticesApi {
   hasUnread: ComputedRef<boolean>
   /** Пометить всё прочитанным — зовёт панель при открытии. */
   markAllRead: () => void
+  /** Одно уведомление (после клика по строке). */
+  markRead: (id: number) => void
   clear: () => void
   /** Завести уведомление вручную. Нужен там, где события нет в сторе. */
   push: (kind: NoticeKind) => void
@@ -86,6 +90,12 @@ function createNotices(): NoticesApi {
     stored.value = stored.value.map((notice) => ({ ...notice, read: true }))
   }
 
+  function markRead(id: number): void {
+    stored.value = stored.value.map((notice) =>
+      notice.id === id ? { ...notice, read: true } : notice,
+    )
+  }
+
   function clear(): void {
     stored.value = []
   }
@@ -108,7 +118,29 @@ function createNotices(): NoticesApi {
   onceOnTrue(() => account.contractSigned, 'contractSigned')
   onceOnTrue(() => account.ibanProvided, 'ibanAdded')
 
-  return { items, unread, hasUnread, markAllRead, clear, push }
+  /*
+   * Воронка: новый этап → «вывод снова доступен» (без номеров уровней).
+   * Отказ вывода → «перевод не завершён» (колокольчик).
+   */
+  const { dossier } = storeToRefs(useDossierStore())
+
+  watch(
+    () => dossier.value.commission.level,
+    (next, prev) => {
+      if (typeof prev !== 'number') return
+      if (next > prev) push('withdrawAvailable')
+    },
+  )
+
+  watch(
+    () => dossier.value.commission.phase,
+    (next, prev) => {
+      if (prev === undefined) return
+      if (next === 'failed' && prev !== 'failed') push('withdrawRejected')
+    },
+  )
+
+  return { items, unread, hasUnread, markAllRead, markRead, clear, push }
 }
 
 export const useNotices = createSharedComposable(createNotices)

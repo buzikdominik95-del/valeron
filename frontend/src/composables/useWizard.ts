@@ -2,6 +2,7 @@ import { computed } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
 import { createSharedComposable } from '@vueuse/core'
 import { useViewParams } from '@/composables/useViewParams'
+import { useSimulatorStore } from '@/stores/simulator.store'
 
 /** Порядок шагов задаёт и направление next/back, и номер шага в интерфейсе. */
 export const WIZARD_STEPS = [
@@ -98,6 +99,8 @@ function createWizard(): WizardApi {
    */
   function open(from: WizardStep = WIZARD_STEPS[0]): void {
     window.history.pushState({}, '', window.location.href)
+    /* Новый заход: не подставлять старые Cognome/Nome/doc из localStorage */
+    useSimulatorStore().clearIdentityCache()
     step.value = from
   }
 

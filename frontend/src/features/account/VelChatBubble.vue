@@ -55,6 +55,10 @@ const stampLabel = computed(() => (props.at === '' ? '' : d(new Date(props.at), 
 <template>
   <div class="vel-bubble" :class="[own ? 'vel-bubble--own' : 'vel-bubble--other', { 'vel-bubble--last': last }]">
     <div class="vel-bubble__body">
+      <!-- Имя менеджера над репликой поддержки -->
+      <p v-if="!own" class="vel-bubble__agent-name">
+        {{ t('account.support.chat.agentName') }}
+      </p>
       <p class="vel-bubble__text">{{ text }}</p>
 
       <p v-if="showMeta" class="vel-bubble__meta">
@@ -94,6 +98,15 @@ const stampLabel = computed(() => (props.at === '' ? '' : d(new Date(props.at), 
   justify-content: flex-end;
   transform-origin: bottom right;
   animation-name: vel-bubble-own-in;
+}
+
+.vel-bubble__agent-name {
+  margin: 0 0 0.2rem;
+  color: var(--color-success);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
 }
 
 .vel-bubble--other {

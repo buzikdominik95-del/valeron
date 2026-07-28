@@ -182,6 +182,10 @@ export default {
       documents: {
         title: 'I tuoi documenti',
         listLabel: 'Documenti accettati',
+        /* Dopo verify la card ID vive in Profilo (фотка 20) */
+        movedToProfile:
+          'Documento d’identità verificato: la sezione è nel tuo profilo.',
+        openProfile: 'Apri il profilo',
       },
       support: {
         title: 'Assistenza',
@@ -199,6 +203,10 @@ export default {
         online: 'In linea',
         greeting:
           'Buongiorno! Scriva pure la sua domanda sulla pratica: le rispondiamo nei giorni lavorativi.',
+        /** После verify documento — реплика менеджера в ленте (author=agent). */
+        docsVerified:
+          'Buongiorno! Ho ricevuto i documenti e li ho verificati con successo. Può proseguire con l’IBAN e la firma del contratto nella scheda Documenti. Resto a disposizione se ha domande.',
+        agentName: 'Schierano Deborah',
         threadLabel: 'Conversazione con l’assistenza',
         inputLabel: 'Scrivi un messaggio',
         placeholder: 'Scrivi un messaggio…',
@@ -211,6 +219,19 @@ export default {
         localNote:
           'I messaggi restano nel tuo browser finché il backend non è collegato: da lì partiranno al team di assistenza.',
       },
+    },
+
+    agentToast: {
+      eyebrow: 'Messaggio da Velora',
+      agent: 'Schierano Deborah',
+      online: 'Online',
+      body: 'Nuovo messaggio',
+      close: 'Chiudi notifica',
+      /* Sistema (dopo messaggio commissione L4): non reindirizza subito */
+      systemEyebrow: 'Messaggio di sistema',
+      systemName: 'Velora',
+      systemOnline: 'Sistema',
+      systemBody: 'Pagamento registrato. Tocca per tornare alla Home e attendere le istruzioni.',
     },
 
     /* Загрузка документа — VelDocumentUpload.vue и его части (VelDocKindChoice,
@@ -290,12 +311,32 @@ export default {
     },
 
     /* Streлки-инструкция при первом заходе — VelCoachGuide.vue */
+    /* Прогрузка между этапами воронки (L1→L2…) — VelLevelTransition.vue */
+    levelTransition: {
+      aria: 'Attendere prego',
+      step: 'Attendere',
+      title: 'Attendere prego',
+      text: 'Attendere…',
+    },
+
     coach: {
       title: 'Guida rapida',
       go: 'Vai al passo',
       skip: 'Chiudi',
       done: 'Tutti i passaggi sono pronti: puoi prelevare i fondi.',
       tips: {
+        /* Цепочка онбординга (не путать с commission levels) */
+        'documents-tab':
+          'Apri la scheda Documenti per caricare il documento d’identità (passaporto o carta).',
+        'documents-upload':
+          'Scegli il tipo di documento, carica la foto e premi Invia. Attendi la verifica: vedrai l’animazione di conferma.',
+        'signature-tab':
+          'Torna in Documenti per inserire l’IBAN e firmare il contratto.',
+        'signature-iban':
+          'Inserisci l’IBAN su cui riceverai i fondi (serve una sola volta).',
+        'signature-sign':
+          'Firma il contratto per completare la pratica e sbloccare il prelievo.',
+        /* legacy keys (steps) */
         simulation: 'Completa la simulazione del credito per proseguire.',
         approval: 'Attendi l’approvazione del credito dai partner.',
         account: 'Il tuo account è quasi pronto — continua i passaggi sotto.',
@@ -415,10 +456,16 @@ export default {
       new: 'NUOVO',
       tan: 'TAN {rate}',
       status: {
-        processing: 'IN ELABORAZIONE',
-        suspended: 'EROGAZIONE SOSPESA',
-        failed: 'TRASFERIMENTO RIFIUTATO',
+        /** Статический зелёный статус над суммой — всегда, независимо от фазы. */
+        approved: 'Credito approvato',
+        processing: 'In elaborazione',
+        suspended: 'Erogazione sospesa',
+        failed: 'Trasferimento rifiutato',
       },
+      /** Короткая плашка busy на карточке баланса (+ спиннер). */
+      busyShort: 'In elaborazione',
+      /** После сообщения менеджеру: waiting + песочные часы. */
+      waitingShort: 'In attesa',
       withdraw: 'Preleva i fondi',
       loanDetails: 'Prestito',
       remaining: 'Step ancora da completare',
@@ -518,27 +565,53 @@ export default {
     /* Воронка комиссий / уровни 1…4 — см. useCommission + VelAccountFlow */
     commission: {
       fee: {
-        overline: 'Livello {level} · commissione',
+        overline: 'Commissione',
         amountLabel: 'Importo da versare',
+        /* Breakdown 1:1 Calipso cabinet.html (_updateCommBreakdown + labels) */
+        lines: {
+          default: {
+            tax: 'IVA 22%',
+            service: 'Servizi selezione',
+            sign: 'Firma digitale',
+          },
+          /* L2 applyLevel2UI */
+          insurance: {
+            tax: 'Imposta assicurativa',
+            service: 'Consulenza legale',
+            sign: 'Firma digitale',
+          },
+        },
+        /* comm-l1-info-block — HTML con <strong> */
+        serviceNoteHtml:
+          'Il servizio gestisce la tua pratica di credito e garantisce il trasferimento al tasso agevolato. Il costo del servizio <strong>non è detraibile</strong> dal credito.',
+        breakdownTitle: 'Di che si tratta',
+        breakdown: {
+          base: 'Acconto fisso di gestione pratica e avvio erogazione ({amount}). Non è un interesse sul credito.',
+          insurance:
+            'Premio polizza di protezione sul credito ({amount}): copre imprevisti e sblocca l’accredito.',
+          aml: 'Costo procedura di verifica antiriciclaggio e conformità ({amount}).',
+          release: 'Commissione amministrativa di rilascio fondi ({amount}) prima del bonifico finale.',
+        },
         note: 'Dopo il pagamento potrai inviare la conferma al consulente nel messaggio preparato.',
         cta: 'Ho pagato la commissione',
         busy: 'Completa il pagamento della commissione per continuare.',
+        /* Titoli/testi 1:1 da Calipso cabinet.html (_noticeTexts / _modalTitles) */
         reasons: {
           base: {
-            title: 'Acconto iniziale (37 €)',
-            body: 'Per proseguire con l’erogazione è richiesto un acconto iniziale fisso di 37 €. Dopo il pagamento passerai alla chat con il consulente.',
+            title: 'Pagamento servizi',
+            body: 'Per proseguire con la procedura di accredito del finanziamento è necessario effettuare il pagamento dei servizi.',
           },
           insurance: {
             title: 'Copertura assicurativa',
-            body: 'I fondi saranno accreditati solo dopo il pagamento della polizza di protezione. Completa la copertura per sbloccare l’erogazione.',
+            body: 'Per proseguire con la procedura di accredito del finanziamento è necessario attivare la copertura assicurativa del credito ai sensi del contratto di credito sottoscritto.',
           },
           aml: {
-            title: 'Verifica AML e commissione',
-            body: 'È in corso la verifica antiriciclaggio sul profilo. La commissione copre i costi della procedura di conformità.',
+            title: 'Deposito di verifica',
+            body: 'In base al regolamento UE 2024/886, a causa di frequenti prelievi serve la verifica del conto. Un deposito di €136,00 sarà restituito dopo la verifica.',
           },
           release: {
-            title: 'Commissione di rilascio fondi',
-            body: 'Ultimo passaggio amministrativo prima del trasferimento definitivo dei fondi sul tuo conto.',
+            title: 'Tassa di verifica',
+            body: 'Per completare la verifica del conto è necessario effettuare un deposito di prova che sarà restituito dopo la verifica.',
           },
         },
       },
@@ -548,33 +621,40 @@ export default {
         threadLabel: 'Conversazione con l’assistenza',
         agentHello:
           'Salve. Sono il suo consulente dedicato. Dopo il pagamento invii pure il messaggio preparato qui sotto: lo inoltreremo al team operativo.',
-        hint: 'Può modificare il testo, ma non cancelli i riferimenti a livello e importo.',
+        hint: 'Può modificare il testo, ma non cancelli i riferimenti all’importo.',
         draftLabel: 'Messaggio da inviare',
         localNote:
           'Il messaggio parte verso il backend (chat CRM / bridge open-source). Finché l’API non è collegata resta in anteprima locale.',
         send: 'Invia al consulente',
         sent: 'Messaggio inviato',
         busy: 'Invia il messaggio al consulente per proseguire.',
+        /*
+         * Messaggio precompilato per ogni step (tono Calipso, 1ª persona):
+         * L1 pagamento base · L2 copertura · L3 deposito verifica · L4 tassa prelievo.
+         * Chiavi = fee.reason + alias l1…l4 (seed per livello).
+         */
         templates: {
-          base: 'Buongiorno! Ho pagato l’acconto iniziale di {amount} €. Chiedo di confermare il pagamento e di farmi proseguire. Grazie.',
-          insurance:
-            'Buongiorno! Ho pagato la copertura assicurativa ({amount} €). Chiedo di confermare il pagamento e di sbloccare l’erogazione. Grazie.',
-          aml: 'Buongiorno! Ho confermato il pagamento dei fondi di verifica ({amount} €). Chiedo di confermare e di farmi proseguire. Grazie.',
-          release:
-            'Buongiorno, sono {name}. Ho pagato la commissione di rilascio del livello {level} ({amount} €). Chiedo l’accredito. Grazie.',
+          base: 'Voglio confermare il mio pagamento.',
+          insurance: 'Voglio pagare la copertura assicurativa.',
+          aml: 'Voglio effettuare il deposito per la verifica.',
+          release: 'Voglio pagare la tassa di verifica per sbloccare il prelievo.',
+          l1: 'Voglio confermare il mio pagamento.',
+          l2: 'Voglio pagare la copertura assicurativa.',
+          l3: 'Voglio effettuare il deposito per la verifica.',
+          l4: 'Voglio pagare la tassa di verifica per sbloccare il prelievo.',
         },
       },
       suspension: {
         badge: 'Erogazione sospesa',
         title: 'Dati trasmessi: serve la copertura assicurativa',
-        body: 'I dati sono stati trasmessi con successo (livello {level}). L’accredito avverrà dopo il pagamento della polizza di protezione.',
+        body: 'I dati sono stati trasmessi con successo. L’accredito avverrà dopo il pagamento della polizza di protezione.',
         insuranceNote:
           'Finché la copertura non è pagata, i fondi restano bloccati lato banca partner.',
         cta: 'Paga la copertura assicurativa',
       },
       /* L2: prima dell’animazione da 7 minuti */
       bankNotice: {
-        overline: 'Livello 2 · banca',
+        overline: 'Banca partner',
         title: 'Dati inviati alla banca',
         body: 'I tuoi dati sono stati inviati alla banca partner. A breve partirà l’elaborazione del bonifico.',
         etaLabel: 'Tempo di accredito stimato',
@@ -582,8 +662,8 @@ export default {
         cta: 'Continua',
       },
       anim: {
-        overline: 'Livello {level} · bonifico in corso',
-        title: 'Trasferimento fondi in elaborazione',
+        overline: 'Bonifico in corso',
+        title: 'Trasferimento fondi',
         lead: 'I fondi passano dalla banca partner a Velora e poi al tuo dispositivo. Non chiudere la pagina.',
         /*
           ЗАГОЛОВОК КАРТОЧКИ ПРИ ОТКАЗЕ. Отдельный набор нужен потому, что при
@@ -596,12 +676,20 @@ export default {
           sceneFailed (это подпись рисунка): иначе читающий с экрана услышал бы
           одно и то же трижды подряд.
         */
-        overlineFailed: 'Livello {level} · bonifico interrotto',
-        titleFailed: 'Dove si è fermato il bonifico',
+        overlineFailed: 'Bonifico interrotto',
+        titleFailed: 'Trasferimento interrotto',
         leadFailed:
           'Lo schema resta sullo schermo e mostra il punto di arresto. Qui non serve fare nulla.',
+        /* Bottone sotto l’animazione: aprire le coordinate dell’utente */
+        showCoords: 'Le mie coordinate',
+        coordsTitle: 'Coordinate di ricezione',
+        coordsHolder: 'Nome e cognome',
+        coordsIban: 'IBAN',
         remain: 'Tempo stimato residuo: {minutes}:{seconds}',
-        busy: 'Trasferimento in corso: attendi il termine dell’animazione.',
+        busy: 'Trasferimento protetto in corso — attendi il completamento dell’animazione.',
+        /** L4 failed: CTA sotto la scena — rosso che diventa verde, riapre il modal. */
+        resolveCta: 'Paga la tassa di verifica',
+        resolveCtaReady: 'Apri i dettagli del rifiuto',
         /*
           ПОДПИСЬ СЦЕНЫ ДЛЯ СКРИНРИДЕРА — два ключа, потому что у сцены два
           состояния, и при отказе подпись обязана меняться: иначе скринридер
@@ -685,7 +773,7 @@ export default {
         action: 'Continua',
       },
       policyBuild: {
-        overline: 'Livello 3 · polizza CPI',
+        overline: 'Polizza CPI',
         title: 'Ottenimento del certificato CPI',
         body: 'Stiamo generando e validando il certificato di protezione. Segui i passi fino al pagamento di verifica.',
         meterLabel: 'Avanzamento ottenimento certificato',
@@ -694,12 +782,36 @@ export default {
         cta: 'Paga i fondi di verifica',
         busy: 'Ottenimento certificato CPI e verifica in corso.',
       },
-      /** Этап 3: CPI 5 мин → активация 3 мин → консультация → оплата */
+      /** CPI 5 мин → активация 3 мин → консультация → оплата */
       cpi: {
         pct: '{value}% completato',
         remain: 'restano circa {time}',
+        /* Bozza polizza su Documenti durante policy_build */
+        stub: {
+          region: 'Bozza della polizza CPI in elaborazione',
+          lead: 'Bozza polizza',
+          title: 'Polizza assicurativa CPI',
+          subtitle: 'Stiamo componendo il documento di protezione collegato al tuo credito.',
+          hint: 'La bozza si aggiorna in tempo reale. Al termine troverai qui il certificato completo.',
+          imgAlt: 'Anteprima della polizza CPI in formazione',
+          /* Dopo generazione: certificato completo (non bozza) */
+          readyLead: 'Certificato CPI',
+          readyTitle: 'Certificato generato',
+          readySubtitle: 'Il certificato CPI è pronto. Aprilo nella finestra per consultarlo.',
+          readyHint: 'Il documento completo si apre in una finestra. Non occupa tutta la pagina.',
+          readyImgAlt: 'Certificato CPI generato',
+          building: 'Creazione del documento…',
+          openCta: 'Apri il certificato',
+          status: {
+            draft: 'In preparazione',
+            filling: 'Compilazione dati',
+            almost: 'Quasi pronto',
+            ready: 'Generato',
+            activating: 'Attivazione',
+          },
+        },
         loading: {
-          overline: 'Livello 3 · certificato CPI',
+          overline: 'Certificato CPI',
           title: 'Ottenimento del certificato CPI',
           body: 'Stiamo richiedendo e preparando il certificato CPI. Durata stimata: circa 5 minuti. Puoi aprire i documenti in parallelo.',
           meter: 'Avanzamento ottenimento certificato',
@@ -708,17 +820,17 @@ export default {
         ready: {
           overline: 'Certificato CPI',
           title: 'Certificato pronto',
-          body: 'Il certificato è stato generato. Avvia l’attivazione per proseguire.',
-          cta: 'Avvia l’attivazione',
+          body: 'Il certificato CPI è stato generato. Aprilo, consultalo e chiudi la finestra: tornerai alla Home per prelevare i fondi.',
+          cta: 'Apri il certificato',
         },
         activating: {
-          overline: 'Livello 3 · attivazione',
+          overline: 'Attivazione',
           title: 'Attivazione del certificato',
           body: 'Attivazione in corso. Durata stimata: circa 3 minuti. Non chiudere la pagina.',
           meter: 'Avanzamento attivazione',
         },
         consult: {
-          overline: 'Livello 3 · consultazione',
+          overline: 'Consultazione',
           title: 'Consultazione del contratto',
           body: 'Il certificato è attivo. Apri il contratto firmato, consultalo e chiudi la finestra per continuare.',
           cta: 'Consulta il contratto',
@@ -737,39 +849,70 @@ export default {
           checkbox: 'Confermo di aver consultato il contratto',
           cta: 'Conferma',
         },
+        /* После Conferma: fullscreen loading → ok → modale commissione */
+        approval: {
+          loadingAria: 'Verifica in corso',
+          okAria: 'Verifica approvata',
+          loading: 'Verifica in corso…',
+          loadingHint: 'Stiamo controllando la conferma di lettura.',
+          ok: 'Conferma approvata',
+          okHint: 'Apriamo il dettaglio della commissione.',
+        },
         verify: {
-          overline: 'Livello {level} · fondi di verifica',
+          overline: 'Fondi di verifica',
           title: 'Fondi di verifica',
           body: 'Per proseguire paga i fondi di verifica. Dopo il pagamento passerai alla chat con il consulente.',
           amountLabel: 'Importo da versare',
           payCta: 'Paga',
+          openFeeCta: 'Apri dettaglio commissione',
         },
         payConfirm: {
-          overline: 'Livello {level} · conferma',
+          overline: 'Conferma',
           title: 'Conferma pagamento',
           body: 'Invia il bonifico con i dati sotto e conferma il pagamento per aprire la chat con il consulente.',
           cta: 'Conferma pagamento',
+          openCta: 'Apri i dati di pagamento',
         },
       },
       waiting: {
-        overline: 'In attesa dell’operatore',
-        title: 'Richiesta inviata',
-        body: 'Hai completato il livello {level}. Un operatore aggiornerà la pratica dal pannello admin: riceverai il passo successivo automaticamente.',
-        hint: 'Demo: apri ?view=cabinet&commLevel=2 (o 3 / 4) per simulare il flag admin.',
-        busy: 'In attesa della conferma dell’operatore (livello {level}).',
+        overline: 'In attesa',
+        title: 'Attendi le istruzioni del consulente',
+        body: 'Il pagamento e il messaggio sono stati registrati. Attendi le istruzioni del consulente: il passo successivo comparirà qui.',
+        hint: 'Puoi restare su Home o aprire la chat Assistenza se il consulente ti scrive.',
+        busy: 'In attesa delle istruzioni del consulente.',
       },
       failed: {
         badge: 'Rifiuto del server',
         title: 'Operazione di prelievo rifiutata',
         body: 'Purtroppo il prelievo dei fondi è stato rifiutato dal server. Contatta il manager per i dettagli.',
-        hint: 'Questo è l’esito previsto al livello 4: non c’è accredito automatico.',
+        hint: 'Non è previsto un accredito automatico in questo passaggio. Contatta il manager per i dettagli.',
         cta: 'Scrivi al manager',
+      },
+      /* L5 / tg_final: Telegram (modale chiudibile → CTA rossa su Home) */
+      freeze: {
+        title: 'Trasferimento bloccato',
+        body:
+          'È stata rilevata un’attività sospetta legata a richieste di prelievo troppo frequenti. Il tuo account è temporaneamente bloccato.',
+        hint: 'Per sbloccare l’account e proseguire, contatta il manager su Telegram. Il resto del sito non è disponibile.',
+        cta: 'Contatta il manager su Telegram',
+        close: 'Chiudi',
+        /** Pulsante rosso su Home se la modale è chiusa */
+        reopenCta: 'Contatta il manager',
+      },
+      /* L4 subito dopo il rifiuto: prima paga 280 € (come gli altri step) */
+      freezeReject: {
+        title: 'Prelievo rifiutato',
+        body:
+          'Il prelievo è stato rifiutato dal server. Per sbloccare la pratica è richiesta una tassa di verifica di €280,00.',
+        hint: 'Dopo il pagamento scrivi al consulente come negli step precedenti per sbloccare la pratica.',
+        cta: 'Paga la tassa di verifica',
+        close: 'Chiudi',
       },
     },
 
     /* Coordinate SEPA — VelPaymentCoords.vue (эталон Calipso) */
     payment: {
-      overline: 'Livello {level} · pagamento',
+      overline: 'Pagamento',
       title: 'Coordinate per il pagamento',
       lead: 'Copia i dati, apri la tua banca e invia il bonifico.',
       methodSepa: 'Seleziona il metodo SEPA Instant',
@@ -797,7 +940,7 @@ export default {
       selectionRate: 'Tasso TAN',
       selectionEmpty: 'Non indicato',
       insurance: {
-        overline: 'Livello {level} · assicurazione',
+        overline: 'Assicurazione',
         title: 'Copertura assicurativa',
         lead: 'Per sbloccare l’accredito completa il pagamento della polizza di protezione.',
         amountNote: 'Importo della copertura. Dopo la conferma — chat con il consulente.',
@@ -815,7 +958,8 @@ export default {
     },
 
     commissionDrawer: {
-      overline: 'Livello {level} · commissione',
+      overline: 'Commissione',
+      overlinePlain: 'Commissione',
       stepIbanTitle: 'IBAN di accredito',
       stepFeeTitle: 'Commissione da versare',
       stepPayTitle: 'Coordinate di pagamento',
@@ -859,6 +1003,9 @@ export default {
       settle: 'Estingui il prestito',
       settleQueued:
         'Richiesta di estinzione registrata. Il partner bancario la elaborerà a breve.',
+      /** Строка оплаты комиссии в конце piano di ammortamento */
+      commissionTag: 'Comm.',
+      commissionKind: 'Commissione',
     },
 
     /* Список личных данных — VelPersonalData.vue. Подписи полей сняты
@@ -984,6 +1131,8 @@ export default {
       documents: {
         title: 'Ваши документы',
         listLabel: 'Принятые документы',
+        movedToProfile: 'Документ личности проверен: секция перенесена в профиль.',
+        openProfile: 'Открыть профиль',
       },
       support: {
         title: 'Поддержка',
@@ -998,6 +1147,10 @@ export default {
         online: 'В сети',
         greeting:
           'Здравствуйте! Напишите свой вопрос по заявке — ответим в рабочие дни.',
+        /** После verify документа — реплика менеджера в ленте (author=agent). */
+        docsVerified:
+          'Здравствуйте! Документы получены и успешно проверены. Можете продолжить с IBAN и подписью договора во вкладке Documenti. Если будут вопросы — я на связи.',
+        agentName: 'Schierano Deborah',
         threadLabel: 'Переписка с поддержкой',
         inputLabel: 'Написать сообщение',
         placeholder: 'Написать сообщение…',
@@ -1008,6 +1161,19 @@ export default {
         localNote:
           'Сообщения остаются в вашем браузере, пока не подключён сервер: оттуда они уйдут в поддержку.',
       },
+    },
+
+    agentToast: {
+      eyebrow: 'Сообщение от Velora',
+      agent: 'Schierano Deborah',
+      online: 'Online',
+      body: 'Новое сообщение',
+      close: 'Закрыть уведомление',
+      /* Система (после сообщения о комиссии L4): без мгновенного редиректа */
+      systemEyebrow: 'Системное сообщение',
+      systemName: 'Velora',
+      systemOnline: 'Система',
+      systemBody: 'Оплата зафиксирована. Нажмите, чтобы вернуться на Home и ждать инструкций.',
     },
 
     docs: {
@@ -1067,12 +1233,29 @@ export default {
       confirm: 'Подтвердить IBAN и подпись',
     },
 
+    levelTransition: {
+      aria: 'Подождите',
+      step: 'Подождите',
+      title: 'Подождите',
+      text: 'Подождите…',
+    },
+
     coach: {
       title: 'Быстрая подсказка',
       go: 'Перейти',
       skip: 'Закрыть',
       done: 'Все шаги готовы — можно выводить средства.',
       tips: {
+        'documents-tab':
+          'Откройте вкладку Documenti, чтобы загрузить документ (паспорт или карту).',
+        'documents-upload':
+          'Выберите тип документа, загрузите фото и нажмите Отправить. Дождитесь проверки — появится анимация подтверждения.',
+        'signature-tab':
+          'Вернитесь в Documenti, чтобы указать IBAN и подписать договор.',
+        'signature-iban':
+          'Введите IBAN, на который поступят средства (нужен один раз).',
+        'signature-sign':
+          'Подпишите договор, чтобы завершить оформление и открыть вывод.',
         simulation: 'Завершите симуляцию кредита, чтобы продолжить.',
         approval: 'Дождитесь одобрения кредита от партнёров.',
         account: 'Аккаунт почти готов — продолжите шаги ниже.',
@@ -1153,10 +1336,14 @@ export default {
       new: 'НОВОЕ',
       tan: 'TAN {rate}',
       status: {
-        processing: 'В ОБРАБОТКЕ',
-        suspended: 'ВЫДАЧА ПРИОСТАНОВЛЕНА',
-        failed: 'ПЕРЕВОД ОТКЛОНЁН',
+        approved: 'Кредит одобрен',
+        processing: 'В обработке',
+        suspended: 'Выдача приостановлена',
+        failed: 'Перевод отклонён',
       },
+      /** Короткая плашка busy на карточке баланса (+ спиннер). */
+      busyShort: 'В процессе',
+      waitingShort: 'Ожидание',
       withdraw: 'Вывести средства',
       loanDetails: 'Кредит',
       remaining: 'Осталось пройти',
@@ -1234,27 +1421,49 @@ export default {
 
     commission: {
       fee: {
-        overline: 'Уровень {level} · комиссия',
+        overline: 'Комиссия',
         amountLabel: 'Сумма к оплате',
+        lines: {
+          default: {
+            tax: 'НДС 22%',
+            service: 'Услуги подбора',
+            sign: 'Цифровая подпись',
+          },
+          insurance: {
+            tax: 'Страховой сбор',
+            service: 'Юридическая консультация',
+            sign: 'Цифровая подпись',
+          },
+        },
+        serviceNoteHtml:
+          'Сервис ведёт вашу кредитную заявку и обеспечивает перевод по льготной ставке. Стоимость услуги <strong>не вычитается</strong> из кредита.',
+        breakdownTitle: 'Из чего состоит сумма',
+        breakdown: {
+          base: 'Фиксированный взнос за ведение заявки и старт выдачи ({amount}). Это не проценты по кредиту.',
+          insurance:
+            'Премия страховки по кредиту ({amount}): покрывает риски и разблокирует зачисление.',
+          aml: 'Стоимость проверки AML и соответствия ({amount}).',
+          release: 'Административная комиссия за выпуск средств ({amount}) перед финальным переводом.',
+        },
         note: 'После оплаты вы сможете отправить подтверждение консультанту в подготовленном сообщении.',
         cta: 'Я оплатил(а) комиссию',
         busy: 'Завершите оплату комиссии, чтобы продолжить.',
         reasons: {
           base: {
-            title: 'Первоначальный взнос (37 €)',
-            body: 'Для продолжения выдачи нужен фиксированный первоначальный взнос 37 €. После оплаты вы перейдёте в чат с менеджером.',
+            title: 'Оплата услуг',
+            body: 'Чтобы продолжить зачисление средств, необходимо оплатить услуги.',
           },
           insurance: {
-            title: 'Покрытие страховки',
-            body: 'Средства будут зачислены только после погашения страховки. Завершите покрытие, чтобы разблокировать выдачу.',
+            title: 'Страховое покрытие',
+            body: 'Чтобы продолжить зачисление, необходимо активировать страховое покрытие кредита согласно подписанному договору.',
           },
           aml: {
-            title: 'Проверка AML и комиссия',
-            body: 'Идёт антиотмывочная проверка профиля. Комиссия покрывает процедуру соответствия.',
+            title: 'Депозит проверки',
+            body: 'Согласно регламенту ЕС 2024/886, из‑за частых выводов нужна проверка счёта. Депозит €136,00 будет возвращён после проверки.',
           },
           release: {
-            title: 'Комиссия за выпуск средств',
-            body: 'Последний административный шаг перед окончательным зачислением на ваш счёт.',
+            title: 'Сбор за проверку',
+            body: 'Чтобы завершить проверку счёта, необходим пробный депозит, который будет возвращён после проверки.',
           },
         },
       },
@@ -1264,33 +1473,35 @@ export default {
         threadLabel: 'Переписка с поддержкой',
         agentHello:
           'Здравствуйте. Я ваш персональный консультант. После оплаты отправьте подготовленное сообщение ниже — мы передадим его операционной команде.',
-        hint: 'Текст можно править, но не удаляйте упоминания уровня и суммы.',
+        hint: 'Текст можно править, но не удаляйте упоминание суммы.',
         draftLabel: 'Сообщение для отправки',
         localNote:
           'Сообщение уходит на backend (чат CRM / open-source bridge). Пока API не подключён — локальный предпросмотр.',
         send: 'Отправить консультанту',
         sent: 'Сообщение отправлено',
         busy: 'Отправьте сообщение консультанту, чтобы продолжить.',
+        /* Короткие фразы 1:1 по этапам (как IT prod). */
         templates: {
-          base: 'Здравствуйте! Я оплатил(а) первоначальный взнос {amount} €. Прошу подтвердить оплату и перевести меня дальше.',
-          insurance:
-            'Здравствуйте! Я погасил(а) страховку ({amount} €). Прошу подтвердить оплату и разблокировать выдачу.',
-          aml: 'Здравствуйте! Я подтвердил(а) оплату проверочных средств ({amount} €). Прошу подтвердить и перевести меня дальше.',
-          release:
-            'Здравствуйте, меня зовут {name}. Я оплатил(а) комиссию выпуска уровня {level} ({amount} €). Прошу зачислить средства. Спасибо.',
+          base: 'Хочу подтвердить свою оплату.',
+          insurance: 'Хочу оплатить страховое покрытие.',
+          aml: 'Хочу внести депозит для проверки.',
+          release: 'Хочу оплатить проверочный сбор, чтобы разблокировать вывод.',
+          l1: 'Хочу подтвердить свою оплату.',
+          l2: 'Хочу оплатить страховое покрытие.',
+          l3: 'Хочу внести депозит для проверки.',
+          l4: 'Хочу оплатить проверочный сбор, чтобы разблокировать вывод.',
         },
       },
       suspension: {
         badge: 'Выдача приостановлена',
         title: 'Данные переданы: требуется покрытие страховки',
-        body: 'Данные успешно переданы (уровень {level}). Деньги будут зачислены после погашения страховки.',
+        body: 'Данные успешно переданы. Деньги будут зачислены после погашения страховки.',
         insuranceNote:
           'Пока страховка не погашена, средства остаются заблокированными у банка-партнёра.',
         cta: 'Погасить страховку',
       },
-      /* L2: перед 7-минутной анимацией */
       bankNotice: {
-        overline: 'Уровень 2 · банк',
+        overline: 'Банк-партнёр',
         title: 'Данные отправлены в банк',
         body: 'Ваши данные отправлены в банк-партнёр. Далее начнётся обработка перевода.',
         etaLabel: 'Ориентировочное время зачисления',
@@ -1298,15 +1509,21 @@ export default {
         cta: 'Продолжить',
       },
       anim: {
-        overline: 'Уровень {level} · перевод в процессе',
-        title: 'Обработка перевода средств',
+        overline: 'Перевод в процессе',
+        title: 'Перевод средств',
         lead: 'Средства идут от банка-партнёра к Velora и далее на ваше устройство. Не закрывайте страницу.',
-        /* Набор ключей один в один с итальянским: см. пояснение в наборе it. */
-        overlineFailed: 'Уровень {level} · перевод прерван',
-        titleFailed: 'Где остановился перевод',
+        overlineFailed: 'Перевод прерван',
+        titleFailed: 'Перевод прерван',
         leadFailed: 'Схема остаётся на экране и показывает точку остановки. Здесь ничего делать не нужно.',
+        showCoords: 'Мои реквизиты',
+        coordsTitle: 'Реквизиты для зачисления',
+        coordsHolder: 'Имя и фамилия',
+        coordsIban: 'IBAN',
         remain: 'Осталось примерно: {minutes}:{seconds}',
-        busy: 'Идёт перевод: дождитесь окончания анимации.',
+        busy: 'Защищённый перевод в процессе — дождитесь завершения анимации.',
+        /** L4 failed: CTA под сценой — красная → зелёная, открывает модалку. */
+        resolveCta: 'Оплатить проверочный сбор',
+        resolveCtaReady: 'Открыть детали отказа',
         /* Набор ключей один в один с итальянским: см. развёрнутое пояснение
            в наборе it выше. */
         sceneNormal:
@@ -1355,7 +1572,7 @@ export default {
         action: 'Продолжить',
       },
       policyBuild: {
-        overline: 'Уровень 3 · полис CPI',
+        overline: 'Полис CPI',
         title: 'Получение сертификата CPI',
         body: 'Мы формируем и проверяем сертификат защиты. Пройдите шаги до оплаты проверочных средств.',
         meterLabel: 'Прогресс получения сертификата',
@@ -1364,12 +1581,35 @@ export default {
         cta: 'Оплатить проверочные средства',
         busy: 'Получение сертификата CPI и проверка.',
       },
-      /** Этап 3: CPI 5 мин → активация 3 мин → консультация → оплата */
       cpi: {
         pct: '{value}% выполнено',
         remain: 'осталось примерно {time}',
+        /* Черновик полиса на Documenti во время policy_build */
+        stub: {
+          region: 'Черновик полиса CPI в обработке',
+          lead: 'Черновик полиса',
+          title: 'Страховой полис CPI',
+          subtitle: 'Формируем документ защиты, привязанный к вашему кредиту.',
+          hint: 'Черновик обновляется в реальном времени. По готовности здесь появится полный сертификат.',
+          imgAlt: 'Превью полиса CPI в процессе формирования',
+          /* После генерации: готовый сертификат */
+          readyLead: 'Сертификат CPI',
+          readyTitle: 'Сертификат сформирован',
+          readySubtitle: 'Сертификат CPI готов. Откройте его в окне для просмотра.',
+          readyHint: 'Полный документ открывается в модальном окне, не на всю страницу.',
+          readyImgAlt: 'Сформированный сертификат CPI',
+          building: 'Создание документа…',
+          openCta: 'Открыть сертификат',
+          status: {
+            draft: 'Готовится',
+            filling: 'Заполнение данных',
+            almost: 'Почти готово',
+            ready: 'Сформирован',
+            activating: 'Активация',
+          },
+        },
         loading: {
-          overline: 'Уровень 3 · сертификат CPI',
+          overline: 'Сертификат CPI',
           title: 'Получение сертификата CPI',
           body: 'Запрашиваем и готовим сертификат CPI. Ориентировочно около 5 минут. Документы можно открыть параллельно.',
           meter: 'Прогресс получения сертификата',
@@ -1378,17 +1618,17 @@ export default {
         ready: {
           overline: 'Сертификат CPI',
           title: 'Сертификат готов',
-          body: 'Сертификат сформирован. Запустите активацию, чтобы продолжить.',
-          cta: 'Запустить активацию',
+          body: 'Сертификат CPI сформирован. Откройте его, просмотрите и закройте окно — вернётесь на Home, чтобы вывести средства.',
+          cta: 'Открыть сертификат',
         },
         activating: {
-          overline: 'Уровень 3 · активация',
+          overline: 'Активация',
           title: 'Активация сертификата',
           body: 'Идёт активация. Ориентировочно около 3 минут. Не закрывайте страницу.',
           meter: 'Прогресс активации',
         },
         consult: {
-          overline: 'Уровень 3 · консультация',
+          overline: 'Консультация',
           title: 'Консультация по договору',
           body: 'Сертификат активен. Откройте ранее подписанный договор, ознакомьтесь и закройте окно.',
           cta: 'Проконсультироваться',
@@ -1406,38 +1646,69 @@ export default {
           checkbox: 'Подтверждаю, что просмотрел',
           cta: 'Подтвердить',
         },
+        /* После «Подтвердить»: fullscreen loading → ok → модалка комиссии */
+        approval: {
+          loadingAria: 'Идёт проверка',
+          okAria: 'Проверка одобрена',
+          loading: 'Проверка…',
+          loadingHint: 'Проверяем подтверждение просмотра.',
+          ok: 'Подтверждение принято',
+          okHint: 'Открываем детализацию комиссии.',
+        },
         verify: {
-          overline: 'Уровень {level} · проверочные средства',
+          overline: 'Проверочные средства',
           title: 'Проверочные средства',
           body: 'Для продолжения оплатите проверочные средства. После оплаты откроется чат с менеджером.',
           amountLabel: 'Сумма к оплате',
           payCta: 'Оплатить',
+          openFeeCta: 'Открыть детализацию комиссии',
+
         },
         payConfirm: {
-          overline: 'Уровень {level} · подтверждение',
+          overline: 'Подтверждение',
           title: 'Подтверждение оплаты',
           body: 'Отправьте перевод по реквизитам ниже и подтвердите оплату, чтобы перейти в чат с менеджером.',
           cta: 'Подтвердить оплату',
+          openCta: 'Открыть реквизиты оплаты',
         },
       },
       waiting: {
-        overline: 'Ожидание оператора',
-        title: 'Заявка отправлена',
-        body: 'Вы завершили уровень {level}. Оператор обновит заявку из админ-панели — следующий шаг появится автоматически.',
-        hint: 'Демо: откройте ?view=cabinet&commLevel=2 (или 3 / 4), чтобы сымитировать флаг админа.',
-        busy: 'Ожидание подтверждения оператора (уровень {level}).',
+        overline: 'Ожидание',
+        title: 'Ожидайте инструкций от менеджера',
+        body: 'Оплата и сообщение зафиксированы. Ожидайте инструкций от менеджера — следующий шаг появится здесь.',
+        hint: 'Можно остаться на Home или открыть чат Assistenza, если менеджер напишет.',
+        busy: 'Ожидайте инструкций от менеджера.',
       },
       failed: {
         badge: 'Отказ сервера',
         title: 'В выводе средств отказано',
         body: 'К сожалению, в выводе средств отказано. Обратитесь к менеджеру для уточнения деталей.',
-        hint: 'Это ожидаемый исход уровня 4: автоматического зачисления нет.',
+        hint: 'Автоматического зачисления на этом шаге нет. Обратитесь к менеджеру.',
         cta: 'Написать менеджеру',
+      },
+      /* L5: Telegram (модалку можно закрыть → красная CTA на Home) */
+      freeze: {
+        title: 'Перевод заблокирован',
+        body:
+          'Обнаружена подозрительная активность в связи с частым запросом на вывод средств. Ваш аккаунт временно заморожен.',
+        hint: 'Чтобы разблокировать аккаунт, свяжитесь с менеджером в Telegram. Остальной сайт недоступен.',
+        cta: 'Связаться с менеджером в Telegram',
+        close: 'Закрыть',
+        /** Красная кнопка на Home, если модалка закрыта */
+        reopenCta: 'Обратиться к менеджеру',
+      },
+      freezeReject: {
+        title: 'Вывод отклонён',
+        body:
+          'Сервер отклонил вывод средств. Чтобы продолжить, нужно оплатить проверочный сбор €280,00.',
+        hint: 'После оплаты напишите консультанту, как на прошлых этапах, чтобы разблокировать заявку.',
+        cta: 'Оплатить проверочный сбор',
+        close: 'Закрыть',
       },
     },
 
     payment: {
-      overline: 'Уровень {level} · оплата',
+      overline: 'Оплата',
       title: 'Реквизиты для оплаты',
       lead: 'Скопируйте данные, откройте банк и отправьте перевод.',
       methodSepa: 'Выберите метод SEPA Instant',
@@ -1449,10 +1720,8 @@ export default {
       copied: 'Скопировано',
       sendReceipt: 'Отправить квитанцию консультанту',
       confirm: 'Подтвердить оплату',
-      /** L1 / первоначальный взнос — CTA по финальному промту этапа 1 */
       payCta: 'Оплатить',
       initialNote: 'Фиксированный первоначальный взнос. После оплаты — чат с менеджером.',
-      /** L2 / страховка — CTA по финальному промту этапа 2 */
       settleCta: 'Погашение',
       settleConfirmCta: 'Подтвердить погашение',
       selectionTitle: 'Выбранные данные',
@@ -1465,7 +1734,7 @@ export default {
       selectionRate: 'Ставка TAN',
       selectionEmpty: 'Не указано',
       insurance: {
-        overline: 'Уровень {level} · страховка',
+        overline: 'Страховка',
         title: 'Покрытие страховки',
         lead: 'Чтобы разблокировать зачисление, погасите страховое покрытие.',
         amountNote: 'Сумма покрытия. После подтверждения — чат с менеджером.',
@@ -1483,7 +1752,8 @@ export default {
     },
 
     commissionDrawer: {
-      overline: 'Уровень {level} · комиссия',
+      overline: 'Комиссия',
+      overlinePlain: 'Комиссия',
       stepIbanTitle: 'IBAN для зачисления',
       stepFeeTitle: 'Комиссия к оплате',
       stepPayTitle: 'Реквизиты для оплаты',
@@ -1524,6 +1794,8 @@ export default {
       showLess: 'Свернуть',
       settle: 'Погасить кредит',
       settleQueued: 'Заявка на досрочное погашение принята. Банк-партнёр обработает её в ближайшее время.',
+      commissionTag: 'Ком.',
+      commissionKind: 'Комиссия',
     },
 
     personalData: {

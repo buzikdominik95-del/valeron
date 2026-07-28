@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { useCommission } from '@/composables/useCommission'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
 
 /**
  * Ожидание флага админа / ответа API после сообщения менеджеру.
- * Этап 1: после оплаты 37 € и отправки шаблона — лоадер до stage 2.
+ * После оплаты и отправки шаблона — лоадер до следующего шага.
  */
 const { t } = useI18n()
-const { level } = useCommission()
 </script>
 
 <template>
@@ -17,7 +15,7 @@ const { level } = useCommission()
     data-testid="waiting-admin"
     role="status"
     :aria-busy="true"
-    :aria-label="t('account.commission.waiting.busy', { level })"
+    :aria-label="t('account.commission.waiting.busy')"
   >
     <div class="flex items-start gap-3">
       <span class="vel-wait-spin shrink-0" aria-hidden="true">
@@ -34,7 +32,7 @@ const { level } = useCommission()
     <div class="flex items-center gap-3 rounded-control border border-line bg-ground px-3 py-3">
       <span class="vel-wait-ring" aria-hidden="true" />
       <p class="m-0 text-sm text-muted">
-        {{ t('account.commission.waiting.body', { level }) }}
+        {{ t('account.commission.waiting.body') }}
       </p>
     </div>
 

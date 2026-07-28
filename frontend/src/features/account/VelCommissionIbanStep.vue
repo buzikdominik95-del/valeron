@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useMaskedInput } from '@/composables/useMaskedInput'
 import { useAccount } from '@/composables/useAccount'
 import { useAccountStore } from '@/stores/account.store'
-import { ibanExpectedLength, isValidIban } from '@/lib/iban'
+import { ibanExpectedLength, ibanShapeProblem } from '@/lib/iban'
 import { HOLDER_MIN_LENGTH, PAYOUT_ACCOUNT_RULES } from '@/features/account/payout-fields'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelField from '@/components/ui/VelField.vue'
@@ -13,7 +13,8 @@ import VelInput from '@/components/ui/VelInput.vue'
 
 /**
  * Шаг 1 drawer: IBAN + intestatario.
- * Маска и валидация здесь; наружу — ready + commit.
+ * Как VelContractIban: длина + форма, без mod-97 (иначе «IBAN non valido»
+ * на полном номере без объяснения, где ошибка — блокирует воронку).
  */
 const props = defineProps<{
   active: boolean
@@ -48,20 +49,31 @@ const defaultHolder = computed(() => {
   return [client.value.lastName, client.value.firstName].filter(Boolean).join(' ').trim()
 })
 
+/** Длина для страны (IT = 27) или общий min. */
+const expectedLen = computed(
+  () => ibanExpectedLength(accountRaw.value) ?? rule.min,
+)
+
+/**
+ * Готовность: набрана полная длина + нет ошибки формы.
+ * Контрольную сумму (mod-97) не требуем — как в окне IBAN договора.
+ */
 const ibanReady = computed(() => {
-  if (accountRaw.value.length < rule.min) return false
-  return isValidIban(accountRaw.value)
+  if (accountRaw.value.length < expectedLen.value) return false
+  return ibanShapeProblem(accountRaw.value) === null
 })
 
 const canNext = computed(
   () => ibanReady.value && holder.value.trim().length >= HOLDER_MIN_LENGTH,
 )
 
+/** Красным — только заведомо негодное (чужой знак / не буквы в коде страны). */
 const accountError = computed(() => {
   if (accountRaw.value === '') return null
-  const expected = ibanExpectedLength(accountRaw.value) ?? rule.min
-  if (accountRaw.value.length < expected) return null
-  return ibanReady.value ? null : t('account.payout.dialog.errors.iban')
+  const problem = ibanShapeProblem(accountRaw.value)
+  if (problem === 'chars') return t('contract.iban.badChars')
+  if (problem === 'country') return t('contract.iban.country')
+  return null
 })
 
 async function prefills(): Promise<void> {

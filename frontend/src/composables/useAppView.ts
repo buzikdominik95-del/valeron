@@ -1,5 +1,5 @@
-import { computed } from 'vue'
-import type { ComputedRef } from 'vue'
+import { computed, nextTick, ref } from 'vue'
+import type { ComputedRef, Ref } from 'vue'
 import { createSharedComposable } from '@vueuse/core'
 import { useViewParams } from '@/composables/useViewParams'
 
@@ -25,6 +25,8 @@ export function isAccountView(value: unknown): value is AccountView {
 export interface AppViewApi {
   view: ComputedRef<AccountView | null>
   isAccount: ComputedRef<boolean>
+  /** Ключ remount экрана письма (2–3-я регистрация перезапускает анимацию). */
+  emailEpoch: Ref<number>
   openEmailSent(): void
   openCabinet(): void
   backToSite(): void
@@ -54,6 +56,13 @@ function createAppView(): AppViewApi {
   const isAccount = computed(() => view.value !== null)
 
   /**
+   * Счётчик сессий экрана письма. Без него повторная регистрация при уже
+   * открытом ?view=email не размонтирует VelEmailSent — таймер фаз не
+   * перезапускается, анимация «залипает» или белеет.
+   */
+  const emailEpoch = ref(0)
+
+  /**
    * Вход в кабинет — новая запись истории, а переходы внутри заменяют текущую.
    * Тот же приём, что при входе в мастер: без дубля системная кнопка «назад»
    * уводила бы с сайта вместо возврата на предыдущий экран.
@@ -64,6 +73,15 @@ function createAppView(): AppViewApi {
   }
 
   function openEmailSent(): void {
+    emailEpoch.value += 1
+    /* Уже на email: снять и вернуть view, чтобы v-if гарантированно remount. */
+    if (params.view === 'email') {
+      delete params.view
+      void nextTick(() => {
+        enter('email')
+      })
+      return
+    }
     enter('email')
   }
 
@@ -75,7 +93,7 @@ function createAppView(): AppViewApi {
     delete params.view
   }
 
-  return { view, isAccount, openEmailSent, openCabinet, backToSite }
+  return { view, isAccount, emailEpoch, openEmailSent, openCabinet, backToSite }
 }
 
 /** Состояние общее на приложение — см. обоснование в useWizard. */

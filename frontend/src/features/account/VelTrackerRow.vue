@@ -1,51 +1,59 @@
 <script setup lang="ts">
+import { ref, watch } from 'vue'
+import { useTimeoutFn } from '@vueuse/core'
 import type { TrackerStepItem } from '@/composables/useTrackerBar'
 import type { AccountStep } from '@/stores/account.store'
 import VelTrackerStep from '@/features/account/VelTrackerStep.vue'
 
 /**
- * Ряд из пяти кружков с линией-соединителем — видимая часть полосы шагов.
- *
- * ВСЕ ПЯТЬ ШАГОВ ПОМЕЩАЮТСЯ В ЭКРАН — это главное требование, и всё
- * устройство ряда подчинено ему. Раньше здесь был ряд чипов с полными
- * подписями; в 320px он не помещался и прокручивался вбок, то есть путь к
- * деньгам был виден человеку не целиком, пока тот не догадается потянуть
- * полосу пальцем. Теперь ряд — сетка из пяти РАВНЫХ долей ширины
- * (repeat(5, 1fr)), подписи сокращены (short), и прокрутки нет ни на
- * одной ширине. Проверяется автоматически: scripts/audit-mobile.mjs.
- *
- * ЛИНИЯ-СОЕДИНИТЕЛЬ — ДВА ПСЕВДОЭЛЕМЕНТА СЕТКИ, а не отдельные отрезки между
- * ячейками. Отрезок в каждой ячейке пришлось бы гасить у крайних и считать
- * его длину от размера кружка; здесь дорожка и заливка — две линии от центра
- * первой ячейки до центра последней, то есть от 10% до 90% при пяти долях.
- * Формулы в CSS выведены из числа шагов, а не вписаны числами: шагов
- * однажды станет шесть.
- *
- * ОТДЕЛЬНЫМ ФАЙЛОМ, А НЕ КУСКОМ VelTrackerBar: ряд несёт собственную
- * геометрию (сетка долей, дорожка, луч) и больше половины всех правил полосы.
- * Классы при этом остались vel-track__… — это по-прежнему элементы блока
- * «полоса шагов», переезд чисто файловый, в DOM не поменялось ничего.
- *
- * ДОЛЮ ЗАЛИВКИ И ЧИСЛО ШАГОВ РЯД НЕ СЧИТАЕТ: --vel-track-progress и
- * --vel-track-count приходят наследованием с корня полосы (см. useTrackerBar).
+ * Ряд кружков + дорожка. При allDone (false→true) — каскад галочек.
  */
-defineProps<{
+const props = defineProps<{
   items: readonly TrackerStepItem[]
-  /** Все шаги пройдены — луч по залитой дорожке гаснет, см. --beam ниже. */
+  /** Все шаги пройдены — луч гаснет; celebrate — перерисовка галочек. */
   allDone: boolean
 }>()
 
 const emit = defineEmits<{
   activate: [event: MouseEvent, stepId: AccountStep, href: string | undefined]
 }>()
+
+/** Однократная «волна» галочек после закрытия последнего шага. */
+const celebrating = ref(false)
+const CELEBRATE_MS = 1_600
+
+const { start: endCelebrate, stop: stopCelebrate } = useTimeoutFn(
+  () => {
+    celebrating.value = false
+  },
+  CELEBRATE_MS,
+  { immediate: false },
+)
+
+watch(
+  () => props.allDone,
+  (done, was) => {
+    if (!done || was !== false) return
+    stopCelebrate()
+    celebrating.value = true
+    endCelebrate()
+  },
+)
 </script>
 
 <template>
-  <ol class="vel-track__row" :class="{ 'vel-track__row--beam': !allDone }">
+  <ol
+    class="vel-track__row"
+    :class="{
+      'vel-track__row--beam': !allDone,
+      'vel-track__row--celebrate': celebrating,
+    }"
+  >
     <li
       v-for="item in items"
       :key="item.id"
       class="vel-track__cell"
+      :style="{ '--vel-step-i': item.index }"
       :data-current="item.status === 'current' ? 'true' : undefined"
     >
       <VelTrackerStep
@@ -57,6 +65,8 @@ const emit = defineEmits<{
         :href="item.href"
         :go-label="item.goLabel"
         :can-open="item.canOpen"
+        :call-to-action="item.callToAction"
+        :celebrate="celebrating"
         @activate="emit('activate', $event, item.id, item.href)"
       />
     </li>
@@ -129,6 +139,19 @@ const emit = defineEmits<{
   /* Линия дотягивается до нового кружка, когда шаг закрыт: это единственное
      место, где виден сам факт продвижения. */
   transition: inline-size 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Полная дорожка при complete + лёгкое сияние */
+.vel-track__row--celebrate::after {
+  inline-size: calc(100% - 100% / var(--vel-track-count));
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, #fff 70%, transparent) 40%,
+    transparent 80%
+  );
+  background-size: 40% 100%;
+  animation: vel-track-beam 0.9s cubic-bezier(0.16, 1, 0.3, 1) 1 both;
 }
 
 .vel-track__row--beam::after {

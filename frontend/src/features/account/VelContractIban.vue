@@ -124,31 +124,24 @@ const hint = computed(() =>
 const ready = computed(() => remaining.value === 0 && error.value === null)
 
 /**
- * ТРИ ШАГА ОКНА.
+ * ДВА ШАГА в UI (бриф): ввод → проверка. После «Fatto» окно закрывается —
+ * третий кружок «done» в степпере не показываем.
  *
- * 'entry'   — набрать или поменять номер;
- * 'confirm' — прочитать набранное и подтвердить;
- * 'done'    — счёт сохранён.
- *
- * ЗАЧЕМ ШАГ ПОДТВЕРЖДЕНИЯ, А НЕ СРАЗУ СОХРАНЕНИЕ. Контрольная сумма ISO 7064
- * MOD 97-10 из условия отправки снята сознательно (см. шапку файла): её отказ
- * ничего не объяснял. Но вместе с ней ушла и единственная проверка, ловившая
- * ОПЕЧАТКУ В ЦИФРЕ — длина сходится и у номера с переставленными знаками.
- * Значит последней преградой перед банком остаётся сам человек, и ему нужно
- * дать номер перечитать: на шаге 'confirm' он показан крупно и четвёрками,
- * рядом кнопка вернуться и поправить.
- *
- * Цена ошибки здесь несимметрична: лишние две секунды на читку против кредита,
- * ушедшего на чужой счёт.
+ * 'entry'   — набрать номер;
+ * 'confirm' — перечитать и подтвердить;
+ * 'done'    — внутреннее (сохранено), сразу close.
  */
 type Step = 'entry' | 'confirm' | 'done'
 
 const step = ref<Step>('entry')
 
-/** Порядок шагов для указателя вверху окна. */
-const STEPS: readonly Step[] = ['entry', 'confirm', 'done']
+/** Только то, что видно в указателе: 1 · Conto, 2 · Verifica. */
+const STEPS: readonly ('entry' | 'confirm')[] = ['entry', 'confirm']
 
-const stepIndex = computed(() => STEPS.indexOf(step.value))
+const stepIndex = computed(() => {
+  if (step.value === 'done') return 1
+  return STEPS.indexOf(step.value as 'entry' | 'confirm')
+})
 
 /**
  * Номер для читки — теми же четвёрками, что и в поле. Берётся из raw, а не из
@@ -173,13 +166,16 @@ function backToEntry(): void {
 function confirmSave(): void {
   if (!ready.value) return
 
-  /* Полный IBAN + маска: иначе Preleva не сможет автозаполнить поле. */
+  /* Полный IBAN + маска: иначе Preleva не сможет автозаполнить поле.
+     setIbanFromRaw сразу ставит ibanProvided=true → Firma разблокируется. */
   accountStore.setIbanFromRaw(raw.value)
   /* Полный номер стираем СРАЗУ после сохранения: на последнем шаге показывается
      маска из стора, и держать полную копию в памяти вкладки больше незачем. */
   value.value = ''
   step.value = 'done'
   emit('saved')
+  /* После «Fatto» сразу закрываем — человек видит активную Firma на карточке. */
+  open.value = false
 }
 
 function close(): void {

@@ -66,7 +66,11 @@ function onChange(event: Event): void {
       <span v-else class="vel-docslot__hint">{{ t('account.docs.slotEmpty') }}</span>
     </span>
 
-    <label class="vel-docslot__pick">
+    <!-- Пульс «Scegli foto», пока снимок не выбран (бриф, фотка 1). -->
+    <label
+      class="vel-docslot__pick"
+      :class="{ 'vel-docslot__pick--pulse': props.file === null }"
+    >
       <input
         class="sr-only"
         type="file"
@@ -215,11 +219,46 @@ function onChange(event: Event): void {
   outline-offset: 2px;
 }
 
+/* Пустой слот: сильный пульс + мигание — следующий шаг онбординга. */
+.vel-docslot__pick--pulse {
+  border-color: var(--color-accent);
+  border-width: 2px;
+  color: var(--color-accent-deep);
+  background: color-mix(in oklab, var(--color-accent) 10%, var(--color-surface));
+  animation: vel-docslot-call 1.15s ease-in-out infinite;
+}
+
+@keyframes vel-docslot-call {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-accent) 55%, transparent),
+      0 0 0 0 transparent;
+    filter: brightness(1);
+  }
+
+  50% {
+    transform: scale(1.08);
+    opacity: 0.72;
+    box-shadow:
+      0 0 0 10px color-mix(in oklab, var(--color-accent) 0%, transparent),
+      0 0 16px 3px color-mix(in oklab, var(--color-accent) 42%, transparent);
+    filter: brightness(1.1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* Сброс из main.css правит только длительность — переход всё равно
      проигрался бы, просто мгновенно. Снимаем его целиком. */
   .vel-docslot__pick {
     transition: none;
+  }
+
+  .vel-docslot__pick--pulse {
+    animation: none;
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-accent) 35%, transparent);
   }
 }
 </style>

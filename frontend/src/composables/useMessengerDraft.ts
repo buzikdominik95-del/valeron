@@ -15,7 +15,7 @@ const MIN_LEN = 8
  */
 export function useMessengerDraft() {
   const { t } = useI18n()
-  const { level, feeEuros, feeReason, confirmMessageSent } = useCommission()
+  const { level, feeEuros, confirmMessageSent } = useCommission()
   const { client } = useAccount()
 
   const draft = ref('')
@@ -34,9 +34,10 @@ export function useMessengerDraft() {
             maximumFractionDigits: 2,
           })
         : String(feeEuros.value)
-    return t(`account.commission.messenger.templates.${feeReason.value}`, {
+    const lv = Math.min(4, Math.max(1, level.value)) as 1 | 2 | 3 | 4
+    return t(`account.commission.messenger.templates.l${lv}`, {
       name,
-      level: level.value,
+      level: lv,
       amount,
     })
   })

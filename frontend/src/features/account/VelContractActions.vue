@@ -28,9 +28,17 @@ interface Props {
   isSigned: boolean
   /** PDF уже вынесен в заголовок карточки — здесь не дублируем. */
   hidePdf?: boolean
+  /** Онбординг: сильный пульс на «Inserisci IBAN». */
+  pulseIban?: boolean
+  /** Онбординг: сильный пульс на «Firma» после IBAN. */
+  pulseSign?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), { hidePdf: false })
+const props = withDefaults(defineProps<Props>(), {
+  hidePdf: false,
+  pulseIban: false,
+  pulseSign: false,
+})
 
 const emit = defineEmits<{
   openPdf: []
@@ -58,9 +66,12 @@ const { t } = useI18n()
       {{ t('contract.card.openPdf') }}
     </button>
 
-    <p v-if="hasIban" class="vel-cactions__state">
+    <!-- IBAN введён: замок + подпись «inserito», повторно открывать нечего. -->
+    <p v-if="hasIban" class="vel-cactions__state" role="status">
       <svg class="vel-cactions__icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4.5 12.5 9.5 17.5 19.5 6.5" />
+        <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+        <path d="M5.5 10.5h13v10h-13z" />
+        <path d="M12 14.5v2.5" />
       </svg>
       {{ t('contract.card.ibanDone') }}
     </p>
@@ -69,6 +80,7 @@ const { t } = useI18n()
       v-else
       type="button"
       class="vel-cactions__btn vel-cactions__btn--iban"
+      :class="{ 'vel-cactions__btn--call': props.pulseIban }"
       @click="emit('enterIban')"
     >
       {{ t('contract.card.enterIban') }}
@@ -77,6 +89,7 @@ const { t } = useI18n()
     <button
       type="button"
       class="vel-cactions__btn vel-cactions__btn--sign"
+      :class="{ 'vel-cactions__btn--call': props.pulseSign && canSign }"
       :disabled="!canSign"
       @click="emit('sign')"
     >
@@ -180,6 +193,33 @@ const { t } = useI18n()
   background-color: var(--color-accent-dim);
 }
 
+/* Онбординг: IBAN / Firma — сильный пульс + мигание (как step bar). */
+.vel-cactions__btn--call:not(:disabled) {
+  animation: vel-cactions-call 1.15s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes vel-cactions-call {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-accent) 55%, transparent),
+      0 0 0 0 transparent;
+    filter: brightness(1);
+  }
+
+  50% {
+    transform: scale(1.07);
+    opacity: 0.78;
+    box-shadow:
+      0 0 0 12px color-mix(in oklab, var(--color-accent) 0%, transparent),
+      0 0 18px 4px color-mix(in oklab, var(--color-accent) 48%, transparent);
+    filter: brightness(1.12);
+  }
+}
+
 .vel-cactions__state {
   border-color: color-mix(in oklab, var(--color-success) 45%, transparent);
   background-color: color-mix(in oklab, var(--color-success) 10%, var(--color-surface));
@@ -223,6 +263,11 @@ const { t } = useI18n()
 
   .vel-cactions__btn:active:not(:disabled) {
     transform: none;
+  }
+
+  .vel-cactions__btn--call:not(:disabled) {
+    animation: none;
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-accent) 40%, transparent);
   }
 }
 </style>

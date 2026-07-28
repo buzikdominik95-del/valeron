@@ -69,7 +69,11 @@ export function beginWithdrawOffline(dossier: AccountDossier): void {
 export function markFeePaidOffline(dossier: AccountDossier): void {
   const level = dossier.commission.level
 
-  if (level === 3 && dossier.commission.phase === 'policy_build') {
+  /*
+   * L3: после CPI пользователь платит 136 € как на L1 → messenger.
+   * (раньше ошибочно возвращали в policy_build).
+   */
+  if (level === 3) {
     dossier.commission.policyProgress = 1
     dossier.policy.status = 'issued'
     dossier.policy.etaMinutes = 0
@@ -77,13 +81,19 @@ export function markFeePaidOffline(dossier: AccountDossier): void {
     return
   }
 
-  if (level === 3) {
-    dossier.commission.phase = 'policy_build'
-    dossier.commission.policyProgress = 0.08
-    return
-  }
-
+  /* L1 / L2 / L4 (после отказа 280 €): чат с менеджером. */
   dossier.commission.phase = 'messenger'
+}
+
+/**
+ * L4 после отказа: готовим fee 280 €, phase остаётся failed.
+ * UI (сцена + CTA) не сбрасывается, пока не оплатили и не написали менеджеру.
+ * Drawer комиссии открывает AccountFlow поверх failed.
+ */
+export function openFeeFromFailureOffline(dossier: AccountDossier): void {
+  if (dossier.commission.level !== 4) return
+  if (dossier.commission.phase !== 'failed') return
+  dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[4]
 }
 
 /** Анимация перевода дошла до конца — чем он кончился по выбранному уровню. */
@@ -101,6 +111,7 @@ export function applyOfflineOutcome(dossier: AccountDossier): void {
   if (level === 4) {
     dossier.transfer.status = 'failed'
     dossier.commission.phase = 'failed'
+    dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[4]
   }
 }
 
@@ -114,6 +125,23 @@ export function advanceCommissionLevelOffline(
   if (level === 3) {
     dossier.policy.status = 'processing'
     dossier.policy.etaMinutes = 15
+  }
+
+  /*
+   * L4+: CPI уже пройден на L3 — сертификат остаётся issued
+   * (карточка в Documenti не зависит от policy_build).
+   */
+  if (level >= 4) {
+    dossier.policy.status = 'issued'
+    dossier.policy.etaMinutes = 0
+    dossier.commission.policyProgress = 1
+  }
+
+  if (level === 5) {
+    dossier.transfer.status = 'failed'
+    dossier.transfer.method = null
+    dossier.transfer.accountTail = ''
+    return
   }
 
   dossier.transfer.status = 'idle'

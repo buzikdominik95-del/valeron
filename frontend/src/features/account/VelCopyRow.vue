@@ -2,21 +2,14 @@
 import { computed, ref } from 'vue'
 import { useClipboard, useTimeoutFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
-import VelButton from '@/components/ui/VelButton.vue'
 
 /**
- * Строка реквизита: подпись + значение + «Copia».
- *
- * Длинный IBAN не должен «съезжать» с кнопкой. На узком экране:
- *   label
- *   value (wrap)
- *   [    Copia    ]  — full-width, ≥44px по высоте (WCAG 2.5.5)
- * На шире — value слева, Copia справа в одной полосе.
+ * Строка реквизита: label + value + иконка копирования в одной строке
+ * (без широкой кнопки «Copia» на всю ширину).
  */
 const props = defineProps<{
   label: string
   value: string
-  /** mono display (IBAN / SWIFT) */
   mono?: boolean
 }>()
 
@@ -41,7 +34,6 @@ async function onCopy(): Promise<void> {
   try {
     await copy(props.value)
   } catch {
-    /* fallback: select + execCommand не тащим — clipboard API достаточно */
     return
   }
   justCopied.value = true
@@ -50,40 +42,38 @@ async function onCopy(): Promise<void> {
 </script>
 
 <template>
-  <div
-    class="vel-copy"
-    :class="{ 'vel-copy--mono': mono, 'vel-copy--ok': justCopied }"
-  >
+  <div class="vel-copy" :class="{ 'vel-copy--mono': mono, 'vel-copy--ok': justCopied }">
     <div class="vel-copy__text">
       <p class="vel-copy__label">{{ label }}</p>
       <p class="vel-copy__value" :class="{ 'vel-num': mono }">{{ value }}</p>
     </div>
 
-    <VelButton
+    <button
       type="button"
-      variant="outline"
-      size="md"
-      class="vel-copy__btn"
+      class="vel-copy__icon"
       :disabled="!isSupported"
       :aria-label="`${copyLabel}: ${label}`"
+      :title="copyLabel"
       data-testid="copy-row-btn"
       @click="onCopy"
     >
-      <span class="vel-copy__btn-icon" aria-hidden="true">
-        {{ justCopied ? '✓' : '⧉' }}
-      </span>
-      {{ copyLabel }}
-    </VelButton>
+      <svg v-if="!justCopied" class="vel-copy__svg" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="9" y="9" width="11" height="11" rx="2" />
+        <path d="M5 15V5a2 2 0 0 1 2-2h10" />
+      </svg>
+      <svg v-else class="vel-copy__svg vel-copy__svg--ok" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 13l4 4L19 7" />
+      </svg>
+    </button>
   </div>
 </template>
 
 <style scoped>
 .vel-copy {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  align-items: flex-start;
   gap: 0.55rem;
-  padding: 0.85rem 0;
+  padding: 0.7rem 0;
   border-block-end: 1px solid var(--color-line);
 }
 
@@ -99,19 +89,18 @@ async function onCopy(): Promise<void> {
 .vel-copy__label {
   margin: 0;
   color: var(--color-muted);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .vel-copy__value {
-  margin: 0.2rem 0 0;
+  margin: 0.15rem 0 0;
   color: var(--color-fg);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 600;
-  line-height: 1.45;
-  /* Длинный IBAN: перенос по символам, без вылезания за карточку */
+  line-height: 1.4;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -121,76 +110,46 @@ async function onCopy(): Promise<void> {
   font-variant-numeric: tabular-nums;
 }
 
-/*
- * Кнопка копирования: всегда ≥44×44, на мобилке на всю ширину —
- * палец попадает без промаха (WCAG 2.5.5 Target Size).
- */
-.vel-copy__btn {
-  flex: 0 0 auto;
-  min-block-size: 2.75rem;
-  min-inline-size: 2.75rem;
-  width: 100%;
-  gap: 0.4rem;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.vel-copy__btn-icon {
+/* Иконка-копирка: 44×44 hit area, без полной кнопки «Copia» */
+.vel-copy__icon {
   display: inline-flex;
-  width: 1.1rem;
+  flex: 0 0 auto;
+  align-items: center;
   justify-content: center;
-  font-size: 0.95rem;
-  line-height: 1;
-  opacity: 0.85;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-block-start: 0.05rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-accent-deep);
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
 }
 
-.vel-copy--ok .vel-copy__btn {
-  border-color: color-mix(in oklab, var(--color-success) 55%, var(--color-line));
+.vel-copy__icon:hover:not(:disabled) {
+  background: var(--color-raised);
+}
+
+.vel-copy__icon:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.vel-copy__svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.vel-copy--ok .vel-copy__icon {
   color: var(--color-success);
-}
-
-/* ≥480px: label+value слева, Copia справа — если место есть */
-@media (min-width: 30rem) {
-  .vel-copy {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .vel-copy__btn {
-    width: auto;
-    min-inline-size: 6.5rem;
-    padding-inline: 1rem;
-  }
-
-  /*
-   * Длинный mono (IBAN): value может занять 2+ строки —
-   * кнопка сверху справа, value на всю ширину под label.
-   */
-  .vel-copy--mono {
-    flex-wrap: wrap;
-    align-items: flex-start;
-  }
-
-  .vel-copy--mono .vel-copy__text {
-    flex: 1 1 calc(100% - 7.5rem);
-    min-inline-size: min(100%, 12rem);
-  }
-
-  .vel-copy--mono .vel-copy__btn {
-    margin-block-start: 0.1rem;
-  }
-}
-
-/* Очень узкие телефоны: кнопка крупнее, текст чуть плотнее */
-@media (max-width: 22.5rem) {
-  .vel-copy__value {
-    font-size: 0.88rem;
-  }
-
-  .vel-copy__btn {
-    min-block-size: 3rem;
-    font-size: 0.95rem;
-  }
 }
 </style>

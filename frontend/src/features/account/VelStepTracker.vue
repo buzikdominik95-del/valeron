@@ -2,7 +2,11 @@
 import { computed, ref, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
+import { useCabinetTab } from '@/composables/useCabinetTab'
+import type { CabinetTab } from '@/composables/useCabinetTab'
 import { accountStepHref } from '@/features/account/account-anchors'
+import { useAccountStore } from '@/stores/account.store'
+import type { AccountStep } from '@/stores/account.store'
 import VelStepRow from '@/features/account/VelStepRow.vue'
 import VelStepMeter from '@/features/account/VelStepMeter.vue'
 
@@ -12,9 +16,14 @@ import VelStepMeter from '@/features/account/VelStepMeter.vue'
  *
  * Список всегда открыт сразу (и при 0/5, и при 5/5) — как на эталоне:
  * все чек-листы видны без клика. Свернуть можно вручную.
+ *
+ * Клик по строке = как по кружку step bar: смена вкладки + якорь
+ * (useTrackerBar.openStep). Раньше «Vai» был только hash-ссылкой и
+ * не переключал Documenti/Profilo — строка «ничего не делала».
  */
 const { t } = useI18n()
 const { steps, total, doneCount, allDone } = useAccount()
+const { tab, select } = useCabinetTab()
 
 const open = ref(true)
 
@@ -29,10 +38,20 @@ const headTitle = computed(() =>
 const items = computed(() =>
   steps.value.map((step) => {
     const title = t(`account.steps.${step.id}.title`)
+    const href = accountStepHref(step.id)
+    /* Как step bar: done / current / с якорем / обзор симуляции и одобрения. */
+    const canOpen =
+      step.status === 'done' ||
+      step.status === 'current' ||
+      href !== undefined ||
+      step.id === 'simulation' ||
+      step.id === 'approval'
+
     return {
       ...step,
       title,
-      href: step.needsAction ? accountStepHref(step.id) : undefined,
+      href,
+      canOpen,
       goLabel: t('account.progress.goStep', { step: title }),
       statusLabel: t(`account.tracker.status.${step.status}`),
     }
@@ -53,6 +72,44 @@ watchEffect(
 
 function toggle(): void {
   open.value = !open.value
+}
+
+function tabForStep(stepId: AccountStep): CabinetTab {
+  if (stepId === 'account') return 'profile'
+  if (stepId === 'signature') return 'documents'
+  if (stepId === 'documents') {
+    const docsDone =
+      useAccountStore().documentsUploaded === true ||
+      steps.value.find((s) => s.id === 'documents')?.status === 'done'
+    return docsDone ? 'profile' : 'documents'
+  }
+  return 'home'
+}
+
+function openStep(stepId: AccountStep, href: string | undefined): void {
+  const target = tabForStep(stepId)
+  if (tab.value !== target) select(target)
+
+  if (href === undefined) {
+    requestAnimationFrame(() => {
+      document.getElementById('vel-account-content')?.scrollTo({ top: 0, behavior: 'smooth' })
+    })
+    return
+  }
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const id = href.replace(/^#/, '')
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  })
+}
+
+function onActivate(event: MouseEvent, stepId: AccountStep, href: string | undefined): void {
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  if (event.button !== 0) return
+  event.preventDefault()
+  openStep(stepId, href)
 }
 </script>
 
@@ -89,9 +146,10 @@ function toggle(): void {
           :status="item.status"
           :title="item.title"
           :status-label="item.statusLabel"
-          :go-text="item.href === undefined ? undefined : t('account.progress.go')"
-          :href="item.href"
+          :href="item.canOpen ? (item.href ?? '?view=cabinet&tab=home') : undefined"
           :go-label="item.goLabel"
+          :can-open="item.canOpen"
+          @activate="onActivate($event, item.id, item.href)"
         />
       </ol>
 
@@ -116,13 +174,13 @@ function toggle(): void {
 .vel-steps__ready {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
   margin: 0;
-  padding: 0.75rem 1.1rem;
+  padding: 0.55rem 0.85rem;
   border-block-end: 1px solid var(--color-line);
   background: color-mix(in oklab, var(--color-success) 10%, var(--color-surface));
   color: var(--color-fg);
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   font-weight: 600;
 }
 
@@ -143,9 +201,9 @@ function toggle(): void {
   display: flex;
   width: 100%;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.5rem;
   margin: 0;
-  padding: 0.95rem 1.1rem;
+  padding: 0.7rem 0.85rem;
   border: none;
   background: transparent;
   color: inherit;

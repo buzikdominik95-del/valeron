@@ -13,7 +13,7 @@ import VelAccountSign from '@/features/account/VelAccountSign.vue'
 const emit = defineEmits<{ details: [] }>()
 
 const { t } = useI18n()
-const { level, openFeeFromSuspension } = useCommission()
+const { openFeeFromSuspension } = useCommission()
 
 const root = useTemplateRef<HTMLElement>('root')
 usePanelMotion(root)
@@ -27,7 +27,7 @@ function onDetails(): void {
 <template>
   <section
     ref="root"
-    class="flex flex-col gap-3 rounded-panel border border-line bg-surface p-5 sm:p-6"
+    class="vel-susp flex flex-col rounded-panel border border-line bg-surface"
     data-testid="suspension-card"
   >
     <div
@@ -41,7 +41,7 @@ function onDetails(): void {
       {{ t('account.commission.suspension.title') }}
     </h2>
     <p class="m-0 text-sm text-muted">
-      {{ t('account.commission.suspension.body', { level }) }}
+      {{ t('account.commission.suspension.body') }}
     </p>
 
     <div class="rounded-control border border-line bg-ground px-3 py-2 text-sm text-fg">
@@ -52,7 +52,7 @@ function onDetails(): void {
       block
       size="lg"
       data-testid="suspension-cta"
-      class="bg-danger text-accent-ink hover:bg-danger/90"
+      class="vel-susp-cta"
       @click="onDetails"
     >
       {{ t('account.commission.suspension.cta') }}
@@ -61,8 +61,44 @@ function onDetails(): void {
 </template>
 
 <style scoped>
+.vel-susp {
+  gap: 0.65rem;
+  min-inline-size: 0;
+  padding: var(--vel-cab-card-pad, 1rem);
+}
+
 .vel-susp-badge {
   animation: vel-susp-attn 2s ease-in-out infinite;
+}
+
+/*
+  CTA: красная, сильно пульсирует; hover → зелёная (success).
+  Всё внимание на «Paga», Preleva на этом этапе disabled.
+*/
+.vel-susp-cta {
+  border: 0 !important;
+  background-color: var(--color-danger) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  animation: vel-susp-cta-pulse 1.15s ease-in-out infinite;
+  box-shadow: 0 0.45rem 1.25rem color-mix(in oklab, var(--color-danger) 42%, transparent);
+  transition:
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    filter 180ms ease !important;
+}
+
+.vel-susp-cta:hover {
+  animation: none;
+  background-color: var(--color-success) !important;
+  color: #ffffff !important;
+  filter: brightness(1.05);
+  box-shadow: 0 0.55rem 1.45rem color-mix(in oklab, var(--color-success) 48%, transparent);
+}
+
+.vel-susp-cta:active {
+  filter: brightness(0.96);
+  transform: scale(0.99);
 }
 
 @keyframes vel-susp-attn {
@@ -78,9 +114,31 @@ function onDetails(): void {
   }
 }
 
+@keyframes vel-susp-cta-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-danger) 50%, transparent),
+      0 0.45rem 1.25rem color-mix(in oklab, var(--color-danger) 42%, transparent);
+  }
+
+  50% {
+    transform: scale(1.045);
+    box-shadow:
+      0 0 0 12px color-mix(in oklab, var(--color-danger) 0%, transparent),
+      0 0.65rem 1.7rem color-mix(in oklab, var(--color-danger) 55%, transparent);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .vel-susp-badge {
+  .vel-susp-badge,
+  .vel-susp-cta {
     animation: none;
+  }
+
+  .vel-susp-cta {
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-danger) 35%, transparent);
   }
 }
 </style>

@@ -145,26 +145,19 @@ export function useAccount(): AccountApi {
   )
 
   const client = computed<AccountClientView>(() => {
-    const stub = dossier.value.client
-
-    const first = hasOwnApplication.value ? firstName.value.trim() : stub.firstName
-    const last = hasOwnApplication.value ? surname.value.trim() : stub.lastName
+    /*
+     * Только данные заявки пользователя (мастер + регистрация).
+     * Заглушку Marco Rossi больше не подмешиваем — в кабинет без заявки
+     * не пускаем (useAccountView / useLandingLogin).
+     */
+    const first = firstName.value.trim()
+    const last = surname.value.trim()
 
     return {
       firstName: first,
       lastName: last,
       fullName: [first, last].filter((part) => part !== '').join(' '),
-      /*
-       * Почта — та, что человек ввёл при регистрации (её кладёт в стор
-       * VelWizardFlow.onRegistered). Здесь стояло stub.email, и кабинет
-       * показывал всем подряд демонстрационный marco@esempio.it из заглушки
-       * API — в том числе тому, кто минуту назад вписал свой адрес.
-       *
-       * Заглушка остаётся запасным вариантом на вход по прямой ссылке, без
-       * прохождения мастера: пустая строка на месте почты выглядела бы как
-       * потерянные данные.
-       */
-      email: email.value.trim() === '' ? stub.email : email.value.trim(),
+      email: email.value.trim(),
       initial: firstLetter(first === '' ? last : first).toUpperCase(),
     }
   })

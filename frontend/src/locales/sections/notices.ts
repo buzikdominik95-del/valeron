@@ -46,6 +46,22 @@ export default {
         title: 'Messaggio inviato',
         body: 'Il messaggio è nella conversazione con l’assistenza.',
       },
+      managerMessage: {
+        title: 'Messaggio dal consulente',
+        body: 'Hai un nuovo messaggio dal manager. Apri la chat per rispondere.',
+      },
+      withdrawAvailable: {
+        title: 'Prelievo di nuovo disponibile',
+        body: 'Puoi richiedere di nuovo il prelievo dei fondi dal saldo.',
+      },
+      withdrawRejected: {
+        title: 'Prelievo non andato a buon fine',
+        body: 'Il trasferimento non è stato completato. Controlla la Home per i passi successivi.',
+      },
+      waitingInstructions: {
+        title: 'In attesa di istruzioni',
+        body: 'Pagamento e messaggio registrati. Apri la Home e attendi le istruzioni del sistema.',
+      },
     },
   },
 
@@ -78,6 +94,22 @@ export default {
       supportSent: {
         title: 'Сообщение отправлено',
         body: 'Сообщение лежит в переписке с поддержкой.',
+      },
+      managerMessage: {
+        title: 'Сообщение от менеджера',
+        body: 'У вас новое сообщение от менеджера. Откройте чат, чтобы ответить.',
+      },
+      withdrawAvailable: {
+        title: 'Вывод снова доступен',
+        body: 'Вы снова можете запросить вывод средств с баланса.',
+      },
+      withdrawRejected: {
+        title: 'Вывод не выполнен',
+        body: 'Перевод не завершён. Откройте Home, чтобы продолжить.',
+      },
+      waitingInstructions: {
+        title: 'Ожидайте инструкций',
+        body: 'Оплата и сообщение зафиксированы. Откройте Home и ждите инструкций системы.',
       },
     },
   },
