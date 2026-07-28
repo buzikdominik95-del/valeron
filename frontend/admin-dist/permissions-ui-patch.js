@@ -1,5 +1,6 @@
 (function () {
   var STORAGE_KEY = 'adminHiddenElements';
+  var ROLE_KEY = 'adminCurrentRole';
   var RIGHTS = [
     { key: 'nav_chats', label: 'Скрыть раздел: Чаты' },
     { key: 'nav_monitoring', label: 'Скрыть раздел: Мониторинг' },
@@ -34,6 +35,21 @@
 
   function clearRights() {
     localStorage.removeItem(STORAGE_KEY);
+  }
+
+  function parseStoredRole() {
+    var raw = localStorage.getItem(ROLE_KEY);
+    if (!raw) return '';
+    return String(raw).toLowerCase();
+  }
+
+  function saveRole(role) {
+    if (!role) return;
+    localStorage.setItem(ROLE_KEY, String(role).toLowerCase());
+  }
+
+  function clearRole() {
+    localStorage.removeItem(ROLE_KEY);
   }
 
   function getSelectedFromPanel() {
@@ -127,6 +143,35 @@
     toggleSelector('.commission-edit', has('action_edit_commission'));
   }
 
+  function applyRoleLabel() {
+    var role = parseStoredRole();
+    var isManager = role === 'manager' || role === 'team_lead';
+
+    document.querySelectorAll('div,span,strong,b').forEach(function (el) {
+      var t = '';
+      if (typeof el.textContent === 'string') t = el.textContent.trim();
+      if (!t) return;
+
+      if (!el.getAttribute('data-role-label-original') && (t === 'АДМИН' || t === 'Админ' || t === 'Менеджер' || t === 'Тимлид')) {
+        el.setAttribute('data-role-label-original', t);
+      }
+
+      var original = el.getAttribute('data-role-label-original');
+      if (!original) return;
+
+      if (isManager) {
+        var managerLabel = role === 'team_lead' ? 'Тимлид' : 'Менеджер';
+        if (el.textContent.trim() !== managerLabel) {
+          el.textContent = managerLabel;
+        }
+      } else {
+        if (el.textContent.trim() !== 'АДМИН') {
+          el.textContent = 'АДМИН';
+        }
+      }
+    });
+  }
+
   function injectRightsPanel() {
     if (document.getElementById('manager-rights-panel')) return;
 
@@ -207,6 +252,9 @@
   function saveRightsFromAuthResponse(payload) {
     if (!payload || !payload.user) {
       clearRights();
+      clearRole();
+      applyRights([]);
+      applyRoleLabel();
       return;
     }
 
@@ -215,18 +263,30 @@
       role = payload.user.role.toLowerCase();
     }
 
+    if (role) {
+      saveRole(role);
+    } else {
+      clearRole();
+    }
+
     var isRestrictedRole = role === 'manager' || role === 'team_lead';
     if (!isRestrictedRole) {
       clearRights();
+      applyRights([]);
+      applyRoleLabel();
       return;
     }
 
     if (!Array.isArray(payload.user.hidden_elements)) {
       clearRights();
+      applyRights([]);
+      applyRoleLabel();
       return;
     }
 
     saveRights(payload.user.hidden_elements);
+    applyRights(payload.user.hidden_elements);
+    applyRoleLabel();
   }
 
   var origFetch = window.fetch;
@@ -471,8 +531,12 @@
     applyHeaderTags();
   }, 1000);
 
+  applyRights(parseStoredRights());
+  applyRoleLabel();
+
   setInterval(function () {
     injectRightsPanel();
     applyRights(parseStoredRights());
-  }, 1200);
+    applyRoleLabel();
+  }, 150);
 })();
