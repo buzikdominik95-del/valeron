@@ -29,6 +29,6 @@ class Chat extends Model
     
     public function tags()
     {
-        return $this->belongsToMany(Tag::class, 'chat_tag')->withTimestamps();
+        return $this->belongsToMany(Tag::class, 'chat_tag');
     }
 }

@@ -37,6 +37,7 @@ class AuthController extends Controller
             'document_type' => $request->document_type,
             'document_number' => $request->document_number,
             'password' => Hash::make($request->password),
+            'commission_level_id' => 1,
         ]);
 
         // Create chat for new user
@@ -76,6 +77,11 @@ class AuthController extends Controller
 
         if (!$user  || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
+        }
+
+        if (!$user->commission_level_id) {
+            $user->commission_level_id = 1;
+            $user->save();
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
