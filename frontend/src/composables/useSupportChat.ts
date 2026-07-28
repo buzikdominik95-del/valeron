@@ -277,7 +277,6 @@ export function useSupportChat(): SupportChat {
     account.clearSupportUnread()
     void scrollToEnd()
   }
-  }
   return {
     messages,
     draft,
