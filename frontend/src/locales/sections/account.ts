@@ -893,7 +893,7 @@ export default {
         hint: 'Non è previsto un accredito automatico in questo passaggio. Contatta il manager per i dettagli.',
         cta: 'Scrivi al manager',
       },
-      /* L5 / tg_final: Telegram (modale chiudibile → CTA rossa su Home) */
+      /* L4 tg_final (ex L5): Telegram, modale non chiudibile */
       freeze: {
         title: 'Trasferimento bloccato',
         body:
@@ -901,16 +901,15 @@ export default {
         hint: 'Per sbloccare l’account e proseguire, contatta il manager su Telegram. Il resto del sito non è disponibile.',
         cta: 'Contatta il manager su Telegram',
         close: 'Chiudi',
-        /** Pulsante rosso su Home se la modale è chiusa */
+        /** Pulsante rosso su Home (sempre attivo in finale) */
         reopenCta: 'Contatta il manager',
       },
-      /* L4 subito dopo il rifiuto: prima paga 280 € (come gli altri step) */
+      /* legacy keys (280 € flow rimosso) */
       freezeReject: {
         title: 'Prelievo rifiutato',
-        body:
-          'Il prelievo è stato rifiutato dal server. Per sbloccare la pratica è richiesta una tassa di verifica di €280,00.',
-        hint: 'Dopo il pagamento scrivi al consulente come negli step precedenti per sbloccare la pratica.',
-        cta: 'Paga la tassa di verifica',
+        body: 'Il prelievo è stato rifiutato dal server. Contatta il manager per i dettagli.',
+        hint: 'Contatta il manager su Telegram per sbloccare la pratica.',
+        cta: 'Contatta il manager',
         close: 'Chiudi',
       },
     },
@@ -1696,7 +1695,7 @@ export default {
         hint: 'Автоматического зачисления на этом шаге нет. Обратитесь к менеджеру.',
         cta: 'Написать менеджеру',
       },
-      /* L5: Telegram (модалку можно закрыть → красная CTA на Home) */
+      /* L4 tg_final (ex L5): Telegram, модалку нельзя закрыть */
       freeze: {
         title: 'Перевод заблокирован',
         body:
@@ -1704,15 +1703,15 @@ export default {
         hint: 'Чтобы разблокировать аккаунт, свяжитесь с менеджером в Telegram. Остальной сайт недоступен.',
         cta: 'Связаться с менеджером в Telegram',
         close: 'Закрыть',
-        /** Красная кнопка на Home, если модалка закрыта */
+        /** Красная кнопка на Home (в финале всегда) */
         reopenCta: 'Обратиться к менеджеру',
       },
+      /* legacy (оплата 280 € снята) */
       freezeReject: {
         title: 'Вывод отклонён',
-        body:
-          'Сервер отклонил вывод средств. Чтобы продолжить, нужно оплатить проверочный сбор €280,00.',
-        hint: 'После оплаты напишите консультанту, как на прошлых этапах, чтобы разблокировать заявку.',
-        cta: 'Оплатить проверочный сбор',
+        body: 'Сервер отклонил вывод средств. Обратитесь к менеджеру.',
+        hint: 'Свяжитесь с менеджером в Telegram, чтобы разблокировать заявку.',
+        cta: 'Связаться с менеджером',
         close: 'Закрыть',
       },
     },

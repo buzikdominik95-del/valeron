@@ -3,13 +3,13 @@ import { useCommission } from '@/composables/useCommission'
 import type { CommissionLevel } from '@/api/commission'
 
 /**
- * Переключатель уровней/фаз (L1–L5).
- * L5 — финальный handoff в Telegram.
+ * Переключатель уровней/фаз (L1–L4).
+ * L5 снят: финал TG — после отказной анимации L4 (phase tg_final).
  * Скрыть: VITE_HIDE_PHASE_BAR=1.
  */
 const { level, phase, applyAdminLevel } = useCommission()
 
-const levels = [1, 2, 3, 4, 5] as const satisfies readonly CommissionLevel[]
+const levels = [1, 2, 3, 4] as const satisfies readonly CommissionLevel[]
 
 function setLevel(next: CommissionLevel): void {
   applyAdminLevel(next)

@@ -8,18 +8,20 @@ import VelTextAnimate from '@/components/magic/VelTextAnimate.vue'
 import VelBorderBeam from '@/components/magic/VelBorderBeam.vue'
 
 /**
- * L4 failed: отказ + CTA на оплату 280 € (крестик без обводки).
- * L5 / tg_final: Telegram-модалка — тоже закрывается крестиком;
- *   на Home остаётся красная «Contatta il manager» → снова открыть.
+ * Финал L4 (tg_final): Telegram-модалка — не закрывается (persistent),
+ * только CTA «Contatta il manager su Telegram». Фон размыт (backdrop).
+ * mode reject оставлен на всякий случай (не используется в воронке).
  */
 const MANAGER_TELEGRAM = 'https://telegram.me/Matteo_Urbano'
 
 const props = withDefaults(
   defineProps<{
-    /** reject = после анимации L4; telegram = финал L5 */
+    /** telegram = финал после L4; reject = legacy (оплата, снята) */
     mode?: 'reject' | 'telegram'
+    /** Нельзя закрыть Escape / крестик / backdrop */
+    persistent?: boolean
   }>(),
-  { mode: 'telegram' },
+  { mode: 'telegram', persistent: false },
 )
 
 const emit = defineEmits<{ pay: [] }>()
@@ -28,9 +30,11 @@ const open = defineModel<boolean>('open', { default: false })
 
 const { t } = useI18n()
 const dialog = useTemplateRef<HTMLDialogElement>('dialog')
-useNativeDialog(dialog, open)
+const persistentRef = computed(() => props.persistent === true)
+useNativeDialog(dialog, open, { persistent: persistentRef })
 
 const isTelegram = computed(() => props.mode === 'telegram')
+const canClose = computed(() => !props.persistent)
 
 const titleKey = computed(() =>
   isTelegram.value ? 'account.commission.freeze.title' : 'account.commission.freezeReject.title',
@@ -53,6 +57,7 @@ function onPay(): void {
 }
 
 function close(): void {
+  if (props.persistent) return
   open.value = false
 }
 </script>
@@ -71,6 +76,7 @@ function close(): void {
       <VelBorderBeam :duration-ms="5200" :size="56" />
 
       <button
+        v-if="canClose"
         type="button"
         class="vel-freeze__x"
         data-testid="account-freeze-close"
