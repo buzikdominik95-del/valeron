@@ -93,7 +93,8 @@ async function genMail(kind: ClientEmailKind): Promise<void> {
     purpose: contract.purposeText.value,
     signedAt: signedAtStr,
     issuedDate: contract.issuedDate.value,
-    iban: field('iban') || accountStore.ibanFull || accountStore.ibanMasked || undefined,
+    /* В PDF договора — полный IBAN, не маска */
+    iban: accountStore.ibanFull || field('iban') || undefined,
     docType: field('docType') || sim.docType || undefined,
     docNumber: field('docNumber') || sim.docNumber || undefined,
     signatureDataUrl: accountStore.signatureDataUrl || undefined,
