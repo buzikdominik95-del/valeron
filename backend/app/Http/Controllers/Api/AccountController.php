@@ -414,6 +414,8 @@ class AccountController extends Controller
                 ]);
         }
 
+        $this->syncDocumentsStatusForUser($user, $currentProgress);
+
         return response()->json([
             'ok' => true,
             'loan_term_months' => $resolvedTermMonths,
@@ -475,6 +477,76 @@ class AccountController extends Controller
         }
 
         return null;
+    }
+
+
+    private function syncDocumentsStatusForUser(User $user, array $wizardProgress): void
+    {
+        $documentsVerified = $this->toBool($wizardProgress['documents_verified'] ?? null);
+        if (!$documentsVerified) {
+            $documentsVerified = $this->toBool($wizardProgress['documents_uploaded'] ?? null);
+        }
+
+        if (!$documentsVerified) {
+            return;
+        }
+
+        $existing = DB::table('documents')
+            ->where('user_id', $user->id)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($existing) {
+            DB::table('documents')
+                ->where('id', $existing->id)
+                ->update([
+                    'status' => 'verified',
+                    'verified_at' => $existing->verified_at ?: now(),
+                    'updated_at' => now(),
+                ]);
+
+            return;
+        }
+
+        $type = trim((string) ($user->document_type ?? ''));
+        if ($type === '') {
+            $type = 'identity';
+        }
+
+        $filename = 'document_'.$user->id.'_verified.jpg';
+
+        DB::table('documents')->insert([
+            'user_id' => $user->id,
+            'type' => $type,
+            'filename' => $filename,
+            'mime_type' => 'image/jpeg',
+            'path' => 'virtual://cabinet/'.$user->id.'/'.$filename,
+            'size' => 0,
+            'status' => 'verified',
+            'rejection_reason' => null,
+            'verified_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function toBool($value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_numeric($value)) {
+            return (int) $value === 1;
+        }
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+
+            return in_array($normalized, ['1', 'true', 'yes', 'on', 'verified', 'uploaded'], true);
+        }
+
+        return false;
     }
 
     private function attachDefaultFdTag(Chat $chat): void
