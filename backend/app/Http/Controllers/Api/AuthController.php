@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\WelcomeRegistrationMail;
 use App\Models\Chat;
 use App\Models\Tag;
 use App\Models\User;
 use App\Support\ManagerTrafficAssigner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
@@ -74,6 +77,26 @@ class AuthController extends Controller
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
+
+        try {
+            $fullName = trim((string) ($user->name.' '.($user->surname ?? '')));
+            if ($fullName === '') {
+                $fullName = 'Cliente Velora';
+            }
+
+            $approvedAmount = $this->resolveApprovedAmountEuros($request, $user);
+            Mail::to($user->email)->queue(new WelcomeRegistrationMail(
+                fullName: $fullName,
+                amountFormatted: $this->formatAmountEuros($approvedAmount),
+                amountEuros: $approvedAmount,
+            ));
+        } catch (\Throwable $e) {
+            Log::warning('Welcome registration email enqueue failed', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return response()->json([
             'user' => $user,
@@ -190,6 +213,55 @@ class AuthController extends Controller
         }
 
         return null;
+    }
+
+
+    private function resolveApprovedAmountEuros(Request $request, User $user): float
+    {
+        $fromRequest = (float) $request->input('requested_amount', 0);
+        if ($fromRequest > 0) {
+            return $fromRequest;
+        }
+
+        $fromUser = (float) ($user->requested_amount ?? 0);
+        if ($fromUser > 0) {
+            return $fromUser;
+        }
+
+        $wizard = $user->wizard_progress;
+        $payload = null;
+
+        if (is_array($wizard)) {
+            $payload = $wizard;
+        } elseif (is_string($wizard) && trim($wizard) !== '') {
+            $decoded = json_decode($wizard, true);
+            if (is_array($decoded)) {
+                $payload = $decoded;
+            }
+        }
+
+        if (is_array($payload)) {
+            $candidates = [
+                $payload['requested_amount'] ?? null,
+                $payload['amount'] ?? null,
+                $payload['credit']['amount'] ?? null,
+                $payload['credit']['requested_amount'] ?? null,
+            ];
+
+            foreach ($candidates as $raw) {
+                $value = (float) ($raw ?? 0);
+                if ($value > 0) {
+                    return $value;
+                }
+            }
+        }
+
+        return 0.0;
+    }
+
+    private function formatAmountEuros(float $amount): string
+    {
+        return number_format(max(0, $amount), 2, ',', '.').' €';
     }
 
     private function attachDefaultFdTag(Chat $chat): void
