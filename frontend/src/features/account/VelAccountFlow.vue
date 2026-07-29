@@ -34,7 +34,6 @@ import VelAccountFreezeIntro from '@/features/account/VelAccountFreezeIntro.vue'
 import VelRejectFlash from '@/features/account/VelRejectFlash.vue'
 import VelStageSwitch from '@/features/account/VelStageSwitch.vue'
 import VelLoanDetails from '@/features/account/VelLoanDetails.vue'
-import VelDevCommissionBar from '@/features/account/VelDevCommissionBar.vue'
 import VelTransferSuccess from '@/features/account/VelTransferSuccess.vue'
 import VelAccountToast from '@/features/account/VelAccountToast.vue'
 import VelAgentToast from '@/features/account/VelAgentToast.vue'
@@ -919,11 +918,6 @@ function openFreezeTelegram(): void {
   freezeOpen.value = true
 }
 
-/*
- * Dev-пульт L1–L4: по умолчанию ВЫКЛ (уровни задаёт бэкенд).
- * Включить только явно: VITE_SHOW_PHASE_BAR=1 (локальный стенд).
- */
-const showDevBar = import.meta.env.VITE_SHOW_PHASE_BAR === '1'
 </script>
 
 <template>
@@ -1019,9 +1013,6 @@ const showDevBar = import.meta.env.VITE_SHOW_PHASE_BAR === '1'
 
   <!-- Полноэкранный финал перевода: сам уходит по таймеру, закрывается по Esc -->
   <VelTransferSuccess v-model:open="successOpen" />
-
-  <!-- Dev-пульт L1–L4: только VITE_SHOW_PHASE_BAR=1. Прод — уровни с бека. -->
-  <VelDevCommissionBar v-if="showDevBar" />
 
   <VelAccountToast :text="toastText" />
 

@@ -90,12 +90,7 @@ export function commissionAddsToLoanBalance(level: number): boolean {
  */
 export const COMMISSION_ANIMATION_MS: Record<CommissionLevel, number> = {
   1: 0,
-  /* Прод: 7 мин. Локальный стенд (VITE_SHOW_PHASE_BAR=1): 15 с — смотреть fail+Paga. */
-  2:
-    typeof import.meta !== 'undefined' &&
-    import.meta.env?.VITE_SHOW_PHASE_BAR === '1'
-      ? 15_000
-      : 7 * 60 * 1000,
+  2: 7 * 60 * 1000,
   3: 0,
   4: 3 * 60 * 1000,
 }
