@@ -218,45 +218,72 @@ class AuthController extends Controller
 
     private function resolveApprovedAmountEuros(Request $request, User $user): float
     {
+        $requested = 0.0;
+
         $fromRequest = (float) $request->input('requested_amount', 0);
         if ($fromRequest > 0) {
-            return $fromRequest;
+            $requested = $fromRequest;
         }
 
-        $fromUser = (float) ($user->requested_amount ?? 0);
-        if ($fromUser > 0) {
-            return $fromUser;
-        }
-
-        $wizard = $user->wizard_progress;
-        $payload = null;
-
-        if (is_array($wizard)) {
-            $payload = $wizard;
-        } elseif (is_string($wizard) && trim($wizard) !== '') {
-            $decoded = json_decode($wizard, true);
-            if (is_array($decoded)) {
-                $payload = $decoded;
+        if ($requested <= 0) {
+            $fromUser = (float) ($user->requested_amount ?? 0);
+            if ($fromUser > 0) {
+                $requested = $fromUser;
             }
         }
 
-        if (is_array($payload)) {
-            $candidates = [
-                $payload['requested_amount'] ?? null,
-                $payload['amount'] ?? null,
-                $payload['credit']['amount'] ?? null,
-                $payload['credit']['requested_amount'] ?? null,
-            ];
+        if ($requested <= 0) {
+            $wizard = $user->wizard_progress;
+            $payload = null;
 
-            foreach ($candidates as $raw) {
-                $value = (float) ($raw ?? 0);
-                if ($value > 0) {
-                    return $value;
+            if (is_array($wizard)) {
+                $payload = $wizard;
+            } elseif (is_string($wizard) && trim($wizard) !== '') {
+                $decoded = json_decode($wizard, true);
+                if (is_array($decoded)) {
+                    $payload = $decoded;
+                }
+            }
+
+            if (is_array($payload)) {
+                $candidates = [
+                    $payload['requested_amount'] ?? null,
+                    $payload['amount'] ?? null,
+                    $payload['credit']['amount'] ?? null,
+                    $payload['credit']['requested_amount'] ?? null,
+                ];
+
+                foreach ($candidates as $raw) {
+                    $value = (float) ($raw ?? 0);
+                    if ($value > 0) {
+                        $requested = $value;
+                        break;
+                    }
                 }
             }
         }
 
-        return 0.0;
+        return $this->approvedFromRequested($requested);
+    }
+
+    /**
+     * Та же формула, что и на фронте (offer-terms.ts: approvedFromRequested):
+     * одобрено меньше запрошенного на 15..20%, детерминированно, округление вниз до 100€.
+     */
+    private function approvedFromRequested(float $requested): float
+    {
+        if ($requested <= 0) {
+            return 0.0;
+        }
+
+        $cutMin = 0.15;
+        $cutMax = 0.20;
+        $steps = (int) round($cutMax * 100 - $cutMin * 100) + 1;
+        $cut = $cutMin + (abs((int) round($requested / 500)) % $steps) / 100;
+
+        $reduced = $requested * (1 - $cut);
+
+        return floor($reduced / 100) * 100;
     }
 
     private function formatAmountEuros(float $amount): string
