@@ -279,7 +279,11 @@ export const useDossierStore = defineStore('dossier', () => {
       return dossier.value.commission.phase === 'animating'
     }
 
-    if (phase !== 'ready' && phase !== 'suspended') return false
+    /*
+     * ready / suspended — обычный старт.
+     * waiting — после 1° сообщения: Preleva снова → pay_fee (механизм комиссии).
+     */
+    if (phase !== 'ready' && phase !== 'suspended' && phase !== 'waiting') return false
 
     beginWithdrawOffline(dossier.value)
 
@@ -393,9 +397,16 @@ export const useDossierStore = defineStore('dossier', () => {
       void advanceCommissionLevelApi(level, email)
         .then((full) => {
           hydrate(full)
-          account.recordPaidCommissionsUpTo(
-            normalizeCommissionLevel(full.commission.level),
-          )
+          const lv = normalizeCommissionLevel(full.commission.level)
+          account.recordPaidCommissionsUpTo(lv)
+          /* L2: Preleva снова активна (не sticky lock после L1/fail). */
+          if (lv === 2) {
+            account.clearL2PrelevaLock()
+            if (dossier.value.commission.phase === 'waiting') {
+              dossier.value.commission.phase = 'ready'
+            }
+          }
+          if (lv >= 3) account.clearL2PrelevaLock()
         })
         .catch(() => {
           /*
@@ -405,6 +416,8 @@ export const useDossierStore = defineStore('dossier', () => {
            */
           account.recordPaidCommissionsUpTo(level)
           advanceCommissionLevelOffline(dossier.value, level)
+          if (level === 2) account.clearL2PrelevaLock()
+          if (level >= 3) account.clearL2PrelevaLock()
         })
       return
     }
@@ -412,6 +425,23 @@ export const useDossierStore = defineStore('dossier', () => {
     /* Offline стенд: предыдущие этапы оплачены → Prestito. */
     account.recordPaidCommissionsUpTo(level)
     advanceCommissionLevelOffline(dossier.value, level)
+    if (level === 2 || level >= 3) account.clearL2PrelevaLock()
+    /*
+     * Локальный пульт (VITE_SHOW_PHASE_BAR): открыть Preleva —
+     * docs/firma/IBAN считаем пройденными, иначе кнопка серая.
+     */
+    if (import.meta.env.VITE_SHOW_PHASE_BAR === '1') {
+      account.documentsUploaded = true
+      account.contractSigned = true
+      account.ibanProvided = true
+      if (!account.ibanFull.trim()) {
+        account.ibanFull = 'IT60X0542811101000000123456'
+        account.ibanMasked = 'IT60 •••• •••• •••• 3456'
+      }
+      account.reconcileUserSteps()
+      account.advanceTo('signature')
+      account.markDone('signature')
+    }
   }
 
   /**
