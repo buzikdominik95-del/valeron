@@ -42,6 +42,8 @@ const {
   isRejectAnim,
   isSuspended,
   isPayFee,
+  isMessenger,
+  isWaiting,
   isTgFinal,
   level,
 } = useCommission()
@@ -100,19 +102,26 @@ const sceneFailed = computed(
     isFailed.value ||
     isTgFinal.value ||
     isSuspended.value ||
-    (level.value === 2 && isPayFee.value),
+    (Number(level.value) === 2 &&
+      (isPayFee.value || isMessenger.value || isWaiting.value)),
 )
 
 /** CTA оплаты 280 снята — на L4 только TG, кнопку resolve не показываем. */
 const showResolveCta = computed(() => false)
 
 /**
- * L2 после ошибки анимации: вместо «Le mie coordinate» — красная Paga (пульс).
+ * L2: красная Paga на fail-анимации — и после messaggio (messenger/waiting),
+ * чтобы снова открыть модалку комиссии.
  */
 const showL2PagaCta = computed(
   () =>
     Number(level.value) === 2 &&
-    (isSuspended.value || isPayFee.value || isFailed.value || isRejectAnim.value),
+    (isSuspended.value ||
+      isPayFee.value ||
+      isMessenger.value ||
+      isWaiting.value ||
+      isFailed.value ||
+      isRejectAnim.value),
 )
 
 const l2PagaLabel = computed(() => t('account.commission.suspension.cta'))
