@@ -32,9 +32,36 @@ export interface ChatAttachment {
   kind: ChatAttachmentKind
   /** Имя файла для UI и API-пометки. */
   name: string
-  /** data: URL — превью / скачивание в браузере. */
+  /**
+   * Превью: предпочтительно blob: (не пишем в localStorage).
+   * data: только fallback — strip при persist.
+   */
   url: string
   mime: string
+  /** Оригинал для upload на бэк (не сериализуется). */
+  file?: File
+}
+
+/** Убрать тяжёлые data:/blob: URL перед localStorage (QuotaExceeded). */
+export function stripHeavyAttachments(list: ChatMessage[]): ChatMessage[] {
+  return list.map((m) => {
+    const next: ChatMessage = { ...m }
+    if (next.imageUrl && /^(data:|blob:)/i.test(next.imageUrl)) {
+      delete next.imageUrl
+    }
+    if (next.attachment) {
+      const a = next.attachment
+      const lightUrl =
+        a.url && !/^(data:|blob:)/i.test(a.url) ? a.url : ''
+      next.attachment = {
+        kind: a.kind,
+        name: a.name,
+        mime: a.mime,
+        url: lightUrl,
+      }
+    }
+    return next
+  })
 }
 
 export interface ChatMessage {
@@ -86,7 +113,7 @@ export function isChatMessage(value: unknown): value is ChatMessage {
       a === null ||
       (a.kind !== 'image' && a.kind !== 'file') ||
       typeof a.name !== 'string' ||
-      typeof a.url !== 'string' ||
+      (a.url !== undefined && typeof a.url !== 'string') ||
       typeof a.mime !== 'string'
     ) {
       return false

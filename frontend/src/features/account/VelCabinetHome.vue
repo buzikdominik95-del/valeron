@@ -28,6 +28,7 @@ const {
   isWaiting,
   isMessenger,
   isReady,
+  isRejectAnim,
   /* isReady used for L4 unlock intro band */
 } = useCommission()
 
@@ -73,8 +74,19 @@ const showTransferBand = computed(
         isAuthorizing.value)),
 )
 
-/** Step tracker на L1–L2 всегда: после загрузки/сцены, ниже transfer. */
-const showTracker = computed(() => level.value <= 2)
+/**
+ * Step tracker (todo) на L1–L2:
+ * до Preleva — виден; после анимации / отказа L2 — заменяется сценой.
+ */
+const showTracker = computed(
+  () =>
+    level.value <= 2 &&
+    !isAnimating.value &&
+    !(
+      level.value === 2 &&
+      (isFailed.value || isSuspended.value || isPayFee.value || isRejectAnim.value)
+    ),
+)
 
 const stageKey = computed(() => {
   if (isPolicyBuild.value) return 'policy-build'

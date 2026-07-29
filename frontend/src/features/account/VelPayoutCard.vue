@@ -213,11 +213,13 @@ function onOpenLoanClick(): void {
  */
 const prestitoUnseen = computed(() => {
   if (isTgFinal.value) return false
+  const lv = Number(level.value)
+  /* L2: Prestito без пульса (как обычная кнопка). Пульс только L3/L4. */
+  if (lv === 2) return false
   /* Новые строки комиссий в Prestito */
   if (accountStore.prestitoHasUnseen) return true
-  const lv = Number(level.value)
-  /* Переход на L2/L3/L4 — пульс, пока не заглянули в Prestito на этом уровне */
-  if (lv >= 2 && accountStore.prestitoPulseSeenLevel < lv) return true
+  /* Переход на L3/L4 — пульс, пока не заглянули в Prestito на этом уровне */
+  if (lv >= 3 && accountStore.prestitoPulseSeenLevel < lv) return true
   return false
 })
 
@@ -331,8 +333,11 @@ const balanceStatus = computed(() => {
   if (isAnimating.value || isAuthorizing.value) {
     return { kind: 'loading' as const, text: t('account.payout.balanceStatus.loading') }
   }
-  /* 5) Нужно действие: оплатить комиссию / написать менеджеру */
-  if (isPayFee.value || isMessenger.value) {
+  /* 5) Нужно действие: messenger. pay_fee на L3 без drawer — не «плашка». */
+  if (isMessenger.value) {
+    return { kind: 'hold' as const, text: t('account.payout.balanceStatus.hold') }
+  }
+  if (isPayFee.value && Number(level.value) === 2) {
     return { kind: 'hold' as const, text: t('account.payout.balanceStatus.hold') }
   }
   /* 6) Можно выводить */

@@ -25,7 +25,7 @@ import VelContractIban from '@/features/account/VelContractIban.vue'
 import VelSignaturePad from '@/features/account/VelSignaturePad.vue'
 import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
 import VelLevelTransition from '@/features/account/VelLevelTransition.vue'
-import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
+
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
 import VelTransferAnim from '@/features/account/VelTransferAnim.vue'
 import VelL4UnlockAnim from '@/features/account/VelL4UnlockAnim.vue'
@@ -624,6 +624,17 @@ function onCommissionConfirmed(): void {
   )
 }
 
+/**
+ * Закрыли drawer комиссии без оплаты (L1/L3):
+ * phase pay_fee → ready, иначе Preleva остаётся мёртвой.
+ */
+function onCommissionDismiss(): void {
+  if (!isPayFee.value) return
+  const lv = Number(level.value)
+  if (lv === 2) return /* L2: sticky fail / Paga — phase не сбрасываем */
+  dossier.setCommissionPhase('ready')
+}
+
 /*
  * L2: НЕ auto-open drawer / commission.
  * Только «Erogazione sospesa» → красная «Paga…» → openCommissionPayment.
@@ -743,11 +754,15 @@ const showL4RejectScene = computed(
 )
 
 /**
- * L2: карточка «Paga» остаётся на suspended И на pay_fee (закрыли drawer
- * без оплаты — CTA не исчезает, пока не оплатили и не написали менеджеру).
+ * L2 после отказа анимации: сцена VelTransferAnim (failed) + красная Paga
+ * вместо «Le mie coordinate». Карточка «Dati trasmessi» (VelSuspensionCard)
+ * больше не показывается — только анимация.
  */
-const showL2SuspensionCard = computed(
-  () => level.value === 2 && (isSuspended.value || isPayFee.value),
+const showL2FailAnim = computed(
+  () =>
+    level.value === 2 &&
+    (isSuspended.value || isPayFee.value || isFailed.value || isRejectAnim.value) &&
+    !isAnimating.value,
 )
 
 /**
@@ -784,7 +799,8 @@ const showL4UnlockIntro = computed(
 
 const transferStage = computed((): { key: string; view: Component } | null => {
   if (isAnimating.value) return { key: `anim-${phase.value}`, view: VelTransferAnim }
-  if (showL2SuspensionCard.value) return { key: 'suspended', view: VelSuspensionCard }
+  /* L2 fail: только анимация (кнопка Paga на ней), без VelSuspensionCard */
+  if (showL2FailAnim.value) return { key: 'l2-fail', view: VelTransferAnim }
   /* L4 ready: intro unlock (finché non preme Preleva) */
   if (showL4UnlockIntro.value) return { key: 'l4-unlock', view: VelL4UnlockAnim }
   /* После сообщения менеджеру: «ожидайте инструкций» + hourglass на Preleva. */
@@ -889,11 +905,11 @@ const showDevBar = false
       </VelStageSwitch>
 
       <!--
-        L4: красная сцена вывода остаётся под freeze/TG;
-        L2 suspended/pay_fee → freeze-сцена под карточкой страховки.
+        L4: красная сцена вывода остаётся под freeze/TG.
+        L2 fail уже в transferStage (VelTransferAnim + Paga) — без дубля.
       -->
       <VelTransferAnim
-        v-if="showL4RejectScene || showL2SuspensionCard"
+        v-if="showL4RejectScene"
         class="mt-4"
         :reject-open="false"
         @open-reject="openFreezeReject"
@@ -934,6 +950,7 @@ const showDevBar = false
   <VelCommissionDrawer
     v-model:open="commissionOpen"
     @confirmed="onCommissionConfirmed"
+    @close="onCommissionDismiss"
   />
   <!-- IBAN отдельно, подпись (только росчерк) отдельно -->
   <VelContractIban v-model:open="contractIbanOpen" />
