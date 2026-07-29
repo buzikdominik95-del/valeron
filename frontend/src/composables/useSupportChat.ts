@@ -94,7 +94,7 @@ function createSupportChat(): SupportChat {
     confirmMessageSent,
   } = useCommission()
   const dossier = useDossierStore()
-  const { tab } = useCabinetTab()
+  const { tab, select: selectTab } = useCabinetTab()
   const notices = useNotices()
   const agentNotify = useAgentNotify()
 
@@ -277,14 +277,16 @@ function createSupportChat(): SupportChat {
     }
   }
 
+  /**
+   * L1 (и L2/L3 messenger): заготовка ушла → waiting.
+   * Preleva locked + карточка/анимация ожидания на Home.
+   */
   function advanceFunnel(): void {
     if (!isMessenger.value) return
-    confirmMessageSent()
-    /*
-     * Не редиректим сразу: AccountFlow ловит waiting → toast «sistema» сверху.
-     * notices из setup-singleton — без dynamic import (иначе setup crash).
-     */
+    confirmMessageSent() /* phase = waiting */
     notices.push('waitingInstructions')
+    /* Home: VelWaitingAdmin под балансом (не только полоска в чате) */
+    selectTab('home')
   }
 
   function send(): void {
@@ -299,8 +301,8 @@ function createSupportChat(): SupportChat {
     notices.push('supportSent')
 
     /*
-     * Offline-first: сообщение в ленту + waiting сразу.
-     * API (если жив) — fire-and-forget; воронка L2 не ждёт бэкенд.
+     * Offline-first: лента + waiting.
+     * Не pullAccount после funnel — hydrate мог сбросить waiting.
      */
     pushClientMessage(body, funnel && isApiEnabled() ? 'sent' : 'local')
     draft.value = ''
@@ -314,9 +316,7 @@ function createSupportChat(): SupportChat {
         body,
         kind: 'commission',
         level: level.value,
-      })
-        .then(() => dossier.pullAccount())
-        .catch(() => undefined)
+      }).catch(() => undefined)
     }
   }
 
