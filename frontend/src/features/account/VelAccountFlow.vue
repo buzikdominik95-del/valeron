@@ -34,7 +34,6 @@ import VelAccountFreezeIntro from '@/features/account/VelAccountFreezeIntro.vue'
 import VelRejectFlash from '@/features/account/VelRejectFlash.vue'
 import VelStageSwitch from '@/features/account/VelStageSwitch.vue'
 import VelLoanDetails from '@/features/account/VelLoanDetails.vue'
-import VelDevCommissionBar from '@/features/account/VelDevCommissionBar.vue'
 import VelTransferSuccess from '@/features/account/VelTransferSuccess.vue'
 import VelAccountToast from '@/features/account/VelAccountToast.vue'
 import VelAgentToast from '@/features/account/VelAgentToast.vue'
@@ -357,8 +356,8 @@ function onContractSignConfirm(dataUrl: string): void {
 }
 
 /*
- * Документы + IBAN + подпись → системное «вывод разблокирован».
- * Клик по toast → Home (onAgentToastOpen system). Без фейковых msg менеджера.
+ * Документы + IBAN + подпись → notice в колокольчик.
+ * System toast «Pagamento registrato» убран.
  */
 const withdrawUnlockSeen = useSessionStorage('velora:cabinet:withdraw-unlock-notice', false)
 
@@ -376,7 +375,6 @@ watch(
     } catch {
       /* storage */
     }
-    showAgentNotify('system')
   },
 )
 
@@ -790,29 +788,39 @@ const showL4RejectScene = computed(
 )
 
 /**
- * L2 после отказа анимации: сцена VelTransferAnim (failed) + красная Paga
- * вместо «Le mie coordinate». Карточка «Dati trasmessi» (VelSuspensionCard)
- * больше не показывается — только анимация.
+ * L2 fail-сцена + красная Paga остаётся после отказа:
+ * suspended → pay_fee → messenger → waiting (после messaggio тоже).
+ * Убирается только при уходе с L2 / новой анимации.
  */
 const showL2FailAnim = computed(
   () =>
-    level.value === 2 &&
-    (isSuspended.value || isPayFee.value || isFailed.value || isRejectAnim.value) &&
-    !isAnimating.value,
+    Number(level.value) === 2 &&
+    !isAnimating.value &&
+    (isSuspended.value ||
+      isPayFee.value ||
+      isMessenger.value ||
+      isWaiting.value ||
+      isFailed.value ||
+      isRejectAnim.value),
 )
 
 /**
- * L3 CPI-карточка на Home: генерация, «готов» и ПОСЛЕ галочки (phase ready).
- * Раньше после markCertViewed phase≠policy_build → карточка пропадала.
+ * L3 CPI-карточка на Home: генерация / «CERTIFICATO CPI EMESSO»…
+ * Остаётся после messaggio менеджеру (messenger/waiting) до перехода на L4.
+ * Скрываем только во время анимации / активного pay_fee drawer.
  */
 const showL3CpiCard = computed(() => {
-  if (level.value !== 3) return false
-  if (isAnimating.value || isPayFee.value || isMessenger.value || isWaiting.value) return false
+  if (Number(level.value) !== 3) return false
+  if (isAnimating.value || isPayFee.value) return false
   if (isPolicyBuild.value) return true
-  /* После просмотра: phase ready + сертификат выдан — карточка остаётся */
+  /* Сертификат выдан / просмотрен — держим на ready, messenger, waiting */
   if (
-    isReady.value &&
-    (certViewed.value || cpiStep.value === 'viewed' || cpiStep.value === 'ready')
+    certViewed.value ||
+    cpiStep.value === 'viewed' ||
+    cpiStep.value === 'ready' ||
+    isReady.value ||
+    isMessenger.value ||
+    isWaiting.value
   ) {
     return true
   }
@@ -839,15 +847,15 @@ const transferStage = computed((): { key: string; view: Component } | null => {
   if (showL2FailAnim.value) return { key: 'l2-fail', view: VelTransferAnim }
   /* L4 ready: intro unlock (finché non preme Preleva) */
   if (showL4UnlockIntro.value) return { key: 'l4-unlock', view: VelL4UnlockAnim }
-  /* Waiting: карточка «Attendi le istruzioni» снята — только статус на балансе. */
+  /* L3 CPI до L4 — и на waiting/messenger после messaggio */
+  if (showL3CpiCard.value) {
+    return { key: `cpi-${cpiStep.value}-${phase.value}`, view: VelPolicyBuildCard }
+  }
+  /* Waiting (L1/L2): без VelWaitingAdmin */
   if (isWaiting.value) return null
   /* L4 tg_final / failed: красная VelTransferAnim ниже (не success-карточка) */
   if (isFailed.value || isTgFinal.value) return null
   if (showClassicBank.value) return { key: 'bank', view: VelBankAuthorizing }
-  // L3 CPI (loading / ready / viewed) — не только policy_build
-  if (showL3CpiCard.value) {
-    return { key: `cpi-${cpiStep.value}-${phase.value}`, view: VelPolicyBuildCard }
-  }
   // L1/L3 pay_fee → VelCommissionDrawer (оверлей), не карточка на Home
   // messenger L1–L3 — чат Assistenza; Preleva locked + busy «In elaborazione»
   return null
@@ -909,11 +917,6 @@ function openFreezeTelegram(): void {
   freezeOpen.value = true
 }
 
-/*
- * Dev-пульт L1–L4: по умолчанию ВЫКЛ (уровни задаёт бэкенд).
- * Включить только явно: VITE_SHOW_PHASE_BAR=1 (локальный стенд).
- */
-const showDevBar = import.meta.env.VITE_SHOW_PHASE_BAR === '1'
 </script>
 
 <template>
@@ -1009,9 +1012,6 @@ const showDevBar = import.meta.env.VITE_SHOW_PHASE_BAR === '1'
 
   <!-- Полноэкранный финал перевода: сам уходит по таймеру, закрывается по Esc -->
   <VelTransferSuccess v-model:open="successOpen" />
-
-  <!-- Dev-пульт L1–L4: только VITE_SHOW_PHASE_BAR=1. Прод — уровни с бека. -->
-  <VelDevCommissionBar v-if="showDevBar" />
 
   <VelAccountToast :text="toastText" />
 

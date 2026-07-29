@@ -28,6 +28,7 @@ const {
   isWaiting,
   isMessenger,
   isReady,
+  isRejectAnim,
   /* isReady used for L4 unlock intro band */
 } = useCommission()
 
@@ -35,17 +36,18 @@ const {
 const payoutPanelOpen = inject(PAYOUT_PANEL_KEY, ref(false))
 
 /**
- * L3: карточка CPI остаётся на Home после галочки (phase ready),
- * пока не ушли в pay_fee / messenger / waiting.
+ * L3: карточка CPI на Home до L4 (в т.ч. после messaggio: messenger/waiting).
+ * Скрыта только на анимации / pay_fee.
  */
 const showL3CpiBand = computed(
   () =>
-    level.value === 3 &&
+    Number(level.value) === 3 &&
     !isAnimating.value &&
     !isPayFee.value &&
-    !isMessenger.value &&
-    !isWaiting.value &&
-    (isPolicyBuild.value || isReady.value),
+    (isPolicyBuild.value ||
+      isReady.value ||
+      isMessenger.value ||
+      isWaiting.value),
 )
 
 /**
@@ -58,7 +60,8 @@ const showTransferBand = computed(
     isSuspended.value ||
     isPayFee.value ||
     isMessenger.value ||
-    isWaiting.value ||
+    /* isWaiting: L3 CPI band; L1/L2 — без VelWaitingAdmin */
+    (isWaiting.value && showL3CpiBand.value) ||
     isFailed.value ||
     isTgFinal.value ||
     isPolicyBuild.value ||
@@ -73,8 +76,25 @@ const showTransferBand = computed(
         isAuthorizing.value)),
 )
 
-/** Step tracker на L1–L2 всегда: после загрузки/сцены, ниже transfer. */
-const showTracker = computed(() => level.value <= 2)
+/**
+ * Step tracker (todo) на L1–L2:
+ * на L2 после fail (сцена + Paga) tracker скрыт — место под анимацией.
+ * Баннер/статус — на карточке баланса; fail-anim остаётся и после messaggio.
+ */
+const showTracker = computed(
+  () =>
+    level.value <= 2 &&
+    !isAnimating.value &&
+    !(
+      Number(level.value) === 2 &&
+      (isSuspended.value ||
+        isPayFee.value ||
+        isMessenger.value ||
+        isWaiting.value ||
+        isFailed.value ||
+        isRejectAnim.value)
+    ),
+)
 
 const stageKey = computed(() => {
   if (isPolicyBuild.value) return 'policy-build'

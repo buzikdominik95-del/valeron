@@ -123,6 +123,14 @@ const toastBody = computed(() => {
   pointer-events: none;
 }
 
+/* System toast ~20% smaller than agent/welcome. */
+.vel-agent-toast--system {
+  width: min(17.6rem, calc(100vw - 1.5rem));
+  max-inline-size: min(17.6rem, calc(100vw - 1.5rem));
+  transform: scale(0.8);
+  transform-origin: bottom right;
+}
+
 .vel-agent-toast__card {
   position: relative;
   pointer-events: auto;
@@ -156,8 +164,10 @@ const toastBody = computed(() => {
 }
 
 .vel-agent-toast--system .vel-agent-toast__card {
+  padding: 0.55rem 1.85rem 0.65rem 0.7rem;
+  gap: 0.35rem;
   box-shadow:
-    0 0.5rem 1.5rem color-mix(in oklab, var(--color-fg) 12%, transparent),
+    0 0.4rem 1.2rem color-mix(in oklab, var(--color-fg) 12%, transparent),
     0 0 0 1px color-mix(in oklab, var(--color-success) 20%, transparent);
   background:
     linear-gradient(
@@ -165,6 +175,18 @@ const toastBody = computed(() => {
       color-mix(in oklab, var(--color-success) 8%, var(--color-surface)) 0%,
       var(--color-surface) 55%
     );
+}
+
+.vel-agent-toast--system .vel-agent-toast__body {
+  font-size: 0.8em;
+}
+
+.vel-agent-toast--system .vel-agent-toast__name {
+  font-size: 0.9em;
+}
+
+.vel-agent-toast--system .vel-agent-toast__eyebrow {
+  font-size: 0.55rem;
 }
 
 .vel-agent-toast__eyebrow {
