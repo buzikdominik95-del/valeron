@@ -316,7 +316,8 @@ export const useDossierStore = defineStore('dossier', () => {
     const account = useAccountStore()
 
     if (isApiEnabled()) {
-      void advanceCommissionLevelApi(level)
+      const email = dossier.value.client.email?.trim().toLowerCase() || undefined
+      void advanceCommissionLevelApi(level, email)
         .then((full) => {
           hydrate(full)
           account.recordPaidCommissionsUpTo(
