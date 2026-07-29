@@ -81,6 +81,18 @@ export const NOTICE_TAB: Record<NoticeKind, CabinetTab> = {
   waitingInstructions: 'home',
 }
 
+/**
+ * Уведомления, связанные с перепиской Assistenza.
+ * Когда человек открывает / смотрит чат — они вычитаются из счётчика колокольчика,
+ * остальные (IBAN, firma, prelievo…) остаются непрочитанными.
+ */
+export const CHAT_NOTICE_KINDS = [
+  'managerMessage',
+  'supportSent',
+] as const satisfies readonly NoticeKind[]
+
+export type ChatNoticeKind = (typeof CHAT_NOTICE_KINDS)[number]
+
 export interface Notice {
   /** Растёт монотонно: ключ для v-for и порядок в списке. */
   id: number

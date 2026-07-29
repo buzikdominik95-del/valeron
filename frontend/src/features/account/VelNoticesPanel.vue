@@ -42,9 +42,17 @@ watch(open, (isOpen) => {
 
 function openNotice(id: number, kind: NoticeKind): void {
   markRead(id)
-  const tab = NOTICE_TAB[kind]
+  const target = NOTICE_TAB[kind]
   open.value = false
-  selectTab(tab)
+  selectTab(target)
+  /* Переход в чат → все chat-notices снимаются с badge (не только эта строка). */
+  if (target === 'support') {
+    try {
+      useNotices().markChatNoticesRead()
+    } catch {
+      /* optional */
+    }
+  }
 }
 
 onClickOutside(root, () => {

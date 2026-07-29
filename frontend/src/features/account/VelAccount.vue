@@ -170,13 +170,14 @@ useShellHeadHeight(headEl, rootEl, () => condensed.value)
  */
 watch(tab, async (next) => {
   if (next === 'support') {
-    /* Badge Assistenza + notice «messaggio» на колокольчике → прочитаны. */
+    /*
+     * Badge Assistenza + chat-notices на колокольчике → прочитаны
+     * (managerMessage / supportSent). Остальные notice не трогаем.
+     * Дубль с useSupportChat.watch — оба вызываются при входе в чат.
+     */
     accountStore.clearSupportUnread()
     try {
-      const n = useNotices()
-      n.markKindRead('managerMessage')
-      n.markKindRead('supportSent')
-      n.markKindRead('waitingInstructions')
+      useNotices().markChatNoticesRead()
     } catch {
       /* notices optional */
     }

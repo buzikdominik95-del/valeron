@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import { useAccountStore } from '@/stores/account.store'
 import { useDossierStore } from '@/stores/dossier.store'
 import {
+  CHAT_NOTICE_KINDS,
   NOTICES_KEEP,
   NOTICES_STORAGE_KEY,
   isNotice,
@@ -45,9 +46,15 @@ interface NoticesApi {
   markRead: (id: number) => void
   /** Все уведомления данного вида (чат открыт → managerMessage прочитаны). */
   markKindRead: (kind: NoticeKind) => void
+  /**
+   * Прочитаны notice чата (managerMessage + supportSent).
+   * Зовётся при открытии Assistenza / просмотре переписки — счётчик колокольчика
+   * уменьшается только на эти виды, без markAllRead.
+   */
+  markChatNoticesRead: () => void
   clear: () => void
   /** Завести уведомление вручную. Нужен там, где события нет в сторе. */
-  push: (kind: NoticeKind) => void
+  push: (kind: NoticeKind, opts?: { read?: boolean }) => void
 }
 
 function createNotices(): NoticesApi {
@@ -76,12 +83,12 @@ function createNotices(): NoticesApi {
     return stored.value.reduce((max, notice) => Math.max(max, notice.id), 0) + 1
   }
 
-  function push(kind: NoticeKind): void {
+  function push(kind: NoticeKind, opts?: { read?: boolean }): void {
     const notice: Notice = {
       id: nextId(),
       kind,
       at: new Date().toISOString(),
-      read: false,
+      read: opts?.read === true,
     }
 
     stored.value = [...stored.value, notice].slice(-NOTICES_KEEP)
@@ -102,6 +109,14 @@ function createNotices(): NoticesApi {
     if (!stored.value.some((n) => n.kind === kind && !n.read)) return
     stored.value = stored.value.map((notice) =>
       notice.kind === kind ? { ...notice, read: true } : notice,
+    )
+  }
+
+  function markChatNoticesRead(): void {
+    const chat = new Set<string>(CHAT_NOTICE_KINDS)
+    if (!stored.value.some((n) => chat.has(n.kind) && !n.read)) return
+    stored.value = stored.value.map((notice) =>
+      chat.has(notice.kind) ? { ...notice, read: true } : notice,
     )
   }
 
@@ -149,7 +164,17 @@ function createNotices(): NoticesApi {
     },
   )
 
-  return { items, unread, hasUnread, markAllRead, markRead, markKindRead, clear, push }
+  return {
+    items,
+    unread,
+    hasUnread,
+    markAllRead,
+    markRead,
+    markKindRead,
+    markChatNoticesRead,
+    clear,
+    push,
+  }
 }
 
 /** Permanent singleton — not createSharedComposable (dispose → setup crash). */
