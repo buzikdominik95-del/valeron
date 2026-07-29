@@ -126,8 +126,14 @@ const cpiBlocksWithdraw = computed(
  * messenger, waiting, L4 fail/tg.
  * На этапе 2 (фотка 1/2) активна только «Paga la copertura», не Preleva.
  */
-const withdrawLocked = computed(
-  () =>
+const withdrawLocked = computed(() => {
+  /* L2: Preleva всегда locked на suspended/pay_fee/reject (промт §6). */
+  const l2Lock =
+    Number(level.value) === 2 &&
+    (isSuspended.value || isPayFee.value || isRejectAnim.value)
+
+  return (
+    l2Lock ||
     isAnimating.value ||
     isRejectAnim.value ||
     cpiBlocksWithdraw.value ||
@@ -136,8 +142,9 @@ const withdrawLocked = computed(
     isSuspended.value ||
     isPayFee.value ||
     isMessenger.value ||
-    isWaiting.value,
-)
+    isWaiting.value
+  )
+})
 
 /**
  * Busy: анимация / messenger / waiting / CPI / authorizing.

@@ -170,10 +170,12 @@ useShellHeadHeight(headEl, rootEl, () => condensed.value)
  */
 watch(tab, async (next) => {
   if (next === 'support') {
-    /* Badge Assistenza + колокольчик managerMessage гаснут после прочтения. */
+    /* Badge + колокольчик: все notice про сообщения → прочитаны. */
     accountStore.clearSupportUnread()
     try {
-      useNotices().markKindRead('managerMessage')
+      const n = useNotices()
+      n.markKindRead('managerMessage')
+      n.markKindRead('supportSent')
     } catch {
       /* notices optional */
     }

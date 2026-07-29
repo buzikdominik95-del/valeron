@@ -23,7 +23,7 @@ const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ submitted: [euros: number]; close: [] }>()
 
 const { t, n } = useI18n()
-const { approvedAmount, canWithdraw, isAuthorizing, client } = useAccount()
+const { approvedAmount, loanBalanceEuros, canWithdraw, isAuthorizing, client } = useAccount()
 const { isReady, isAnimating } = useCommission()
 const accountStore = useAccountStore()
 
@@ -34,7 +34,10 @@ const method = ref<PayoutMethod>('iban')
 const accountValue = ref('')
 const holder = ref('')
 const minEuro = 100
-const maxEuro = computed(() => Math.max(minEuro, Math.round(approvedAmount.value)))
+/** Как на карточке баланса (approvato + fee), не только base (фотка 4). */
+const maxEuro = computed(() =>
+  Math.max(minEuro, Math.round(loanBalanceEuros.value || approvedAmount.value)),
+)
 const amountEuro = ref(maxEuro.value)
 
 const rule = computed(() => PAYOUT_ACCOUNT_RULES[method.value])
