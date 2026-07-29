@@ -106,6 +106,28 @@ function createSupportChat(): SupportChat {
   const notices = useNotices()
   const agentNotify = useAgentNotify()
 
+  /**
+   * Открыл / смотрит Assistenza → notice менеджера и «messaggio inviato»
+   * вычитаются из счётчика колокольчика; badge на вкладке гаснет.
+   * immediate: ?tab=support при загрузке тоже.
+   */
+  function clearChatUnreadState(): void {
+    account.clearSupportUnread()
+    try {
+      notices.markChatNoticesRead()
+    } catch {
+      /* notices optional */
+    }
+  }
+
+  watch(
+    tab,
+    (next) => {
+      if (next === 'support') clearChatUnreadState()
+    },
+    { immediate: true },
+  )
+
   const stored = useLocalStorage<ChatMessage[]>(CHAT_STORAGE_KEY, [])
   const draft = useLocalStorage<string>(`${CHAT_STORAGE_KEY}:draft`, '')
   const funnelSeeded = useLocalStorage<string>(`${CHAT_STORAGE_KEY}:funnelSeed`, '')
@@ -587,7 +609,8 @@ function createSupportChat(): SupportChat {
     justSent.value = true
     clearJustSent()
 
-    notices.push('supportSent')
+    /* Уже в чате — строка в панели без +1 к badge/колокольчику. */
+    notices.push('supportSent', { read: tab.value === 'support' })
 
     /*
      * Offline-first: лента + waiting.
@@ -602,12 +625,7 @@ function createSupportChat(): SupportChat {
     pendingAttachment.value = null
     if (funnel) advanceFunnel()
     sending.value = false
-    account.clearSupportUnread()
-    try {
-      notices.markKindRead('managerMessage')
-    } catch {
-      /* optional */
-    }
+    clearChatUnreadState()
     void scrollToEnd(true)
 
     if (isApiEnabled()) {

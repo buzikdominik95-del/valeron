@@ -66,7 +66,7 @@ const {
   openFeeFromSuspension,
 } = useCommission()
 const { certViewed, step: cpiStep, clearPrelevaPulse } = useCpiBuild()
-const { select: selectTab } = useCabinetTab()
+const { tab, select: selectTab } = useCabinetTab()
 const notices = useNotices()
 /** Toast менеджера / system — shared с pushAgentMessage (admin → toast + badge). */
 const {
@@ -137,12 +137,19 @@ const { start: startWelcomeToast } = useTimeoutFn(
   () => {
     if (welcomeToastSeen.value) return
     welcomeToastSeen.value = true
-    try {
-      notices.push('managerMessage')
-    } catch {
-      /* storage */
+    /*
+     * Уже в чате — пузыри Deborah и так видны: не раздуваем колокольчик.
+     * На Home/других вкладках — notice + badge, гасятся при открытии Assistenza.
+     */
+    const onChat = tab.value === 'support'
+    if (!onChat) {
+      try {
+        notices.push('managerMessage')
+      } catch {
+        /* storage */
+      }
+      account.bumpSupportUnread(2)
     }
-    account.bumpSupportUnread(2)
     showAgentNotify('welcome')
   },
   WELCOME_TOAST_DELAY_MS,
