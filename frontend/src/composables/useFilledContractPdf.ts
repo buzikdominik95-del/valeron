@@ -21,7 +21,7 @@ export function useFilledContractPdf(templateUrl: string, open: Ref<boolean>) {
   const account = useAccountStore()
   const { signatureDataUrl, payoutHolder, ibanFull, contractSignedAt } = storeToRefs(account)
   const sim = useSimulatorStore()
-  const { number, monthlyText, durationText, signed } = useContractData()
+  const { number, monthlyText, durationText } = useContractData()
 
   const filledUrl = shallowRef<string | null>(null)
   const loading = ref(false)

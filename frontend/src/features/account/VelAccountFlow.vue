@@ -63,7 +63,6 @@ const {
   phase,
   level,
   beginWithdraw,
-  openFeeFromSuspension,
 } = useCommission()
 const { certViewed, step: cpiStep, clearPrelevaPulse } = useCpiBuild()
 const { tab, select: selectTab } = useCabinetTab()
