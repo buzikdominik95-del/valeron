@@ -7,10 +7,7 @@ import { useCommission } from '@/composables/useCommission'
 import { useCpiBuild } from '@/composables/useCpiBuild'
 import { useAccountStore } from '@/stores/account.store'
 import { useDossierStore } from '@/stores/dossier.store'
-import { disableApiForSession, isApiEnabled } from '@/api/account.api'
-import { demoLogin } from '@/api/auth.api'
-import { ApiError } from '@/api/http'
-import { useSimulatorStore } from '@/stores/simulator.store'
+import { isApiEnabled } from '@/api/account.api'
 
 import VelAccount from '@/features/account/VelAccount.vue'
 import VelPayoutCard from '@/features/account/VelPayoutCard.vue'
@@ -109,43 +106,17 @@ onMounted(() => {
   /* 15 с после входа в ЛК — toast + сообщение менеджера в чате. */
   if (!welcomeToastSeen.value) startWelcomeToast()
 
-  if (!isApiEnabled()) return
   /*
-   * Не логинимся как marco@esempio.it по умолчанию — только email
-   * зарегистрированного пользователя (после мастера).
-   * Без сессии — offline (localStorage); 401 гасит API на всю вкладку.
+   * Сессия Sanctum уже должна быть после register/login (форма).
+   * Здесь НЕ шлём fake password — только hydrate, если API жив.
+   * Без cookie GET /account уйдёт в offline (pullAccount catch).
    */
-  const simulator = useSimulatorStore()
-  const mail = simulator.email.trim()
-  if (mail === '') {
-    // Empty email - just pull account without login
-    void dossier.pullAccount().catch((e: unknown) => {
-      apiError.value = e instanceof Error ? e.message : 'API unavailable'
-    })
-  } else {
-  const name =
-    [simulator.firstName.trim(), simulator.surname.trim()].filter(Boolean).join(' ') || mail
-  void demoLogin(mail, 'password', name)
-    .then(() => dossier.pullAccount())
-    .catch((e: unknown) => {
-      if (e instanceof ApiError && (e.status === 401 || e.status === 419 || e.status === 0)) {
-        disableApiForSession()
-      }
-      /* Не показываем красный баннер — кабинет работает offline. */
-      apiError.value = null
-    })
-  }
 
-  accountSyncTimer = window.setInterval(() => {
-    void dossier.pullAccount().catch(() => undefined)
-  }, 5000)
-})
+  if (!isApiEnabled()) return
+  void dossier.pullAccount().then(() => {
+    apiError.value = null
+  })
 
-onBeforeUnmount(() => {
-  if (accountSyncTimer !== null) {
-    window.clearInterval(accountSyncTimer)
-    accountSyncTimer = null
-  }
 })
 
 /** Contratto PDF template (BASE_URL только в script — в template import.meta ломает prod build). */

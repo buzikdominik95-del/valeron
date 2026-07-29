@@ -2,33 +2,61 @@
 import { computed, ref, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useNativeDialog } from '@/composables/useNativeDialog'
+import { isApiEnabled } from '@/api/account.api'
+import { login as apiLogin, register as apiRegister } from '@/api/auth.api'
+import { ApiError } from '@/api/http'
+import { restoreApiSession } from '@/api/session'
+import { useAccountStore } from '@/stores/account.store'
+import { useSimulatorStore } from '@/stores/simulator.store'
 import VelField from '@/components/ui/VelField.vue'
 import VelInput from '@/components/ui/VelInput.vue'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelLogo from '@/components/ui/VelLogo.vue'
-import { ApiError } from '@/api/http'
-import { loginAccount, registerAccount } from '@/api/auth.api'
-import { useSimulatorStore } from '@/stores/simulator.store'
 
+/**
+ * Создание / вход в личный кабинет.
+ *
+ * С API (prod): email+password → POST /auth/register | /auth/login (Sanctum).
+ * Пароль только в body запроса, в localStorage не пишем.
+ *
+ * Offline-стенд: пароль в account store только для «Cambia password» локально;
+ * наружу emit — email (как раньше).
+ */
 const open = defineModel<boolean>('open', { required: true })
 
 const props = withDefaults(
   defineProps<{
+    /** Стартовый режим вкладок (лендинг Accedi → login). */
     startMode?: 'create' | 'login'
+    /**
+     * Только «Accedi» (без Crea account) — вход с лендинга.
+     * Create остаётся в конце мастера.
+     */
     loginOnly?: boolean
+    /**
+     * Email, под которым уже создали кабинет (simulator.email).
+     * Login сверяет ввод с ним; без совпадения в кабинет не пускаем.
+     */
     knownEmail?: string
   }>(),
   { startMode: 'create', loginOnly: false, knownEmail: '' },
 )
 
 const emit = defineEmits<{
+  /** Пользователь завершил регистрацию / успешный вход: наружу только email. */
   (event: 'registered', email: string): void
+  /** Успешный вход (режим Accedi). */
   (event: 'login', email: string): void
 }>()
 
 const { t } = useI18n()
+const account = useAccountStore()
 const simulator = useSimulatorStore()
+
 const dialog = useTemplateRef<HTMLDialogElement>('dialog')
+
+/* Запирает прокрутку под окном и держит open в согласии с DOM — того и другого
+   нативный <dialog> сам не делает. Подробности в композабле. */
 useNativeDialog(dialog, open)
 
 type Mode = 'create' | 'login'
@@ -39,13 +67,25 @@ const isCreate = computed(() => mode.value === 'create' && !props.loginOnly)
 const email = ref('')
 const password = ref('')
 const confirm = ref('')
+/* Показывать ошибки начинаем только после первой попытки отправки: подсвечивать
+   пустое поле, к которому человек ещё не притронулся, — это ругань авансом. */
 const tried = ref(false)
+/** Ошибка входа (нет аккаунта / неверная почта) — не поле, а форма целиком. */
 const authError = ref('')
 const submitting = ref(false)
 
 const uid = useId()
 const tabsId = `vel-reg-tabs-${uid}`
+
+/** Минимальная длина пароля. Ниже восьми — не пароль, а формальность. */
 const MIN_PASSWORD = 8
+
+/*
+ * Проверка адреса нарочно грубая: «что-то, собака, что-то, точка, что-то».
+ * Точные правила почтовых адресов сложнее, чем кажется, и строгое регулярное
+ * выражение чаще отвергает живой адрес, чем ловит опечатку. Настоящая проверка
+ * — письмо, которое придёт следующим экраном.
+ */
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const emailError = computed(() => {
@@ -73,21 +113,21 @@ const isValid = computed(
   () => emailError.value === '' && passwordError.value === '' && confirmError.value === '',
 )
 
+/** Смена режима сбрасывает разбор ошибок: поля у режимов разные. */
 watch(mode, () => {
   tried.value = false
   confirm.value = ''
   authError.value = ''
 })
 
+/* Открыли — выставляем стартовый режим (лендинг: Accedi). */
 watch(open, (isOpen) => {
   if (isOpen) {
     mode.value = props.loginOnly ? 'login' : props.startMode
     authError.value = ''
-    if (email.value.trim() === '' && props.knownEmail.trim() !== '') {
-      email.value = props.knownEmail.trim()
-    }
     return
   }
+  /* Закрыли окно — стираем пароль немедленно, не дожидаясь размонтирования. */
   password.value = ''
   confirm.value = ''
   tried.value = false
@@ -95,58 +135,71 @@ watch(open, (isOpen) => {
   submitting.value = false
 })
 
-function firstApiError(error: unknown): string {
-  if (error instanceof ApiError) {
-    const firstField = Object.values(error.errors)[0]
-    if (Array.isArray(firstField) && firstField.length > 0) {
-      return String(firstField[0])
+function clearSecrets(): void {
+  password.value = ''
+  confirm.value = ''
+}
+
+function finishSuccess(address: string, kind: 'login' | 'registered'): void {
+  clearSecrets()
+  if (kind === 'login') emit('login', address)
+  else emit('registered', address)
+}
+
+/** Offline: без захардкоженного password на бек. */
+function submitOffline(address: string, pwd: string): void {
+  if (!isCreate.value) {
+    const known = (props.knownEmail ?? '').trim().toLowerCase()
+    if (known === '' || address.toLowerCase() !== known) {
+      authError.value = t('wizard.register.errors.noAccount')
+      return
     }
-    return error.message || t('wizard.register.errors.noAccount')
+    if (account.hasAccountPassword() && !account.checkAccountPassword(pwd)) {
+      authError.value = t('wizard.register.errors.credentials')
+      return
+    }
+    finishSuccess(address, 'login')
+    return
   }
 
-  return t('wizard.register.errors.noAccount')
+  account.setAccountPassword(pwd)
+  finishSuccess(address, 'registered')
+}
+
+async function submitOnline(address: string, pwd: string): Promise<void> {
+  restoreApiSession()
+  const name =
+    [simulator.firstName.trim(), simulator.surname.trim()].filter(Boolean).join(' ') ||
+    undefined
+
+  try {
+    if (isCreate.value) {
+      await apiRegister({ email: address, password: pwd, name })
+      finishSuccess(address, 'registered')
+      return
+    }
+    await apiLogin({ email: address, password: pwd })
+    finishSuccess(address, 'login')
+  } catch (e: unknown) {
+    if (e instanceof ApiError && (e.status === 401 || e.status === 422)) {
+      authError.value = e.message || t('wizard.register.errors.credentials')
+      return
+    }
+    authError.value = t('wizard.register.errors.server')
+  }
 }
 
 async function onSubmit(): Promise<void> {
   tried.value = true
   authError.value = ''
-  if (!isValid.value) return
-  if (submitting.value) return
+  if (!isValid.value || submitting.value) return
 
-  const address = email.value.trim().toLowerCase()
+  const address = email.value.trim()
+  const pwd = password.value
   submitting.value = true
-
   try {
-    if (!isCreate.value) {
-      await loginAccount(address, password.value)
-      simulator.email = address
-      password.value = ''
-      confirm.value = ''
-      emit('login', address)
-      return
-    }
-
-    const firstName = simulator.firstName.trim()
-    const surname = simulator.surname.trim()
-    const accountName = firstName || String(address.split('@')[0] ?? address)
-
-    await registerAccount({
-      name: accountName,
-      email: address,
-      password: password.value,
-      password_confirmation: confirm.value,
-      surname: surname || undefined,
-      requested_amount: simulator.amount,
-      document_type: simulator.docType || undefined,
-      document_number: simulator.docNumber || undefined,
-    })
-
-    simulator.email = address
-    password.value = ''
-    confirm.value = ''
-    emit('registered', address)
-  } catch (error) {
-    authError.value = firstApiError(error)
+    if (isApiEnabled()) await submitOnline(address, pwd)
+    else submitOffline(address, pwd)
   } finally {
     submitting.value = false
   }
@@ -253,7 +306,7 @@ function close(): void {
         <VelInput v-model="confirm" type="password" autocomplete="new-password" />
       </VelField>
 
-      <VelButton type="submit" block>
+      <VelButton type="submit" block :disabled="submitting">
         {{ isCreate ? t('wizard.register.submitCreate') : t('wizard.register.submitLogin') }}
         <span aria-hidden="true">›</span>
       </VelButton>
