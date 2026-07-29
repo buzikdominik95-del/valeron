@@ -22,8 +22,8 @@ export interface AuthRegisterPayload extends AuthCredentials {
 export function login(
   payload: AuthCredentials,
   signal?: AbortSignal,
-): Promise<{ user: AuthUser }> {
-  return request<{ user: AuthUser }>('/auth/login', {
+): Promise<{ user: AuthUser; token?: string }> {
+  return request<{ user: AuthUser; token?: string }>('/auth/login', {
     method: 'POST',
     body: {
       email: payload.email.trim(),
@@ -37,8 +37,8 @@ export function login(
 export function register(
   payload: AuthRegisterPayload,
   signal?: AbortSignal,
-): Promise<{ user: AuthUser }> {
-  return request<{ user: AuthUser }>('/auth/register', {
+): Promise<{ user: AuthUser; token?: string }> {
+  return request<{ user: AuthUser; token?: string }>('/auth/register', {
     method: 'POST',
     body: {
       email: payload.email.trim(),

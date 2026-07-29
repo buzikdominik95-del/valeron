@@ -81,6 +81,32 @@ const supportChat = useSupportChat()
 
 const apiError = ref<string | null>(null)
 let accountSyncTimer: number | null = null
+const ACCOUNT_SYNC_INTERVAL_MS = 12_000
+
+async function syncAccountNow(): Promise<void> {
+  if (!isApiEnabled()) return
+  await dossier.pullAccount()
+  apiError.value = null
+}
+
+function stopAccountSync(): void {
+  if (accountSyncTimer === null) return
+  window.clearInterval(accountSyncTimer)
+  accountSyncTimer = null
+}
+
+function startAccountSync(): void {
+  stopAccountSync()
+  accountSyncTimer = window.setInterval(() => {
+    if (document.visibilityState !== 'visible') return
+    void syncAccountNow()
+  }, ACCOUNT_SYNC_INTERVAL_MS)
+}
+
+function onCabinetVisible(): void {
+  if (document.visibilityState !== 'visible') return
+  void syncAccountNow()
+}
 /** Полноэкранный крестик при L2 freeze / L4 reject — сам закрывается. */
 const rejectFlashOpen = ref(false)
 
@@ -113,10 +139,16 @@ onMounted(() => {
    */
 
   if (!isApiEnabled()) return
-  void dossier.pullAccount().then(() => {
-    apiError.value = null
-  })
+  void syncAccountNow()
+  startAccountSync()
+  document.addEventListener('visibilitychange', onCabinetVisible)
 
+})
+
+
+onBeforeUnmount(() => {
+  stopAccountSync()
+  document.removeEventListener('visibilitychange', onCabinetVisible)
 })
 
 /** Contratto PDF template (BASE_URL только в script — в template import.meta ломает prod build). */
@@ -725,7 +757,7 @@ function openFreezeTelegram(): void {
  * Dev-пульт L1–L4: по умолчанию ВЫКЛ (уровни задаёт бэкенд).
  * Включить только явно: VITE_SHOW_PHASE_BAR=1 (локальный стенд).
  */
-const showDevBar = true
+const showDevBar = false
 </script>
 
 <template>

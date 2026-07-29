@@ -51,6 +51,7 @@ async function onLogout(): Promise<void> {
   } catch {
     /* exit landing anyway */
   } finally {
+    localStorage.removeItem('velora:authToken')
     leaveCabinet()
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
     loggingOut.value = false
