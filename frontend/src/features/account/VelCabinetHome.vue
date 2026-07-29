@@ -36,17 +36,18 @@ const {
 const payoutPanelOpen = inject(PAYOUT_PANEL_KEY, ref(false))
 
 /**
- * L3: карточка CPI остаётся на Home после галочки (phase ready),
- * пока не ушли в pay_fee / messenger / waiting.
+ * L3: карточка CPI на Home до L4 (в т.ч. после messaggio: messenger/waiting).
+ * Скрыта только на анимации / pay_fee.
  */
 const showL3CpiBand = computed(
   () =>
-    level.value === 3 &&
+    Number(level.value) === 3 &&
     !isAnimating.value &&
     !isPayFee.value &&
-    !isMessenger.value &&
-    !isWaiting.value &&
-    (isPolicyBuild.value || isReady.value),
+    (isPolicyBuild.value ||
+      isReady.value ||
+      isMessenger.value ||
+      isWaiting.value),
 )
 
 /**
@@ -59,7 +60,8 @@ const showTransferBand = computed(
     isSuspended.value ||
     isPayFee.value ||
     isMessenger.value ||
-    /* isWaiting — без отдельной карточки под балансом */
+    /* isWaiting: L3 CPI band; L1/L2 — без VelWaitingAdmin */
+    (isWaiting.value && showL3CpiBand.value) ||
     isFailed.value ||
     isTgFinal.value ||
     isPolicyBuild.value ||

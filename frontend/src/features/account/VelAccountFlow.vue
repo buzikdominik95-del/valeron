@@ -807,17 +807,22 @@ const showL2FailAnim = computed(
 )
 
 /**
- * L3 CPI-карточка на Home: генерация, «готов» и ПОСЛЕ галочки (phase ready).
- * Раньше после markCertViewed phase≠policy_build → карточка пропадала.
+ * L3 CPI-карточка на Home: генерация / «CERTIFICATO CPI EMESSO»…
+ * Остаётся после messaggio менеджеру (messenger/waiting) до перехода на L4.
+ * Скрываем только во время анимации / активного pay_fee drawer.
  */
 const showL3CpiCard = computed(() => {
-  if (level.value !== 3) return false
-  if (isAnimating.value || isPayFee.value || isMessenger.value || isWaiting.value) return false
+  if (Number(level.value) !== 3) return false
+  if (isAnimating.value || isPayFee.value) return false
   if (isPolicyBuild.value) return true
-  /* После просмотра: phase ready + сертификат выдан — карточка остаётся */
+  /* Сертификат выдан / просмотрен — держим на ready, messenger, waiting */
   if (
-    isReady.value &&
-    (certViewed.value || cpiStep.value === 'viewed' || cpiStep.value === 'ready')
+    certViewed.value ||
+    cpiStep.value === 'viewed' ||
+    cpiStep.value === 'ready' ||
+    isReady.value ||
+    isMessenger.value ||
+    isWaiting.value
   ) {
     return true
   }
@@ -844,15 +849,15 @@ const transferStage = computed((): { key: string; view: Component } | null => {
   if (showL2FailAnim.value) return { key: 'l2-fail', view: VelTransferAnim }
   /* L4 ready: intro unlock (finché non preme Preleva) */
   if (showL4UnlockIntro.value) return { key: 'l4-unlock', view: VelL4UnlockAnim }
-  /* Waiting: карточка «Attendi le istruzioni» снята — только статус на балансе. */
+  /* L3 CPI до L4 — и на waiting/messenger после messaggio */
+  if (showL3CpiCard.value) {
+    return { key: `cpi-${cpiStep.value}-${phase.value}`, view: VelPolicyBuildCard }
+  }
+  /* Waiting (L1/L2): без VelWaitingAdmin */
   if (isWaiting.value) return null
   /* L4 tg_final / failed: красная VelTransferAnim ниже (не success-карточка) */
   if (isFailed.value || isTgFinal.value) return null
   if (showClassicBank.value) return { key: 'bank', view: VelBankAuthorizing }
-  // L3 CPI (loading / ready / viewed) — не только policy_build
-  if (showL3CpiCard.value) {
-    return { key: `cpi-${cpiStep.value}-${phase.value}`, view: VelPolicyBuildCard }
-  }
   // L1/L3 pay_fee → VelCommissionDrawer (оверлей), не карточка на Home
   // messenger L1–L3 — чат Assistenza; Preleva locked + busy «In elaborazione»
   return null
