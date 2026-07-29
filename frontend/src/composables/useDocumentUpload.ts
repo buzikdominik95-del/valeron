@@ -80,11 +80,18 @@ export function useDocumentUpload(
   /**
    * Факт «документы проверены» переживает вкладку: иначе после ухода с
    * Documenti снова открывалась бы форма загрузки.
+   *
+   * Нельзя доверять docsVerified без documentsUploaded: иначе после обрыва
+   * таймера verify форма навсегда «verified» и загрузка «скипается».
    */
   const docsVerified = useLocalStorage<boolean>('velora:docs:verified', false)
 
+  if (docsVerified.value && options.locked?.value !== true) {
+    docsVerified.value = false
+  }
+
   const status = ref<DocCheckStatus>(
-    docsVerified.value || options.locked?.value === true ? 'verified' : 'idle',
+    options.locked?.value === true || docsVerified.value ? 'verified' : 'idle',
   )
 
   const { start: startVerify } = useTimeoutFn(
@@ -171,9 +178,14 @@ export function useDocumentUpload(
     revoke(side)
     picked.value = { ...picked.value, [side]: file }
 
-    // Превью только у картинок: PDF в <img> не рисуется, а адрес под него
-    // всё равно занял бы копию файла в памяти.
-    if (file.type.startsWith('image/')) {
+    // Превью: image/* + пустой MIME с image-расширением (мобильные камеры).
+    // PDF в <img> не рисуется.
+    const type = (file.type || '').toLowerCase()
+    const looksImage =
+      type.startsWith('image/') ||
+      ((type === '' || type === 'application/octet-stream') &&
+        /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(file.name || ''))
+    if (looksImage) {
       previews.value = { ...previews.value, [side]: URL.createObjectURL(file) }
     }
 

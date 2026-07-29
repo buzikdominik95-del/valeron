@@ -100,8 +100,11 @@ async function syncAccountNow(): Promise<void> {
    * pullAccount → hydrate: воронка waiting/animating сохраняется в store
    * (см. hydrate CLIENT_FUNNEL_PHASES). Не пропускаем sync целиком —
    * уровень/сумма с бека всё равно нужны.
+   * lead_iban → setIbanFromRaw(silent) внутри hydrate.
    */
   await dossier.pullAccount()
+  /* После hydrate: не дать серверному «docs completed» скипать загрузку. */
+  account.reconcileUserSteps()
   apiError.value = null
 }
 

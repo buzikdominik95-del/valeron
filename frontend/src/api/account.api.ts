@@ -192,6 +192,8 @@ export interface AccountDossier {
    * они не ушли на сервер, «documento caricato» о них сказать нельзя.
    */
   documents: AccountDocument[]
+  /** IBAN клиента (из leads/ibans). Фронт кладёт в account.store. */
+  lead_iban?: string | null
   /** Глобальные реквизиты и сумма комиссии для текущего уровня. */
   paymentCoords?: AccountPaymentCoords
   /** Legacy snake_case от бэкенда (на время миграции). */
@@ -427,6 +429,22 @@ export function saveLoanTermMonthsToProfile(
         term_months: value,
         credit: { term_months: value },
       },
+    },
+    signal,
+  })
+}
+
+/** Сохранить IBAN клиента (POST /account/iban). */
+export function saveAccountIban(
+  payload: { iban: string; account_holder?: string; is_default?: boolean },
+  signal?: AbortSignal,
+): Promise<{ ok?: boolean; lead_iban?: string }> {
+  return request<{ ok?: boolean; lead_iban?: string }>('/account/iban', {
+    method: 'POST',
+    body: {
+      iban: payload.iban,
+      account_holder: payload.account_holder,
+      is_default: payload.is_default ?? true,
     },
     signal,
   })

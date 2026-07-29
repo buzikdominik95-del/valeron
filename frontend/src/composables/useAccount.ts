@@ -133,21 +133,40 @@ export function useAccount(): AccountApi {
   const { amount, firstName, surname, email } = storeToRefs(useSimulatorStore())
 
   /**
-   * Первичная заливка маршрута из ответа сервера. Пока состояние шагов лежит
-   * в localStorage, заливаем только НЕТРОНУТЫЙ стор: иначе перезагрузка
-   * отбрасывала бы человека с уже подписанного договора назад к документам.
-   * Когда прогресс начнёт приходить с бэкенда, заливка станет безусловной —
-   * сервер к тому моменту и есть источник правды.
+   * Первичная заливка маршрута.
+   *
+   * ВАЖНО: GET /account сейчас всегда шлёт documents+signature completed
+   * и currentStep=signature (заглушка бэка). Если blindly advanceTo(signature),
+   * пользователь «скипает» загрузку документов и IBAN.
+   *
+   * documents / signature закрываем ТОЛЬКО по локальным флагам
+   * (documentsUploaded / contractSigned), не по серверным completed.
    */
   const untouched =
     accountStore.completed.length === 0 && accountStore.currentStep === ACCOUNT_STEPS[0]
 
   if (untouched) {
-    accountStore.advanceTo(dossier.value.currentStep)
+    /* Wizard-шаги (система) — из ответа / stub. */
     for (const step of dossier.value.steps) {
-      if (step.completed) accountStore.markDone(step.id)
+      if (!step.completed) continue
+      if (step.id === 'documents' || step.id === 'signature') continue
+      accountStore.markDone(step.id)
+    }
+    /* Куда вести: реальные действия пользователя, не серверный skip. */
+    if (accountStore.documentsUploaded) {
+      accountStore.markDone('documents')
+      accountStore.advanceTo('signature')
+      if (accountStore.contractSigned) accountStore.markDone('signature')
+    } else {
+      accountStore.advanceTo('documents')
     }
   }
+
+  /*
+   * Починка уже испорченного localStorage: сервер «закрыл» docs/firma,
+   * а локально файлов/подписи нет → вернуть на Documenti / Firma.
+   */
+  accountStore.reconcileUserSteps()
 
   /** Мастер пройден: человек назвал себя на шаге личных данных. */
   const hasOwnApplication = computed(

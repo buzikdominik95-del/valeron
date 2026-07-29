@@ -294,6 +294,39 @@ export const useAccountStore = defineStore('account', () => {
     currentStep.value = step
   }
 
+  /**
+   * docs / firma — только по локальным флагам, не по «completed» с GET /account
+   * (бэк сейчас всегда шлёт completed:true и currentStep=signature).
+   */
+  function reconcileUserSteps(): void {
+    let next = completed.value.filter((id) => id !== 'documents' && id !== 'signature')
+
+    if (documentsUploaded.value) {
+      next = [...next, 'documents']
+    }
+    if (contractSigned.value) {
+      next = [...next, 'signature']
+    }
+
+    const same =
+      next.length === completed.value.length &&
+      next.every((id) => completed.value.includes(id))
+    if (!same) completed.value = next
+
+    if (!documentsUploaded.value) {
+      if (currentStep.value === 'signature' || completed.value.includes('signature')) {
+        currentStep.value = 'documents'
+      }
+      /* documents в completed без upload — сняли выше */
+      return
+    }
+
+    if (!contractSigned.value && currentStep.value !== 'signature') {
+      /* docs есть, подписи нет — стоим на Firma */
+      currentStep.value = 'signature'
+    }
+  }
+
   /** Зовёт только слой API, получивший от сервера подтверждение кода. */
   function markEmailVerified(): void {
     emailVerified.value = true
@@ -337,13 +370,24 @@ export const useAccountStore = defineStore('account', () => {
    * Сохраняет полный IBAN + маску для договора.
    * raw — то, что человек набрал (с пробелами или без).
    * Без полного ibanFull Preleva не сможет автозаполнить поле.
+   * opts.silent — только local (hydrate с сервера, без повторного POST).
    */
-  function setIbanFromRaw(raw: string): void {
+  function setIbanFromRaw(raw: string, opts?: { silent?: boolean }): void {
     const formatted = formatIbanGroups(raw)
     if (formatted.replace(/\s/g, '') === '') return
     ibanProvided.value = true
     ibanFull.value = formatted
     ibanMasked.value = maskIban(raw)
+
+    if (opts?.silent) return
+    /* Фоном на бэк — иначе lead_iban не появляется после F5. */
+    void import('@/api/account.api').then(({ isApiEnabled, saveAccountIban }) => {
+      if (!isApiEnabled()) return
+      void saveAccountIban({
+        iban: formatted.replace(/\s/g, ''),
+        account_holder: payoutHolder.value || undefined,
+      }).catch(() => undefined)
+    })
   }
 
   /**
@@ -464,6 +508,7 @@ export const useAccountStore = defineStore('account', () => {
     markDone,
     markCoachSeen,
     advanceTo,
+    reconcileUserSteps,
     markEmailVerified,
     clearEmailVerified,
     setAccountPassword,
