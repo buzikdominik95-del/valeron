@@ -33,6 +33,8 @@ const list = computed(() =>
 
 watch(open, (isOpen) => {
   if (!isOpen) return
+  /* Открыл колокольчик = прочитал (в т.ч. notice от сообщений). */
+  markAllRead()
   requestAnimationFrame(() => {
     heading.value?.focus()
   })

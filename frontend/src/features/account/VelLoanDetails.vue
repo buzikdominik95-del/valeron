@@ -21,7 +21,7 @@ import VelPersonalData from '@/features/account/VelPersonalData.vue'
 const open = defineModel<boolean>('open', { default: false })
 
 const { t, n } = useI18n()
-const { approvedAmount, ratePercent } = useAccount()
+const { approvedAmount, loanBalanceEuros, ratePercent } = useAccount()
 const { level } = useCommission()
 const accountStore = useAccountStore()
 const { paidCommissionExpenses } = storeToRefs(accountStore)
@@ -68,9 +68,12 @@ watch(
   { immediate: true },
 )
 
-const loanPrincipalCents = computed(
-  () => Math.round(approvedAmount.value * 100) + paidFeesCents.value,
-)
+const loanPrincipalCents = computed(() => {
+  /* Единый баланс с карточкой / Preleva panel */
+  const bal = Math.round((loanBalanceEuros.value || approvedAmount.value) * 100)
+  if (bal > 0) return bal
+  return Math.round(approvedAmount.value * 100) + paidFeesCents.value
+})
 
 /** Importo in meta: always principal + fees (not bare approved). */
 const importoEuros = computed(() => loanPrincipalCents.value / 100)
