@@ -170,12 +170,13 @@ useShellHeadHeight(headEl, rootEl, () => condensed.value)
  */
 watch(tab, async (next) => {
   if (next === 'support') {
-    /* Badge + колокольчик: все notice про сообщения → прочитаны. */
+    /* Badge Assistenza + notice «messaggio» на колокольчике → прочитаны. */
     accountStore.clearSupportUnread()
     try {
       const n = useNotices()
       n.markKindRead('managerMessage')
       n.markKindRead('supportSent')
+      n.markKindRead('waitingInstructions')
     } catch {
       /* notices optional */
     }

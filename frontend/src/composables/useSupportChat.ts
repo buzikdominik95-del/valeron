@@ -127,25 +127,30 @@ function createSupportChat(): SupportChat {
 
   const messages = stored
 
-  /** EN-мусор от старого markMessageSent / CRM. */
-  const EN_RECEIPT_RE = /^commission receipt confirmed\.?$/i
+  /** EN-мусор от старого markMessageSent / CRM (client + agent). */
+  const EN_RECEIPT_RE = /commission\s*receipt\s*confirmed/i
   const OLD_GREETING_RE =
-    /scriva pure la sua domanda|rispondiamo nei giorni lavorativi|buongiorno! scriva/i
+    /scriva pure la sua domanda|rispondiamo nei giorni lavorativi|buongiorno!\s*scriva/i
 
   function normalizeThreadMessage(m: ChatMessage): ChatMessage | null {
     const text = m.text.trim()
     if (EN_RECEIPT_RE.test(text)) {
-      /* Итальянский вместо EN (фотка 3) */
+      /* Итальянский вместо EN (фотка 3) — и client, и agent */
       return {
         ...m,
         text: 'Ricevuta commissione confermata.',
       }
+    }
+    if (OLD_GREETING_RE.test(text) && m.author === 'agent') {
+      return null /* выкинуть старый greeting */
     }
     return m
   }
 
   function stripOldGreetings(list: ChatMessage[]): ChatMessage[] {
     return list.filter((m) => {
+      if (m.author !== 'agent' && m.author !== 'client') return true
+      if (m.author === 'client' && EN_RECEIPT_RE.test(m.text)) return false
       if (m.author !== 'agent') return true
       return !OLD_GREETING_RE.test(m.text)
     })
@@ -319,7 +324,10 @@ function createSupportChat(): SupportChat {
       const normalized = clean
         .map(normalizeThreadMessage)
         .filter((m): m is ChatMessage => m !== null)
-      let next = stripOldGreetings(normalized).slice(-CHAT_KEEP)
+      /* EN receipt и старый greeting — не в ленту */
+      let next = stripOldGreetings(normalized)
+        .filter((m) => !EN_RECEIPT_RE.test(m.text))
+        .slice(-CHAT_KEEP)
 
       /*
        * Не затирать локальные welcome Deborah, если сервер их не знает.

@@ -10,7 +10,6 @@ import { useAccount } from '@/composables/useAccount'
 import { useAccountStore } from '@/stores/account.store'
 import { ibanExpectedLength, ibanShapeProblem } from '@/lib/iban'
 import { PAYOUT_ACCOUNT_RULES } from '@/features/account/payout-fields'
-import { makeTypedSignatureDataUrl } from '@/lib/auto-signature'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelField from '@/components/ui/VelField.vue'
 import VelInput from '@/components/ui/VelInput.vue'
@@ -82,12 +81,11 @@ watch(
 )
 
 /**
- * IBAN обязателен; подпись — авто из ФИО (или росчерк, если человек рисовал).
+ * IBAN обязателен; подпись — ТОЛЬКО росчерк с планшета (не auto-ФИО).
  */
 const canConfirm = computed(() => {
   if (!ibanOk.value) return false
-  if (!isEmpty.value) return true
-  return typedName.value.trim() !== '' || client.value.fullName.trim() !== ''
+  return !isEmpty.value
 })
 
 function onConfirm(): void {
@@ -98,9 +96,7 @@ function onConfirm(): void {
     client.value.fullName.trim() ||
     [client.value.lastName, client.value.firstName].filter(Boolean).join(' ')
 
-  /* Сначала росчерк с планшета; если пусто — автоподпись из имени. */
-  let dataUrl = !isEmpty.value ? toDataUrl() : null
-  if (!dataUrl) dataUrl = makeTypedSignatureDataUrl(name)
+  const dataUrl = toDataUrl()
   if (!dataUrl) return
 
   let ibanSaved = false

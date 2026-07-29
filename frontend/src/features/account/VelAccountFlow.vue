@@ -65,7 +65,7 @@ const {
   beginWithdraw,
   openFeeFromSuspension,
 } = useCommission()
-const { certViewed, step: cpiStep } = useCpiBuild()
+const { certViewed, step: cpiStep, clearPrelevaPulse } = useCpiBuild()
 const { select: selectTab } = useCabinetTab()
 const notices = useNotices()
 /** Toast менеджера / system — shared с pushAgentMessage (admin → toast + badge). */
@@ -280,10 +280,17 @@ function showSystemWaitingToast(): void {
 
 /**
  * Документы verified — unlock firma.
- * БЕЗ toast/агента менеджера. Файлы → POST /users/documents/upload.
+ * БЕЗ toast менеджера / agentNotify / pushAgentMessage.
  */
 function onDocumentsVerified(): void {
+  /* Гасим любой agent-toast, если всплыл по ошибке */
+  try {
+    hideAgentNotify()
+  } catch {
+    /* */
+  }
   unlockFirmaAfterDocs()
+  /* Только notice «document verified» в колокольчик — НЕ manager toast */
   try {
     notices.push('documentVerified')
   } catch {
@@ -294,7 +301,6 @@ function onDocumentsVerified(): void {
 
   void import('@/api/account.api').then(async ({ uploadUserDocument, saveDocumentsVerifiedToProfile }) => {
     const kind = (() => {
-      /* map FE kind → backend type (passport|license|…) */
       try {
         const raw = localStorage.getItem('velora:docs:lastKind')
         if (raw === 'licence') return 'license' as const
@@ -313,10 +319,11 @@ function onDocumentsVerified(): void {
         console.warn('[docs] upload failed', e)
       }
     }
+    /* wizard_progress → backend syncDocumentsStatusForUser (verified row) */
     try {
       await saveDocumentsVerifiedToProfile()
     } catch {
-      /* wizard_progress optional */
+      /* optional */
     }
   })
 }
@@ -455,8 +462,7 @@ provide(OPEN_COMMISSION_KEY, openCommissionPayment)
 const successOpen = ref(false)
 
 /**
- * Preleva — повторный вход после 1-й попытки (pay_fee / messenger / suspended).
- * L2: всегда locked (только «Paga la copertura» на карточке sospesa).
+ * Preleva — L2 sticky locked; L3 после CPI должна реально открывать вывод.
  */
 function onWithdraw(): void {
   /* L2 sticky / suspend / pay_fee: зелёная Preleva молчит. */
@@ -470,8 +476,6 @@ function onWithdraw(): void {
   if (isRejectAnim.value || isSuspended.value || isPayFee.value) {
     return
   }
-
-  if (!canWithdraw.value) return
 
   /* L4 финал (tg_final): вывод заблокирован — только Telegram. */
   if (isTgFinal.value) {
@@ -492,23 +496,40 @@ function onWithdraw(): void {
 
   /*
    * L3 после CPI (галочка): Preleva должна открывать вывод.
-   * Принудительно phase=ready, если GET /account вернул policy_build.
+   * Сначала force ready — иначе кнопка «горит», а клик silent no-op.
    */
   const cpiUnlocked =
     Number(level.value) === 3 &&
     (certViewed.value || cpiStep.value === 'viewed')
 
-  if (cpiUnlocked && !isReady.value) {
+  if (cpiUnlocked) {
     try {
-      if (dossier.dossier.commission.phase === 'policy_build') {
-        dossier.dossier.commission.phase = 'ready'
-      }
+      dossier.dossier.commission.phase = 'ready'
     } catch {
       /* store */
     }
+    try {
+      clearPrelevaPulse()
+    } catch {
+      /* */
+    }
+    ensureWithdrawAmount()
+    const hasIban = account.ibanFull.trim() !== '' || account.ibanProvided
+    const euros =
+      withdrawAmount.value > 0
+        ? withdrawAmount.value
+        : Math.round(loanBalanceEuros.value || approvedAmount.value)
+    /* Если IBAN уже есть — сразу воронка L3 (pay_fee), иначе панель. */
+    if (hasIban && euros > 0) {
+      continueAfterPayout(euros)
+      return
+    }
+    payoutPanelOpen.value = true
+    return
   }
 
-  if (!isReady.value && !cpiUnlocked) return
+  if (!canWithdraw.value) return
+  if (!isReady.value) return
 
   /*
    * Панель уже открыта: повторный Preleva = подтвердить (IBAN есть) и
@@ -598,7 +619,7 @@ function onCommissionConfirmed(): void {
 }
 
 /*
- * L2: НЕ auto-open drawer.
+ * L2: НЕ auto-open drawer / commission.
  * Только «Erogazione sospesa» → красная «Paga…» → openCommissionPayment.
  * Preleva зелёная — sticky locked (account.l2PrelevaLocked).
  */
@@ -608,7 +629,7 @@ watch(isSuspended, (on, was) => {
   account.lockL2Preleva()
   selectTab('home')
   successOpen.value = false
-  commissionOpen.value = false
+  commissionOpen.value = false /* never auto */
   payoutPanelOpen.value = false
 })
 
@@ -616,7 +637,7 @@ watch(isPayFee, (on) => {
   if (!on) return
   if (Number(level.value) === 2) {
     account.lockL2Preleva()
-    /* drawer НЕ auto — только кнопка на карточке */
+    commissionOpen.value = false /* never auto on L2 */
     return
   }
   openCommissionPayment()
