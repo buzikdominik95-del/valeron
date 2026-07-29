@@ -7,7 +7,7 @@ import { useAccountStore } from '@/stores/account.store'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import { useContractData } from '@/features/account/contract-data'
 import { fillContractPdfObjectUrl } from '@/lib/fill-contract-pdf'
-import { makeTypedSignatureDataUrl } from '@/lib/auto-signature'
+
 
 /**
  * PDF contratto con dati cliente (come policy-pdf.php su Calipso).
@@ -81,14 +81,9 @@ export function useFilledContractPdf(templateUrl: string, open: Ref<boolean>) {
         }
       }
 
-      let sig: string | undefined
-      try {
-        sig =
-          signatureDataUrl.value ||
-          (signed.value ? makeTypedSignatureDataUrl(fullName) || undefined : undefined)
-      } catch {
-        sig = signatureDataUrl.value || undefined
-      }
+      /* Только реальный росчерк с планшета — без auto-ФИО. */
+      const rawSig = (signatureDataUrl.value || '').trim()
+      const sig = rawSig.startsWith('data:image') ? rawSig : undefined
 
       const base = import.meta.env.BASE_URL
       /* Печать Velora (фото 5) — крупнее в PDF */

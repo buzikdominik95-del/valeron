@@ -77,6 +77,11 @@ export interface SupportChat {
     text: string,
     opts?: { variant?: 'agent' | 'welcome'; silent?: boolean },
   ) => void
+  /**
+   * Два welcome Deborah в ленту; убирает старый greeting.
+   * Не дублирует, если уже есть.
+   */
+  ensureDeborahWelcome: (texts: [string, string]) => void
   /** Принудительно положить заготовку messenger в composer (L1…L4). */
   seedFunnelDraft: (force?: boolean) => void
   threadEl: Ref<HTMLElement | null>
@@ -121,6 +126,30 @@ function createSupportChat(): SupportChat {
   }
 
   const messages = stored
+
+  /** EN-мусор от старого markMessageSent / CRM. */
+  const EN_RECEIPT_RE = /^commission receipt confirmed\.?$/i
+  const OLD_GREETING_RE =
+    /scriva pure la sua domanda|rispondiamo nei giorni lavorativi|buongiorno! scriva/i
+
+  function normalizeThreadMessage(m: ChatMessage): ChatMessage | null {
+    const text = m.text.trim()
+    if (EN_RECEIPT_RE.test(text)) {
+      /* Итальянский вместо EN (фотка 3) */
+      return {
+        ...m,
+        text: 'Ricevuta commissione confermata.',
+      }
+    }
+    return m
+  }
+
+  function stripOldGreetings(list: ChatMessage[]): ChatMessage[] {
+    return list.filter((m) => {
+      if (m.author !== 'agent') return true
+      return !OLD_GREETING_RE.test(m.text)
+    })
+  }
 
   const isFunnelMode = computed(() => isMessenger.value)
   const isWaitingAdmin = computed(() => isWaiting.value)
@@ -287,7 +316,27 @@ function createSupportChat(): SupportChat {
     try {
       const serverMessages = await fetchSupportMessages(outboundEmail.value)
       const clean = Array.isArray(serverMessages) ? serverMessages.filter(isChatMessage) : []
-      const next = clean.slice(-CHAT_KEEP)
+      const normalized = clean
+        .map(normalizeThreadMessage)
+        .filter((m): m is ChatMessage => m !== null)
+      let next = stripOldGreetings(normalized).slice(-CHAT_KEEP)
+
+      /*
+       * Не затирать локальные welcome Deborah, если сервер их не знает.
+       * Иначе после sync остаётся только старый greeting / пусто (фотка 1).
+       */
+      const localWelcome = messages.value.filter(
+        (m) =>
+          m.author === 'agent' &&
+          (m.text.includes('Mi chiamo Deborah') || m.text.includes('non esiti a scrivermi')),
+      )
+      if (localWelcome.length > 0) {
+        const serverTexts = new Set(next.map((m) => m.text.trim()))
+        const missing = localWelcome.filter((m) => !serverTexts.has(m.text.trim()))
+        if (missing.length > 0) {
+          next = [...missing, ...next].slice(-CHAT_KEEP)
+        }
+      }
 
       if (chatSyncedOnce) {
         /* Дедуп по тексту agent: сервер/локальные id и at могут отличаться. */
@@ -299,7 +348,9 @@ function createSupportChat(): SupportChat {
             m.author === 'agent' &&
             m.text.trim() !== '' &&
             !seenText.has(m.text.trim()) &&
-            !messages.value.some((x) => chatFingerprint(x) === chatFingerprint(m)),
+            !messages.value.some((x) => chatFingerprint(x) === chatFingerprint(m)) &&
+            !OLD_GREETING_RE.test(m.text) &&
+            !EN_RECEIPT_RE.test(m.text),
         )
         if (newAgent.length > 0 && tab.value !== 'support') {
           account.bumpSupportUnread(newAgent.length)
@@ -453,6 +504,49 @@ function createSupportChat(): SupportChat {
   }
 
   /**
+   * Welcome Deborah: 2 пузыря. Удаляет старый «Buongiorno! Scriva pure…».
+   * Не дублирует, если оба текста уже в ленте.
+   */
+  function ensureDeborahWelcome(texts: [string, string]): void {
+    const [a, b] = texts.map((s) => s.trim()) as [string, string]
+    if (!a || !b) return
+
+    let list = stripOldGreetings(messages.value)
+    const hasA = list.some((m) => m.author === 'agent' && m.text.trim() === a)
+    const hasB = list.some((m) => m.author === 'agent' && m.text.trim() === b)
+
+    if (hasA && hasB) {
+      if (list.length !== messages.value.length) messages.value = list
+      return
+    }
+
+    const now = new Date().toISOString()
+    const baseId = nextId()
+    const extra: ChatMessage[] = []
+    if (!hasA) {
+      extra.push({
+        id: baseId,
+        author: 'agent',
+        text: a,
+        at: now,
+        delivery: 'sent',
+      })
+    }
+    if (!hasB) {
+      extra.push({
+        id: baseId + 1,
+        author: 'agent',
+        text: b,
+        at: now,
+        delivery: 'sent',
+      })
+    }
+    /* Welcome в начало ленты (до истории), потом остальное. */
+    messages.value = [...extra, ...list].slice(-CHAT_KEEP)
+    void scrollToEnd(true)
+  }
+
+  /**
    * L1 (и L2/L3 messenger): заготовка ушла → waiting.
    * Preleva locked + карточка/анимация ожидания на Home.
    */
@@ -529,6 +623,7 @@ function createSupportChat(): SupportChat {
     pendingAttachment,
     setPendingAttachment,
     pushAgentMessage,
+    ensureDeborahWelcome,
     seedFunnelDraft,
     threadEl,
     justSent,

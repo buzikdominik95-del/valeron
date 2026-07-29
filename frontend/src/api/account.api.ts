@@ -450,4 +450,25 @@ export function saveAccountIban(
   })
 }
 
+/**
+ * Факт «документы verified» на бэк (wizard_progress).
+ * Отдельного upload-файлов endpoint нет — хотя бы статус.
+ */
+export function saveDocumentsVerifiedToProfile(
+  signal?: AbortSignal,
+): Promise<SaveWizardProgressResponse> {
+  const at = new Date().toISOString()
+  return request<SaveWizardProgressResponse>('/account/wizard-progress', {
+    method: 'POST',
+    body: {
+      wizard_progress: {
+        documents_uploaded: true,
+        documents_verified: true,
+        documents_verified_at: at,
+      },
+    },
+    signal,
+  })
+}
+
 export { disableApiForSession, restoreApiSession } from '@/api/session'

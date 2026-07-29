@@ -4,8 +4,6 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useContractData } from '@/features/account/contract-data'
 import { useAccountStore } from '@/stores/account.store'
-import { useAccount } from '@/composables/useAccount'
-import { makeTypedSignatureDataUrl } from '@/lib/auto-signature'
 import VelLogo from '@/components/ui/VelLogo.vue'
 import VelContractTerms from '@/features/account/VelContractTerms.vue'
 import VelContractSchedule from '@/features/account/VelContractSchedule.vue'
@@ -35,8 +33,7 @@ import VelContractSignatures from '@/features/account/VelContractSignatures.vue'
  */
 const { t } = useI18n()
 const accountStore = useAccountStore()
-const { signatureDataUrl, payoutHolder } = storeToRefs(accountStore)
-const { client } = useAccount()
+const { signatureDataUrl } = storeToRefs(accountStore)
 
 /* Разбираем на месте: все поля — computed-ссылки, и в шаблоне Vue разворачивает
    их сам. Через объект пришлось бы писать contract.number.value в разметке. */
@@ -57,19 +54,14 @@ const {
 } = useContractData()
 
 /**
- * Подпись Prenditore: если есть ручной росчерк (длинный PNG) — он;
- * иначе свежий «чернильный» авто-росчерк из ФИО (не плоский italic).
+ * Подпись Prenditore: ТОЛЬКО реальный росчерк с планшета (VelSignaturePad).
+ * Авто-ФИО (makeTypedSignatureDataUrl) больше не подставляем — на L2/везде
+ * показывало «имя от руки», а не то, что человек нарисовал (фотка 2).
  */
 const borrowerSignature = computed(() => {
-  const name =
-    payoutHolder.value.trim() ||
-    client.value.fullName.trim() ||
-    [client.value.lastName, client.value.firstName].filter(Boolean).join(' ')
-  const stored = signatureDataUrl.value
-  /* Ручной росчерк обычно >12KB; старый «просто текст» — короче → перерисуем */
-  if (stored && stored.length > 12_000) return stored
-  if (!signed.value && !stored) return undefined
-  return makeTypedSignatureDataUrl(name) ?? stored ?? undefined
+  const stored = (signatureDataUrl.value || '').trim()
+  if (stored.startsWith('data:image')) return stored
+  return undefined
 })
 </script>
 

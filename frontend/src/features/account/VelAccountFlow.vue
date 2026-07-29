@@ -129,17 +129,35 @@ function onCabinetVisible(): void {
 /** Полноэкранный крестик при L2 freeze / L4 reject — сам закрывается. */
 const rejectFlashOpen = ref(false)
 
-/** Приветствие менеджера — один раз за сессию браузера (сразу, не 15 с). */
+/** Приветствие: пузыри сразу, toast через 10 с (промт 0000331 §8). */
 const welcomeToastSeen = useSessionStorage('velora:cabinet:welcome-manager-toast', false)
+const WELCOME_TOAST_DELAY_MS = 10_000
+
+const { start: startWelcomeToast } = useTimeoutFn(
+  () => {
+    if (welcomeToastSeen.value) return
+    welcomeToastSeen.value = true
+    try {
+      notices.push('managerMessage')
+    } catch {
+      /* storage */
+    }
+    account.bumpSupportUnread(2)
+    showAgentNotify('welcome')
+  },
+  WELCOME_TOAST_DELAY_MS,
+  { immediate: false },
+)
 
 onMounted(() => {
   /*
-   * Старт всегда Home — не «кидать» на chat (остаточный ?tab=support /
-   * messenger watch). Welcome — сразу 2 пузыря + toast.
+   * Старт всегда Home. Welcome-пузыри Deborah — сразу в ленту;
+   * toast «nuovo messaggio» — через 10 с.
    */
   selectTab('home')
+  queueMicrotask(() => ensureWelcomeMessages())
   if (!welcomeToastSeen.value) {
-    queueMicrotask(() => showWelcomeManagerToast())
+    startWelcomeToast()
   }
 
   if (!isApiEnabled()) return
@@ -239,27 +257,14 @@ function unlockFirmaAfterDocs(): void {
 }
 
 /**
- * Welcome сразу (фотка 4): 2 пузыря Deborah.
- * Один toast + один notice; badge = 2 непрочитанных (пока не открыли Assistenza).
+ * Два пузыря Deborah (не старый greeting «Buongiorno! Scriva pure…»).
+ * silent: только лента. Toast — отдельно через 10 с.
  */
-function showWelcomeManagerToast(): void {
-  if (welcomeToastSeen.value) return
-  welcomeToastSeen.value = true
-  /* silent: только лента — без 2× toast/notice */
-  supportChat.pushAgentMessage(t('account.support.chat.welcomeMsg'), {
-    silent: true,
-  })
-  supportChat.pushAgentMessage(t('account.support.chat.welcomeMsg2'), {
-    silent: true,
-  })
-  /* Один badge + один toast + одно уведомление (не ×3). */
-  account.bumpSupportUnread(2)
-  try {
-    notices.push('managerMessage')
-  } catch {
-    /* storage */
-  }
-  showAgentNotify('welcome')
+function ensureWelcomeMessages(): void {
+  supportChat.ensureDeborahWelcome([
+    t('account.support.chat.welcomeMsg'),
+    t('account.support.chat.welcomeMsg2'),
+  ])
 }
 
 /**
@@ -272,12 +277,22 @@ function showSystemWaitingToast(): void {
 
 /**
  * Документы verified — unlock firma.
- * Без автономного сообщения менеджера (только welcome; п.8 9999.txt).
+ * БЕЗ toast/агента менеджера (промт: убрать после фото паспорта).
  */
 function onDocumentsVerified(): void {
   unlockFirmaAfterDocs()
-  notices.push('documentVerified')
-  showToast(t('account.docs.toastReady'))
+  /* только системный notice в колокольчик, не agent toast */
+  try {
+    notices.push('documentVerified')
+  } catch {
+    /* storage */
+  }
+  /* Синхронизация факта verify на бэк (wizard_progress). */
+  if (isApiEnabled()) {
+    void import('@/api/account.api').then(({ saveDocumentsVerifiedToProfile }) => {
+      void saveDocumentsVerifiedToProfile().catch(() => undefined)
+    })
+  }
 }
 
 function onAgentToastOpen(): void {
@@ -415,15 +430,21 @@ const successOpen = ref(false)
 
 /**
  * Preleva — повторный вход после 1-й попытки (pay_fee / messenger / suspended).
- * Раньше кнопка гасла навсегда: phase ≠ ready, а onWithdraw выходил сразу.
+ * L2: всегда locked (только «Paga la copertura» на карточке sospesa).
  */
 function onWithdraw(): void {
-  if (!canWithdraw.value) return
-
-  /* L2: Preleva неактивна — оплата только через «Paga la copertura». */
+  /* L2: Preleva неактивна навсегда на этом этапе (suspended / pay_fee / reject). */
+  if (
+    Number(level.value) === 2 &&
+    (isRejectAnim.value || isSuspended.value || isPayFee.value)
+  ) {
+    return
+  }
   if (isRejectAnim.value || isSuspended.value || isPayFee.value) {
     return
   }
+
+  if (!canWithdraw.value) return
 
   /* L4 финал (tg_final): вывод заблокирован — только Telegram. */
   if (isTgFinal.value) {
@@ -444,12 +465,21 @@ function onWithdraw(): void {
 
   /*
    * L3 после CPI (галочка): Preleva должна открывать вывод.
-   * Раньше при phase≠ready кнопка выглядела активной (certViewed),
-   * а onWithdraw молча выходил — «ничего не происходит».
+   * Принудительно phase=ready, если GET /account вернул policy_build.
    */
   const cpiUnlocked =
     Number(level.value) === 3 &&
     (certViewed.value || cpiStep.value === 'viewed')
+
+  if (cpiUnlocked && !isReady.value) {
+    try {
+      if (dossier.dossier.commission.phase === 'policy_build') {
+        dossier.dossier.commission.phase = 'ready'
+      }
+    } catch {
+      /* store */
+    }
+  }
 
   if (!isReady.value && !cpiUnlocked) return
 
@@ -527,19 +557,6 @@ function onBankNoticeContinue(): void {
 }
 
 /**
- * L2: после отказа анимации — drawer оплаты САМ (без клика «Paga…»).
- * Карточка suspended остаётся как fallback, если drawer закрыли.
- */
-function openL2CommissionAuto(): void {
-  if (Number(level.value) !== 2) return
-  if (!isSuspended.value && !isPayFee.value) return
-  selectTab('home')
-  successOpen.value = false
-  if (isSuspended.value) openFeeFromSuspension()
-  openCommissionPayment()
-}
-
-/**
  * L2 шаг 7: «Conferma pagamento» → messenger + Assistenza + заготовка.
  * (confirmFeePaid / markFeePaidOffline уже в drawer — phase = messenger.)
  */
@@ -553,36 +570,25 @@ function onCommissionConfirmed(): void {
   )
 }
 
-/**
- * pay_fee → drawer. Не закрываем drawer при уходе с pay_fee, если
- * пользователь просто dismiss — закрытие только в onCommissionConfirmed /
- * messenger watch (иначе гонка с auto-open).
- */
-watch(isPayFee, (on) => {
-  if (!on) return
-  openCommissionPayment()
-})
-
-/**
- * L2 после 7‑мин таймера: suspended → reject flash → auto drawer комиссии.
- * Два триггера: (1) вход в suspended, (2) закрытие reject flash — чтобы
- * модалка точно вылезла без клика «Paga la copertura».
+/*
+ * L2: НЕ auto-open drawer (промт §6).
+ * Только «Erogazione sospesa» → клик «Paga…» → openCommissionPayment.
+ * Preleva disabled (withdrawLocked).
  */
 watch(isSuspended, (on, was) => {
   if (!(on && was === false)) return
   if (Number(level.value) !== 2) return
   selectTab('home')
   successOpen.value = false
-  /* ~reject flash 1.4s + кадр — drawer поверх карточки */
-  window.setTimeout(() => openL2CommissionAuto(), 1_650)
+  commissionOpen.value = false
+  payoutPanelOpen.value = false
 })
 
-watch(rejectFlashOpen, (open, wasOpen) => {
-  if (open || wasOpen !== true) return
-  if (Number(level.value) !== 2) return
-  if (!isSuspended.value && !isPayFee.value) return
-  /* Flash ушёл — сразу оплата, без клика по красной кнопке */
-  openL2CommissionAuto()
+watch(isPayFee, (on) => {
+  if (!on) return
+  /* L2: drawer только по кнопке на карточке sospesa */
+  if (Number(level.value) === 2) return
+  openCommissionPayment()
 })
 
 /** После оплаты → Assistenza + заготовка (L1…L4). */

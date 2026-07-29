@@ -101,6 +101,8 @@ export const useDossierStore = defineStore('dossier', () => {
     'suspended',
     'tg_final',
     'failed',
+    /* L3 после CPI: ready локально, GET /account часто снова policy_build. */
+    'ready',
   ])
 
   /**
@@ -339,6 +341,7 @@ export const useDossierStore = defineStore('dossier', () => {
    */
   function markMessageSent(): void {
     dossier.value.commission.phase = 'waiting'
+    /* Никакого EN «Commission receipt confirmed» — только phase. */
   }
 
   /**

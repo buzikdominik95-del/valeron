@@ -184,8 +184,13 @@ function createCpiBuild(): CpiBuildApi {
     dossier.value.commission.policyProgress = 1
     dossier.value.policy.status = 'issued'
     dossier.value.policy.etaMinutes = 0
-    /* Снимаем policy_build → стандартный L1-подобный вывод. */
-    if (dossier.value.commission.phase === 'policy_build') {
+    /* Всегда ready после галочки — иначе Preleva «горит» но onWithdraw молчит. */
+    if (
+      dossier.value.commission.phase === 'policy_build' ||
+      dossier.value.commission.phase === 'ready'
+    ) {
+      dossier.value.commission.phase = 'ready'
+    } else if (dossier.value.commission.level === 3) {
       dossier.value.commission.phase = 'ready'
     }
   }
