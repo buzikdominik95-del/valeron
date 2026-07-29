@@ -141,6 +141,12 @@ class AccountController extends Controller
         $firstName = $nameParts[0] ?? '';
         $lastName = trim((string) ($user->surname ?? ($nameParts[1] ?? '')));
 
+        $leadProfile = DB::table('leads')
+            ->where('user_id', $user->id)
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->first(['credit_term_months', 'iban']);
+
         $leadIban = DB::table('ibans')
             ->where('user_id', $user->id)
             ->orderByDesc('is_default')
@@ -148,7 +154,14 @@ class AccountController extends Controller
             ->orderByDesc('id')
             ->value('iban');
 
+        if (empty($leadIban) && !empty($leadProfile?->iban)) {
+            $leadIban = (string) $leadProfile->iban;
+        }
+
         $loanTermMonths = $this->extractLoanTermMonths($user->wizard_progress ?? null);
+        if (($loanTermMonths ?? 0) <= 0 && !empty($leadProfile?->credit_term_months)) {
+            $loanTermMonths = (int) $leadProfile->credit_term_months;
+        }
 
         $level = (int) ($user->commission_level_id ?? 1);
         if ($level < 1) $level = 1;
@@ -327,6 +340,13 @@ class AccountController extends Controller
             }
         });
 
+        DB::table('leads')
+            ->where('user_id', $user->id)
+            ->update([
+                'iban' => $iban,
+                'updated_at' => now(),
+            ]);
+
         return response()->json([
             'ok' => true,
             'lead_iban' => $iban,
@@ -383,9 +403,20 @@ class AccountController extends Controller
             : json_encode($currentProgress, JSON_UNESCAPED_UNICODE);
         $user->save();
 
+        $resolvedTermMonths = $this->extractLoanTermMonths($currentProgress);
+
+        if (($resolvedTermMonths ?? 0) > 0) {
+            DB::table('leads')
+                ->where('user_id', $user->id)
+                ->update([
+                    'credit_term_months' => $resolvedTermMonths,
+                    'updated_at' => now(),
+                ]);
+        }
+
         return response()->json([
             'ok' => true,
-            'loan_term_months' => $this->extractLoanTermMonths($currentProgress),
+            'loan_term_months' => $resolvedTermMonths,
         ]);
     }
 
