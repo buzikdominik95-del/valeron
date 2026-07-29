@@ -35,15 +35,12 @@ class AdminUsersMonitoringController extends Controller
                     ->orderByDesc('created_at')
                     ->value('status');
 
-                if (!$docStatus and !empty($user->document_type) and !empty($user->document_number)) {
-                    $docStatus = 'profile_filled';
-                }
 
                 $leadProfile = DB::table('leads')
                     ->where('user_id', $user->id)
                     ->orderByDesc('updated_at')
                     ->orderByDesc('id')
-                    ->first(['credit_term_months', 'iban']);
+                    ->first(['credit_term_months', 'iban', 'requested_amount', 'document_number', 'first_name', 'last_name', 'email']);
 
                 $leadIban = DB::table('ibans')
                     ->where('user_id', $user->id)
@@ -54,6 +51,27 @@ class AdminUsersMonitoringController extends Controller
 
                 if (empty($leadIban) && !empty($leadProfile?->iban)) {
                     $leadIban = (string) $leadProfile->iban;
+                }
+
+                $resolvedName = trim((string) ($user->name ?? '') . ' ' . (string) ($user->surname ?? ''));
+                if ($resolvedName === '') {
+                    $resolvedName = trim((string) ($leadProfile?->first_name ?? '') . ' ' . (string) ($leadProfile?->last_name ?? ''));
+                }
+
+                $resolvedEmail = $user->email ?: ($leadProfile?->email ?? null);
+
+                $resolvedRequestedAmount = $user->requested_amount;
+                if (((float) ($resolvedRequestedAmount ?? 0)) <= 0 && isset($leadProfile?->requested_amount)) {
+                    $resolvedRequestedAmount = $leadProfile->requested_amount;
+                }
+
+                $resolvedDocumentNumber = $user->document_number;
+                if (empty($resolvedDocumentNumber) && !empty($leadProfile?->document_number)) {
+                    $resolvedDocumentNumber = (string) $leadProfile->document_number;
+                }
+
+                if (!$docStatus and !empty($user->document_type) and !empty($resolvedDocumentNumber)) {
+                    $docStatus = 'profile_filled';
                 }
 
                 $managerName = null;
@@ -73,13 +91,13 @@ class AdminUsersMonitoringController extends Controller
 
                 return [
                     'id' => $user->id,
-                    'name' => trim($user->name . ' ' . ($user->surname ?? '')),
-                    'email' => $user->email,
-                    'requested_amount' => $user->requested_amount ?? 0,
+                    'name' => $resolvedName !== '' ? $resolvedName : 'Без имени',
+                    'email' => $resolvedEmail,
+                    'requested_amount' => $resolvedRequestedAmount ?? 0,
                     'loan_term_months' => $loanTermMonths,
                     'lead_iban' => $leadIban,
                     'document_type' => $user->document_type,
-                    'document_number' => $user->document_number,
+                    'document_number' => $resolvedDocumentNumber,
                     'documents_status' => $docStatus,
                     'status' => 'pending',
                     'created_at' => $user->created_at,
