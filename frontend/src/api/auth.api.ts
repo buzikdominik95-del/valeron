@@ -28,6 +28,7 @@ export interface AuthRegisterPayload extends AuthCredentials {
   phone?: string
   /** Euro amount from simulator (backend: requested_amount). */
   requestedAmount?: number
+  loanTermMonths?: number
   documentType?: string
   documentNumber?: string
 }
@@ -114,6 +115,9 @@ export async function register(
       ...(payload.phone?.trim() ? { phone: payload.phone.trim() } : {}),
       ...(payload.requestedAmount !== undefined && payload.requestedAmount > 0
         ? { requested_amount: payload.requestedAmount }
+        : {}),
+      ...(payload.loanTermMonths !== undefined && payload.loanTermMonths > 0
+        ? { loan_term_months: payload.loanTermMonths }
         : {}),
       ...(payload.documentType?.trim()
         ? { document_type: payload.documentType.trim() }

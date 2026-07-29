@@ -191,6 +191,7 @@ async function submitOnline(address: string, pwd: string): Promise<void> {
         name,
         surname: last || undefined,
         requestedAmount: Number(simulator.amount) || undefined,
+        loanTermMonths: Number(simulator.termMonths) || undefined,
         documentType: simulator.docType.trim() || undefined,
         documentNumber: simulator.docNumber.trim() || undefined,
       })

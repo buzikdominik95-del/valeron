@@ -36,8 +36,14 @@ class AdminUsersMonitoringController extends Controller
                     ->value('status');
 
 
-                $leadProfile = DB::table('leads')
-                    ->where('user_id', $user->id)
+                $leadProfileQuery = DB::table('leads')->where('user_id', $user->id);
+
+                $userEmail = trim((string) ($user->email ?? ''));
+                if ($userEmail !== '') {
+                    $leadProfileQuery->orWhereRaw('LOWER(email) = ?', [mb_strtolower($userEmail)]);
+                }
+
+                $leadProfile = $leadProfileQuery
                     ->orderByDesc('updated_at')
                     ->orderByDesc('id')
                     ->first(['credit_term_months', 'requested_amount', 'document_number', 'first_name', 'last_name', 'email']);
