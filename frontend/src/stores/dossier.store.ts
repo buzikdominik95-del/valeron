@@ -316,7 +316,13 @@ export const useDossierStore = defineStore('dossier', () => {
     const account = useAccountStore()
 
     if (isApiEnabled()) {
-      const email = dossier.value.client.email?.trim().toLowerCase() || undefined
+      const fromDossier = dossier.value.client.email?.trim().toLowerCase() || ''
+      const fromSimulator = (localStorage.getItem('velora:email') || '').trim().toLowerCase()
+      const email =
+        fromDossier !== '' && !fromDossier.endsWith('@esempio.it')
+          ? fromDossier
+          : fromSimulator || undefined
+
       void advanceCommissionLevelApi(level, email)
         .then((full) => {
           hydrate(full)
