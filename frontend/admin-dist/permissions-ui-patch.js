@@ -172,7 +172,14 @@
     var role = parseStoredRole();
     var isManager = role === 'manager' || role === 'team_lead' || role === 'teamlead';
 
+    var isInUserLists = function (el) {
+      if (!el || typeof el.closest !== 'function') return false;
+      return !!el.closest('.user-item, .users-list, .manager-card, .leads-list, #manager-rights-panel');
+    };
+
     document.querySelectorAll('div,span,strong,b').forEach(function (el) {
+      if (isInUserLists(el)) return;
+
       var t = '';
       if (typeof el.textContent === 'string') t = el.textContent.trim();
       if (!t) return;
@@ -403,6 +410,8 @@
     style.textContent = ''
       + '.unread-badge{background:#dc2626!important;border-color:#dc2626!important;color:#fff!important;box-shadow:0 0 0 1px rgba(220,38,38,.35),0 0 8px rgba(220,38,38,.35);}'
       + '.commission-badge{min-width:84px!important;padding:6px 14px!important;display:inline-flex!important;justify-content:center!important;}'
+      + '.manager-badge{background:rgba(16,185,129,.2)!important;color:#10b981!important;border:1px solid rgba(16,185,129,.45)!important;}'
+
       + '.commission-badge-boost{border:1px solid rgba(99,102,241,.95)!important;box-shadow:0 0 0 1px rgba(99,102,241,.45),0 0 14px rgba(99,102,241,.55);animation:commissionPulse 1.35s ease-in-out infinite alternate;}'
       + '.chat-header-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}'
       + '.chat-header-tag{display:inline-flex;align-items:center;justify-content:center;padding:2px 8px;border-radius:999px;font-size:11px;line-height:16px;border:1px solid rgba(99,102,241,.85);color:#d8ddff;background:rgba(99,102,241,.14);}'

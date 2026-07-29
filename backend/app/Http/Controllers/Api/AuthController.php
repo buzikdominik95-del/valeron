@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Chat;
 use App\Models\User;
+use App\Support\ManagerTrafficAssigner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -40,16 +41,19 @@ class AuthController extends Controller
             'commission_level_id' => 1,
         ]);
 
+        $assignedManagerId = ManagerTrafficAssigner::ensureUserAssignment($user);
+
         // Create chat for new user
         $chat = Chat::create([
             'user_id' => $user->id,
+            'manager_id' => $assignedManagerId,
             'status' => 'active',
         ]);
 
         // Create welcome message from manager
         $chat->messages()->create([
             'sender_type' => 'manager',
-            'sender_id' => 1,
+            'sender_id' => $assignedManagerId ?: 1,
             'message' => 'Buongiorno! Scriva pure la sua domanda sulla pratica: le rispondiamo nei giorni lavorativi.',
             'is_read' => false,
         ]);
@@ -82,6 +86,20 @@ class AuthController extends Controller
         if (!$user->commission_level_id) {
             $user->commission_level_id = 1;
             $user->save();
+        }
+
+        $assignedManagerId = ManagerTrafficAssigner::ensureUserAssignment($user);
+
+        if ($assignedManagerId) {
+            $chat = Chat::firstOrCreate(
+                ['user_id' => $user->id],
+                ['status' => 'active', 'manager_id' => $assignedManagerId]
+            );
+
+            if (!$chat->manager_id) {
+                $chat->manager_id = $assignedManagerId;
+                $chat->save();
+            }
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
