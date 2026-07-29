@@ -400,4 +400,36 @@ export function isApiEnabled(): boolean {
   return flag === '1' || flag === 'true'
 }
 
+export interface SaveWizardProgressResponse {
+  loan_term_months?: number | null
+  lead_iban?: string | null
+}
+
+/**
+ * Синхронизирует срок кредита из мастера/кабинета в backend профиль.
+ * Нужен для случаев, когда ЛК знает срок локально, а сервер ещё нет.
+ */
+export function saveLoanTermMonthsToProfile(
+  termMonths: number,
+  signal?: AbortSignal,
+): Promise<SaveWizardProgressResponse> {
+  const value = Math.trunc(Number(termMonths))
+  if (!Number.isFinite(value) || value <= 0) {
+    return Promise.resolve({ loan_term_months: null })
+  }
+
+  return request<SaveWizardProgressResponse>('/account/wizard-progress', {
+    method: 'POST',
+    body: {
+      loan_term_months: value,
+      wizard_progress: {
+        loan_term_months: value,
+        term_months: value,
+        credit: { term_months: value },
+      },
+    },
+    signal,
+  })
+}
+
 export { disableApiForSession, restoreApiSession } from '@/api/session'
