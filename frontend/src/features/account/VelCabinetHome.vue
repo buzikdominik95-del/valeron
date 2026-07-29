@@ -28,6 +28,7 @@ const {
   isWaiting,
   isMessenger,
   isReady,
+  isRejectAnim,
   /* isReady used for L4 unlock intro band */
 } = useCommission()
 
@@ -75,14 +76,22 @@ const showTransferBand = computed(
 
 /**
  * Step tracker (todo) на L1–L2:
- * скрыт только во время анимации L2 и fail-сцены (suspended/pay_fee).
- * После сообщения (messenger/waiting) — снова виден (баннер + статус обновляются).
+ * на L2 после fail (сцена + Paga) tracker скрыт — место под анимацией.
+ * Баннер/статус — на карточке баланса; fail-anim остаётся и после messaggio.
  */
 const showTracker = computed(
   () =>
     level.value <= 2 &&
     !isAnimating.value &&
-    !(Number(level.value) === 2 && (isSuspended.value || isPayFee.value)),
+    !(
+      Number(level.value) === 2 &&
+      (isSuspended.value ||
+        isPayFee.value ||
+        isMessenger.value ||
+        isWaiting.value ||
+        isFailed.value ||
+        isRejectAnim.value)
+    ),
 )
 
 const stageKey = computed(() => {

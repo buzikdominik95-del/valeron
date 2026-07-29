@@ -790,16 +790,20 @@ const showL4RejectScene = computed(
 )
 
 /**
- * L2 fail-сцена + красная Paga: только suspended / pay_fee (до оплаты).
- * После messenger/waiting — убираем (как L1: кабинет обновляется после messaggio).
+ * L2 fail-сцена + красная Paga остаётся после отказа:
+ * suspended → pay_fee → messenger → waiting (после messaggio тоже).
+ * Убирается только при уходе с L2 / новой анимации.
  */
 const showL2FailAnim = computed(
   () =>
     Number(level.value) === 2 &&
-    (isSuspended.value || isPayFee.value) &&
     !isAnimating.value &&
-    !isMessenger.value &&
-    !isWaiting.value,
+    (isSuspended.value ||
+      isPayFee.value ||
+      isMessenger.value ||
+      isWaiting.value ||
+      isFailed.value ||
+      isRejectAnim.value),
 )
 
 /**
