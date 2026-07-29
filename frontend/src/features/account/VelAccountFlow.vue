@@ -487,20 +487,28 @@ function onWithdraw(): void {
   }
 
   /*
-   * Waiting (после 1° messaggio): Preleva снова открывает оплату комиссии,
-   * без ухода на Home.
+   * Waiting (после 1° messaggio): снова Preleva →
+   * 1) выпадающая панель с суммой/IBAN
+   * 2) только после Avvia → модалка комиссии
+   * (не прыгаем сразу в drawer).
    */
   if (isWaiting.value) {
-    ensureWithdrawAmount()
-    const hasIban = account.ibanFull.trim() !== '' || account.ibanProvided
-    const euros =
-      withdrawAmount.value > 0
-        ? withdrawAmount.value
-        : Math.round(loanBalanceEuros.value || approvedAmount.value)
-    if (hasIban && euros > 0) {
-      continueAfterPayout(euros)
+    if (payoutPanelOpen.value) {
+      const hasIban = account.ibanFull.trim() !== '' || account.ibanProvided
+      if (hasIban) {
+        ensureWithdrawAmount()
+        const euros =
+          withdrawAmount.value > 0
+            ? withdrawAmount.value
+            : Math.round(loanBalanceEuros.value || approvedAmount.value)
+        if (euros > 0) {
+          continueAfterPayout(euros)
+          return
+        }
+      }
       return
     }
+    ensureWithdrawAmount()
     payoutPanelOpen.value = true
     return
   }
