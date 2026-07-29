@@ -25,7 +25,7 @@ import VelContractIban from '@/features/account/VelContractIban.vue'
 import VelSignaturePad from '@/features/account/VelSignaturePad.vue'
 import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
 import VelLevelTransition from '@/features/account/VelLevelTransition.vue'
-import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
+
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
 import VelTransferAnim from '@/features/account/VelTransferAnim.vue'
 import VelL4UnlockAnim from '@/features/account/VelL4UnlockAnim.vue'
@@ -38,7 +38,7 @@ import VelDevCommissionBar from '@/features/account/VelDevCommissionBar.vue'
 import VelTransferSuccess from '@/features/account/VelTransferSuccess.vue'
 import VelAccountToast from '@/features/account/VelAccountToast.vue'
 import VelAgentToast from '@/features/account/VelAgentToast.vue'
-import VelWaitingAdmin from '@/features/account/VelWaitingAdmin.vue'
+
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useNotices } from '@/composables/useNotices'
 import { useAgentNotify } from '@/composables/useAgentNotify'
@@ -277,14 +277,6 @@ function ensureWelcomeMessages(): void {
 }
 
 /**
- * Системный toast после оплаты+сообщения (L4/воронка waiting).
- * Не уводит с чата сам — только по клику → Home + короткая прогрузка.
- */
-function showSystemWaitingToast(): void {
-  showAgentNotify('system')
-}
-
-/**
  * Документы verified — unlock firma.
  * БЕЗ toast менеджера / agentNotify / pushAgentMessage.
  */
@@ -354,29 +346,14 @@ function onAgentToastClose(): void {
 }
 
 function onContractSignConfirm(dataUrl: string): void {
-  const signedAt = new Date()
-
   /* Подпись сразу в стор → лист договора рисует PNG. */
-  account.markContractSigned(signedAt, dataUrl)
+  account.markContractSigned(new Date(), dataUrl)
   account.markDone('signature')
   /* Все 5 кружков step bar → done (каскад галочек в VelTrackerRow). */
   for (const id of ['simulation', 'approval', 'account', 'documents', 'signature'] as const) {
     account.markDone(id)
   }
   showToast(t('account.contract.toastSigned'))
-
-  if (!isApiEnabled()) return
-
-  void import('@/api/account.api').then(async ({ sendSignedContractEmail }) => {
-    try {
-      await sendSignedContractEmail({
-        signatureDataUrl: dataUrl,
-        signedAt: signedAt.toISOString(),
-      })
-    } catch (e) {
-      console.warn('[contract] signed contract email failed', e)
-    }
-  })
 }
 
 /*
@@ -486,7 +463,7 @@ const successOpen = ref(false)
  * Preleva — L2 sticky locked; L3 после CPI должна реально открывать вывод.
  */
 function onWithdraw(): void {
-  /* L2 sticky / suspend / pay_fee: зелёная Preleva молчит. */
+  /* L2 sticky / suspend / pay_fee: зелёная Preleva молчит (только после fail L2). */
   if (Number(level.value) === 2 && account.l2PrelevaLocked) return
   if (
     Number(level.value) === 2 &&
@@ -509,10 +486,39 @@ function onWithdraw(): void {
     return
   }
 
-  /* Waiting: остаёмся на Home — карточка «ожидайте инструкций». */
-  if (isWaiting.value) {
-    selectTab('home')
+  /*
+   * L1 waiting (после 1° messaggio): снова Preleva →
+   * 1) панель суммы  2) модалка комиссии.
+   * На L2 waiting не держим — при переходе на L2 phase → ready.
+   */
+  if (isWaiting.value && Number(level.value) === 1) {
+    if (payoutPanelOpen.value) {
+      const hasIban = account.ibanFull.trim() !== '' || account.ibanProvided
+      if (hasIban) {
+        ensureWithdrawAmount()
+        const euros =
+          withdrawAmount.value > 0
+            ? withdrawAmount.value
+            : Math.round(loanBalanceEuros.value || approvedAmount.value)
+        if (euros > 0) {
+          continueAfterPayout(euros)
+          return
+        }
+      }
+      return
+    }
+    ensureWithdrawAmount()
+    payoutPanelOpen.value = true
     return
+  }
+
+  /* L2: если phase залип на waiting — поднимаем ready и открываем панель. */
+  if (Number(level.value) === 2 && isWaiting.value) {
+    try {
+      dossier.setCommissionPhase('ready')
+    } catch {
+      /* */
+    }
   }
 
   /*
@@ -550,7 +556,8 @@ function onWithdraw(): void {
   }
 
   if (!canWithdraw.value) return
-  if (!isReady.value) return
+  /* ready или waiting (повторный Preleva после messaggio) */
+  if (!isReady.value && !isWaiting.value) return
 
   /*
    * Панель уже открыта: повторный Preleva = подтвердить (IBAN есть) и
@@ -639,6 +646,17 @@ function onCommissionConfirmed(): void {
   )
 }
 
+/**
+ * Закрыли drawer комиссии без оплаты (L1/L3):
+ * phase pay_fee → ready, иначе Preleva остаётся мёртвой.
+ */
+function onCommissionDismiss(): void {
+  if (!isPayFee.value) return
+  const lv = Number(level.value)
+  if (lv === 2) return /* L2: sticky fail / Paga — phase не сбрасываем */
+  dossier.setCommissionPhase('ready')
+}
+
 /*
  * L2: НЕ auto-open drawer / commission.
  * Только «Erogazione sospesa» → красная «Paga…» → openCommissionPayment.
@@ -664,9 +682,24 @@ watch(isPayFee, (on) => {
   openCommissionPayment()
 })
 
-/* L3+: снять sticky lock L2 */
-watch(level, (lv) => {
-  if (Number(lv) >= 3) account.clearL2PrelevaLock()
+/*
+ * Смена уровня (админ / пульт):
+ *  · L2 — свежий prelievo: снять sticky lock, phase ready (иначе Preleva «мёртвая»
+ *    после L1 waiting или старого L2 fail).
+ *  · L3+ — тоже снять L2 lock.
+ */
+watch(level, (lv, prev) => {
+  const n = Number(lv)
+  if (n >= 2) account.clearL2PrelevaLock()
+  if (n === 2 && Number(prev) !== 2) {
+    try {
+      dossier.setCommissionPhase('ready')
+    } catch {
+      /* */
+    }
+    payoutPanelOpen.value = false
+    commissionOpen.value = false
+  }
 })
 
 /** После оплаты → Assistenza + заготовка (L1…L4). */
@@ -682,15 +715,14 @@ watch(isMessenger, (needChat) => {
 })
 
 /*
- * Waiting после заготовки L1: Home + VelWaitingAdmin + Preleva locked.
- * Toast sistema — доп. подсказка.
+ * Waiting после заготовки: остаёмся где были (обычно Assistenza).
+ * Без редиректа Home, без system toast, без VelWaitingAdmin.
  */
 watch(isWaiting, (waiting, was) => {
   if (!(waiting && was === false)) return
-  selectTab('home')
   commissionOpen.value = false
   payoutPanelOpen.value = false
-  showSystemWaitingToast()
+  /* Не selectTab('home'), не showSystemWaitingToast */
 })
 
 /** PDF в модалке: шаблон + ФИО/сумма/IBAN/подпись как на старом проде. */
@@ -758,11 +790,15 @@ const showL4RejectScene = computed(
 )
 
 /**
- * L2: карточка «Paga» остаётся на suspended И на pay_fee (закрыли drawer
- * без оплаты — CTA не исчезает, пока не оплатили и не написали менеджеру).
+ * L2 после отказа анимации: сцена VelTransferAnim (failed) + красная Paga
+ * вместо «Le mie coordinate». Карточка «Dati trasmessi» (VelSuspensionCard)
+ * больше не показывается — только анимация.
  */
-const showL2SuspensionCard = computed(
-  () => level.value === 2 && (isSuspended.value || isPayFee.value),
+const showL2FailAnim = computed(
+  () =>
+    level.value === 2 &&
+    (isSuspended.value || isPayFee.value || isFailed.value || isRejectAnim.value) &&
+    !isAnimating.value,
 )
 
 /**
@@ -799,11 +835,12 @@ const showL4UnlockIntro = computed(
 
 const transferStage = computed((): { key: string; view: Component } | null => {
   if (isAnimating.value) return { key: `anim-${phase.value}`, view: VelTransferAnim }
-  if (showL2SuspensionCard.value) return { key: 'suspended', view: VelSuspensionCard }
+  /* L2 fail: только анимация (кнопка Paga на ней), без VelSuspensionCard */
+  if (showL2FailAnim.value) return { key: 'l2-fail', view: VelTransferAnim }
   /* L4 ready: intro unlock (finché non preme Preleva) */
   if (showL4UnlockIntro.value) return { key: 'l4-unlock', view: VelL4UnlockAnim }
-  /* После сообщения менеджеру: «ожидайте инструкций» + hourglass на Preleva. */
-  if (isWaiting.value) return { key: 'waiting', view: VelWaitingAdmin }
+  /* Waiting: карточка «Attendi le istruzioni» снята — только статус на балансе. */
+  if (isWaiting.value) return null
   /* L4 tg_final / failed: красная VelTransferAnim ниже (не success-карточка) */
   if (isFailed.value || isTgFinal.value) return null
   if (showClassicBank.value) return { key: 'bank', view: VelBankAuthorizing }
@@ -876,7 +913,7 @@ function openFreezeTelegram(): void {
  * Dev-пульт L1–L4: по умолчанию ВЫКЛ (уровни задаёт бэкенд).
  * Включить только явно: VITE_SHOW_PHASE_BAR=1 (локальный стенд).
  */
-const showDevBar = false
+const showDevBar = import.meta.env.VITE_SHOW_PHASE_BAR === '1'
 </script>
 
 <template>
@@ -904,11 +941,11 @@ const showDevBar = false
       </VelStageSwitch>
 
       <!--
-        L4: красная сцена вывода остаётся под freeze/TG;
-        L2 suspended/pay_fee → freeze-сцена под карточкой страховки.
+        L4: красная сцена вывода остаётся под freeze/TG.
+        L2 fail уже в transferStage (VelTransferAnim + Paga) — без дубля.
       -->
       <VelTransferAnim
-        v-if="showL4RejectScene || showL2SuspensionCard"
+        v-if="showL4RejectScene"
         class="mt-4"
         :reject-open="false"
         @open-reject="openFreezeReject"
@@ -949,6 +986,7 @@ const showDevBar = false
   <VelCommissionDrawer
     v-model:open="commissionOpen"
     @confirmed="onCommissionConfirmed"
+    @close="onCommissionDismiss"
   />
   <!-- IBAN отдельно, подпись (только росчерк) отдельно -->
   <VelContractIban v-model:open="contractIbanOpen" />
