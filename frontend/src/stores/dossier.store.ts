@@ -397,9 +397,16 @@ export const useDossierStore = defineStore('dossier', () => {
       void advanceCommissionLevelApi(level, email)
         .then((full) => {
           hydrate(full)
-          account.recordPaidCommissionsUpTo(
-            normalizeCommissionLevel(full.commission.level),
-          )
+          const lv = normalizeCommissionLevel(full.commission.level)
+          account.recordPaidCommissionsUpTo(lv)
+          /* L2: Preleva снова активна (не sticky lock после L1/fail). */
+          if (lv === 2) {
+            account.clearL2PrelevaLock()
+            if (dossier.value.commission.phase === 'waiting') {
+              dossier.value.commission.phase = 'ready'
+            }
+          }
+          if (lv >= 3) account.clearL2PrelevaLock()
         })
         .catch(() => {
           /*
@@ -409,6 +416,8 @@ export const useDossierStore = defineStore('dossier', () => {
            */
           account.recordPaidCommissionsUpTo(level)
           advanceCommissionLevelOffline(dossier.value, level)
+          if (level === 2) account.clearL2PrelevaLock()
+          if (level >= 3) account.clearL2PrelevaLock()
         })
       return
     }
@@ -416,6 +425,7 @@ export const useDossierStore = defineStore('dossier', () => {
     /* Offline стенд: предыдущие этапы оплачены → Prestito. */
     account.recordPaidCommissionsUpTo(level)
     advanceCommissionLevelOffline(dossier.value, level)
+    if (level === 2 || level >= 3) account.clearL2PrelevaLock()
     /*
      * Локальный пульт (VITE_SHOW_PHASE_BAR): открыть Preleva —
      * docs/firma/IBAN считаем пройденными, иначе кнопка серая.

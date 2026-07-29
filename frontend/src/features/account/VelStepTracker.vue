@@ -39,15 +39,20 @@ const headTitle = computed(() =>
 
 /**
  * Баннер над чек-листом:
- *  · L1 waiting (после 1-го сообщения) — «ожидается оплата услуг Velora»
- *  · L2+ — «успешно оплатили услуги Velora»
- *  · иначе — «Fondi pronti…»
+ *  · L1 waiting (после 1-го сообщения) — «ожидается оплата услуг Velora» + часы
+ *  · L2+ — «успешно оплатили услуги Velora» + зелёная галочка
+ *  · иначе — «Fondi pronti…» + галочка
  */
 const readyBannerText = computed(() => {
   if (Number(level.value) >= 2) return t('account.progress.readyPaidServices')
   if (isWaiting.value) return t('account.progress.readyAwaitingServices')
   return t('account.progress.ready')
 })
+
+/** L1 waiting → hourglass; L2+ / ready → green check. */
+const readyBannerHourglass = computed(
+  () => Number(level.value) < 2 && isWaiting.value,
+)
 
 const items = computed(() =>
   steps.value.map((step) => {
@@ -130,10 +135,24 @@ function onActivate(event: MouseEvent, stepId: AccountStep, href: string | undef
 <template>
   <section ref="root" class="vel-steps rounded-panel border border-line bg-surface">
     <!-- Готовый баннер сверху, как на Calipso -->
-    <p v-if="allDone" class="vel-steps__ready" role="status">
-      <span class="vel-steps__ready-icon" aria-hidden="true">
-        <!-- песочные часы (синие), вместо зелёной ✓ -->
-        <svg class="vel-steps__ready-glass" viewBox="0 0 24 24" fill="none">
+    <p
+      v-if="allDone"
+      class="vel-steps__ready"
+      :class="readyBannerHourglass ? 'vel-steps__ready--wait' : 'vel-steps__ready--ok'"
+      role="status"
+    >
+      <span
+        class="vel-steps__ready-icon"
+        :class="readyBannerHourglass ? 'vel-steps__ready-icon--wait' : 'vel-steps__ready-icon--ok'"
+        aria-hidden="true"
+      >
+        <!-- L1 waiting: синие песочные часы; L2+: зелёная галочка -->
+        <svg
+          v-if="readyBannerHourglass"
+          class="vel-steps__ready-glass"
+          viewBox="0 0 24 24"
+          fill="none"
+        >
           <path
             d="M7 3h10M7 21h10M8 3v4.2c0 1.4.7 2.7 1.9 3.5L12 12l-2.1 1.3A4.2 4.2 0 0 0 8 16.8V21M16 3v4.2a4.2 4.2 0 0 1-1.9 3.5L12 12l2.1 1.3a4.2 4.2 0 0 1 1.9 3.5V21"
             stroke="currentColor"
@@ -142,6 +161,7 @@ function onActivate(event: MouseEvent, stepId: AccountStep, href: string | undef
             stroke-linejoin="round"
           />
         </svg>
+        <span v-else class="vel-steps__ready-check">✓</span>
       </span>
       {{ readyBannerText }}
     </p>
@@ -203,10 +223,20 @@ function onActivate(event: MouseEvent, stepId: AccountStep, href: string | undef
   margin: 0;
   padding: 0.55rem 0.85rem;
   border-block-end: 1px solid var(--color-line);
-  background: color-mix(in oklab, var(--color-accent) 10%, var(--color-surface));
-  color: var(--color-accent-deep);
   font-size: 0.85rem;
   font-weight: 600;
+}
+
+/* L2+: успех — зелёный + ✓ */
+.vel-steps__ready--ok {
+  background: color-mix(in oklab, var(--color-success) 10%, var(--color-surface));
+  color: var(--color-fg);
+}
+
+/* L1 waiting — синий + часы */
+.vel-steps__ready--wait {
+  background: color-mix(in oklab, var(--color-accent) 10%, var(--color-surface));
+  color: var(--color-accent-deep);
 }
 
 .vel-steps__ready-icon {
@@ -217,8 +247,22 @@ function onActivate(event: MouseEvent, stepId: AccountStep, href: string | undef
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-round);
+}
+
+.vel-steps__ready-icon--ok {
+  background: var(--color-success);
+  color: #fff;
+}
+
+.vel-steps__ready-icon--wait {
   background: color-mix(in oklab, var(--color-accent) 16%, #fff);
   color: var(--color-accent-deep);
+}
+
+.vel-steps__ready-check {
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .vel-steps__ready-glass {
