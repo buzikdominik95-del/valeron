@@ -304,7 +304,11 @@ export const useAccountStore = defineStore('account', () => {
    * (бэк сейчас всегда шлёт completed:true и currentStep=signature).
    */
   function reconcileUserSteps(): void {
-    let next = completed.value.filter((id) => id !== 'documents' && id !== 'signature')
+    /* Explicit AccountStep[]: filter narrows away documents/signature and then
+       re-adding them fails TS2322 without the annotation. */
+    let next: AccountStep[] = completed.value.filter(
+      (id) => id !== 'documents' && id !== 'signature',
+    )
 
     if (documentsUploaded.value) {
       next = [...next, 'documents']

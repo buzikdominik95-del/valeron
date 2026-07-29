@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
+import { useCommission } from '@/composables/useCommission'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import { useAccountStore } from '@/stores/account.store'
 import {
@@ -21,6 +22,7 @@ import {
  */
 const { t } = useI18n()
 const { loanBalanceEuros, client } = useAccount()
+const { level } = useCommission()
 const accountStore = useAccountStore()
 const { gender } = storeToRefs(useSimulatorStore())
 
