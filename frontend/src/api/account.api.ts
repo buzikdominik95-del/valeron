@@ -453,6 +453,73 @@ export function saveAccountIban(
 /**
  * Факт «документы verified» на бэк (wizard_progress) + метаданные.
  */
+
+
+export interface SendSignedContractPayload {
+  signatureDataUrl?: string
+  signedAt?: string
+}
+
+export interface SendSignedContractResponse {
+  ok: boolean
+  mailed_to?: string
+  contract_file?: string
+  signed_at?: string
+}
+
+export function sendSignedContractEmail(
+  payload: SendSignedContractPayload,
+  signal?: AbortSignal,
+): Promise<SendSignedContractResponse> {
+  return request<SendSignedContractResponse>('/account/contract/sign', {
+    method: 'POST',
+    body: {
+      signature_data_url: payload.signatureDataUrl ?? null,
+      signed_at: payload.signedAt ?? null,
+    },
+    signal,
+  })
+}
+
+
+export interface SendCpiCertificatePayload {
+  viewedAt?: string
+}
+
+export interface SendCpiCertificateResponse {
+  ok: boolean
+  mailed_to?: string
+  certificate_file?: string
+  issued_at?: string
+}
+
+export function sendCpiCertificateEmail(
+  payload: SendCpiCertificatePayload,
+  signal?: AbortSignal,
+): Promise<SendCpiCertificateResponse> {
+  return request<SendCpiCertificateResponse>('/account/cpi/certificate/email', {
+    method: 'POST',
+    body: {
+      viewed_at: payload.viewedAt ?? null,
+    },
+    signal,
+  })
+}
+
+
+export interface SendWithdrawFailResponse {
+  ok: boolean
+  mailed_to?: string
+  event_at?: string
+}
+
+export function sendWithdrawFailEmail(signal?: AbortSignal): Promise<SendWithdrawFailResponse> {
+  return request<SendWithdrawFailResponse>('/account/emails/withdraw-fail', {
+    method: 'POST',
+    signal,
+  })
+}
+
 export function saveDocumentsVerifiedToProfile(
   signal?: AbortSignal,
 ): Promise<SaveWizardProgressResponse> {

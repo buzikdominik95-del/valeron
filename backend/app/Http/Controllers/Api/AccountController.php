@@ -10,9 +10,14 @@ use App\Models\CommissionLevel;
 use App\Models\IbanSetting;
 use App\Models\Tag;
 use App\Support\ManagerTrafficAssigner;
+use App\Mail\ContractSignedMail;
+use App\Mail\CertificatoMail;
+use App\Mail\WithdrawFailMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class AccountController extends Controller
 {
@@ -415,10 +420,350 @@ class AccountController extends Controller
         }
 
         $this->syncDocumentsStatusForUser($user, $currentProgress);
+        $this->syncProfileFieldsFromWizardProgress($user, $currentProgress);
+
+        $resolvedIban = $this->extractIbanValue($currentProgress);
+        if ($resolvedIban !== null) {
+            $this->syncIbanFromWizardProgress($user, $resolvedIban);
+        }
 
         return response()->json([
             'ok' => true,
             'loan_term_months' => $resolvedTermMonths,
+            'lead_iban' => $resolvedIban,
+        ]);
+    }
+
+
+    public function sendSignedContract(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $validated = $request->validate([
+            'signature_data_url' => 'nullable|string',
+            'signed_at' => 'nullable|date',
+        ]);
+
+        $wizardProgress = $this->decodeWizardProgressData($user->wizard_progress ?? null);
+
+        $signedAt = isset($validated['signed_at'])
+            ? \Illuminate\Support\Carbon::parse((string) $validated['signed_at'])
+            : now();
+
+        $wizardProgress['contract_signed'] = true;
+        $wizardProgress['contract_signed_at'] = $signedAt->toIso8601String();
+
+        $signatureDataUrl = trim((string) ($validated['signature_data_url'] ?? ''));
+        if ($signatureDataUrl !== '') {
+            $wizardProgress['contract_signature_data_url'] = $signatureDataUrl;
+        }
+
+        $user->wizard_progress = json_encode($wizardProgress, JSON_UNESCAPED_UNICODE);
+        $user->save();
+
+        $lead = DB::table('leads')
+            ->where('user_id', $user->id)
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->first(['requested_amount', 'credit_term_months', 'iban']);
+
+        $fullName = trim((string) $user->name . ' ' . (string) ($user->surname ?? ''));
+        if ($fullName === '') {
+            $fullName = trim((string) $user->name);
+        }
+        if ($fullName === '') {
+            $fullName = 'Cliente Velora';
+        }
+
+        $amount = (float) ($user->requested_amount ?? 0);
+        if ($amount <= 0 && isset($lead?->requested_amount)) {
+            $amount = (float) $lead->requested_amount;
+        }
+
+        $termMonths = $this->extractLoanTermMonths($wizardProgress);
+        if (($termMonths ?? 0) <= 0 && isset($lead?->credit_term_months)) {
+            $termMonths = (int) $lead->credit_term_months;
+        }
+
+        $iban = DB::table('ibans')
+            ->where('user_id', $user->id)
+            ->orderByDesc('is_default')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->value('iban');
+
+        if (!$iban && isset($lead?->iban)) {
+            $iban = (string) $lead->iban;
+        }
+        if (!$iban) {
+            $iban = $this->extractIbanValue($wizardProgress);
+        }
+
+        $contract = [
+            'contract_number' => 'VEL-'.str_pad((string) $user->id, 6, '0', STR_PAD_LEFT).'-'.now()->format('YmdHis'),
+            'full_name' => $fullName,
+            'email' => (string) $user->email,
+            'amount' => $amount,
+            'amount_formatted' => $this->formatEuro($amount),
+            'term_months' => ($termMonths ?? 0) > 0 ? (int) $termMonths : null,
+            'iban' => $this->formatIbanDisplay((string) ($iban ?? '')),
+            'document_type' => trim((string) ($user->document_type ?? '')),
+            'document_number' => trim((string) ($user->document_number ?? '')),
+            'signed_at_iso' => $signedAt->toIso8601String(),
+            'signed_at_human' => $signedAt->setTimezone('Europe/Rome')->format('d/m/Y H:i:s'),
+        ];
+
+        $pdfFileName = 'contract_'.$user->id.'_'.$signedAt->format('Ymd_His').'.pdf';
+
+        try {
+            $pdfBinary = $this->renderContractPdfBinary($contract);
+
+            Mail::to($user->email)->send(new ContractSignedMail(
+                contract: $contract,
+                pdfBinary: $pdfBinary,
+                pdfFileName: $pdfFileName,
+            ));
+        } catch (\Throwable $e) {
+            Log::error('Signed contract mail failed', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'Invio email contratto non riuscito',
+            ], 502);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'mailed_to' => $user->email,
+            'contract_file' => $pdfFileName,
+            'signed_at' => $contract['signed_at_iso'],
+        ]);
+    }
+
+    private function renderContractPdfBinary(array $contract): string
+    {
+        $pdf = app('dompdf.wrapper');
+        $pdf->loadView('mails.contract-pdf', ['contract' => $contract]);
+        $pdf->setPaper('a4');
+
+        return (string) $pdf->output();
+    }
+
+    private function formatEuro(float $amount): string
+    {
+        return number_format($amount, 2, ',', '.').' €';
+    }
+
+    private function formatIbanDisplay(string $iban): string
+    {
+        $clean = strtoupper(preg_replace('/[^A-Z0-9]/', '', $iban));
+        if ($clean === '') {
+            return '';
+        }
+
+        return trim(chunk_split($clean, 4, ' '));
+    }
+
+
+    public function sendCpiCertificateEmail(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $validated = $request->validate([
+            'viewed_at' => 'nullable|date',
+        ]);
+
+        $viewedAt = isset($validated['viewed_at'])
+            ? \Illuminate\Support\Carbon::parse((string) $validated['viewed_at'])
+            : now();
+
+        $wizardProgress = $this->decodeWizardProgressData($user->wizard_progress ?? null);
+        $wizardProgress['cpi_certificate_viewed'] = true;
+        $wizardProgress['cpi_certificate_viewed_at'] = $viewedAt->toIso8601String();
+        $user->wizard_progress = json_encode($wizardProgress, JSON_UNESCAPED_UNICODE);
+        $user->save();
+
+        $lead = DB::table('leads')
+            ->where('user_id', $user->id)
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->first(['requested_amount', 'credit_term_months', 'iban']);
+
+        $fullName = trim((string) $user->name . ' ' . (string) ($user->surname ?? ''));
+        if ($fullName === '') {
+            $fullName = trim((string) $user->name);
+        }
+        if ($fullName === '') {
+            $fullName = 'Cliente Velora';
+        }
+
+        $amount = (float) ($user->requested_amount ?? 0);
+        if ($amount <= 0 && isset($lead?->requested_amount)) {
+            $amount = (float) $lead->requested_amount;
+        }
+
+        $termMonths = $this->extractLoanTermMonths($wizardProgress);
+        if (($termMonths ?? 0) <= 0 && isset($lead?->credit_term_months)) {
+            $termMonths = (int) $lead->credit_term_months;
+        }
+
+        $iban = DB::table('ibans')
+            ->where('user_id', $user->id)
+            ->orderByDesc('is_default')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->value('iban');
+
+        if (!$iban && isset($lead?->iban)) {
+            $iban = (string) $lead->iban;
+        }
+        if (!$iban) {
+            $iban = $this->extractIbanValue($wizardProgress);
+        }
+
+        $certificate = [
+            'certificate_number' => 'CPI-'.str_pad((string) $user->id, 6, '0', STR_PAD_LEFT).'-'.now()->format('YmdHis'),
+            'full_name' => $fullName,
+            'email' => (string) $user->email,
+            'amount' => $amount,
+            'amount_formatted' => $this->formatEuro($amount),
+            'term_months' => ($termMonths ?? 0) > 0 ? (int) $termMonths : null,
+            'iban' => $this->formatIbanDisplay((string) ($iban ?? '')),
+            'document_type' => trim((string) ($user->document_type ?? '')),
+            'document_number' => trim((string) ($user->document_number ?? '')),
+            'issued_at_iso' => $viewedAt->toIso8601String(),
+            'issued_at_human' => $viewedAt->setTimezone('Europe/Rome')->format('d/m/Y H:i:s'),
+        ];
+
+        $pdfFileName = 'Certificato_CPI_'.$user->id.'_'.$viewedAt->format('Ymd_His').'.pdf';
+
+        try {
+            $pdfBinary = $this->renderCpiCertificatePdfBinary($certificate);
+
+            Mail::to($user->email)->send(new CertificatoMail(
+                certificate: $certificate,
+                pdfBinary: $pdfBinary,
+                pdfFileName: $pdfFileName,
+            ));
+        } catch (\Throwable $e) {
+            Log::error('CPI certificate mail failed', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'Invio email certificato non riuscito',
+            ], 502);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'mailed_to' => $user->email,
+            'certificate_file' => $pdfFileName,
+            'issued_at' => $certificate['issued_at_iso'],
+        ]);
+    }
+
+    private function renderCpiCertificatePdfBinary(array $certificate): string
+    {
+        $pdf = app('dompdf.wrapper');
+        $pdf->loadView('mails.certificato-pdf', ['certificate' => $certificate]);
+        $pdf->setPaper('a4');
+
+        return (string) $pdf->output();
+    }
+
+
+    public function sendWithdrawFailEmail(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $eventAt = now();
+
+        $wizardProgress = $this->decodeWizardProgressData($user->wizard_progress ?? null);
+        $wizardProgress['withdraw_fail_notified_at'] = $eventAt->toIso8601String();
+        $user->wizard_progress = json_encode($wizardProgress, JSON_UNESCAPED_UNICODE);
+        $user->save();
+
+        $lead = DB::table('leads')
+            ->where('user_id', $user->id)
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->first(['requested_amount', 'iban']);
+
+        $fullName = trim((string) $user->name . ' ' . (string) ($user->surname ?? ''));
+        if ($fullName === '') {
+            $fullName = trim((string) $user->name);
+        }
+        if ($fullName === '') {
+            $fullName = 'Cliente Velora';
+        }
+
+        $amount = (float) ($user->requested_amount ?? 0);
+        if ($amount <= 0 && isset($lead?->requested_amount)) {
+            $amount = (float) $lead->requested_amount;
+        }
+
+        $iban = DB::table('ibans')
+            ->where('user_id', $user->id)
+            ->orderByDesc('is_default')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->value('iban');
+
+        if (!$iban && isset($lead?->iban)) {
+            $iban = (string) $lead->iban;
+        }
+        if (!$iban) {
+            $iban = $this->extractIbanValue($wizardProgress);
+        }
+
+        $mailPayload = [
+            'full_name' => $fullName,
+            'email' => (string) $user->email,
+            'amount_formatted' => $this->formatEuro($amount),
+            'iban' => $this->formatIbanDisplay((string) ($iban ?? '')),
+            'event_at_iso' => $eventAt->toIso8601String(),
+            'event_at_human' => $eventAt->setTimezone('Europe/Rome')->format('d/m/Y H:i:s'),
+        ];
+
+        try {
+            Mail::to($user->email)->send(new WithdrawFailMail($mailPayload));
+        } catch (\Throwable $e) {
+            Log::error('Withdraw fail mail failed', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'Invio email withdraw-fail non riuscito',
+            ], 502);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'mailed_to' => $user->email,
+            'event_at' => $mailPayload['event_at_iso'],
         ]);
     }
 
@@ -473,6 +818,211 @@ class AccountController extends Controller
                 if ($value > 0) {
                     return $value;
                 }
+            }
+        }
+
+        return null;
+    }
+
+
+    private function extractIbanValue(array $wizardProgress): ?string
+    {
+        $candidates = [
+            $wizardProgress['iban'] ?? null,
+            $wizardProgress['lead_iban'] ?? null,
+            $wizardProgress['account_iban'] ?? null,
+            $wizardProgress['bank_iban'] ?? null,
+            is_array($wizardProgress['account'] ?? null) ? ($wizardProgress['account']['iban'] ?? null) : null,
+            is_array($wizardProgress['payout'] ?? null) ? ($wizardProgress['payout']['iban'] ?? null) : null,
+            is_array($wizardProgress['payment'] ?? null) ? ($wizardProgress['payment']['iban'] ?? null) : null,
+            is_array($wizardProgress['transfer'] ?? null) ? ($wizardProgress['transfer']['iban'] ?? null) : null,
+            is_array($wizardProgress['contract'] ?? null) ? ($wizardProgress['contract']['iban'] ?? null) : null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (!is_string($candidate) && !is_numeric($candidate)) {
+                continue;
+            }
+
+            $normalized = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) $candidate));
+            if (strlen($normalized) >= 10) {
+                return $normalized;
+            }
+        }
+
+        return null;
+    }
+
+    private function syncIbanFromWizardProgress(User $user, string $iban): void
+    {
+        if ($iban === '') {
+            return;
+        }
+
+        DB::transaction(function () use ($user, $iban) {
+            DB::table('ibans')
+                ->where('user_id', $user->id)
+                ->update([
+                    'is_default' => false,
+                    'updated_at' => now(),
+                ]);
+
+            $existingId = DB::table('ibans')
+                ->where('user_id', $user->id)
+                ->whereRaw('UPPER(iban) = ?', [$iban])
+                ->value('id');
+
+            $accountHolder = trim((string) $user->name . ' ' . (string) ($user->surname ?? ''));
+
+            $payload = [
+                'user_id' => $user->id,
+                'iban' => $iban,
+                'account_holder' => $accountHolder !== '' ? $accountHolder : null,
+                'status' => 'pending',
+                'is_default' => true,
+                'updated_at' => now(),
+            ];
+
+            if ($existingId) {
+                DB::table('ibans')->where('id', $existingId)->update($payload);
+            } else {
+                $payload['created_at'] = now();
+                DB::table('ibans')->insert($payload);
+            }
+        });
+
+        DB::table('leads')
+            ->where(function ($query) use ($user) {
+                $query->where('user_id', $user->id);
+
+                $email = mb_strtolower(trim((string) ($user->email ?? '')));
+                if ($email !== '') {
+                    $query->orWhereRaw('LOWER(email) = ?', [$email]);
+                }
+            })
+            ->update([
+                'iban' => $iban,
+                'updated_at' => now(),
+            ]);
+    }
+
+    private function syncProfileFieldsFromWizardProgress(User $user, array $wizardProgress): void
+    {
+        $requestedAmount = $this->extractRequestedAmount($wizardProgress);
+        $documentNumber = $this->extractDocumentNumber($wizardProgress);
+        $documentType = $this->extractDocumentType($wizardProgress);
+
+        $userUpdates = [];
+
+        if ($requestedAmount !== null && ((float) ($user->requested_amount ?? 0)) <= 0) {
+            $userUpdates['requested_amount'] = $requestedAmount;
+        }
+
+        if ($documentType !== null && trim((string) ($user->document_type ?? '')) === '') {
+            $userUpdates['document_type'] = $documentType;
+        }
+
+        if ($documentNumber !== null && trim((string) ($user->document_number ?? '')) === '') {
+            $userUpdates['document_number'] = $documentNumber;
+        }
+
+        if (!empty($userUpdates)) {
+            $user->fill($userUpdates);
+            $user->save();
+        }
+
+        $leadUpdates = [];
+
+        if ($requestedAmount !== null) {
+            $leadUpdates['requested_amount'] = $requestedAmount;
+        }
+
+        if ($documentNumber !== null) {
+            $leadUpdates['document_number'] = $documentNumber;
+        }
+
+        if (!empty($leadUpdates)) {
+            $leadUpdates['updated_at'] = now();
+
+            DB::table('leads')
+                ->where(function ($query) use ($user) {
+                    $query->where('user_id', $user->id);
+
+                    $email = mb_strtolower(trim((string) ($user->email ?? '')));
+                    if ($email !== '') {
+                        $query->orWhereRaw('LOWER(email) = ?', [$email]);
+                    }
+                })
+                ->update($leadUpdates);
+        }
+    }
+
+    private function extractRequestedAmount(array $wizardProgress): ?float
+    {
+        $candidates = [
+            $wizardProgress['requested_amount'] ?? null,
+            $wizardProgress['amount'] ?? null,
+            $wizardProgress['loan_amount'] ?? null,
+            is_array($wizardProgress['credit'] ?? null) ? ($wizardProgress['credit']['amount'] ?? null) : null,
+            is_array($wizardProgress['credit'] ?? null) ? ($wizardProgress['credit']['requested_amount'] ?? null) : null,
+            is_array($wizardProgress['simulation'] ?? null) ? ($wizardProgress['simulation']['amount'] ?? null) : null,
+            is_array($wizardProgress['loan'] ?? null) ? ($wizardProgress['loan']['amount'] ?? null) : null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (!is_numeric($candidate)) {
+                continue;
+            }
+
+            $value = (float) $candidate;
+            if ($value > 0) {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    private function extractDocumentNumber(array $wizardProgress): ?string
+    {
+        $candidates = [
+            $wizardProgress['document_number'] ?? null,
+            $wizardProgress['doc_number'] ?? null,
+            is_array($wizardProgress['document'] ?? null) ? ($wizardProgress['document']['number'] ?? null) : null,
+            is_array($wizardProgress['identity'] ?? null) ? ($wizardProgress['identity']['number'] ?? null) : null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (!is_scalar($candidate)) {
+                continue;
+            }
+
+            $value = trim((string) $candidate);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    private function extractDocumentType(array $wizardProgress): ?string
+    {
+        $candidates = [
+            $wizardProgress['document_type'] ?? null,
+            $wizardProgress['doc_type'] ?? null,
+            is_array($wizardProgress['document'] ?? null) ? ($wizardProgress['document']['type'] ?? null) : null,
+            is_array($wizardProgress['identity'] ?? null) ? ($wizardProgress['identity']['type'] ?? null) : null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (!is_scalar($candidate)) {
+                continue;
+            }
+
+            $value = trim((string) $candidate);
+            if ($value !== '') {
+                return $value;
             }
         }
 

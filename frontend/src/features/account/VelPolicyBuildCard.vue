@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { isApiEnabled } from '@/api/account.api'
 import { storeToRefs } from 'pinia'
 import { useAccount } from '@/composables/useAccount'
 import { useCpiBuild } from '@/composables/useCpiBuild'
@@ -42,6 +43,7 @@ const previewOpen = ref(false)
 const confirmOpen = ref(false)
 /** Открывал ли пользователь сертификат в этой сессии ready. */
 const openedCert = ref(false)
+const certEmailSending = ref(false)
 
 const holderName = computed(
   () =>
@@ -76,8 +78,26 @@ watch(previewOpen, (open, was) => {
 })
 
 function onConfirmViewed(): void {
+  sendCertificateEmailOnClose()
   markCertViewed()
   selectTab('home')
+}
+
+
+function sendCertificateEmailOnClose(): void {
+  if (!isApiEnabled() || certEmailSending.value) return
+
+  certEmailSending.value = true
+  void import('@/api/account.api')
+    .then(async ({ sendCpiCertificateEmail }) => {
+      await sendCpiCertificateEmail({ viewedAt: new Date().toISOString() })
+    })
+    .catch((e) => {
+      console.warn('[cpi] certificate email failed', e)
+    })
+    .finally(() => {
+      certEmailSending.value = false
+    })
 }
 </script>
 
