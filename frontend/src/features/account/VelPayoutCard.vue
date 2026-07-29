@@ -148,13 +148,14 @@ const withdrawLocked = computed(() => {
     isTgFinal.value ||
     isSuspended.value ||
     isPayFee.value ||
-    isMessenger.value ||
-    isWaiting.value
+    isMessenger.value
+    /* waiting: Preleva остаётся активной, воронка комиссии доступна снова */
   )
 })
 
 /**
- * Busy: анимация / messenger / waiting / CPI / authorizing.
+ * Busy: анимация / messenger / CPI / authorizing.
+ * waiting — не busy (Preleva и комиссия остаются).
  * pay_fee не busy — иначе после × модалки Preleva выглядела «мертвой».
  */
 const funnelBusy = computed(
@@ -164,7 +165,6 @@ const funnelBusy = computed(
     !isSuspended.value &&
     (isAnimating.value ||
       isMessenger.value ||
-      isWaiting.value ||
       cpiBlocksWithdraw.value ||
       isAuthorizing.value),
 )
@@ -213,11 +213,13 @@ function onOpenLoanClick(): void {
  */
 const prestitoUnseen = computed(() => {
   if (isTgFinal.value) return false
+  const lv = Number(level.value)
+  /* L2: Prestito без пульса (как обычная кнопка). Пульс только L3/L4. */
+  if (lv === 2) return false
   /* Новые строки комиссий в Prestito */
   if (accountStore.prestitoHasUnseen) return true
-  const lv = Number(level.value)
-  /* Переход на L2/L3/L4 — пульс, пока не заглянули в Prestito на этом уровне */
-  if (lv >= 2 && accountStore.prestitoPulseSeenLevel < lv) return true
+  /* Переход на L3/L4 — пульс, пока не заглянули в Prestito на этом уровне */
+  if (lv >= 3 && accountStore.prestitoPulseSeenLevel < lv) return true
   return false
 })
 
@@ -310,6 +312,10 @@ const withdrawLabel = computed(() =>
  * hold: только действия (pay_fee / messenger).
  */
 const balanceStatus = computed(() => {
+  /* 0) После messaggio (waiting) — всегда «In attesa del consulente» (L1/L2) */
+  if (isWaiting.value) {
+    return { kind: 'wait' as const, text: t('account.payout.balanceStatus.wait') }
+  }
   /* 1) Вывод отклонён — L2 suspended / L4 failed / tg_final / reject-сцена */
   if (
     isTgFinal.value ||
@@ -323,16 +329,15 @@ const balanceStatus = computed(() => {
   if (cpiBlocksWithdraw.value) {
     return { kind: 'cert' as const, text: t('account.payout.balanceStatus.cert') }
   }
-  /* 3) Ожидание консультанта */
-  if (isWaiting.value) {
-    return { kind: 'wait' as const, text: t('account.payout.balanceStatus.wait') }
-  }
   /* 4) Идёт перевод (анимация / authorizing) — только пока ещё не reject */
   if (isAnimating.value || isAuthorizing.value) {
     return { kind: 'loading' as const, text: t('account.payout.balanceStatus.loading') }
   }
-  /* 5) Нужно действие: оплатить комиссию / написать менеджеру */
-  if (isPayFee.value || isMessenger.value) {
+  /* 5) Нужно действие: messenger. pay_fee на L3 без drawer — не «плашка». */
+  if (isMessenger.value) {
+    return { kind: 'hold' as const, text: t('account.payout.balanceStatus.hold') }
+  }
+  if (isPayFee.value && Number(level.value) === 2) {
     return { kind: 'hold' as const, text: t('account.payout.balanceStatus.hold') }
   }
   /* 6) Можно выводить */

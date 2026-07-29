@@ -34,11 +34,23 @@ const method = ref<PayoutMethod>('iban')
 const accountValue = ref('')
 const holder = ref('')
 const minEuro = 100
-/** Как на карточке баланса (approvato + fee), не только base (фотка 4). */
-const maxEuro = computed(() =>
-  Math.max(minEuro, Math.round(loanBalanceEuros.value || approvedAmount.value)),
-)
+/**
+ * Max = тот же баланс, что на карточке (approvato + fee L2…).
+ * Слева (выбрано) и справа (max) всегда из одного источника.
+ */
+const maxEuro = computed(() => {
+  const bal = Math.round(loanBalanceEuros.value)
+  if (bal > 0) return Math.max(minEuro, bal)
+  const approved = Math.round(approvedAmount.value)
+  return Math.max(minEuro, approved > 0 ? approved : minEuro)
+})
 const amountEuro = ref(maxEuro.value)
+
+/* Не даём selected > max (иначе 13 808 / 13 500). */
+watch(maxEuro, (max) => {
+  if (amountEuro.value > max) amountEuro.value = max
+  if (amountEuro.value < minEuro) amountEuro.value = Math.min(max, minEuro)
+})
 
 const rule = computed(() => PAYOUT_ACCOUNT_RULES[method.value])
 const accountInput = useTemplateRef<ComponentPublicInstance>('accountInput')

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue'
+import { computed, inject, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useCommission } from '@/composables/useCommission'
@@ -9,6 +9,7 @@ import { usePanelMotion } from '@/composables/usePanelMotion'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import type { SceneLook } from '@/features/account/scene/transfer-palette'
+import { OPEN_COMMISSION_KEY } from '@/features/account/payout-panel'
 import VelTransferScene from '@/features/account/VelTransferScene.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
 import VelBorderBeam from '@/components/magic/VelBorderBeam.vue'
@@ -41,12 +42,16 @@ const {
   isRejectAnim,
   isSuspended,
   isPayFee,
+  isMessenger,
+  isWaiting,
   isTgFinal,
   level,
 } = useCommission()
 const { approvedAmount, loanBalanceEuros, client, transferAccountTail } = useAccount()
 const accountStore = useAccountStore()
 const { gender } = storeToRefs(useSimulatorStore())
+/** L2 after fail: CTA opens commission payment (from AccountFlow). */
+const openCommission = inject(OPEN_COMMISSION_KEY, null as null | (() => void))
 
 /**
  * Сумма на сцене = баланс вывода (approvato + fee L2/L3), не только base.
@@ -97,11 +102,33 @@ const sceneFailed = computed(
     isFailed.value ||
     isTgFinal.value ||
     isSuspended.value ||
-    (level.value === 2 && isPayFee.value),
+    (Number(level.value) === 2 &&
+      (isPayFee.value || isMessenger.value || isWaiting.value)),
 )
 
 /** CTA оплаты 280 снята — на L4 только TG, кнопку resolve не показываем. */
 const showResolveCta = computed(() => false)
+
+/**
+ * L2: красная Paga на fail-анимации — и после messaggio (messenger/waiting),
+ * чтобы снова открыть модалку комиссии.
+ */
+const showL2PagaCta = computed(
+  () =>
+    Number(level.value) === 2 &&
+    (isSuspended.value ||
+      isPayFee.value ||
+      isMessenger.value ||
+      isWaiting.value ||
+      isFailed.value ||
+      isRejectAnim.value),
+)
+
+const l2PagaLabel = computed(() => t('account.commission.suspension.cta'))
+
+function onL2PagaClick(): void {
+  if (typeof openCommission === 'function') openCommission()
+}
 
 const isGreenTone = computed(
   () => resolvePhase.value === 'green' || resolvePhase.value === 'to-green',
@@ -289,9 +316,21 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <!-- Кнопка → модалка с реквизитами (не inline-dropdown). -->
+    <!--
+      L2 fail: красная Paga (пульс) на месте «Le mie coordinate».
+      Иначе — модалка с реквизитами.
+    -->
     <div class="relative z-[1] mt-1">
-      <VelButton type="button" variant="outline" block @click="openCoords">
+      <button
+        v-if="showL2PagaCta"
+        type="button"
+        class="vel-l2-paga"
+        data-testid="transfer-l2-paga"
+        @click="onL2PagaClick"
+      >
+        {{ l2PagaLabel }}
+      </button>
+      <VelButton v-else type="button" variant="outline" block @click="openCoords">
         {{ t('account.commission.anim.showCoords') }}
       </VelButton>
     </div>
@@ -377,6 +416,56 @@ onBeforeUnmount(() => {
 
 .vel-pulse-mark {
   animation: vel-soft-pulse 2.4s ease-in-out infinite;
+}
+
+/* L2 fail: red Paga on the animation (replaces «Le mie coordinate»). */
+.vel-l2-paga {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-block-size: 2.85rem;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--color-danger);
+  color: #fff;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 0.35rem 1rem color-mix(in oklab, var(--color-danger) 35%, transparent);
+  animation: vel-l2-paga-pulse 1.15s ease-in-out infinite;
+}
+
+.vel-l2-paga:hover {
+  filter: brightness(1.05);
+}
+
+.vel-l2-paga:active {
+  transform: scale(0.99);
+}
+
+@keyframes vel-l2-paga-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-danger) 0%, transparent);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow:
+      0 0 0 6px color-mix(in oklab, var(--color-danger) 28%, transparent),
+      0 0.35rem 1.1rem color-mix(in oklab, var(--color-danger) 40%, transparent);
+    transform: scale(1.015);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-l2-paga {
+    animation: none;
+  }
 }
 
 .vel-transfer-scene-wrap--reject {

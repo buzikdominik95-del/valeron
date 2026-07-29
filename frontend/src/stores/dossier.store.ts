@@ -345,6 +345,15 @@ export const useDossierStore = defineStore('dossier', () => {
    */
   function markMessageSent(): void {
     dossier.value.commission.phase = 'waiting'
+    /*
+     * L2: после fail-анимации transfer мог остаться authorizing —
+     * сбрасываем, чтобы Home не «залипал» на отказе (статус/сцена).
+     */
+    if (normalizeCommissionLevel(dossier.value.commission.level) === 2) {
+      dossier.value.transfer.status = 'idle'
+      dossier.value.transfer.method = null
+      dossier.value.transfer.accountTail = ''
+    }
     /* Никакого EN «Commission receipt confirmed» — только phase. */
   }
 
@@ -426,22 +435,6 @@ export const useDossierStore = defineStore('dossier', () => {
     account.recordPaidCommissionsUpTo(level)
     advanceCommissionLevelOffline(dossier.value, level)
     if (level === 2 || level >= 3) account.clearL2PrelevaLock()
-    /*
-     * Локальный пульт (VITE_SHOW_PHASE_BAR): открыть Preleva —
-     * docs/firma/IBAN считаем пройденными, иначе кнопка серая.
-     */
-    if (import.meta.env.VITE_SHOW_PHASE_BAR === '1') {
-      account.documentsUploaded = true
-      account.contractSigned = true
-      account.ibanProvided = true
-      if (!account.ibanFull.trim()) {
-        account.ibanFull = 'IT60X0542811101000000123456'
-        account.ibanMasked = 'IT60 •••• •••• •••• 3456'
-      }
-      account.reconcileUserSteps()
-      account.advanceTo('signature')
-      account.markDone('signature')
-    }
   }
 
   /**

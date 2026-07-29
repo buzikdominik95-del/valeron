@@ -131,18 +131,15 @@ function onFileChange(event: Event): void {
   }
 
   const kind = kindForFile(file)
-  const reader = new FileReader()
-  reader.onload = () => {
-    const result = typeof reader.result === 'string' ? reader.result : null
-    if (!result) return
-    emit('update:pendingAttachment', {
-      kind,
-      name: file.name || (kind === 'image' ? 'photo.jpg' : 'file'),
-      url: result,
-      mime: file.type || (kind === 'image' ? 'image/jpeg' : 'application/octet-stream'),
-    })
-  }
-  reader.readAsDataURL(file)
+  /* blob: URL + File в памяти — не data: в localStorage (QuotaExceeded). */
+  const url = URL.createObjectURL(file)
+  emit('update:pendingAttachment', {
+    kind,
+    name: file.name || (kind === 'image' ? 'photo.jpg' : 'file'),
+    url,
+    mime: file.type || (kind === 'image' ? 'image/jpeg' : 'application/octet-stream'),
+    file,
+  })
   input.value = ''
 }
 </script>

