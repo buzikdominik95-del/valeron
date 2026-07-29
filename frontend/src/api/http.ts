@@ -32,6 +32,13 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 const HTTP_CSRF_EXPIRED = 419
 const AUTH_TOKEN_KEY = 'velora:authToken'
 
+/*
+ * /api auth endpoints не требуют Sanctum CSRF-cookie: backend принимает JSON
+ * и выдаёт Bearer token. Если принудительно дёргать /sanctum/csrf-cookie,
+ * за nginx-роутом фронта можно получить HTML вместо cookie и ложный фейл.
+ */
+const CSRF_BYPASS_PATHS = new Set(['/auth/login', '/auth/register', '/auth/demo-login'])
+
 export interface ApiValidationErrors {
   [field: string]: string[]
 }
@@ -170,9 +177,10 @@ export async function request<TResponse>(
 ): Promise<TResponse> {
   const method = (options.method ?? 'GET').toUpperCase()
   const mutating = !SAFE_METHODS.has(method)
+  const needsCsrf = mutating && !CSRF_BYPASS_PATHS.has(path)
 
   try {
-    if (mutating) {
+    if (needsCsrf) {
       await ensureCsrfCookie()
     }
 
@@ -180,7 +188,7 @@ export async function request<TResponse>(
 
     // Сессия протухла между получением куки и запросом — обновляем токен
     // и повторяем ровно один раз, чтобы не уйти в цикл.
-    if (response.status === HTTP_CSRF_EXPIRED && mutating) {
+    if (response.status === HTTP_CSRF_EXPIRED && needsCsrf) {
       expireCsrfCookie()
       await fetchCsrfCookie()
       response = await send(path, method, options)
