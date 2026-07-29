@@ -12,6 +12,11 @@ import type {
   PayoutMethod,
   PayoutTransferRequest,
 } from '@/api/account.api'
+import {
+  COMMISSION_FEE_BY_LEVEL,
+  commissionAddsToLoanBalance,
+  normalizeCommissionLevel,
+} from '@/api/commission'
 
 /**
  * Состояние личного кабинета одним окном для всех его блоков: карточка клиента,
@@ -81,6 +86,11 @@ export interface AccountApi {
   progress: ComputedRef<number>
   /** Одобренная сумма в евро (в ответе API — целые евроценты). */
   approvedAmount: ComputedRef<number>
+  /**
+   * Сумма на карточке баланса / вывода / L4-анимации:
+   * credito approvato + fee L2…L3 (не L1 base).
+   */
+  loanBalanceEuros: ComputedRef<number>
   ratePercent: ComputedRef<number>
   isNewOffer: ComputedRef<boolean>
   policyStatus: ComputedRef<AccountPolicyStatus>
@@ -195,6 +205,23 @@ export function useAccount(): AccountApi {
       : dossier.value.credit.approvedAmountCents / 100,
   )
 
+  /**
+   * Как на карточке Il tuo saldo / Prestito / L4 anim:
+   * base approvato + commissioni L2…L3 già pagate (non L1).
+   */
+  const loanBalanceEuros = computed(() => {
+    const lv = normalizeCommissionLevel(dossier.value.commission.level)
+    const list = accountStore.paidCommissionExpenses
+    let cents = 0
+    for (let feeLv = 1; feeLv < lv && feeLv <= 4; feeLv++) {
+      if (!commissionAddsToLoanBalance(feeLv)) continue
+      const row = list.find((e) => e.level === feeLv)
+      const fee = COMMISSION_FEE_BY_LEVEL[feeLv as 1 | 2 | 3 | 4]
+      cents += row?.amountCents ?? fee.amountCents
+    }
+    return approvedAmount.value + cents / 100
+  })
+
   const ratePercent = computed(() => dossier.value.credit.ratePercent)
   const isNewOffer = computed(() => dossier.value.credit.isNew)
 
@@ -231,6 +258,7 @@ export function useAccount(): AccountApi {
     allDone,
     progress,
     approvedAmount,
+    loanBalanceEuros,
     ratePercent,
     isNewOffer,
     policyStatus,

@@ -25,6 +25,18 @@ export type ChatAuthor = 'client' | 'agent'
  */
 export type ChatDelivery = 'local' | 'sent' | 'failed'
 
+/** Вложение в чате: фото или любой файл (локальный data URL). */
+export type ChatAttachmentKind = 'image' | 'file'
+
+export interface ChatAttachment {
+  kind: ChatAttachmentKind
+  /** Имя файла для UI и API-пометки. */
+  name: string
+  /** data: URL — превью / скачивание в браузере. */
+  url: string
+  mime: string
+}
+
 export interface ChatMessage {
   /** Растёт монотонно: ключ для v-for и порядок в ленте. */
   id: number
@@ -33,6 +45,14 @@ export interface ChatMessage {
   /** ISO-8601. Форматирует под язык экран, а не хранилище. */
   at: string
   delivery: ChatDelivery
+  /**
+   * Локальное превью фото (data URL). Не уходит на сервер как файл —
+   * только отображение в ленте; в API уходит текстовая пометка.
+   * @deprecated предпочитайте attachment
+   */
+  imageUrl?: string
+  /** Фото или файл (PDF, doc…). */
+  attachment?: ChatAttachment
 }
 
 /** Ключ хранилища. Префикс velora: — как у остального состояния кабинета. */
@@ -49,13 +69,30 @@ export const CHAT_MAX_LENGTH = 2000
 export function isChatMessage(value: unknown): value is ChatMessage {
   if (typeof value !== 'object' || value === null) return false
   const item = value as Partial<ChatMessage>
-  return (
-    typeof item.id === 'number' &&
-    (item.author === 'client' || item.author === 'agent') &&
-    typeof item.text === 'string' &&
-    typeof item.at === 'string' &&
-    (item.delivery === 'local' || item.delivery === 'sent' || item.delivery === 'failed')
-  )
+  if (
+    typeof item.id !== 'number' ||
+    (item.author !== 'client' && item.author !== 'agent') ||
+    typeof item.text !== 'string' ||
+    typeof item.at !== 'string' ||
+    (item.delivery !== 'local' && item.delivery !== 'sent' && item.delivery !== 'failed')
+  ) {
+    return false
+  }
+  if (item.imageUrl !== undefined && typeof item.imageUrl !== 'string') return false
+  if (item.attachment !== undefined) {
+    const a = item.attachment as Partial<ChatAttachment>
+    if (
+      typeof a !== 'object' ||
+      a === null ||
+      (a.kind !== 'image' && a.kind !== 'file') ||
+      typeof a.name !== 'string' ||
+      typeof a.url !== 'string' ||
+      typeof a.mime !== 'string'
+    ) {
+      return false
+    }
+  }
+  return true
 }
 
 /**

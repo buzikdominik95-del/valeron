@@ -48,7 +48,7 @@ const { t } = useI18n()
 const account = useAccountStore()
 const dossier = useDossierStore()
 const simulator = useSimulatorStore()
-const { steps, canWithdraw, isAuthorizing, approvedAmount } = useAccount()
+const { steps, canWithdraw, isAuthorizing, approvedAmount, loanBalanceEuros } = useAccount()
 const {
   isPayFee,
   isMessenger,
@@ -267,13 +267,14 @@ function showSystemWaitingToast(): void {
   showAgentNotify('system')
 }
 
-/** Только после verify (не при выборе файла) — unlock firma + agent msg (toast+badge). */
+/**
+ * Документы verified — unlock firma.
+ * Без автономного сообщения менеджера (только welcome; п.8 9999.txt).
+ */
 function onDocumentsVerified(): void {
   unlockFirmaAfterDocs()
   notices.push('documentVerified')
   showToast(t('account.docs.toastReady'))
-  /* toast + badge + notice — внутри pushAgentMessage */
-  supportChat.pushAgentMessage(t('account.support.chat.docsVerified'))
 }
 
 function onAgentToastOpen(): void {
@@ -307,15 +308,28 @@ function onContractSignConfirm(dataUrl: string): void {
 }
 
 /*
- * Все 5 шагов step bar закрыты (обычно после Firma) → toast + badge Assistenza.
- * Только переход false → true: не дублируем при reload с уже готовым ЛК.
- * Notice «contractSigned» уже пушит useNotices при markContractSigned.
+ * Документы + IBAN + подпись → системное «вывод разблокирован».
+ * Клик по toast → Home (onAgentToastOpen system). Без фейковых msg менеджера.
  */
-/*
- * allDone больше не шлёт фейковый managerMessage / badge:
- * иначе 3 уведомления «от консультанта» при 1 реальном сообщении (фотка 3).
- */
+const withdrawUnlockSeen = useSessionStorage('velora:cabinet:withdraw-unlock-notice', false)
 
+watch(
+  () =>
+    Boolean(account.documentsUploaded) &&
+    Boolean(account.contractSigned) &&
+    (Boolean(account.ibanProvided) || account.ibanFull.trim() !== ''),
+  (ready, was) => {
+    if (!ready || was === true || was === undefined) return
+    if (withdrawUnlockSeen.value) return
+    withdrawUnlockSeen.value = true
+    try {
+      notices.push('withdrawAvailable')
+    } catch {
+      /* storage */
+    }
+    showAgentNotify('system')
+  },
+)
 
 function openContractIban(): void {
   contractIbanOpen.value = true
@@ -367,11 +381,16 @@ function startWithdrawFunnel(): void {
 }
 
 /**
- * Сумма для drawer: после L2-анимации ref может быть 0 (F5 / другой вход).
- * Берём одобренный кредит — не гоняем снова в Preleva.
+ * Сумма для drawer / L4 anim: полный баланс (approvato + fee),
+ * не только base — иначе анимация расходится с Preleva.
  */
 function ensureWithdrawAmount(): void {
   if (withdrawAmount.value > 0) return
+  const bal = Math.round(loanBalanceEuros.value)
+  if (bal > 0) {
+    withdrawAmount.value = bal
+    return
+  }
   const approved = Math.round(approvedAmount.value)
   if (approved > 0) withdrawAmount.value = approved
 }
@@ -398,9 +417,8 @@ const successOpen = ref(false)
 function onWithdraw(): void {
   if (!canWithdraw.value) return
 
-  /* Уже в оплате комиссии — снова drawer (закрыли без оплаты). */
-  if (isPayFee.value) {
-    openCommissionPayment()
+  /* L2: Preleva неактивна — оплата только через «Paga la copertura». */
+  if (isRejectAnim.value || isSuspended.value || isPayFee.value) {
     return
   }
 
@@ -421,15 +439,16 @@ function onWithdraw(): void {
     return
   }
 
-  /* L2 страховка: pay_fee → сразу комиссия (не Preleva). */
-  if (isSuspended.value) {
-    openFeeFromSuspension()
-    openCommissionPayment()
-    return
-  }
+  /*
+   * L3 после CPI (галочка): Preleva должна открывать вывод.
+   * Раньше при phase≠ready кнопка выглядела активной (certViewed),
+   * а onWithdraw молча выходил — «ничего не происходит».
+   */
+  const cpiUnlocked =
+    Number(level.value) === 3 &&
+    (certViewed.value || cpiStep.value === 'viewed')
 
-  /* Анимация / policy / отказ — кнопки нет (VelPayoutCard.withdrawLocked). */
-  if (!isReady.value) return
+  if (!isReady.value && !cpiUnlocked) return
 
   /*
    * Панель уже открыта: повторный Preleva = подтвердить (IBAN есть) и
@@ -442,7 +461,7 @@ function onWithdraw(): void {
       const euros =
         withdrawAmount.value > 0
           ? withdrawAmount.value
-          : Math.round(approvedAmount.value)
+          : Math.round(loanBalanceEuros.value || approvedAmount.value)
       if (euros > 0) {
         continueAfterPayout(euros)
         return

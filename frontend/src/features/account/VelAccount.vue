@@ -5,6 +5,7 @@ import { useAccount } from '@/composables/useAccount'
 import { useAccountStore } from '@/stores/account.store'
 import { useCommission } from '@/composables/useCommission'
 import { CABINET_HEADING_ID, useCabinetTab } from '@/composables/useCabinetTab'
+import { useNotices } from '@/composables/useNotices'
 import { useSupportChat } from '@/composables/useSupportChat'
 import { useShellHeadHeight } from '@/composables/useShellHeadHeight'
 import { useHeaderCondense } from '@/composables/useHeaderCondense'
@@ -168,7 +169,15 @@ useShellHeadHeight(headEl, rootEl, () => condensed.value)
  * Открытие Assistenza гасит бейдж непрочитанных: человек уже «прочитал».
  */
 watch(tab, async (next) => {
-  if (next === 'support') accountStore.clearSupportUnread()
+  if (next === 'support') {
+    /* Badge Assistenza + колокольчик managerMessage гаснут после прочтения. */
+    accountStore.clearSupportUnread()
+    try {
+      useNotices().markKindRead('managerMessage')
+    } catch {
+      /* notices optional */
+    }
+  }
   await nextTick()
   document.getElementById(CABINET_HEADING_ID)?.focus()
 })

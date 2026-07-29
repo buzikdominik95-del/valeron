@@ -217,6 +217,7 @@ export default {
         /**
          * Welcome: due bolle (foto 4), subito all’ingresso in LК (non dopo 15 s).
          */
+        /* Foto 5: due bolle, testo esatto (non il lungo Buongiorno 👋). */
         welcomeMsg:
           'Salve. Mi chiamo Deborah, sarò la sua consulente personale dedicata.',
         welcomeMsg2: 'Se avrà domande, non esiti a scrivermi.',
@@ -226,6 +227,12 @@ export default {
         placeholder: 'Scrivi un messaggio…',
         funnelPlaceholder: 'Messaggio preparato per il consulente…',
         send: 'Invia',
+        attachPhoto: 'Allega una foto',
+        attachFile: 'Allega foto o file',
+        removePhoto: 'Rimuovi foto',
+        removeFile: 'Rimuovi allegato',
+        photoAttached: '[Foto allegata]',
+        fileAttached: '[File allegato: {name}]',
         /* Состояние отправки словом, а не галочками: пока нет сервера,
            «доставлено» поставить неоткуда. */
         stateLocal: 'in attesa di invio',
@@ -1351,6 +1358,7 @@ export default {
         docsVerified:
           'Здравствуйте! Документы получены и успешно проверены. Можете продолжить с IBAN и подписью договора во вкладке Documenti. Если будут вопросы — я на связи.',
         /** Welcome: 2 пузыря (фотка 4), сразу при входе в ЛК. */
+        /* Foto 5: два пузыря, точный текст. */
         welcomeMsg:
           'Salve. Mi chiamo Deborah, sarò la sua consulente personale dedicata.',
         welcomeMsg2: 'Se avrà domande, non esiti a scrivermi.',
@@ -1360,6 +1368,12 @@ export default {
         placeholder: 'Написать сообщение…',
         funnelPlaceholder: 'Подготовленное сообщение консультанту…',
         send: 'Отправить',
+        attachPhoto: 'Прикрепить фото',
+        attachFile: 'Прикрепить фото или файл',
+        removePhoto: 'Убрать фото',
+        removeFile: 'Убрать вложение',
+        photoAttached: '[Фото прикреплено]',
+        fileAttached: '[Файл: {name}]',
         stateLocal: 'ожидает отправки',
         stateFailed: 'не отправлено',
         localNote:

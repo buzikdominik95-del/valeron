@@ -3,10 +3,8 @@ import { computed, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
-import { useCommission } from '@/composables/useCommission'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import { useAccountStore } from '@/stores/account.store'
-import { COMMISSION_FEE_BY_LEVEL, commissionAddsToLoanBalance } from '@/api/commission'
 import {
   drawL4UnlockFrame,
   L4_UNLOCK_FPS,
@@ -22,26 +20,12 @@ import {
  * Importo = saldo attuale (approvato + commissioni L2…L3), non solo base iniziale.
  */
 const { t } = useI18n()
-const { approvedAmount, client } = useAccount()
-const { level } = useCommission()
+const { loanBalanceEuros, client } = useAccount()
 const accountStore = useAccountStore()
 const { gender } = storeToRefs(useSimulatorStore())
 
-/**
- * Stesso importo della card saldo / Prestito:
- * credito approvato + fee L2…L3 (non L1 base).
- */
-const balanceEuros = computed(() => {
-  const list = accountStore.paidCommissionExpenses
-  let cents = 0
-  for (let lv = 1; lv < level.value && lv <= 4; lv++) {
-    if (!commissionAddsToLoanBalance(lv)) continue
-    const row = list.find((e) => e.level === lv)
-    const fee = COMMISSION_FEE_BY_LEVEL[lv as 1 | 2 | 3 | 4]
-    cents += row?.amountCents ?? fee.amountCents
-  }
-  return approvedAmount.value + cents / 100
-})
+/** Stesso importo della card saldo / Preleva / transfer anim. */
+const balanceEuros = loanBalanceEuros
 
 const canvasEl = useTemplateRef<HTMLCanvasElement>('canvas')
 

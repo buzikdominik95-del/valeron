@@ -8,7 +8,6 @@ import {
   fetchAccount,
   isApiEnabled,
   submitCommissionPaid,
-  submitSupportMessage,
   submitTransfer,
 } from '@/api/account.api'
 import {
@@ -309,17 +308,13 @@ export const useDossierStore = defineStore('dossier', () => {
   /**
    * Сообщение менеджеру отправлено → waiting.
    * Offline-first. Без pullAccount: ответ API мог сбросить phase waiting.
+   *
+   * Не шлём второй текст в чат: клиент уже отправил итальянский шаблон
+   * (kind=commission) через useSupportChat.send. Старый EN
+   * «Commission receipt confirmed» попадал в ленту (фотка 3).
    */
   function markMessageSent(): void {
     dossier.value.commission.phase = 'waiting'
-
-    if (!isApiEnabled()) return
-
-    void submitSupportMessage({
-      body: 'Commission receipt confirmed',
-      kind: 'commission',
-      level: dossier.value.commission.level,
-    }).catch(() => undefined)
   }
 
   /**
