@@ -146,6 +146,30 @@ export const useDossierStore = defineStore('dossier', () => {
     }
 
     dossier.value = copy
+
+    /*
+     * lead_iban с GET /account → local account.store (иначе после F5 IBAN «пропал»).
+     * silent: не POST обратно.
+     */
+    try {
+      const leadIban =
+        (typeof (copy as { lead_iban?: string | null }).lead_iban === 'string'
+          ? (copy as { lead_iban?: string }).lead_iban
+          : null) ||
+        (typeof (copy.client as { lead_iban?: string | null } | undefined)?.lead_iban ===
+        'string'
+          ? (copy.client as { lead_iban?: string }).lead_iban
+          : null)
+
+      if (leadIban && leadIban.replace(/\s/g, '').length >= 10) {
+        const account = useAccountStore()
+        if (!account.ibanFull || account.ibanFull.replace(/\s/g, '').length < 10) {
+          account.setIbanFromRaw(leadIban, { silent: true })
+        }
+      }
+    } catch {
+      /* store optional during early boot */
+    }
   }
 
   /**
