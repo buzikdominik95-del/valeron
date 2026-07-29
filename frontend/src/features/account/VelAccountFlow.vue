@@ -7,7 +7,8 @@ import { useCommission } from '@/composables/useCommission'
 import { useCpiBuild } from '@/composables/useCpiBuild'
 import { useAccountStore } from '@/stores/account.store'
 import { useDossierStore } from '@/stores/dossier.store'
-import { isApiEnabled } from '@/api/account.api'
+import { useSimulatorStore } from '@/stores/simulator.store'
+import { isApiEnabled, saveLoanTermMonthsToProfile } from '@/api/account.api'
 
 import VelAccount from '@/features/account/VelAccount.vue'
 import VelPayoutCard from '@/features/account/VelPayoutCard.vue'
@@ -46,6 +47,7 @@ import { useSupportChat } from '@/composables/useSupportChat'
 const { t } = useI18n()
 const account = useAccountStore()
 const dossier = useDossierStore()
+const simulator = useSimulatorStore()
 const { steps, canWithdraw, isAuthorizing, approvedAmount } = useAccount()
 const {
   isPayFee,
@@ -82,6 +84,15 @@ const supportChat = useSupportChat()
 const apiError = ref<string | null>(null)
 let accountSyncTimer: number | null = null
 const ACCOUNT_SYNC_INTERVAL_MS = 12_000
+
+function syncProfileTermToBackend(): void {
+  if (!isApiEnabled()) return
+
+  const termMonths = Number(simulator.termMonths ?? 0)
+  if (!Number.isFinite(termMonths) || termMonths <= 0) return
+
+  void saveLoanTermMonthsToProfile(termMonths)
+}
 
 async function syncAccountNow(): Promise<void> {
   if (!isApiEnabled()) return
@@ -130,6 +141,7 @@ onMounted(() => {
 
   if (!isApiEnabled()) return
   void syncAccountNow()
+  syncProfileTermToBackend()
   startAccountSync()
   document.addEventListener('visibilitychange', onCabinetVisible)
 })
