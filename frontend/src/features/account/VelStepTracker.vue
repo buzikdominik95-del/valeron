@@ -39,20 +39,18 @@ const headTitle = computed(() =>
 
 /**
  * Баннер над чек-листом:
- *  · L1 waiting (после 1-го сообщения) — «ожидается оплата услуг Velora» + часы
- *  · L2+ — «успешно оплатили услуги Velora» + зелёная галочка
- *  · иначе — «Fondi pronti…» + галочка
+ *  · waiting (L1 после 1° msg / L2 после copertura+msg) — attesa + часы
+ *  · L2+ ready (ещё не waiting) — «успешно оплатили» + ✓
+ *  · иначе — «Fondi pronti…» + ✓
  */
 const readyBannerText = computed(() => {
-  if (Number(level.value) >= 2) return t('account.progress.readyPaidServices')
   if (isWaiting.value) return t('account.progress.readyAwaitingServices')
+  if (Number(level.value) >= 2) return t('account.progress.readyPaidServices')
   return t('account.progress.ready')
 })
 
-/** L1 waiting → hourglass; L2+ / ready → green check. */
-const readyBannerHourglass = computed(
-  () => Number(level.value) < 2 && isWaiting.value,
-)
+/** waiting (любой уровень) → hourglass; иначе → green check. */
+const readyBannerHourglass = computed(() => isWaiting.value)
 
 const items = computed(() =>
   steps.value.map((step) => {

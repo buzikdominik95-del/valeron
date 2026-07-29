@@ -76,16 +76,14 @@ const showTransferBand = computed(
 
 /**
  * Step tracker (todo) на L1–L2:
- * до Preleva — виден; после анимации / отказа L2 — заменяется сценой.
+ * скрыт только во время анимации L2 и fail-сцены (suspended/pay_fee).
+ * После сообщения (messenger/waiting) — снова виден (баннер + статус обновляются).
  */
 const showTracker = computed(
   () =>
     level.value <= 2 &&
     !isAnimating.value &&
-    !(
-      level.value === 2 &&
-      (isFailed.value || isSuspended.value || isPayFee.value || isRejectAnim.value)
-    ),
+    !(Number(level.value) === 2 && (isSuspended.value || isPayFee.value)),
 )
 
 const stageKey = computed(() => {
