@@ -263,8 +263,7 @@ export const useDossierStore = defineStore('dossier', () => {
 
   /**
    * Сообщение менеджеру отправлено → waiting.
-   * Offline-first: waiting сразу; API опционален.
-   * Финал Telegram — phase tg_final после отказной анимации L4 (не после чата).
+   * Offline-first. Без pullAccount: ответ API мог сбросить phase waiting.
    */
   function markMessageSent(): void {
     dossier.value.commission.phase = 'waiting'
@@ -275,9 +274,7 @@ export const useDossierStore = defineStore('dossier', () => {
       body: 'Commission receipt confirmed',
       kind: 'commission',
       level: dossier.value.commission.level,
-    })
-      .then(() => pullAccount())
-      .catch(() => undefined)
+    }).catch(() => undefined)
   }
 
   /**
@@ -309,28 +306,30 @@ export const useDossierStore = defineStore('dossier', () => {
   }
 
   /**
-   * Флаг админа / DEV-бар: перевести клиента на уровень N.
+   * Смена уровня комиссии.
    *
-   * СНАЧАЛА локально (чтобы кнопки L1–L4 работали даже при живом API, если
-   * admin endpoint ещё не готов или отвечает ошибкой). Если API включён —
-   * параллельно шлём на сервер; успех подтянет hydrate, сбой оставляет
-   * локальное состояние.
+   * С живым API — только сервер: POST /admin/commission/advance → hydrate.
+   * Клиент не подменяет level offline (иначе деплой с беком «ломается»).
+   * Offline-демо (без VITE_USE_API) — localStorage / DEV-бар.
    */
   function advanceCommissionLevel(level: CommissionLevel): void {
     const account = useAccountStore()
-    /* Admin/demo: предыдущие этапы оплачены → строки + точка на Prestito. */
+
+    if (isApiEnabled()) {
+      void advanceCommissionLevelApi(level)
+        .then((full) => {
+          hydrate(full)
+          account.recordPaidCommissionsUpTo(
+            normalizeCommissionLevel(full.commission.level),
+          )
+        })
+        .catch(() => undefined)
+      return
+    }
+
+    /* Offline стенд: предыдущие этапы оплачены → Prestito. */
     account.recordPaidCommissionsUpTo(level)
-    /*
-     * Не гасим пульс: prestitoPulseSeenLevel < newLevel → точка снова горит
-     * (в т.ч. L3→L4, раньше L4 не входил в условие).
-     */
     advanceCommissionLevelOffline(dossier.value, level)
-
-    if (!isApiEnabled()) return
-
-    void advanceCommissionLevelApi(level)
-      .then(hydrate)
-      .catch(() => undefined)
   }
 
   /**

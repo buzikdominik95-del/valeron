@@ -560,13 +560,15 @@ watch(isMessenger, (needChat) => {
 })
 
 /*
- * Waiting: НЕ редиректим сразу на Home.
- * Показываем системный toast сверху (как после docs); клик → Home + анимация.
+ * Waiting после заготовки L1: Home + VelWaitingAdmin + Preleva locked.
+ * Toast sistema — доп. подсказка.
  */
 watch(isWaiting, (waiting, was) => {
-  if (waiting && was === false) {
-    showSystemWaitingToast()
-  }
+  if (!(waiting && was === false)) return
+  selectTab('home')
+  commissionOpen.value = false
+  payoutPanelOpen.value = false
+  showSystemWaitingToast()
 })
 
 /** PDF в модалке: шаблон + ФИО/сумма/IBAN/подпись как на старом проде. */
@@ -749,13 +751,12 @@ function openFreezeTelegram(): void {
 }
 
 /*
- * Переключатель фаз L1–L4 — всегда на экране (демо + стенд + прод-сборка).
- * Скрыть только явным флагом: VITE_HIDE_PHASE_BAR=1
+ * Dev-пульт L1–L4: по умолчанию ВЫКЛ (уровни задаёт бэкенд).
+ * Включить только явно: VITE_SHOW_PHASE_BAR=1 (локальный стенд).
  */
-const showDevBar = !(
-  import.meta.env.VITE_HIDE_PHASE_BAR === '1' ||
-  import.meta.env.VITE_HIDE_PHASE_BAR === 'true'
-)
+const showDevBar =
+  import.meta.env.VITE_SHOW_PHASE_BAR === '1' ||
+  import.meta.env.VITE_SHOW_PHASE_BAR === 'true'
 </script>
 
 <template>
@@ -851,7 +852,7 @@ const showDevBar = !(
   <!-- Полноэкранный финал перевода: сам уходит по таймеру, закрывается по Esc -->
   <VelTransferSuccess v-model:open="successOpen" />
 
-  <!-- Пульт L1–L4 (L5 снят); на финале тоже виден, чтобы сбросить уровень. -->
+  <!-- Dev-пульт L1–L4: только VITE_SHOW_PHASE_BAR=1. Прод — уровни с бека. -->
   <VelDevCommissionBar v-if="showDevBar" />
 
   <VelAccountToast :text="toastText" />
