@@ -22,8 +22,11 @@ class AdminAuthController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $admin = AdminUser::where('email', $request->login)
-            ->orWhere('name', $request->login)
+        $login = trim((string) $request->login);
+
+        $admin = AdminUser::query()
+            ->whereRaw('LOWER(email) = ?', [mb_strtolower($login)])
+            ->orWhere('name', $login)
             ->first();
 
         if (!$admin) {
@@ -54,20 +57,33 @@ class AdminAuthController extends Controller
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $user = $request->user('sanctum') ?? $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $token = $user->currentAccessToken();
+        if ($token) {
+            $token->delete();
+        }
 
         return response()->json(['message' => 'Logged out']);
     }
 
     public function me(Request $request)
     {
+        $user = $request->user('sanctum') ?? $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
         return response()->json([
             'user' => [
-                'id' => $request->user()->id,
-                'name' => $request->user()->name,
-                'email' => $request->user()->email,
-                'role' => $request->user()->role ?? 'admin',
-                'hidden_elements' => AdminUiPermissionStore::getFor((int) $request->user()->id),
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role ?? 'admin',
+                'hidden_elements' => AdminUiPermissionStore::getFor((int) $user->id),
             ],
         ]);
     }
