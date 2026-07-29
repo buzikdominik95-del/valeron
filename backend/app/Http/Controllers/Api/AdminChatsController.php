@@ -36,7 +36,7 @@ class AdminChatsController extends Controller
     {
         $chat = Chat::with(['user', 'tags:id'])->findOrFail($id);
 
-        $leadProfile = $this->resolveLeadProfileForUser((int) $chat->user_id);
+        $leadProfile = $this->resolveLeadProfileForUser((int) $chat->user_id, $chat->user->email ?? null);
 
         $leadIban = $this->resolveLeadIbanForUser((int) $chat->user_id, $leadProfile);
 
@@ -194,7 +194,7 @@ class AdminChatsController extends Controller
         $user = $chat->user;
         $unreadCount = $this->countUnreadClientMessages((int) $chat->id);
         $documentsCount = (int) ($chat->documents_count ?? 0);
-        $leadProfile = $this->resolveLeadProfileForUser((int) $chat->user_id);
+        $leadProfile = $this->resolveLeadProfileForUser((int) $chat->user_id, $chat->user->email ?? null);
 
         return [
             'id' => $chat->id,
@@ -312,10 +312,16 @@ class AdminChatsController extends Controller
         return $leadTermInt > 0 ? $leadTermInt : null;
     }
 
-    private function resolveLeadProfileForUser(int $userId): ?object
+    private function resolveLeadProfileForUser(int $userId, ?string $email = null): ?object
     {
-        return DB::table('leads')
-            ->where('user_id', $userId)
+        $query = DB::table('leads')->where('user_id', $userId);
+
+        $email = trim((string) ($email ?? ''));
+        if ($email !== '') {
+            $query->orWhereRaw('LOWER(email) = ?', [mb_strtolower($email)]);
+        }
+
+        return $query
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
             ->first(['first_name', 'last_name', 'email', 'requested_amount', 'document_number', 'credit_term_months', 'iban']);
