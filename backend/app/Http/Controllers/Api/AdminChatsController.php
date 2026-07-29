@@ -50,6 +50,7 @@ class AdminChatsController extends Controller
         $resolvedLeadEmail = $this->resolveLeadEmail($chat->user, $leadProfile);
         $resolvedLoanAmount = $this->resolveLoanAmount($chat->user, $leadProfile);
         $resolvedDocumentNumber = $this->resolveDocumentNumber($chat->user, $leadProfile);
+        $documentsState = $this->resolveDocumentsUploadState($chat->user, $leadProfile, $documentsCount, $resolvedDocumentNumber);
 
         return response()->json([
             'success' => true,
@@ -61,8 +62,8 @@ class AdminChatsController extends Controller
                     'loan_amount' => $resolvedLoanAmount,
                     'loan_term_months' => $loanTermMonths,
                     'lead_iban' => $leadIban,
-                    'documents_uploaded' => $documentsCount > 0,
-                    'documents_count' => $documentsCount,
+                    'documents_uploaded' => $documentsState['uploaded'],
+                    'documents_count' => $documentsState['count'],
                     'chat_created_at' => $chat->created_at,
                     'document_type' => $chat->user->document_type ?? null,
                     'document_number' => $resolvedDocumentNumber,
@@ -195,6 +196,8 @@ class AdminChatsController extends Controller
         $unreadCount = $this->countUnreadClientMessages((int) $chat->id);
         $documentsCount = (int) ($chat->documents_count ?? 0);
         $leadProfile = $this->resolveLeadProfileForUser((int) $chat->user_id, $chat->user->email ?? null);
+        $resolvedDocumentNumber = $this->resolveDocumentNumber($user, $leadProfile);
+        $documentsState = $this->resolveDocumentsUploadState($user, $leadProfile, $documentsCount, $resolvedDocumentNumber);
 
         return [
             'id' => $chat->id,
@@ -203,11 +206,11 @@ class AdminChatsController extends Controller
             'loan_amount' => $this->resolveLoanAmount($user, $leadProfile),
             'loan_term_months' => $this->resolveLoanTermMonthsForUser((int) $chat->user_id, $user->wizard_progress ?? null, $leadProfile),
             'lead_iban' => $chat->lead_iban ?: $this->resolveLeadIbanForUser((int) $chat->user_id, $leadProfile),
-            'documents_uploaded' => $documentsCount > 0,
-            'documents_count' => $documentsCount,
+            'documents_uploaded' => $documentsState['uploaded'],
+            'documents_count' => $documentsState['count'],
             'chat_created_at' => $chat->created_at,
             'document_type' => $user->document_type ?? null,
-            'document_number' => $this->resolveDocumentNumber($user, $leadProfile),
+            'document_number' => $resolvedDocumentNumber,
             'last_msg' => $chat->last_msg,
             'status' => $chat->status,
             'unread_count' => $unreadCount,
@@ -368,6 +371,73 @@ class AdminChatsController extends Controller
         }
 
         return null;
+    }
+
+
+    private function resolveDocumentsUploadState($user, ?object $leadProfile, int $documentsCount, ?string $resolvedDocumentNumber): array
+    {
+        if ($documentsCount > 0) {
+            return [
+                'uploaded' => true,
+                'count' => $documentsCount,
+            ];
+        }
+
+        $wizardProgress = $this->decodeProgress($user->wizard_progress ?? null);
+        $fromProgress = $this->toBool($wizardProgress['documents_verified'] ?? null)
+            || $this->toBool($wizardProgress['documents_uploaded'] ?? null);
+
+        if ($fromProgress) {
+            return [
+                'uploaded' => true,
+                'count' => 1,
+            ];
+        }
+
+        $hasDocumentType = !empty(trim((string) ($user->document_type ?? '')));
+        $hasDocumentNumber = !empty(trim((string) ($resolvedDocumentNumber ?? '')));
+
+        if ($hasDocumentType && $hasDocumentNumber) {
+            return [
+                'uploaded' => true,
+                'count' => 1,
+            ];
+        }
+
+        return [
+            'uploaded' => false,
+            'count' => 0,
+        ];
+    }
+
+    private function decodeProgress($rawData): array
+    {
+        if (is_array($rawData)) {
+            return $rawData;
+        }
+
+        $decoded = json_decode((string) ($rawData ?? ''), true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private function toBool($value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_numeric($value)) {
+            return (int) $value === 1;
+        }
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+
+            return in_array($normalized, ['1', 'true', 'yes', 'on', 'verified', 'uploaded'], true);
+        }
+
+        return false;
     }
 
     private function countUnreadClientMessages(int $chatId): int
