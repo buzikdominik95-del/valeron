@@ -30,6 +30,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/account/messages', [AccountController::class, 'sendMessage']);
     Route::get('/account', [AccountController::class, 'getAccount']);
     Route::get('/account/messages', [AccountController::class, 'getMessages']);
+    Route::post('/account/iban', [AccountController::class, 'saveIban']);
+    Route::post('/account/wizard-progress', [AccountController::class, 'saveWizardProgress']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
 });
