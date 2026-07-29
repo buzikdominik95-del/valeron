@@ -75,6 +75,12 @@ function onChange(event: Event): void {
         class="sr-only"
         type="file"
         :accept="DOC_ACCEPT"
+        /*
+         * Без capture — иначе iOS/Android открывают только камеру и
+         * блокируют галерею; image/* + heic в DOC_ACCEPT достаточно.
+         * multiple=false, name — чтобы WebView не отбрасывал change.
+         */
+        name="vel-doc-photo"
         :aria-label="
           props.file === null
             ? t('account.docs.chooseFor', { label: props.label })

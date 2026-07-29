@@ -39,8 +39,6 @@ const clientName = computed(() => {
   return [client.value.firstName, client.value.lastName].filter(Boolean).join(' ') || 'Cliente'
 })
 
-const agentName = computed(() => t('account.support.chat.agentName'))
-
 /** Показывать отметку только у последнего в серии и только если время есть. */
 const showMeta = computed(() => props.last && props.at !== '')
 
@@ -68,10 +66,7 @@ const stampLabel = computed(() => (props.at === '' ? '' : d(new Date(props.at), 
     </span>
 
     <div class="vel-bubble__body">
-      <!-- Имя менеджера над репликой поддержки -->
-      <p v-if="!own" class="vel-bubble__agent-name">
-        {{ agentName }}
-      </p>
+      <!-- Имя менеджера не дублируем над каждым пузырём (фотка 4 — только текст). -->
       <p class="vel-bubble__text">{{ text }}</p>
 
       <p v-if="showMeta" class="vel-bubble__meta">

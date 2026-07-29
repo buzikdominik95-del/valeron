@@ -115,39 +115,23 @@ function onCabinetVisible(): void {
 /** Полноэкранный крестик при L2 freeze / L4 reject — сам закрывается. */
 const rejectFlashOpen = ref(false)
 
-/** Приветствие менеджера — один раз за сессию браузера. */
+/** Приветствие менеджера — один раз за сессию браузера (сразу, не 15 с). */
 const welcomeToastSeen = useSessionStorage('velora:cabinet:welcome-manager-toast', false)
-const WELCOME_TOAST_DELAY_MS = 15_000
-
-const { start: startWelcomeToast } = useTimeoutFn(
-  () => {
-    if (welcomeToastSeen.value) return
-    /* Не перебиваем уже открытый toast (docs verify и т.п.). */
-    if (agentToastOpen.value) {
-      startWelcomeToast()
-      return
-    }
-    showWelcomeManagerToast()
-  },
-  WELCOME_TOAST_DELAY_MS,
-  { immediate: false },
-)
 
 onMounted(() => {
-  /* 15 с после входа в ЛК — toast + сообщение менеджера в чате. */
-  if (!welcomeToastSeen.value) startWelcomeToast()
-
   /*
-   * После register/login — Bearer token в storage.
-   * GET /api/account (main) → hydrate dossier (имя, сумма, commission level).
-   * Без token / 401 — offline stub, без fake password.
+   * Старт всегда Home — не «кидать» на chat (остаточный ?tab=support /
+   * messenger watch). Welcome — сразу 2 пузыря + toast.
    */
+  selectTab('home')
+  if (!welcomeToastSeen.value) {
+    queueMicrotask(() => showWelcomeManagerToast())
+  }
 
   if (!isApiEnabled()) return
   void syncAccountNow()
   startAccountSync()
   document.addEventListener('visibilitychange', onCabinetVisible)
-
 })
 
 
@@ -240,14 +224,27 @@ function unlockFirmaAfterDocs(): void {
 }
 
 /**
- * Приветствие менеджера ~15 с после входа в ЛК:
- * toast + реплика в Assistenza + badge + notice — всё через pushAgentMessage.
+ * Welcome сразу (фотка 4): 2 пузыря Deborah.
+ * Один toast + один notice; badge = 2 непрочитанных (пока не открыли Assistenza).
  */
 function showWelcomeManagerToast(): void {
+  if (welcomeToastSeen.value) return
   welcomeToastSeen.value = true
+  /* silent: только лента — без 2× toast/notice */
   supportChat.pushAgentMessage(t('account.support.chat.welcomeMsg'), {
-    variant: 'welcome',
+    silent: true,
   })
+  supportChat.pushAgentMessage(t('account.support.chat.welcomeMsg2'), {
+    silent: true,
+  })
+  /* Один badge + один toast + одно уведомление (не ×3). */
+  account.bumpSupportUnread(2)
+  try {
+    notices.push('managerMessage')
+  } catch {
+    /* storage */
+  }
+  showAgentNotify('welcome')
 }
 
 /**
@@ -302,12 +299,11 @@ function onContractSignConfirm(dataUrl: string): void {
  * Только переход false → true: не дублируем при reload с уже готовым ЛК.
  * Notice «contractSigned» уже пушит useNotices при markContractSigned.
  */
-watch(allDone, (done, wasDone) => {
-  if (!done || wasDone !== false) return
-  account.bumpSupportUnread(1)
-  notices.push('managerMessage')
-  showAgentNotify('agent')
-})
+/*
+ * allDone больше не шлёт фейковый managerMessage / badge:
+ * иначе 3 уведомления «от консультанта» при 1 реальном сообщении (фотка 3).
+ */
+
 
 function openContractIban(): void {
   contractIbanOpen.value = true
