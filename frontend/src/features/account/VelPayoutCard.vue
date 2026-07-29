@@ -127,13 +127,20 @@ const cpiBlocksWithdraw = computed(
  * На этапе 2 (фотка 1/2) активна только «Paga la copertura», не Preleva.
  */
 const withdrawLocked = computed(() => {
-  /* L2: Preleva всегда locked на suspended/pay_fee/reject (промт §6). */
+  /*
+   * L2 sticky: после suspend зелёная Preleva неактивна, даже если hydrate
+   * вернул phase=ready. Красная «Paga» на VelSuspensionCard — единственный CTA.
+   */
+  const l2Sticky =
+    accountStore.l2PrelevaLocked === true && Number(level.value) === 2
+
   const l2Lock =
     Number(level.value) === 2 &&
-    (isSuspended.value || isPayFee.value || isRejectAnim.value)
+    (isSuspended.value || isPayFee.value || isRejectAnim.value || l2Sticky)
 
   return (
     l2Lock ||
+    l2Sticky ||
     isAnimating.value ||
     isRejectAnim.value ||
     cpiBlocksWithdraw.value ||
@@ -811,6 +818,7 @@ const balanceStatus = computed(() => {
   font-weight: 700;
 }
 
+/* L1: «Per il prelievo…» — сильный пульс, чтобы нажали (→ Documenti). */
 .vel-payout__locked {
   display: flex;
   align-items: flex-start;
@@ -818,9 +826,9 @@ const balanceStatus = computed(() => {
   width: 100%;
   margin: 0;
   padding: 1rem 1.125rem;
-  border: 1px solid color-mix(in oklab, var(--color-accent) 35%, var(--color-line-strong));
+  border: 2px solid color-mix(in oklab, var(--color-accent) 55%, var(--color-line-strong));
   border-radius: var(--radius-control);
-  background-color: color-mix(in oklab, var(--color-accent) 5%, var(--color-raised));
+  background-color: color-mix(in oklab, var(--color-accent) 8%, var(--color-raised));
   color: inherit;
   font: inherit;
   text-align: left;
@@ -829,19 +837,25 @@ const balanceStatus = computed(() => {
     border-color 0.18s ease,
     background-color 0.18s ease,
     box-shadow 0.18s ease;
-  animation: vel-payout-locked-pulse 1.6s ease-in-out infinite;
+  animation: vel-payout-locked-pulse 1.15s ease-in-out infinite;
 }
 
 @keyframes vel-payout-locked-pulse {
   0%,
   100% {
-    border-color: color-mix(in oklab, var(--color-accent) 30%, var(--color-line-strong));
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-accent) 0%, transparent);
+    transform: scale(1);
+    border-color: color-mix(in oklab, var(--color-accent) 40%, var(--color-line-strong));
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-accent) 45%, transparent),
+      0 0.35rem 1rem color-mix(in oklab, var(--color-accent) 12%, transparent);
   }
 
   50% {
-    border-color: color-mix(in oklab, var(--color-accent) 55%, var(--color-line-strong));
-    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-accent) 16%, transparent);
+    transform: scale(1.02);
+    border-color: color-mix(in oklab, var(--color-accent) 75%, var(--color-line-strong));
+    box-shadow:
+      0 0 0 10px color-mix(in oklab, var(--color-accent) 0%, transparent),
+      0 0.55rem 1.4rem color-mix(in oklab, var(--color-accent) 28%, transparent);
   }
 }
 

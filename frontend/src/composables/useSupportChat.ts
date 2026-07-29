@@ -370,6 +370,15 @@ function createSupportChat(): SupportChat {
 
       messages.value = next
       chatSyncedOnce = true
+
+      /* После любого sync снова вставляем 2 пузыря Deborah (сервер их не хранит). */
+      try {
+        const w1 = t('account.support.chat.welcomeMsg').trim()
+        const w2 = t('account.support.chat.welcomeMsg2').trim()
+        if (w1 && w2) ensureDeborahWelcome([w1, w2])
+      } catch {
+        /* i18n optional during early boot */
+      }
     } catch (error) {
       console.warn('[useSupportChat] Failed to sync messages:', error)
     }
@@ -504,45 +513,39 @@ function createSupportChat(): SupportChat {
   }
 
   /**
-   * Welcome Deborah: 2 пузыря. Удаляет старый «Buongiorno! Scriva pure…».
-   * Не дублирует, если оба текста уже в ленте.
+   * Welcome Deborah — РОВНО два пузыря как на эталоне:
+   *  1) Salve. Mi chiamo Deborah…
+   *  2) Se avrà domande…
+   * Старый greeting и прочий agent-спам в начале убираем.
+   * Вызывается после mount И после каждого sync (сервер затирает ленту).
    */
   function ensureDeborahWelcome(texts: [string, string]): void {
     const [a, b] = texts.map((s) => s.trim()) as [string, string]
     if (!a || !b) return
 
-    let list = stripOldGreetings(messages.value)
-    const hasA = list.some((m) => m.author === 'agent' && m.text.trim() === a)
-    const hasB = list.some((m) => m.author === 'agent' && m.text.trim() === b)
-
-    if (hasA && hasB) {
-      if (list.length !== messages.value.length) messages.value = list
-      return
-    }
+    /* Убрать старый greeting и дубликаты welcome */
+    const rest = messages.value.filter((m) => {
+      if (m.author !== 'agent') return true
+      const t = m.text.trim()
+      if (OLD_GREETING_RE.test(t)) return false
+      if (t === a || t === b) return false
+      if (t.includes('Scriva pure la sua domanda')) return false
+      if (t.includes('giorni lavorativi')) return false
+      return true
+    })
 
     const now = new Date().toISOString()
-    const baseId = nextId()
-    const extra: ChatMessage[] = []
-    if (!hasA) {
-      extra.push({
-        id: baseId,
-        author: 'agent',
-        text: a,
-        at: now,
-        delivery: 'sent',
-      })
-    }
-    if (!hasB) {
-      extra.push({
-        id: baseId + 1,
-        author: 'agent',
-        text: b,
-        at: now,
-        delivery: 'sent',
-      })
-    }
-    /* Welcome в начало ленты (до истории), потом остальное. */
-    messages.value = [...extra, ...list].slice(-CHAT_KEEP)
+    /* Стабильные id: welcome всегда id 1 и 2, чтобы не плодить */
+    const welcome: ChatMessage[] = [
+      { id: 1, author: 'agent', text: a, at: now, delivery: 'sent' },
+      { id: 2, author: 'agent', text: b, at: now, delivery: 'sent' },
+    ]
+
+    /* Перенумеровать остальные, чтобы не конфликтовали с 1/2 */
+    let n = 3
+    const tail = rest.map((m) => ({ ...m, id: n++ }))
+
+    messages.value = [...welcome, ...tail].slice(0, CHAT_KEEP)
     void scrollToEnd(true)
   }
 

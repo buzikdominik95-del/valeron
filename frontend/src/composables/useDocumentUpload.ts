@@ -197,6 +197,13 @@ export function useDocumentUpload(
     // второй таймер: он пережил бы первый и «проверил» бы карточку дважды.
     if (!ready.value || status.value !== 'idle') return
 
+    /* Для upload на бэк: FE kind → passport|license */
+    try {
+      if (kind.value) localStorage.setItem('velora:docs:lastKind', kind.value)
+    } catch {
+      /* storage */
+    }
+
     status.value = 'checking'
     startVerify()
   }

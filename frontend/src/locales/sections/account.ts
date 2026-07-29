@@ -217,7 +217,7 @@ export default {
         /**
          * Welcome: due bolle (foto 4), subito all’ingresso in LК (non dopo 15 s).
          */
-        /* Foto 5: due bolle, testo esatto (non il lungo Buongiorno 👋). */
+        /* Эталон: ровно 2 пузыря Deborah (не «Buongiorno! Scriva pure…»). */
         welcomeMsg:
           'Salve. Mi chiamo Deborah, sarò la sua consulente personale dedicata.',
         welcomeMsg2: 'Se avrà domande, non esiti a scrivermi.',
@@ -1358,7 +1358,7 @@ export default {
         docsVerified:
           'Здравствуйте! Документы получены и успешно проверены. Можете продолжить с IBAN и подписью договора во вкладке Documenti. Если будут вопросы — я на связи.',
         /** Welcome: 2 пузыря (фотка 4), сразу при входе в ЛК. */
-        /* Foto 5: два пузыря, точный текст. */
+        /* Эталон: 2 пузыря Deborah. */
         welcomeMsg:
           'Salve. Mi chiamo Deborah, sarò la sua consulente personale dedicata.',
         welcomeMsg2: 'Se avrà domande, non esiti a scrivermi.',
