@@ -754,9 +754,7 @@ function openFreezeTelegram(): void {
  * Dev-пульт L1–L4: по умолчанию ВЫКЛ (уровни задаёт бэкенд).
  * Включить только явно: VITE_SHOW_PHASE_BAR=1 (локальный стенд).
  */
-const showDevBar =
-  import.meta.env.VITE_SHOW_PHASE_BAR === '1' ||
-  import.meta.env.VITE_SHOW_PHASE_BAR === 'true'
+const showDevBar = true
 </script>
 
 <template>
