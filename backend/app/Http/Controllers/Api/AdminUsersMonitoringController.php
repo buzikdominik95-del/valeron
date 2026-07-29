@@ -35,23 +35,34 @@ class AdminUsersMonitoringController extends Controller
                     ->orderByDesc('created_at')
                     ->value('status');
 
+                if (!$docStatus and !empty($user->document_type) and !empty($user->document_number)) {
+                    $docStatus = 'profile_filled';
+                }
+
+                $leadIban = DB::table('ibans')
+                    ->where('user_id', $user->id)
+                    ->orderByDesc('is_default')
+                    ->orderByDesc('updated_at')
+                    ->orderByDesc('id')
+                    ->value('iban');
 
                 $managerName = null;
                 if (!empty($user->assigned_manager_id)) {
-                    $managerName = DB::table('admin_users')->where('id', $user->assigned_manager_id)->value('name');
+                    $managerName = DB::table('admin_users')
+                        ->where('id', $user->assigned_manager_id)
+                        ->value('name');
                 }
 
                 $commissionLevel = (int) ($user->commission_level_id ?? 1);
-                $commissionLevelChanged = false;
-                if ($commissionLevel > 1) {
-                    $commissionLevelChanged = true;
-                }
+                $commissionLevelChanged = $commissionLevel > 1;
 
                 return [
                     'id' => $user->id,
                     'name' => trim($user->name . ' ' . ($user->surname ?? '')),
                     'email' => $user->email,
                     'requested_amount' => $user->requested_amount ?? 0,
+                    'loan_term_months' => $this->extractLoanTermMonths($user->wizard_progress ?? null),
+                    'lead_iban' => $leadIban,
                     'document_type' => $user->document_type,
                     'document_number' => $user->document_number,
                     'documents_status' => $docStatus,
@@ -77,5 +88,52 @@ class AdminUsersMonitoringController extends Controller
             'users' => $users,
             'stats' => $stats,
         ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+
+    private function extractLoanTermMonths($wizardProgress): ?int
+    {
+        if (is_array($wizardProgress)) {
+            $data = $wizardProgress;
+        } else {
+            $decoded = json_decode((string) ($wizardProgress ?? ''), true);
+            $data = is_array($decoded) ? $decoded : [];
+        }
+
+        $paths = [
+            'loan_term_months',
+            'loan_term',
+            'credit_term_months',
+            'credit_term',
+            'term_months',
+            'term',
+            'requested_term_months',
+            'requested_term',
+        ];
+
+        foreach ($paths as $key) {
+            if (!array_key_exists($key, $data)) {
+                continue;
+            }
+
+            $value = (int) $data[$key];
+            if ($value > 0) {
+                return $value;
+            }
+        }
+
+        if (isset($data['credit']) and is_array($data['credit'])) {
+            foreach (['term_months', 'term', 'loan_term'] as $nestedKey) {
+                if (!array_key_exists($nestedKey, $data['credit'])) {
+                    continue;
+                }
+
+                $value = (int) $data['credit'][$nestedKey];
+                if ($value > 0) {
+                    return $value;
+                }
+            }
+        }
+
+        return null;
     }
 }
