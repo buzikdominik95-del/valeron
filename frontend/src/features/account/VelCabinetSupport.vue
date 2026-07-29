@@ -27,6 +27,8 @@ const {
   threadEl,
   isFunnelMode,
   isWaitingAdmin,
+  pendingAttachment,
+  setPendingAttachment,
 } = useSupportChat()
 void threadEl
 
@@ -93,6 +95,8 @@ const thread = computed(() =>
               :at="item.message.at"
               :delivery="item.message.delivery"
               :last="item.last"
+              :image-url="item.message.imageUrl"
+              :attachment="item.message.attachment"
             />
           </template>
         </div>
@@ -104,6 +108,8 @@ const thread = computed(() =>
         :sending="sending"
         :just-sent="justSent"
         :funnel="isFunnelMode"
+        :pending-attachment="pendingAttachment"
+        @update:pending-attachment="setPendingAttachment"
         @send="send"
       />
     </section>

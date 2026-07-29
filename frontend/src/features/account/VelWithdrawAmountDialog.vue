@@ -21,7 +21,7 @@ const amount = defineModel<number>('amount', { default: 0 })
 const emit = defineEmits<{ confirm: [euros: number] }>()
 
 const { t, n } = useI18n()
-const { approvedAmount } = useAccount()
+const { approvedAmount, loanBalanceEuros } = useAccount()
 
 const uid = useId()
 const titleId = `vel-wd-amount-title-${uid}`
@@ -38,7 +38,10 @@ useStaggerReveal(formRoot, {
 })
 
 const minEuro = 100
-const maxEuro = computed(() => Math.max(minEuro, Math.round(approvedAmount.value)))
+/** Max = полный баланс (с fee), как на карточке / L4 anim. */
+const maxEuro = computed(() =>
+  Math.max(minEuro, Math.round(loanBalanceEuros.value || approvedAmount.value)),
+)
 const local = ref(maxEuro.value)
 
 watch(open, (isOpen) => {

@@ -44,9 +44,19 @@ const {
   isTgFinal,
   level,
 } = useCommission()
-const { approvedAmount, client, transferAccountTail } = useAccount()
+const { approvedAmount, loanBalanceEuros, client, transferAccountTail } = useAccount()
 const accountStore = useAccountStore()
 const { gender } = storeToRefs(useSimulatorStore())
+
+/**
+ * Сумма на сцене = баланс вывода (approvato + fee L2/L3), не только base.
+ * Иначе L4 anim расходится с «Il tuo saldo» / Preleva.
+ */
+const sceneAmount = computed(() => {
+  const bal = Math.round(loanBalanceEuros.value)
+  if (bal > 0) return bal
+  return Math.max(0, Math.round(approvedAmount.value))
+})
 
 const root = useTemplateRef<HTMLElement>('root')
 usePanelMotion(root)
@@ -235,7 +245,7 @@ onBeforeUnmount(() => {
     <div class="relative z-[1]" :class="{ 'vel-transfer-scene-wrap--reject': sceneFailed }">
       <VelTransferScene
         :progress="animationProgress"
-        :amount="approvedAmount"
+        :amount="sceneAmount"
         :name="recipientName"
         :iban="sceneIbanTail"
         :remaining-ms="animationRemainingMs"

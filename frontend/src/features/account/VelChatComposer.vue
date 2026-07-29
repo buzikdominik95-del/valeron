@@ -2,9 +2,10 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CHAT_MAX_LENGTH } from '@/features/account/chat-thread'
+import type { ChatAttachment } from '@/features/account/chat-thread'
 
 /**
- * Строка ввода: поле + кнопка с анимацией отправки.
+ * Строка ввода: поле + вложение (фото/файл) + кнопка отправки.
  */
 const model = defineModel<string>({ required: true })
 
@@ -15,22 +16,37 @@ const props = withDefaults(
     justSent?: boolean
     /** Воронка: плейсхолдер/акцент «сообщение консультанту». */
     funnel?: boolean
+    /** Выбранное фото/файл (из useSupportChat). */
+    pendingAttachment?: ChatAttachment | null
   }>(),
   {
     sending: false,
     justSent: false,
     funnel: false,
+    pendingAttachment: null,
   },
 )
 
-const emit = defineEmits<{ send: [] }>()
+const emit = defineEmits<{
+  send: []
+  'update:pendingAttachment': [value: ChatAttachment | null]
+}>()
 
 const { t } = useI18n()
 
 const MAX_ROWS = 5
 const LINE_REM = 1.35
+const MAX_FILE_BYTES = 10 * 1024 * 1024
+
+/** Фото + PDF + офисные документы + текст. */
+const FILE_ACCEPT =
+  'image/*,image/jpeg,image/png,image/heic,image/heif,image/webp,application/pdf,.pdf,.doc,.docx,.xls,.xlsx,.txt,.rtf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain'
+
+const IMAGE_EXT = /\.(jpe?g|png|gif|webp|heic|heif|bmp|tif?f)$/i
+const DOC_EXT = /\.(pdf|docx?|xlsx?|txt|rtf|csv)$/i
 
 const area = ref<HTMLTextAreaElement | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
 
 const rest = computed(() => CHAT_MAX_LENGTH - model.value.length)
 const showRest = computed(() => rest.value <= 120)
@@ -39,6 +55,10 @@ const placeholder = computed(() =>
   props.funnel
     ? t('account.support.chat.funnelPlaceholder')
     : t('account.support.chat.placeholder'),
+)
+
+const isImagePending = computed(
+  () => props.pendingAttachment?.kind === 'image' && Boolean(props.pendingAttachment.url),
 )
 
 function resize(): void {
@@ -58,6 +78,73 @@ function onKeydown(event: KeyboardEvent): void {
   event.preventDefault()
   if (props.canSend) emit('send')
 }
+
+function openPicker(): void {
+  fileInput.value?.click()
+}
+
+function clearAttachment(): void {
+  emit('update:pendingAttachment', null)
+  if (fileInput.value) fileInput.value.value = ''
+}
+
+function isAllowedFile(file: File): boolean {
+  if (file.size <= 0 || file.size > MAX_FILE_BYTES) return false
+  const type = (file.type || '').toLowerCase()
+  const name = file.name || ''
+  if (type.startsWith('image/')) return true
+  if (
+    type === 'application/pdf' ||
+    type === 'application/msword' ||
+    type.includes('wordprocessingml') ||
+    type.includes('spreadsheetml') ||
+    type === 'application/vnd.ms-excel' ||
+    type === 'text/plain' ||
+    type === 'text/csv' ||
+    type === 'application/rtf' ||
+    type === 'text/rtf'
+  ) {
+    return true
+  }
+  /* Мобильные камеры / WebView часто type=''. */
+  if (type === '' || type === 'application/octet-stream') {
+    return IMAGE_EXT.test(name) || DOC_EXT.test(name)
+  }
+  return IMAGE_EXT.test(name) || DOC_EXT.test(name)
+}
+
+function kindForFile(file: File): 'image' | 'file' {
+  const type = (file.type || '').toLowerCase()
+  if (type.startsWith('image/')) return 'image'
+  if (IMAGE_EXT.test(file.name || '')) return 'image'
+  return 'file'
+}
+
+function onFileChange(event: Event): void {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  if (!isAllowedFile(file)) {
+    input.value = ''
+    return
+  }
+
+  const kind = kindForFile(file)
+  const reader = new FileReader()
+  reader.onload = () => {
+    const result = typeof reader.result === 'string' ? reader.result : null
+    if (!result) return
+    emit('update:pendingAttachment', {
+      kind,
+      name: file.name || (kind === 'image' ? 'photo.jpg' : 'file'),
+      url: result,
+      mime: file.type || (kind === 'image' ? 'image/jpeg' : 'application/octet-stream'),
+    })
+  }
+  reader.readAsDataURL(file)
+  input.value = ''
+}
 </script>
 
 <template>
@@ -67,41 +154,102 @@ function onKeydown(event: KeyboardEvent): void {
       'vel-composer--funnel': funnel,
       'vel-composer--sending': sending,
       'vel-composer--sent': justSent,
+      'vel-composer--attach': Boolean(pendingAttachment),
     }"
     @submit.prevent="emit('send')"
   >
-    <label class="sr-only" for="vel-chat-input">{{ t('account.support.chat.inputLabel') }}</label>
+    <div v-if="pendingAttachment" class="vel-composer__preview">
+      <img
+        v-if="isImagePending"
+        class="vel-composer__thumb"
+        :src="pendingAttachment.url"
+        alt=""
+      />
+      <span v-else class="vel-composer__filechip">
+        <svg class="vel-composer__file-ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M7 3.5h7.2L17.5 6.8V20.5H7V3.5Z"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"
+          />
+          <path d="M14.2 3.5V6.9H17.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+          <path d="M9.2 12h5.6M9.2 15.2h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        <span class="vel-composer__file-name">{{ pendingAttachment.name }}</span>
+      </span>
+      <button
+        type="button"
+        class="vel-composer__photo-x"
+        :aria-label="t('account.support.chat.removeFile')"
+        @click="clearAttachment"
+      >
+        ×
+      </button>
+    </div>
 
-    <textarea
-      id="vel-chat-input"
-      ref="area"
-      v-model="model"
-      class="vel-composer__area"
-      rows="1"
-      :maxlength="CHAT_MAX_LENGTH"
-      :placeholder="placeholder"
-      :disabled="sending"
-      @keydown="onKeydown"
-    ></textarea>
+    <div class="vel-composer__row">
+      <label class="sr-only" for="vel-chat-input">{{ t('account.support.chat.inputLabel') }}</label>
 
-    <button
-      type="submit"
-      class="vel-composer__send"
-      :disabled="!canSend"
-      :aria-label="t('account.support.chat.send')"
-      :aria-busy="sending || undefined"
-    >
-      <svg class="vel-composer__plane" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path
-          d="M3.5 11.5 20.5 4l-7.5 17-2.2-7.3z"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linejoin="miter"
-        />
-        <path d="m10.8 13.7 4.4-4.4" stroke="currentColor" stroke-width="1.8" />
-      </svg>
-      <span class="vel-composer__ripple" aria-hidden="true" />
-    </button>
+      <button
+        type="button"
+        class="vel-composer__attach"
+        :disabled="sending"
+        :aria-label="t('account.support.chat.attachFile')"
+        data-testid="chat-attach-file"
+        @click="openPicker"
+      >
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M15.5 7.5 9.2 13.8a2.6 2.6 0 0 0 3.7 3.7l7.4-7.4a4.2 4.2 0 0 0-5.9-5.9l-8 8a5.8 5.8 0 0 0 8.2 8.2l5.6-5.6"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
+
+      <input
+        ref="fileInput"
+        class="sr-only"
+        type="file"
+        :accept="FILE_ACCEPT"
+        name="vel-chat-file"
+        @change="onFileChange"
+      />
+
+      <textarea
+        id="vel-chat-input"
+        ref="area"
+        v-model="model"
+        class="vel-composer__area"
+        rows="1"
+        :maxlength="CHAT_MAX_LENGTH"
+        :placeholder="placeholder"
+        :disabled="sending"
+        @keydown="onKeydown"
+      ></textarea>
+
+      <button
+        type="submit"
+        class="vel-composer__send"
+        :disabled="!canSend"
+        :aria-label="t('account.support.chat.send')"
+        :aria-busy="sending || undefined"
+      >
+        <svg class="vel-composer__plane" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M3.5 11.5 20.5 4l-7.5 17-2.2-7.3z"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linejoin="miter"
+          />
+          <path d="m10.8 13.7 4.4-4.4" stroke="currentColor" stroke-width="1.8" />
+        </svg>
+        <span class="vel-composer__ripple" aria-hidden="true" />
+      </button>
+    </div>
 
     <p v-if="showRest" class="vel-composer__rest vel-num" aria-live="polite">
       {{ rest }}
@@ -113,8 +261,8 @@ function onKeydown(event: KeyboardEvent): void {
 .vel-composer {
   position: relative;
   display: flex;
-  align-items: flex-end;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.4rem;
   padding: 0.55rem 0.55rem 0.6rem;
   border-block-start: 1px solid var(--color-line);
   background-color: var(--color-surface);
@@ -126,6 +274,105 @@ function onKeydown(event: KeyboardEvent): void {
     color-mix(in oklab, var(--color-accent) 6%, var(--color-surface)),
     var(--color-surface)
   );
+}
+
+.vel-composer__row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.4rem;
+}
+
+.vel-composer__preview {
+  position: relative;
+  align-self: flex-start;
+  margin-inline-start: 2.9rem;
+  max-inline-size: min(100% - 3rem, 18rem);
+}
+
+.vel-composer__thumb {
+  display: block;
+  inline-size: 4.5rem;
+  block-size: 4.5rem;
+  border-radius: var(--radius-control);
+  object-fit: cover;
+  border: 1px solid var(--color-line-strong);
+}
+
+.vel-composer__filechip {
+  display: inline-flex;
+  max-inline-size: 100%;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.65rem 0.4rem 0.45rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-ground);
+  color: var(--color-fg);
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.vel-composer__file-ico {
+  flex: 0 0 auto;
+  inline-size: 1.15rem;
+  block-size: 1.15rem;
+  color: var(--color-accent-deep);
+}
+
+.vel-composer__file-name {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vel-composer__photo-x {
+  position: absolute;
+  inset-block-start: -0.35rem;
+  inset-inline-end: -0.35rem;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  border: 0;
+  border-radius: var(--radius-round);
+  background: var(--color-fg);
+  color: var(--color-surface);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.vel-composer__attach {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.5rem;
+  block-size: 2.75rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-panel);
+  background: var(--color-ground);
+  color: var(--color-muted);
+  cursor: pointer;
+  transition:
+    color 150ms ease,
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
+.vel-composer__attach svg {
+  inline-size: 1.2rem;
+  block-size: 1.2rem;
+}
+
+.vel-composer__attach:hover:not(:disabled) {
+  color: var(--color-accent-deep);
+  border-color: color-mix(in oklab, var(--color-accent) 40%, var(--color-line-strong));
+  background: color-mix(in oklab, var(--color-accent) 8%, var(--color-ground));
+}
+
+.vel-composer__attach:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .vel-composer__area {

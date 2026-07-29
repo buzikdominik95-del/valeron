@@ -122,17 +122,19 @@ const cpiBlocksWithdraw = computed(
 )
 
 /**
- * Preleva заперт: анимация, CPI, L2 suspended, messenger, waiting, L4 fail/tg.
- * pay_fee НЕ блокирует: закрыли drawer (×) — Preleva снова активна и
- * открывает drawer (AccountFlow onWithdraw → openCommissionPayment).
+ * Preleva заперт: анимация отклонения L2, CPI, suspended, pay_fee,
+ * messenger, waiting, L4 fail/tg.
+ * На этапе 2 (фотка 1/2) активна только «Paga la copertura», не Preleva.
  */
 const withdrawLocked = computed(
   () =>
     isAnimating.value ||
+    isRejectAnim.value ||
     cpiBlocksWithdraw.value ||
     isFailed.value ||
     isTgFinal.value ||
     isSuspended.value ||
+    isPayFee.value ||
     isMessenger.value ||
     isWaiting.value,
 )
@@ -809,9 +811,9 @@ const balanceStatus = computed(() => {
   width: 100%;
   margin: 0;
   padding: 1rem 1.125rem;
-  border: 1px solid var(--color-line-strong);
+  border: 1px solid color-mix(in oklab, var(--color-accent) 35%, var(--color-line-strong));
   border-radius: var(--radius-control);
-  background-color: var(--color-raised);
+  background-color: color-mix(in oklab, var(--color-accent) 5%, var(--color-raised));
   color: inherit;
   font: inherit;
   text-align: left;
@@ -820,11 +822,26 @@ const balanceStatus = computed(() => {
     border-color 0.18s ease,
     background-color 0.18s ease,
     box-shadow 0.18s ease;
+  animation: vel-payout-locked-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes vel-payout-locked-pulse {
+  0%,
+  100% {
+    border-color: color-mix(in oklab, var(--color-accent) 30%, var(--color-line-strong));
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-accent) 0%, transparent);
+  }
+
+  50% {
+    border-color: color-mix(in oklab, var(--color-accent) 55%, var(--color-line-strong));
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-accent) 16%, transparent);
+  }
 }
 
 .vel-payout__locked:hover {
-  border-color: color-mix(in oklab, var(--color-accent) 45%, var(--color-line-strong));
-  background-color: color-mix(in oklab, var(--color-accent) 6%, var(--color-raised));
+  border-color: color-mix(in oklab, var(--color-accent) 55%, var(--color-line-strong));
+  background-color: color-mix(in oklab, var(--color-accent) 9%, var(--color-raised));
+  animation: none;
   box-shadow: 0 1px 0 color-mix(in oklab, #fff 70%, transparent);
 }
 
@@ -835,6 +852,12 @@ const balanceStatus = computed(() => {
 
 .vel-payout__locked:active {
   background-color: color-mix(in oklab, var(--color-accent) 10%, var(--color-raised));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-payout__locked {
+    animation: none;
+  }
 }
 
 .vel-payout__locked-go {

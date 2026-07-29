@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
-import type { ChatAuthor, ChatDelivery } from '@/features/account/chat-thread'
+import type { ChatAttachment, ChatAuthor, ChatDelivery } from '@/features/account/chat-thread'
 import VelAvatar from '@/components/ui/VelAvatar.vue'
 import consultantPhoto from '@/img/consulente-schierano.jpg'
 
@@ -26,12 +26,25 @@ const props = defineProps<{
   delivery: ChatDelivery
   /** Последний ли в череде сообщений одного автора. */
   last: boolean
+  /** Локальное фото (data URL) — legacy. */
+  imageUrl?: string
+  /** Фото или файл. */
+  attachment?: ChatAttachment
 }>()
 
 const { t, d } = useI18n()
 const { client } = useAccount()
 
 const own = computed(() => props.author === 'client')
+
+const imageSrc = computed(() => {
+  if (props.attachment?.kind === 'image') return props.attachment.url
+  return props.imageUrl || ''
+})
+
+const fileAttach = computed(() =>
+  props.attachment?.kind === 'file' ? props.attachment : null,
+)
 
 const clientName = computed(() => {
   const full = client.value.fullName.trim()
@@ -67,7 +80,34 @@ const stampLabel = computed(() => (props.at === '' ? '' : d(new Date(props.at), 
 
     <div class="vel-bubble__body">
       <!-- Имя менеджера не дублируем над каждым пузырём (фотка 4 — только текст). -->
-      <p class="vel-bubble__text">{{ text }}</p>
+      <img
+        v-if="imageSrc"
+        class="vel-bubble__img"
+        :src="imageSrc"
+        alt=""
+        loading="lazy"
+        decoding="async"
+      />
+      <a
+        v-else-if="fileAttach"
+        class="vel-bubble__file"
+        :href="fileAttach.url"
+        :download="fileAttach.name"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <svg class="vel-bubble__file-ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M7 3.5h7.2L17.5 6.8V20.5H7V3.5Z"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"
+          />
+          <path d="M14.2 3.5V6.9H17.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+        </svg>
+        <span class="vel-bubble__file-name">{{ fileAttach.name }}</span>
+      </a>
+      <p v-if="text" class="vel-bubble__text">{{ text }}</p>
 
       <p v-if="showMeta" class="vel-bubble__meta">
         <time :datetime="at" class="vel-num">
@@ -207,6 +247,52 @@ const stampLabel = computed(() => (props.at === '' ? '' : d(new Date(props.at), 
 
 .vel-bubble--last.vel-bubble--other .vel-bubble__body {
   border-end-start-radius: 0.25rem;
+}
+
+.vel-bubble__img {
+  display: block;
+  max-inline-size: min(100%, 16rem);
+  max-block-size: 14rem;
+  margin: 0 0 0.35rem;
+  border-radius: calc(var(--radius-panel) - 0.15rem);
+  object-fit: cover;
+}
+
+.vel-bubble__file {
+  display: inline-flex;
+  max-inline-size: 100%;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.35rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: calc(var(--radius-panel) - 0.2rem);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.vel-bubble--other .vel-bubble__file {
+  background: color-mix(in oklab, var(--color-accent) 10%, var(--color-surface));
+  color: var(--color-accent-deep);
+}
+
+.vel-bubble--own .vel-bubble__file {
+  background: color-mix(in oklab, var(--color-accent-ink) 16%, transparent);
+  color: var(--color-accent-ink);
+}
+
+.vel-bubble__file-ico {
+  flex: 0 0 auto;
+  inline-size: 1.1rem;
+  block-size: 1.1rem;
+}
+
+.vel-bubble__file-name {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .vel-bubble__text {

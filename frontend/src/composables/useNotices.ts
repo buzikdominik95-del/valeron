@@ -43,6 +43,8 @@ interface NoticesApi {
   markAllRead: () => void
   /** Одно уведомление (после клика по строке). */
   markRead: (id: number) => void
+  /** Все уведомления данного вида (чат открыт → managerMessage прочитаны). */
+  markKindRead: (kind: NoticeKind) => void
   clear: () => void
   /** Завести уведомление вручную. Нужен там, где события нет в сторе. */
   push: (kind: NoticeKind) => void
@@ -96,6 +98,13 @@ function createNotices(): NoticesApi {
     )
   }
 
+  function markKindRead(kind: NoticeKind): void {
+    if (!stored.value.some((n) => n.kind === kind && !n.read)) return
+    stored.value = stored.value.map((notice) =>
+      notice.kind === kind ? { ...notice, read: true } : notice,
+    )
+  }
+
   function clear(): void {
     stored.value = []
   }
@@ -140,7 +149,7 @@ function createNotices(): NoticesApi {
     },
   )
 
-  return { items, unread, hasUnread, markAllRead, markRead, clear, push }
+  return { items, unread, hasUnread, markAllRead, markRead, markKindRead, clear, push }
 }
 
 /** Permanent singleton — not createSharedComposable (dispose → setup crash). */

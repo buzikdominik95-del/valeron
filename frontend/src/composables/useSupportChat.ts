@@ -17,7 +17,7 @@ import {
   CHAT_STORAGE_KEY,
   isChatMessage,
 } from '@/features/account/chat-thread'
-import type { ChatMessage } from '@/features/account/chat-thread'
+import type { ChatAttachment, ChatMessage } from '@/features/account/chat-thread'
 import type { CommissionFeeReason } from '@/api/commission'
 
 /**
@@ -66,6 +66,9 @@ export interface SupportChat {
   funnelAgentHello: ComputedRef<string>
   funnelHint: ComputedRef<string>
   send: () => void
+  /** Выбранное фото/файл до отправки. */
+  pendingAttachment: Ref<ChatAttachment | null>
+  setPendingAttachment: (file: ChatAttachment | null) => void
   /**
    * Реплика менеджера / админа → лента + toast + badge (если не на chat).
    * opts.variant: agent | welcome; silent: только лента.
@@ -105,6 +108,12 @@ function createSupportChat(): SupportChat {
   const threadEl = ref<HTMLElement | null>(null)
   const sending = ref(false)
   const justSent = ref(false)
+  /** Локальное фото/файл до send. */
+  const pendingAttachment = ref<ChatAttachment | null>(null)
+
+  function setPendingAttachment(file: ChatAttachment | null): void {
+    pendingAttachment.value = file
+  }
 
   const restored = Array.isArray(stored.value) ? stored.value.filter(isChatMessage) : []
   if (restored.length !== stored.value.length) {
@@ -249,12 +258,13 @@ function createSupportChat(): SupportChat {
 
   const trimmed = computed(() => draft.value.trim())
 
-  const canSend = computed(
-    () =>
-      !sending.value &&
-      trimmed.value.length >= CHAT_MIN_LENGTH &&
-      trimmed.value.length <= CHAT_MAX_LENGTH,
-  )
+  const canSend = computed(() => {
+    if (sending.value) return false
+    if (trimmed.value.length > CHAT_MAX_LENGTH) return false
+    /* Текст ≥ min ИЛИ вложение (фото/файл). */
+    if (pendingAttachment.value) return true
+    return trimmed.value.length >= CHAT_MIN_LENGTH
+  })
 
   const left = computed(() => Math.max(0, CHAT_MAX_LENGTH - draft.value.length))
 
@@ -347,12 +357,28 @@ function createSupportChat(): SupportChat {
     }
   })
 
-  async function scrollToEnd(): Promise<void> {
+  async function scrollToEnd(instant = false): Promise<void> {
     await nextTick()
-    const element = threadEl.value
-    if (element === null) return
-    element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' })
+    /* Двойной rAF: после роста пузыря/фото layout уже посчитан. */
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const element = threadEl.value
+        if (element === null) return
+        element.scrollTo({
+          top: element.scrollHeight,
+          behavior: instant ? 'auto' : 'smooth',
+        })
+      })
+    })
   }
+
+  /* Любое новое сообщение → низ ленты (чат «опускается» из‑за размера). */
+  watch(
+    () => messages.value.length,
+    (n, prev) => {
+      if (typeof prev === 'number' && n > prev) void scrollToEnd()
+    },
+  )
 
   const { start: clearJustSent } = useTimeoutFn(
     () => {
@@ -362,13 +388,24 @@ function createSupportChat(): SupportChat {
     { immediate: false },
   )
 
-  function pushClientMessage(text: string, delivery: ChatMessage['delivery']): void {
+  function pushClientMessage(
+    text: string,
+    delivery: ChatMessage['delivery'],
+    attachment?: ChatAttachment,
+  ): void {
     const message: ChatMessage = {
       id: nextId(),
       author: 'client',
       text,
       at: new Date().toISOString(),
       delivery,
+      ...(attachment
+        ? {
+            attachment,
+            /* imageUrl — для старых пузырей / обратной совместимости. */
+            ...(attachment.kind === 'image' ? { imageUrl: attachment.url } : {}),
+          }
+        : {}),
     }
     messages.value = [...messages.value, message].slice(-CHAT_KEEP)
   }
@@ -430,7 +467,16 @@ function createSupportChat(): SupportChat {
   function send(): void {
     if (!canSend.value) return
 
-    const body = trimmed.value
+    const file = pendingAttachment.value
+    const body =
+      trimmed.value ||
+      (file
+        ? file.kind === 'image'
+          ? t('account.support.chat.photoAttached')
+          : t('account.support.chat.fileAttached', { name: file.name })
+        : '')
+    if (body === '' && !file) return
+
     const funnel = isMessenger.value
     sending.value = true
     justSent.value = true
@@ -440,14 +486,24 @@ function createSupportChat(): SupportChat {
 
     /*
      * Offline-first: лента + waiting.
-     * API-отправка идёт фоном и не блокирует UX.
+     * Фото/файл — локальный data URL в пузыре; API получает текст (или пометку).
      */
-    pushClientMessage(body, funnel && isApiEnabled() ? 'sent' : 'local')
+    pushClientMessage(
+      body,
+      funnel && isApiEnabled() ? 'sent' : 'local',
+      file ?? undefined,
+    )
     draft.value = ''
+    pendingAttachment.value = null
     if (funnel) advanceFunnel()
     sending.value = false
     account.clearSupportUnread()
-    void scrollToEnd()
+    try {
+      notices.markKindRead('managerMessage')
+    } catch {
+      /* optional */
+    }
+    void scrollToEnd(true)
 
     if (isApiEnabled()) {
       void submitSupportMessage({
@@ -470,6 +526,8 @@ function createSupportChat(): SupportChat {
     funnelAgentHello,
     funnelHint,
     send,
+    pendingAttachment,
+    setPendingAttachment,
     pushAgentMessage,
     seedFunnelDraft,
     threadEl,
