@@ -28,7 +28,6 @@ const {
   isWaiting,
   isMessenger,
   isReady,
-  isRejectAnim,
   /* isReady used for L4 unlock intro band */
 } = useCommission()
 
