@@ -9,7 +9,7 @@
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef1f8;padding:32px 14px;">
     <tr><td align="center">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:440px;background:#ffffff;border:1px solid #d8e0f0;border-radius:20px;overflow:hidden;box-shadow:0 20px 48px rgba(15,23,42,0.09);">
-
+        
     <tr><td style="padding:32px 28px 8px;text-align:center;">
       <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto 18px;">
     <tr>
