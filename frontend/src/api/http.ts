@@ -1,18 +1,18 @@
 /**
- * Тонкий клиент поверх fetch под Laravel 12 + Sanctum.
+ * HTTP client for Velora Laravel API.
  *
- * Что важно знать бэкендеру:
- * - Ходим с credentials: 'include', то есть на сессионных куках Sanctum,
- *   а не на Bearer-токене. Домен фронта должен быть в SANCTUM_STATEFUL_DOMAINS.
- * - Перед небезопасным запросом убеждаемся, что кука XSRF-TOKEN есть,
- *   иначе дёргаем /sanctum/csrf-cookie и шлём заголовок X-XSRF-TOKEN.
- * - Ошибки валидации Laravel (422) приходят как { message, errors }.
- * - 419 (истёкшая CSRF-сессия) обрабатывается прозрачно: токен обновляется
- *   и запрос повторяется ровно один раз.
- * - 401 → disableApiForSession(): дальше isApiEnabled() = false, без спама.
+ * Backend auth = Sanctum **personal access token** (Bearer), not SPA cookies:
+ *   login/register → { user, token }
+ *   further calls → Authorization: Bearer <token>
+ *
+ * CSRF cookies are optional (legacy SPA path). Bearer requests work without them.
+ * 401 on non-auth routes → disableApiForSession().
  */
 
-import { disableApiForSession } from '@/api/session'
+import {
+  disableApiForSession,
+  getAuthToken,
+} from '@/api/session'
 
 /** Пустая строка — валидное значение переменной окружения, а ?? её не отловит. */
 function envOr(value: string | undefined, fallback: string): string {
@@ -27,17 +27,14 @@ const CSRF_URL = `${API_ORIGIN}/sanctum/csrf-cookie`
 const CSRF_COOKIE = 'XSRF-TOKEN'
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
-
-/** Laravel отвечает этим кодом, когда CSRF-токен протух или не совпал. */
 const HTTP_CSRF_EXPIRED = 419
-const AUTH_TOKEN_KEY = 'velora:authToken'
 
-/*
- * /api auth endpoints не требуют Sanctum CSRF-cookie: backend принимает JSON
- * и выдаёт Bearer token. Если принудительно дёргать /sanctum/csrf-cookie,
- * за nginx-роутом фронта можно получить HTML вместо cookie и ложный фейл.
- */
-const CSRF_BYPASS_PATHS = new Set(['/auth/login', '/auth/register', '/auth/demo-login'])
+/** Public auth paths — 401 = bad credentials, not dead session. */
+const AUTH_PUBLIC_PATHS = new Set([
+  '/auth/login',
+  '/auth/register',
+  '/auth/demo-login',
+])
 
 export interface ApiValidationErrors {
   [field: string]: string[]
@@ -54,12 +51,10 @@ export class ApiError extends Error {
     this.errors = errors
   }
 
-  /** 422 от Laravel — ошибки валидации по полям. */
   get isValidation(): boolean {
     return this.status === 422
   }
 
-  /** Запрос отменён вызывающей стороной через AbortSignal. */
   get isAborted(): boolean {
     return this.status === 0
   }
@@ -74,19 +69,6 @@ function expireCsrfCookie(): void {
   document.cookie = `${CSRF_COOKIE}=; Max-Age=0; path=/`
 }
 
-function readAuthToken(): string | null {
-  const token = localStorage.getItem(AUTH_TOKEN_KEY)
-  if (token === null) return null
-  const clean = token.trim()
-  return clean === '' ? null : clean
-}
-
-/**
- * Один общий промise на время запроса за кукой: N параллельных запросов
- * не должны порождать N сессий на стороне Laravel. Результат намеренно
- * НЕ кэшируется навсегда — источник правды это сама кука, которая
- * протухает вместе с сессией и пропадает после логаута.
- */
 let csrfRequest: Promise<void> | null = null
 
 function fetchCsrfCookie(): Promise<void> {
@@ -96,14 +78,8 @@ function fetchCsrfCookie(): Promise<void> {
   })
     .then((response) => {
       if (!response.ok) {
-        throw new ApiError(response.status, `Не удалось получить CSRF-куку: ${response.status}`)
-      }
-      if (readCookie(CSRF_COOKIE) === null) {
-        throw new ApiError(
-          response.status,
-          'CSRF-кука не установлена. Обычно это значит, что домен фронта не указан ' +
-            'в SANCTUM_STATEFUL_DOMAINS или запрос ушёл на другой origin без CORS с credentials.',
-        )
+        /* Token API works without CSRF — soft-fail. */
+        return
       }
     })
     .finally(() => {
@@ -115,13 +91,19 @@ function fetchCsrfCookie(): Promise<void> {
 
 async function ensureCsrfCookie(): Promise<void> {
   if (readCookie(CSRF_COOKIE) !== null) return
-  await fetchCsrfCookie()
+  try {
+    await fetchCsrfCookie()
+  } catch {
+    /* Bearer mode does not require CSRF */
+  }
 }
 
 export interface RequestOptions {
   method?: string
   body?: unknown
   signal?: AbortSignal
+  /** Skip Authorization header (unused; public routes still get token if set). */
+  skipAuth?: boolean
 }
 
 async function parseBody(response: Response): Promise<unknown> {
@@ -150,15 +132,16 @@ async function send(path: string, method: string, options: RequestOptions): Prom
     headers['Content-Type'] = 'application/json'
   }
 
-  const bearer = readAuthToken()
-  if (bearer !== null) {
+  const bearer = options.skipAuth ? null : getAuthToken()
+  if (bearer) {
     headers.Authorization = `Bearer ${bearer}`
   }
 
+  /* Cookie CSRF only if cookie present (SPA hybrid). */
   if (!SAFE_METHODS.has(method)) {
-    const token = readCookie(CSRF_COOKIE)
-    if (token !== null) {
-      headers['X-XSRF-TOKEN'] = token
+    const xsrf = readCookie(CSRF_COOKIE)
+    if (xsrf !== null) {
+      headers['X-XSRF-TOKEN'] = xsrf
     }
   }
 
@@ -171,24 +154,43 @@ async function send(path: string, method: string, options: RequestOptions): Prom
   })
 }
 
+function formatErrorMessage(
+  payload: unknown,
+  status: number,
+): { message: string; errors: ApiValidationErrors } {
+  const shape = payload as
+    | { message?: string; errors?: ApiValidationErrors }
+    | undefined
+  const errors = shape?.errors ?? {}
+  if (shape?.message) return { message: shape.message, errors }
+
+  /* Laravel 422 often only { errors: { field: [...] } } */
+  const firstField = Object.keys(errors)[0]
+  if (firstField && errors[firstField]?.[0]) {
+    return { message: errors[firstField][0], errors }
+  }
+
+  return {
+    message: `Запрос завершился со статусом ${status}`,
+    errors,
+  }
+}
+
 export async function request<TResponse>(
   path: string,
   options: RequestOptions = {},
 ): Promise<TResponse> {
   const method = (options.method ?? 'GET').toUpperCase()
   const mutating = !SAFE_METHODS.has(method)
-  const needsCsrf = mutating && !CSRF_BYPASS_PATHS.has(path)
 
   try {
-    if (needsCsrf) {
+    if (mutating && !getAuthToken()) {
       await ensureCsrfCookie()
     }
 
     let response = await send(path, method, options)
 
-    // Сессия протухла между получением куки и запросом — обновляем токен
-    // и повторяем ровно один раз, чтобы не уйти в цикл.
-    if (response.status === HTTP_CSRF_EXPIRED && needsCsrf) {
+    if (response.status === HTTP_CSRF_EXPIRED && mutating) {
       expireCsrfCookie()
       await fetchCsrfCookie()
       response = await send(path, method, options)
@@ -197,32 +199,17 @@ export async function request<TResponse>(
     const payload = await parseBody(response)
 
     if (!response.ok) {
-      /*
-       * 401 на login/register = неверный пароль, не «сессия мертва».
-       * Не гасим API на всю вкладку — иначе повторный вход невозможен.
-       */
-      if (
-        response.status === 401 &&
-        path !== '/auth/login' &&
-        path !== '/auth/register' &&
-        path !== '/auth/demo-login'
-      ) {
+      if (response.status === 401 && !AUTH_PUBLIC_PATHS.has(path)) {
         disableApiForSession()
       }
-      const shape = payload as { message?: string; errors?: ApiValidationErrors } | undefined
-      throw new ApiError(
-        response.status,
-        shape?.message ?? `Запрос завершился со статусом ${response.status}`,
-        shape?.errors ?? {},
-      )
+      const { message, errors } = formatErrorMessage(payload, response.status)
+      throw new ApiError(response.status, message, errors)
     }
 
     return payload as TResponse
   } catch (error) {
     if (error instanceof ApiError) throw error
 
-    // Отмена и сетевой сбой тоже должны приходить как ApiError,
-    // иначе вызывающий код с проверкой instanceof ApiError их упустит.
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw new ApiError(0, 'Запрос отменён')
     }

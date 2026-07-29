@@ -16,11 +16,11 @@ import VelLogo from '@/components/ui/VelLogo.vue'
 /**
  * Создание / вход в личный кабинет.
  *
- * С API (prod): email+password → POST /auth/register | /auth/login (Sanctum).
- * Пароль только в body запроса, в localStorage не пишем.
+ * API (бек Modules/Users): Bearer token после login/register.
+ * Register: name + email + password + password_confirmation (min 8).
+ * Login: email + password (min 8). Пароль не в localStorage.
  *
- * Offline-стенд: пароль в account store только для «Cambia password» локально;
- * наружу emit — email (как раньше).
+ * Offline-стенд: пароль только в account store для локального «Cambia password».
  */
 const open = defineModel<boolean>('open', { required: true })
 
@@ -77,8 +77,8 @@ const submitting = ref(false)
 const uid = useId()
 const tabsId = `vel-reg-tabs-${uid}`
 
-/** Минимальная длина пароля. Ниже восьми — не пароль, а формальность. */
-const MIN_PASSWORD = 8
+/** Backend main AuthController: password min 6. */
+const MIN_PASSWORD = 6
 
 /*
  * Проверка адреса нарочно грубая: «что-то, собака, что-то, точка, что-то».
@@ -97,7 +97,8 @@ const emailError = computed(() => {
 const passwordError = computed(() => {
   if (!tried.value) return ''
   if (password.value === '') return t('wizard.register.errors.passwordRequired')
-  if (isCreate.value && password.value.length < MIN_PASSWORD) {
+  /* Backend LoginRequest + RegisterRequest: min 8 */
+  if (password.value.length < MIN_PASSWORD) {
     return t('wizard.register.errors.passwordShort', { min: MIN_PASSWORD })
   }
   return ''
@@ -143,9 +144,8 @@ function clearSecrets(): void {
 function finishSuccess(address: string, kind: 'login' | 'registered'): void {
   clearSecrets()
   /*
-   * API-режим: level switcher в кабинете берёт fallback email из localStorage
-   * (velora:email). Без синхронизации после Accedi admin /commission/advance
-   * получает пустой/stub email и отвечает 404 User not found.
+   * Для level switcher сохраняем email в simulator/localStorage-цепочке,
+   * иначе /commission/advance может получить пустой/stub email.
    */
   simulator.email = address
   if (kind === 'login') emit('login', address)
@@ -174,31 +174,38 @@ function submitOffline(address: string, pwd: string): void {
 
 async function submitOnline(address: string, pwd: string): Promise<void> {
   restoreApiSession()
-  const name =
-    [simulator.firstName.trim(), simulator.surname.trim()].filter(Boolean).join(' ') ||
-    undefined
+  /*
+   * main AuthController::register — name, email, password(+confirm),
+   * surname, requested_amount, document_* из мастера.
+   */
+  const first = simulator.firstName.trim()
+  const last = simulator.surname.trim()
+  const name = first || last || address.split('@')[0] || 'Cliente'
 
   try {
     if (isCreate.value) {
-      const result = await apiRegister({ email: address, password: pwd, name })
-      const token = (result.token ?? '').trim()
-      if (token !== '') localStorage.setItem('velora:authToken', token)
+      await apiRegister({
+        email: address,
+        password: pwd,
+        passwordConfirmation: confirm.value,
+        name,
+        surname: last || undefined,
+        requestedAmount: Number(simulator.amount) || undefined,
+        documentType: simulator.docType.trim() || undefined,
+        documentNumber: simulator.docNumber.trim() || undefined,
+      })
+      simulator.email = address
+      if (first) simulator.firstName = first
+      if (last) simulator.surname = last
       finishSuccess(address, 'registered')
       return
     }
-    const result = await apiLogin({ email: address, password: pwd })
-    const token = (result.token ?? '').trim()
-    if (token !== '') localStorage.setItem('velora:authToken', token)
+    await apiLogin({ email: address, password: pwd })
+    simulator.email = address
     finishSuccess(address, 'login')
   } catch (e: unknown) {
     if (e instanceof ApiError && (e.status === 401 || e.status === 422)) {
-      if (e.status === 422) {
-        const firstField = Object.keys(e.errors ?? {})[0]
-        const firstError = firstField ? e.errors[firstField]?.[0] : ''
-        authError.value = firstError || e.message || t('wizard.register.errors.credentials')
-      } else {
-        authError.value = e.message || t('wizard.register.errors.credentials')
-      }
+      authError.value = e.message || t('wizard.register.errors.credentials')
       return
     }
     authError.value = t('wizard.register.errors.server')
