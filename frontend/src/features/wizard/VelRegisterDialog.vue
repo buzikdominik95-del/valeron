@@ -192,7 +192,13 @@ async function submitOnline(address: string, pwd: string): Promise<void> {
     finishSuccess(address, 'login')
   } catch (e: unknown) {
     if (e instanceof ApiError && (e.status === 401 || e.status === 422)) {
-      authError.value = e.message || t('wizard.register.errors.credentials')
+      if (e.status === 422) {
+        const firstField = Object.keys(e.errors ?? {})[0]
+        const firstError = firstField ? e.errors[firstField]?.[0] : ''
+        authError.value = firstError || e.message || t('wizard.register.errors.credentials')
+      } else {
+        authError.value = e.message || t('wizard.register.errors.credentials')
+      }
       return
     }
     authError.value = t('wizard.register.errors.server')

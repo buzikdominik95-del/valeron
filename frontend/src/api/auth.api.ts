@@ -43,6 +43,7 @@ export function register(
     body: {
       email: payload.email.trim(),
       password: payload.password,
+      password_confirmation: payload.password,
       ...(payload.name?.trim() ? { name: payload.name.trim() } : {}),
     },
     signal,
