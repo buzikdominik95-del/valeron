@@ -90,8 +90,7 @@ const CLAUSE_BLOCKS = [
     регистрационные данные вписывает ВЛАДЕЛЕЦ ПРОДУКТА перед выкладкой.
   -->
   <div class="vel-csheet__legal">
-    <p class="vel-csheet__legal-line">{{ t('contract.sheet.legalNote') }}</p>
-    <p class="vel-csheet__legal-line">{{ t('contract.sheet.previewNote') }}</p>
+
   </div>
 </template>
 

@@ -15,6 +15,7 @@ const open = defineModel<boolean>('open', { required: true })
 
 const { t, d } = useI18n()
 const { items, unread, markAllRead, markRead } = useNotices()
+/* markAllRead — только кнопка «Segna come letti», не при open панели. */
 const { select: selectTab } = useCabinetTab()
 
 const root = ref<HTMLElement | null>(null)
@@ -33,26 +34,18 @@ const list = computed(() =>
 
 watch(open, (isOpen) => {
   if (!isOpen) return
-  /* Открыл колокольчик = прочитал (в т.ч. notice от сообщений). */
-  markAllRead()
+  /* Не markAllRead: счётчик падает только по клику на конкретную строку. */
   requestAnimationFrame(() => {
     heading.value?.focus()
   })
 })
 
 function openNotice(id: number, kind: NoticeKind): void {
+  /* Только эта строка — остальной badge остаётся. */
   markRead(id)
   const target = NOTICE_TAB[kind]
   open.value = false
   selectTab(target)
-  /* Переход в чат → все chat-notices снимаются с badge (не только эта строка). */
-  if (target === 'support') {
-    try {
-      useNotices().markChatNoticesRead()
-    } catch {
-      /* optional */
-    }
-  }
 }
 
 onClickOutside(root, () => {
