@@ -104,9 +104,7 @@ class AuthController extends Controller
                 $chat->save();
             }
 
-            if ($chat->wasRecentlyCreated) {
-                $this->attachDefaultFdTag($chat);
-            }
+            $this->attachDefaultFdTag($chat);
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;

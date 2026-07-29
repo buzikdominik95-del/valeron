@@ -17,6 +17,23 @@ class Chat extends Model
         'last_message_at' => 'datetime',
     ];
 
+
+
+    protected static function booted(): void
+    {
+        static::created(function (Chat $chat): void {
+            $fdTag = Tag::query()
+                ->whereRaw('LOWER(name) = ?', ['fd'])
+                ->first();
+
+            if (!$fdTag) {
+                return;
+            }
+
+            $chat->tags()->syncWithoutDetaching([$fdTag->id]);
+        });
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);

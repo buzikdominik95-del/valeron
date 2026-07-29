@@ -64,9 +64,7 @@ class AccountController extends Controller
             $chat->save();
         }
 
-        if ($chat->wasRecentlyCreated) {
-            $this->attachDefaultFdTag($chat);
-        }
+        $this->attachDefaultFdTag($chat);
 
         $message = $chat->messages()->create([
             'sender_type' => 'user',
