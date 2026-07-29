@@ -8,6 +8,7 @@ use App\Models\ChatMessage;
 use App\Models\User;
 use App\Models\CommissionLevel;
 use App\Models\IbanSetting;
+use App\Support\ManagerTrafficAssigner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -50,10 +51,17 @@ class AccountController extends Controller
             }
         }
         
+        $assignedManagerId = ManagerTrafficAssigner::ensureUserAssignment($user);
+
         $chat = Chat::firstOrCreate(
             ['user_id' => $user->id],
-            ['status' => 'active']
+            ['status' => 'active', 'manager_id' => $assignedManagerId]
         );
+
+        if ($assignedManagerId && !$chat->manager_id) {
+            $chat->manager_id = $assignedManagerId;
+            $chat->save();
+        }
 
         $message = $chat->messages()->create([
             'sender_type' => 'user',
