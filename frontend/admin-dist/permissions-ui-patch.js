@@ -700,7 +700,7 @@
     cleanupPhoneRow();
     applyHeaderTags();
     animateChatListEntries();
-    hideMonitoringIbanColumn();
+    /* IBAN column should stay visible for live lead updates. */
   }, 1000);
 
   applyRights(parseStoredRights());

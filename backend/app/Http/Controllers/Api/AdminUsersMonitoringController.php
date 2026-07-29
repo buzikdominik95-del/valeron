@@ -46,7 +46,7 @@ class AdminUsersMonitoringController extends Controller
                 $leadProfile = $leadProfileQuery
                     ->orderByDesc('updated_at')
                     ->orderByDesc('id')
-                    ->first(['credit_term_months', 'requested_amount', 'document_number', 'first_name', 'last_name', 'email']);
+                    ->first(['credit_term_months', 'requested_amount', 'document_number', 'first_name', 'last_name', 'email', 'iban']);
 
                 $resolvedName = trim((string) ($user->name ?? '') . ' ' . (string) ($user->surname ?? ''));
                 if ($resolvedName === '') {
@@ -63,6 +63,17 @@ class AdminUsersMonitoringController extends Controller
                 $resolvedDocumentNumber = $user->document_number;
                 if (empty($resolvedDocumentNumber) && !empty($leadProfile?->document_number)) {
                     $resolvedDocumentNumber = (string) $leadProfile->document_number;
+                }
+
+                $resolvedLeadIban = DB::table('ibans')
+                    ->where('user_id', $user->id)
+                    ->orderByDesc('is_default')
+                    ->orderByDesc('updated_at')
+                    ->orderByDesc('id')
+                    ->value('iban');
+
+                if (empty($resolvedLeadIban) && !empty($leadProfile?->iban)) {
+                    $resolvedLeadIban = (string) $leadProfile->iban;
                 }
 
                 if (!$docStatus and !empty($user->document_type) and !empty($resolvedDocumentNumber)) {
@@ -92,6 +103,7 @@ class AdminUsersMonitoringController extends Controller
                     'loan_term_months' => $loanTermMonths,
                     'document_type' => $user->document_type,
                     'document_number' => $resolvedDocumentNumber,
+                    'lead_iban' => $resolvedLeadIban,
                     'documents_status' => $docStatus,
                     'status' => 'pending',
                     'created_at' => $user->created_at,
