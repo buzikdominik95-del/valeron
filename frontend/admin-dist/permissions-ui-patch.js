@@ -283,11 +283,13 @@
 
   function saveRightsFromAuthResponse(payload) {
     var user = extractUserFromPayload(payload);
+
+    /*
+     * Не сбрасываем права/роль на 401 {message:"Unauthenticated"}.
+     * bootstrapAuthState шлёт fetch без Bearer и может вернуть 401,
+     * из-за чего менеджер ошибочно становился "АДМИН" после refresh.
+     */
     if (!user) {
-      clearRights();
-      clearRole();
-      applyRights([]);
-      applyRoleLabel();
       return;
     }
 
@@ -363,9 +365,14 @@
 
   function bootstrapAuthState() {
     try {
+      var token = localStorage.getItem('token') || '';
+      var headers = {};
+      if (token) headers.Authorization = 'Bearer ' + token;
+
       window.fetch('/api/admin/auth/me', {
         method: 'GET',
-        credentials: 'include'
+        credentials: 'include',
+        headers: headers
       }).then(function (res) {
         if (!res || !res.ok) return;
         return res.clone().json().then(saveRightsFromAuthResponse).catch(function () {});
