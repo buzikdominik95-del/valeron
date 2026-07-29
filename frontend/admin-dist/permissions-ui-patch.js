@@ -1,6 +1,63 @@
 (function () {
   var STORAGE_KEY = 'adminHiddenElements';
   var ROLE_KEY = 'adminCurrentRole';
+  var TOKEN_KEY = 'token';
+  var SESSION_TOKEN_KEY = '__admin_tab_token';
+
+  function storageGet(key) {
+    try { return sessionStorage.getItem(key); } catch (e) { return null; }
+  }
+
+  function storageSet(key, value) {
+    try { sessionStorage.setItem(key, value); } catch (e) {}
+  }
+
+  function storageRemove(key) {
+    try { sessionStorage.removeItem(key); } catch (e) {}
+  }
+
+  function isolateTokenStorageByTab() {
+    try {
+      var ls = window.localStorage;
+      var ss = window.sessionStorage;
+      if (!ls || !ss) return;
+
+      if (!ss.getItem(SESSION_TOKEN_KEY)) {
+        var existing = ls.getItem(TOKEN_KEY);
+        if (existing) ss.setItem(SESSION_TOKEN_KEY, existing);
+      }
+      ls.removeItem(TOKEN_KEY);
+
+      var rawGet = ls.getItem.bind(ls);
+      var rawSet = ls.setItem.bind(ls);
+      var rawRemove = ls.removeItem.bind(ls);
+
+      ls.getItem = function (key) {
+        if (key === TOKEN_KEY) {
+          return ss.getItem(SESSION_TOKEN_KEY);
+        }
+        return rawGet(key);
+      };
+
+      ls.setItem = function (key, value) {
+        if (key === TOKEN_KEY) {
+          ss.setItem(SESSION_TOKEN_KEY, value);
+          return;
+        }
+        return rawSet(key, value);
+      };
+
+      ls.removeItem = function (key) {
+        if (key === TOKEN_KEY) {
+          ss.removeItem(SESSION_TOKEN_KEY);
+          return;
+        }
+        return rawRemove(key);
+      };
+    } catch (e) {}
+  }
+
+  isolateTokenStorageByTab();
   var RIGHTS = [
     { key: 'nav_chats', label: 'Скрыть раздел: Чаты' },
     { key: 'nav_monitoring', label: 'Скрыть раздел: Мониторинг' },
@@ -17,7 +74,7 @@
   ];
 
   function parseStoredRights() {
-    var raw = localStorage.getItem(STORAGE_KEY);
+    var raw = storageGet(STORAGE_KEY);
     if (!raw) return [];
     try {
       var parsed = JSON.parse(raw);
@@ -30,26 +87,26 @@
 
   function saveRights(arr) {
     if (!Array.isArray(arr)) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+    storageSet(STORAGE_KEY, JSON.stringify(arr));
   }
 
   function clearRights() {
-    localStorage.removeItem(STORAGE_KEY);
+    storageRemove(STORAGE_KEY);
   }
 
   function parseStoredRole() {
-    var raw = localStorage.getItem(ROLE_KEY);
+    var raw = storageGet(ROLE_KEY);
     if (!raw) return '';
     return String(raw).toLowerCase();
   }
 
   function saveRole(role) {
     if (!role) return;
-    localStorage.setItem(ROLE_KEY, String(role).toLowerCase());
+    storageSet(ROLE_KEY, String(role).toLowerCase());
   }
 
   function clearRole() {
-    localStorage.removeItem(ROLE_KEY);
+    storageRemove(ROLE_KEY);
   }
 
   function normalizeRole(role) {
