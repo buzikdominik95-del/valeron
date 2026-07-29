@@ -20,6 +20,10 @@ interface ImportMetaEnv {
 
   /** `1` / `true` — ходить в Laravel API; иначе Pinia-заглушки. */
   readonly VITE_USE_API?: string
+  /** `1` / `true` — показать dev-пульт L1–L4 (по умолчанию скрыт). */
+  readonly VITE_SHOW_PHASE_BAR?: string
+  /** Устарело: пульт по умолчанию выкл; см. VITE_SHOW_PHASE_BAR. */
+  readonly VITE_HIDE_PHASE_BAR?: string
 }
 
 interface ImportMeta {

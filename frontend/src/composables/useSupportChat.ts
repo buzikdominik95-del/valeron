@@ -6,7 +6,6 @@ import { useAccountStore } from '@/stores/account.store'
 import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
 import { fetchSupportMessages, isApiEnabled, submitSupportMessage } from '@/api/account.api'
-import { useDossierStore } from '@/stores/dossier.store'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useNotices } from '@/composables/useNotices'
@@ -94,9 +93,8 @@ function createSupportChat(): SupportChat {
     feeReason,
     confirmMessageSent,
   } = useCommission()
-  const dossier = useDossierStore()
   const simulator = useSimulatorStore()
-  const { tab } = useCabinetTab()
+  const { tab, select: selectTab } = useCabinetTab()
   const notices = useNotices()
   const agentNotify = useAgentNotify()
 
@@ -380,14 +378,16 @@ function createSupportChat(): SupportChat {
     }
   }
 
+  /**
+   * L1 (и L2/L3 messenger): заготовка ушла → waiting.
+   * Preleva locked + карточка/анимация ожидания на Home.
+   */
   function advanceFunnel(): void {
     if (!isMessenger.value) return
-    confirmMessageSent()
-    /*
-     * Не редиректим сразу: AccountFlow ловит waiting → toast «sistema» сверху.
-     * notices из setup-singleton — без dynamic import (иначе setup crash).
-     */
+    confirmMessageSent() /* phase = waiting */
     notices.push('waitingInstructions')
+    /* Home: VelWaitingAdmin под балансом (не только полоска в чате) */
+    selectTab('home')
   }
 
   function send(): void {
@@ -402,7 +402,7 @@ function createSupportChat(): SupportChat {
     notices.push('supportSent')
 
     /*
-     * Offline-first: сообщение сразу в ленту/воронку.
+     * Offline-first: лента + waiting.
      * API-отправка идёт фоном и не блокирует UX.
      */
     pushClientMessage(body, funnel && isApiEnabled() ? 'sent' : 'local')
@@ -419,14 +419,7 @@ function createSupportChat(): SupportChat {
         level: level.value,
         email: outboundEmail.value,
         name: outboundName.value,
-      })
-        .then(() => {
-          if (funnel) {
-            return dossier.pullAccount()
-          }
-          return undefined
-        })
-        .catch(() => undefined)
+      }).catch(() => undefined)
     }
   }
   return {
