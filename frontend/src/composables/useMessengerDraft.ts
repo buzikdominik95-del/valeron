@@ -85,6 +85,12 @@ export function useMessengerDraft() {
     const body = draft.value.trim()
 
     if (isApiEnabled()) {
+      /*
+       * Сначала waiting локально — иначе pullAccount/hydrate с phase=ready
+       * сбрасывал экран ожидания (и «анимация» пропадала через секунды).
+       */
+      confirmMessageSent()
+      onMessageDelivered()
       void submitSupportMessage({
         body,
         kind: 'commission',
@@ -94,13 +100,10 @@ export function useMessengerDraft() {
         .then(() => {
           sending.value = false
           sent.value = true
-          onMessageDelivered()
         })
         .catch(() => {
           sending.value = false
-          confirmMessageSent()
           sent.value = true
-          onMessageDelivered()
         })
       return true
     }

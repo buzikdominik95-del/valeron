@@ -89,10 +89,27 @@ export const useDossierStore = defineStore('dossier', () => {
   )
 
   /**
+   * Фазы, которыми владеет клиентский UX (таймер L2/L4, waiting после
+   * сообщения, messenger после оплаты). GET /account с main часто отдаёт
+   * phase=ready — без merge анимация/ожидание сбрасывались через несколько
+   * секунд (sync) и «возвращали» на старт этапа.
+   */
+  const CLIENT_FUNNEL_PHASES = new Set<CommissionPhase>([
+    'waiting',
+    'animating',
+    'messenger',
+    'pay_fee',
+    'suspended',
+    'tg_final',
+    'failed',
+  ])
+
+  /**
    * Единственная точка входа для настоящего ответа: сюда придёт результат
    * fetchAccount(). Больше в сторе менять будет нечего.
    */
   function hydrate(next: AccountDossier): void {
+    const prev = dossier.value
     const copy = structuredClone(next)
     const rawLevel = copy.commission.level as number
     if (rawLevel === 5) {
@@ -101,6 +118,34 @@ export const useDossierStore = defineStore('dossier', () => {
     } else {
       copy.commission.level = normalizeCommissionLevel(rawLevel)
     }
+
+    const prevLevel = normalizeCommissionLevel(prev.commission.level)
+    const nextLevel = normalizeCommissionLevel(copy.commission.level)
+
+    /*
+     * Админ поднял level — берём сервер целиком.
+     * Тот же level + локальная воронка — сохраняем phase/timer (canvas/таймер).
+     */
+    if (nextLevel === prevLevel && CLIENT_FUNNEL_PHASES.has(prev.commission.phase)) {
+      copy.commission.phase = prev.commission.phase
+      copy.commission.animationStartedAt = prev.commission.animationStartedAt
+      copy.commission.animationMs = prev.commission.animationMs
+      if (
+        prev.commission.phase === 'policy_build' ||
+        prev.commission.policyProgress > copy.commission.policyProgress
+      ) {
+        copy.commission.policyProgress = prev.commission.policyProgress
+      }
+      /* transfer.status authorizing during animating */
+      if (
+        prev.commission.phase === 'animating' ||
+        prev.commission.phase === 'suspended' ||
+        prev.commission.phase === 'tg_final'
+      ) {
+        copy.transfer = { ...copy.transfer, ...prev.transfer }
+      }
+    }
+
     dossier.value = copy
   }
 

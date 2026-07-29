@@ -85,6 +85,11 @@ const ACCOUNT_SYNC_INTERVAL_MS = 12_000
 
 async function syncAccountNow(): Promise<void> {
   if (!isApiEnabled()) return
+  /*
+   * pullAccount → hydrate: воронка waiting/animating сохраняется в store
+   * (см. hydrate CLIENT_FUNNEL_PHASES). Не пропускаем sync целиком —
+   * уровень/сумма с бека всё равно нужны.
+   */
   await dossier.pullAccount()
   apiError.value = null
 }
