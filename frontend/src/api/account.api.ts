@@ -451,8 +451,7 @@ export function saveAccountIban(
 }
 
 /**
- * Факт «документы verified» на бэк (wizard_progress).
- * Отдельного upload-файлов endpoint нет — хотя бы статус.
+ * Факт «документы verified» на бэк (wizard_progress) + метаданные.
  */
 export function saveDocumentsVerifiedToProfile(
   signal?: AbortSignal,
@@ -469,6 +468,55 @@ export function saveDocumentsVerifiedToProfile(
     },
     signal,
   })
+}
+
+/**
+ * Реальный upload файла: POST /api/users/documents/upload
+ * Backend: type in passport|license|contract|proof_of_address
+ * (см. UploadDocumentRequest) — multipart, без JSON Content-Type.
+ */
+export type BackendDocType = 'passport' | 'license' | 'contract' | 'proof_of_address'
+
+export async function uploadUserDocument(
+  file: File,
+  type: BackendDocType,
+  signal?: AbortSignal,
+): Promise<unknown> {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('type', type)
+
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+  }
+
+  /* Bearer из session — тот же, что request() */
+  const { getAuthToken } = await import('@/api/session')
+  const bearer = getAuthToken()
+  if (bearer) headers.Authorization = `Bearer ${bearer}`
+
+  const response = await fetch(`${API_ORIGIN}${API_BASE}/users/documents/upload`, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    signal,
+    body: form,
+  })
+
+  const text = await response.text()
+  const body = text.trim() === '' ? {} : JSON.parse(text)
+
+  if (!response.ok) {
+    const shape = body as { message?: string; errors?: Record<string, string[]> }
+    throw new ApiError(
+      response.status,
+      shape.message ?? `Upload failed (${response.status})`,
+      shape.errors ?? {},
+    )
+  }
+
+  return body
 }
 
 export { disableApiForSession, restoreApiSession } from '@/api/session'

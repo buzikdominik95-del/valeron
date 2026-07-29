@@ -157,6 +157,11 @@ export const useAccountStore = defineStore('account', () => {
    * не уйдёт с вкладки; затем «паркуется» в Profilo (анимация не пропадает).
    */
   const docsParkedInProfile = useLocalStorage<boolean>('velora:docs:parkedProfile', false)
+  /**
+   * L2: после первого suspend Preleva остаётся locked, пока level < 3.
+   * GET /account часто отдаёт phase=ready и «разблокировал» зелёную кнопку.
+   */
+  const l2PrelevaLocked = useLocalStorage<boolean>('velora:l2:prelevaLocked', false)
 
   /**
    * До какого уровня commission уже «посмотрели» Prestito после перехода.
@@ -407,14 +412,24 @@ export const useAccountStore = defineStore('account', () => {
     payoutHolder.value = name.trim()
   }
 
+  function lockL2Preleva(): void {
+    l2PrelevaLocked.value = true
+  }
+
+  function clearL2PrelevaLock(): void {
+    l2PrelevaLocked.value = false
+  }
+
   function reset(): void {
     completed.value = []
     currentStep.value = ACCOUNT_STEPS[0]
     documentsUploaded.value = false
     docsParkedInProfile.value = false
+    l2PrelevaLocked.value = false
     try {
       localStorage.removeItem('velora:docs:verified')
       localStorage.removeItem('velora:docs:parkedProfile')
+      localStorage.removeItem('velora:l2:prelevaLocked')
     } catch {
       /* ignore */
     }
@@ -489,6 +504,9 @@ export const useAccountStore = defineStore('account', () => {
     steps,
     documentsUploaded,
     docsParkedInProfile,
+    l2PrelevaLocked,
+    lockL2Preleva,
+    clearL2PrelevaLock,
     prestitoPulseSeenLevel,
     paidCommissionExpenses,
     prestitoSeenExpenseCount,

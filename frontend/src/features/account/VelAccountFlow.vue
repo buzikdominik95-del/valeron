@@ -151,17 +151,20 @@ const { start: startWelcomeToast } = useTimeoutFn(
 
 onMounted(() => {
   /*
-   * Старт всегда Home. Welcome-пузыри Deborah — сразу в ленту;
-   * toast «nuovo messaggio» — через 10 с.
+   * Старт Home. Два пузыря Deborah (как на эталоне) — сразу.
+   * Toast — через 10 с.
    */
   selectTab('home')
   queueMicrotask(() => ensureWelcomeMessages())
+  /* Повтор после sync (сервер затирает ленту) */
+  window.setTimeout(() => ensureWelcomeMessages(), 800)
+  window.setTimeout(() => ensureWelcomeMessages(), 2500)
   if (!welcomeToastSeen.value) {
     startWelcomeToast()
   }
 
   if (!isApiEnabled()) return
-  void syncAccountNow()
+  void syncAccountNow().then(() => ensureWelcomeMessages())
   syncProfileTermToBackend()
   startAccountSync()
   document.addEventListener('visibilitychange', onCabinetVisible)
@@ -277,22 +280,45 @@ function showSystemWaitingToast(): void {
 
 /**
  * Документы verified — unlock firma.
- * БЕЗ toast/агента менеджера (промт: убрать после фото паспорта).
+ * БЕЗ toast/агента менеджера. Файлы → POST /users/documents/upload.
  */
 function onDocumentsVerified(): void {
   unlockFirmaAfterDocs()
-  /* только системный notice в колокольчик, не agent toast */
   try {
     notices.push('documentVerified')
   } catch {
     /* storage */
   }
-  /* Синхронизация факта verify на бэк (wizard_progress). */
-  if (isApiEnabled()) {
-    void import('@/api/account.api').then(({ saveDocumentsVerifiedToProfile }) => {
-      void saveDocumentsVerifiedToProfile().catch(() => undefined)
-    })
-  }
+
+  if (!isApiEnabled()) return
+
+  void import('@/api/account.api').then(async ({ uploadUserDocument, saveDocumentsVerifiedToProfile }) => {
+    const kind = (() => {
+      /* map FE kind → backend type (passport|license|…) */
+      try {
+        const raw = localStorage.getItem('velora:docs:lastKind')
+        if (raw === 'licence') return 'license' as const
+        if (raw === 'passport' || raw === 'idCard') return 'passport' as const
+      } catch {
+        /* */
+      }
+      return 'passport' as const
+    })()
+
+    const files = chosenFiles.value
+    for (const file of files) {
+      try {
+        await uploadUserDocument(file, kind)
+      } catch (e) {
+        console.warn('[docs] upload failed', e)
+      }
+    }
+    try {
+      await saveDocumentsVerifiedToProfile()
+    } catch {
+      /* wizard_progress optional */
+    }
+  })
 }
 
 function onAgentToastOpen(): void {
@@ -433,7 +459,8 @@ const successOpen = ref(false)
  * L2: всегда locked (только «Paga la copertura» на карточке sospesa).
  */
 function onWithdraw(): void {
-  /* L2: Preleva неактивна навсегда на этом этапе (suspended / pay_fee / reject). */
+  /* L2 sticky / suspend / pay_fee: зелёная Preleva молчит. */
+  if (Number(level.value) === 2 && account.l2PrelevaLocked) return
   if (
     Number(level.value) === 2 &&
     (isRejectAnim.value || isSuspended.value || isPayFee.value)
@@ -571,13 +598,14 @@ function onCommissionConfirmed(): void {
 }
 
 /*
- * L2: НЕ auto-open drawer (промт §6).
- * Только «Erogazione sospesa» → клик «Paga…» → openCommissionPayment.
- * Preleva disabled (withdrawLocked).
+ * L2: НЕ auto-open drawer.
+ * Только «Erogazione sospesa» → красная «Paga…» → openCommissionPayment.
+ * Preleva зелёная — sticky locked (account.l2PrelevaLocked).
  */
 watch(isSuspended, (on, was) => {
   if (!(on && was === false)) return
   if (Number(level.value) !== 2) return
+  account.lockL2Preleva()
   selectTab('home')
   successOpen.value = false
   commissionOpen.value = false
@@ -586,9 +614,17 @@ watch(isSuspended, (on, was) => {
 
 watch(isPayFee, (on) => {
   if (!on) return
-  /* L2: drawer только по кнопке на карточке sospesa */
-  if (Number(level.value) === 2) return
+  if (Number(level.value) === 2) {
+    account.lockL2Preleva()
+    /* drawer НЕ auto — только кнопка на карточке */
+    return
+  }
   openCommissionPayment()
+})
+
+/* L3+: снять sticky lock L2 */
+watch(level, (lv) => {
+  if (Number(lv) >= 3) account.clearL2PrelevaLock()
 })
 
 /** После оплаты → Assistenza + заготовка (L1…L4). */
@@ -663,9 +699,9 @@ watch(
  * isRejectAnim = true в hold 100% и в suspended/failed.
  */
 watch(isRejectAnim, (now, was) => {
-  if (now && was === false) {
-    rejectFlashOpen.value = true
-  }
+  if (!(now && was === false)) return
+  rejectFlashOpen.value = true
+  if (Number(level.value) === 2) account.lockL2Preleva()
 })
 
 const showClassicBank = computed(
