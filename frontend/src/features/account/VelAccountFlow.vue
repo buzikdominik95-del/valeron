@@ -7,8 +7,9 @@ import { useCommission } from '@/composables/useCommission'
 import { useCpiBuild } from '@/composables/useCpiBuild'
 import { useAccountStore } from '@/stores/account.store'
 import { useDossierStore } from '@/stores/dossier.store'
-import { isApiEnabled } from '@/api/account.api'
+import { disableApiForSession, isApiEnabled } from '@/api/account.api'
 import { demoLogin } from '@/api/auth.api'
+import { ApiError } from '@/api/http'
 import { useSimulatorStore } from '@/stores/simulator.store'
 
 import VelAccount from '@/features/account/VelAccount.vue'
@@ -29,6 +30,7 @@ import VelLevelTransition from '@/features/account/VelLevelTransition.vue'
 import VelSuspensionCard from '@/features/account/VelSuspensionCard.vue'
 import VelPolicyBuildCard from '@/features/account/VelPolicyBuildCard.vue'
 import VelTransferAnim from '@/features/account/VelTransferAnim.vue'
+import VelL4UnlockAnim from '@/features/account/VelL4UnlockAnim.vue'
 import VelAccountFreezeModal from '@/features/account/VelAccountFreezeModal.vue'
 import VelAccountFreezeIntro from '@/features/account/VelAccountFreezeIntro.vue'
 import VelRejectFlash from '@/features/account/VelRejectFlash.vue'
@@ -41,6 +43,8 @@ import VelAgentToast from '@/features/account/VelAgentToast.vue'
 import VelWaitingAdmin from '@/features/account/VelWaitingAdmin.vue'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useNotices } from '@/composables/useNotices'
+import { useAgentNotify } from '@/composables/useAgentNotify'
+import { useSupportChat } from '@/composables/useSupportChat'
 
 const { t } = useI18n()
 const account = useAccountStore()
@@ -65,12 +69,21 @@ const {
 const { certViewed, step: cpiStep } = useCpiBuild()
 const { select: selectTab } = useCabinetTab()
 const notices = useNotices()
+/** Toast менеджера / system — shared с pushAgentMessage (admin → toast + badge). */
+const {
+  open: agentToastOpen,
+  kind: agentToastKind,
+  show: showAgentNotify,
+  hide: hideAgentNotify,
+} = useAgentNotify()
+/**
+ * Shared chat: must be created in setup (useI18n).
+ * Never first-call from async/click — that throws «Must be called at top of setup».
+ */
+const supportChat = useSupportChat()
 
 const apiError = ref<string | null>(null)
 let accountSyncTimer: number | null = null
-/** Toast: agent (docs) | welcome (15 с после входа) | system (L4 → Home). */
-const agentToastOpen = ref(false)
-const agentToastKind = ref<'agent' | 'system' | 'welcome'>('agent')
 /** Полноэкранный крестик при L2 freeze / L4 reject — сам закрывается. */
 const rejectFlashOpen = ref(false)
 
@@ -100,6 +113,7 @@ onMounted(() => {
   /*
    * Не логинимся как marco@esempio.it по умолчанию — только email
    * зарегистрированного пользователя (после мастера).
+   * Без сессии — offline (localStorage); 401 гасит API на всю вкладку.
    */
   const simulator = useSimulatorStore()
   const mail = simulator.email.trim()
@@ -114,7 +128,11 @@ onMounted(() => {
   void demoLogin(mail, 'password', name)
     .then(() => dossier.pullAccount())
     .catch((e: unknown) => {
-      apiError.value = e instanceof Error ? e.message : 'API unavailable'
+      if (e instanceof ApiError && (e.status === 401 || e.status === 419 || e.status === 0)) {
+        disableApiForSession()
+      }
+      /* Не показываем красный баннер — кабинет работает offline. */
+      apiError.value = null
     })
   }
 
@@ -159,8 +177,6 @@ const chosenFiles = ref<File[]>([])
 const toastText = ref<string | null>(null)
 
 const TOAST_MS = 2800
-/** Toast консультанта сверху: 7 с, потом сам закрывается. */
-const AGENT_TOAST_MS = 7000
 
 /*
  * Таймер из VueUse, а не голый setTimeout: useTimeoutFn снимает его сам при
@@ -178,14 +194,6 @@ const { start: hideToastLater } = useTimeoutFn(
     toastText.value = null
   },
   TOAST_MS,
-  { immediate: false },
-)
-
-const { start: hideAgentToastLater } = useTimeoutFn(
-  () => {
-    agentToastOpen.value = false
-  },
-  AGENT_TOAST_MS,
   { immediate: false },
 )
 
@@ -223,29 +231,14 @@ function unlockFirmaAfterDocs(): void {
   account.advanceTo('signature')
 }
 
-/** Toast консультанта справа снизу + badge на чате + уведомление; через 7 с сам закрывается. */
-function showAgentMessageToast(): void {
-  account.bumpSupportUnread(1)
-  notices.push('managerMessage')
-  agentToastKind.value = 'agent'
-  agentToastOpen.value = true
-  hideAgentToastLater()
-}
-
 /**
  * Приветствие менеджера ~15 с после входа в ЛК:
- * toast + реплика в Assistenza + badge + notice — всё одновременно.
- * (Раньше в чате сразу висело статичное greeting, а toast шёл через 15 с.)
+ * toast + реплика в Assistenza + badge + notice — всё через pushAgentMessage.
  */
 function showWelcomeManagerToast(): void {
   welcomeToastSeen.value = true
-  notices.push('managerMessage')
-  agentToastKind.value = 'welcome'
-  agentToastOpen.value = true
-  hideAgentToastLater()
-  /* pushAgentMessage сам бампит unread — не дублируем */
-  void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
-    useSupportChat().pushAgentMessage(t('account.support.chat.welcomeMsg'))
+  supportChat.pushAgentMessage(t('account.support.chat.welcomeMsg'), {
+    variant: 'welcome',
   })
 }
 
@@ -254,25 +247,20 @@ function showWelcomeManagerToast(): void {
  * Не уводит с чата сам — только по клику → Home + короткая прогрузка.
  */
 function showSystemWaitingToast(): void {
-  agentToastKind.value = 'system'
-  agentToastOpen.value = true
-  hideAgentToastLater()
+  showAgentNotify('system')
 }
 
-/** Только после verify (не при выборе файла) — unlock firma + toast + chat badge. */
+/** Только после verify (не при выборе файла) — unlock firma + agent msg (toast+badge). */
 function onDocumentsVerified(): void {
   unlockFirmaAfterDocs()
   notices.push('documentVerified')
-  showAgentMessageToast()
   showToast(t('account.docs.toastReady'))
-  /* Сообщение менеджера — в ленту Assistenza (author=agent). */
-  void import('@/composables/useSupportChat').then(({ useSupportChat }) => {
-    useSupportChat().pushAgentMessage(t('account.support.chat.docsVerified'))
-  })
+  /* toast + badge + notice — внутри pushAgentMessage */
+  supportChat.pushAgentMessage(t('account.support.chat.docsVerified'))
 }
 
 function onAgentToastOpen(): void {
-  agentToastOpen.value = false
+  hideAgentNotify()
   if (agentToastKind.value === 'system') {
     /* Home + полноэкранная прогрузка (как смена этапа). */
     selectTab('home')
@@ -282,12 +270,12 @@ function onAgentToastOpen(): void {
     }, 2000)
     return
   }
-  /* agent / welcome → чат с менеджером */
+  /* agent / welcome → чат с менеджером (badge гасится в VelAccount watch tab) */
   selectTab('support')
 }
 
 function onAgentToastClose(): void {
-  agentToastOpen.value = false
+  hideAgentNotify()
 }
 
 function onContractSignConfirm(dataUrl: string): void {
@@ -302,14 +290,15 @@ function onContractSignConfirm(dataUrl: string): void {
 }
 
 /*
- * Все 5 шагов step bar закрыты (обычно после Firma) → такой же toast
- * «Nuovo messaggio», badge на Assistenza и колокольчике.
+ * Все 5 шагов step bar закрыты (обычно после Firma) → toast + badge Assistenza.
  * Только переход false → true: не дублируем при reload с уже готовым ЛК.
  * Notice «contractSigned» уже пушит useNotices при markContractSigned.
  */
 watch(allDone, (done, wasDone) => {
   if (!done || wasDone !== false) return
-  showAgentMessageToast()
+  account.bumpSupportUnread(1)
+  notices.push('managerMessage')
+  showAgentNotify('agent')
 })
 
 function openContractIban(): void {
@@ -328,26 +317,37 @@ function openContractSign(): void {
 }
 
 /**
- * Старт воронки после суммы.
- * L2: сразу animating + информационное окно банка.
- * L4: анимация отказа (обязательно Home + phase animating).
- * L1 / fee → beginWithdraw → pay_fee → drawer комиссии.
+ * L2 полный флоу (offline):
+ *  1) Preleva
+ *  2) Панель → Avvia il trasferimento
+ *  3) Модалка «Dati inviati alla banca» → Continua
+ *  4) Анимация + таймер 7 минут
+ *  5) suspended (ошибка вывода)
+ *  6) Модалка/drawer оплаты комиссии
+ *  7) «Оплатил» → чат с заготовкой → waiting → админ L3
+ *
+ * L4: 1–2 → сразу анимация (без шага 3) → tg_final.
  */
 function startWithdrawFunnel(): void {
   selectTab('home')
-  const lv = Number(level.value)
+  payoutPanelOpen.value = false
+  successOpen.value = false
+
+  const lv = normalizeLevel()
 
   if (lv === 2) {
-    beginWithdraw()
+    /* Шаг 3: bank-notice. Анимация — только после Continua. */
     bankNoticeOpen.value = true
     return
   }
 
-  /* L4 (и запасной путь): анимация перевода */
-  const ok = beginWithdraw()
-  if (!ok && (lv === 2 || lv === 4) && phase.value === 'ready') {
+  if (lv === 4) {
+    bankNoticeOpen.value = false
     beginWithdraw()
+    return
   }
+
+  beginWithdraw()
 }
 
 /**
@@ -368,6 +368,12 @@ function openCommissionPayment(): void {
 }
 
 provide(OPEN_COMMISSION_KEY, openCommissionPayment)
+
+/*
+ * «Trasferimento completato» — только реальный успех (не L2/L4).
+ * Объявлен здесь: openL2CommissionAuto / watch'и гасят его до template.
+ */
+const successOpen = ref(false)
 
 /**
  * Preleva — повторный вход после 1-й попытки (pay_fee / messenger / suspended).
@@ -432,7 +438,7 @@ function onWithdraw(): void {
   payoutPanelOpen.value = true
 }
 
-/** После панели или сразу (если IBAN есть) → drawer / анимация по уровню. */
+/** После «Avvia» в панели → drawer (L1/L3) или анимация вывода (L2/L4). */
 function continueAfterPayout(euros: number): void {
   withdrawAmount.value = Math.max(0, Math.round(euros))
   if (withdrawAmount.value <= 0) {
@@ -440,17 +446,22 @@ function continueAfterPayout(euros: number): void {
   }
   payoutPanelOpen.value = false
 
-  const lv = Number(level.value)
+  const lv = normalizeLevel()
 
-  // L1 / L3 / страховка: pay_fee → drawer (IBAN-шаг пропускается, если уже есть).
+  // L1 / L3 / страховка: pay_fee → drawer
   if (lv === 1 || lv === 3 || isSuspended.value) {
     if (!isPayFee.value) beginWithdraw()
     commissionOpen.value = true
     return
   }
 
-  // L2 / L4: банк-уведомление или анимация.
+  // L2 → bank-notice → анимация → авто-отказ; L4 → анимация → авто-отказ
   startWithdrawFunnel()
+}
+
+function normalizeLevel(): number {
+  const n = Number(level.value)
+  return Number.isFinite(n) && n >= 1 && n <= 4 ? n : 1
 }
 
 function onPayoutSubmitted(euros: number): void {
@@ -466,35 +477,86 @@ function onAmountConfirm(): void {
   startWithdrawFunnel()
 }
 
+/**
+ * L2 шаг 3→4: «Continua» на «Dati inviati alla banca» → анимация (таймер 7 мин).
+ * Анимация offline; по timer=0 → suspended.
+ */
 function onBankNoticeContinue(): void {
   bankNoticeOpen.value = false
-  /* Анимация уже должна идти (startWithdrawFunnel); страховка если begin сбойнул */
-  if (!isAnimating.value && (isReady.value || phase.value === 'ready')) {
-    beginWithdraw()
-  }
-}
-
-function onCommissionConfirmed(): void {
-  commissionOpen.value = false
-  // Чат с менеджером — отдельно, вкладка Assistenza (4.png).
-  selectTab('support')
+  selectTab('home')
+  if (isAnimating.value) return
+  beginWithdraw()
 }
 
 /**
- * Комиссия в pay_fee → drawer (не инлайн-карточка).
- * L2 «перевод заморожен» → Paga: openFeeFromSuspension → pay_fee → сразу оплата,
- * без повторного Preleva (сумма из approved, если ref сброшен).
+ * L2: после отказа анимации — drawer оплаты САМ (без клика «Paga…»).
+ * Карточка suspended остаётся как fallback, если drawer закрыли.
+ */
+function openL2CommissionAuto(): void {
+  if (Number(level.value) !== 2) return
+  if (!isSuspended.value && !isPayFee.value) return
+  selectTab('home')
+  successOpen.value = false
+  if (isSuspended.value) openFeeFromSuspension()
+  openCommissionPayment()
+}
+
+/**
+ * L2 шаг 7: «Conferma pagamento» → messenger + Assistenza + заготовка.
+ * (confirmFeePaid / markFeePaidOffline уже в drawer — phase = messenger.)
+ */
+function onCommissionConfirmed(): void {
+  commissionOpen.value = false
+  selectTab('support')
+  void import('vue').then(({ nextTick }) =>
+    nextTick(() => {
+      supportChat.seedFunnelDraft(true)
+    }),
+  )
+}
+
+/**
+ * pay_fee → drawer. Не закрываем drawer при уходе с pay_fee, если
+ * пользователь просто dismiss — закрытие только в onCommissionConfirmed /
+ * messenger watch (иначе гонка с auto-open).
  */
 watch(isPayFee, (on) => {
-  if (!on) {
-    return
-  }
+  if (!on) return
   openCommissionPayment()
 })
 
-/** После оплаты → Assistenza (чат). */
+/**
+ * L2 после 7‑мин таймера: suspended → reject flash → auto drawer комиссии.
+ * Два триггера: (1) вход в suspended, (2) закрытие reject flash — чтобы
+ * модалка точно вылезла без клика «Paga la copertura».
+ */
+watch(isSuspended, (on, was) => {
+  if (!(on && was === false)) return
+  if (Number(level.value) !== 2) return
+  selectTab('home')
+  successOpen.value = false
+  /* ~reject flash 1.4s + кадр — drawer поверх карточки */
+  window.setTimeout(() => openL2CommissionAuto(), 1_650)
+})
+
+watch(rejectFlashOpen, (open, wasOpen) => {
+  if (open || wasOpen !== true) return
+  if (Number(level.value) !== 2) return
+  if (!isSuspended.value && !isPayFee.value) return
+  /* Flash ушёл — сразу оплата, без клика по красной кнопке */
+  openL2CommissionAuto()
+})
+
+/** После оплаты → Assistenza + заготовка (L1…L4). */
 watch(isMessenger, (needChat) => {
-  if (needChat) selectTab('support')
+  if (!needChat) return
+  commissionOpen.value = false
+  selectTab('support')
+  void import('vue').then(({ nextTick }) =>
+    nextTick(() => {
+      supportChat.seedFunnelDraft(true)
+    }),
+  )
 })
 
 /*
@@ -524,25 +586,31 @@ function onOpenPdf(): void {
  *
  * Окно живёт ЗДЕСЬ, а не внутри VelTransferAnim: как только фаза сменилась,
  * тот экран размонтируется, и финал ушёл бы вместе с ним, не успев показаться.
- */
-const successOpen = ref(false)
-
-/*
- * Финал «перевод завершён» только при реальном успехе.
- * НЕ показывать: L2 suspended, L4 failed, L4 tg_final (иначе зелёный
- * «conferma Velora» перед freeze/Telegram).
+ *
+ * L2 / L4 всегда кончаются отказом (таймер → suspended / tg_final):
+ * зелёный success здесь = баг.
  */
 watch(isAnimating, (now, was) => {
-  if (
-    was &&
-    !now &&
-    !isSuspended.value &&
-    !isFailed.value &&
-    !isTgFinal.value
-  ) {
-    successOpen.value = true
+  if (!was || now) return
+  /* L2/L4: никогда success — только отказ по таймеру */
+  if (level.value === 2 || level.value === 4) {
+    successOpen.value = false
+    return
   }
+  if (isSuspended.value || isFailed.value || isTgFinal.value || isRejectAnim.value) {
+    successOpen.value = false
+    return
+  }
+  successOpen.value = true
 })
+
+/* Если phase уже reject — гасим success, даже если успел открыться */
+watch(
+  () => isSuspended.value || isFailed.value || isTgFinal.value || isRejectAnim.value,
+  (reject) => {
+    if (reject) successOpen.value = false
+  },
+)
 
 /*
  * Конец анимации L2/L4: полноэкранный крестик «вылетает» и через ~1.4 с уходит.
@@ -591,9 +659,25 @@ const showL3CpiCard = computed(() => {
   return false
 })
 
+/**
+ * L4 до Preleva: intro canvas «sblocco fondi».
+ * После Preleva → isAnimating → VelTransferAnim (come L2).
+ */
+const showL4UnlockIntro = computed(
+  () =>
+    Number(level.value) === 4 &&
+    isReady.value &&
+    !isAnimating.value &&
+    !isTgFinal.value &&
+    !isFailed.value &&
+    !isRejectAnim.value,
+)
+
 const transferStage = computed((): { key: string; view: Component } | null => {
   if (isAnimating.value) return { key: `anim-${phase.value}`, view: VelTransferAnim }
   if (showL2SuspensionCard.value) return { key: 'suspended', view: VelSuspensionCard }
+  /* L4 ready: intro unlock (finché non preme Preleva) */
+  if (showL4UnlockIntro.value) return { key: 'l4-unlock', view: VelL4UnlockAnim }
   /* После сообщения менеджеру: «ожидайте инструкций» + hourglass на Preleva. */
   if (isWaiting.value) return { key: 'waiting', view: VelWaitingAdmin }
   /* L4 tg_final / failed: красная VelTransferAnim ниже (не success-карточка) */

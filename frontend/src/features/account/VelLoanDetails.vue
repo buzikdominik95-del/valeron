@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useId, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useAccount } from '@/composables/useAccount'
@@ -165,9 +165,15 @@ function close(): void {
   open.value = false
 }
 
-/* Открыли Prestito — сняли точку «есть изменения». */
+/*
+ * Открыли Prestito — сняли точку «есть изменения» ПОСЛЕ showModal/patch.
+ * Синхронный mark на клике кнопки ломал DOM (insertBefore NotFoundError).
+ */
 watch(open, (isOpen) => {
-  if (isOpen) accountStore.markPrestitoSeen(level.value)
+  if (!isOpen) return
+  void nextTick(() => {
+    accountStore.markPrestitoSeen(level.value)
+  })
 })
 
 const settleNote = ref('')

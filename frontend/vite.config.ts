@@ -45,6 +45,18 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      /*
+       * node_modules часто лежит в parent (hoist / monorepo).
+       * Без allow Vite отдаёт @fontsource woff2 как /@fs/... → 403
+       * (особенно с пробелом в «frontend dev 2»).
+       */
+      fs: {
+        allow: [
+          fileURLToPath(new URL('.', import.meta.url)),
+          fileURLToPath(new URL('..', import.meta.url)),
+          fileURLToPath(new URL('../node_modules', import.meta.url)),
+        ],
+      },
       proxy: {
         '/api': proxy,
         // Выдача CSRF-куки для SPA-аутентификации Sanctum

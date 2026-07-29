@@ -1,6 +1,6 @@
 import { computed, watch } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
-import { createSharedComposable, useLocalStorage } from '@vueuse/core'
+import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useAccountStore } from '@/stores/account.store'
 import { useDossierStore } from '@/stores/dossier.store'
@@ -143,7 +143,14 @@ function createNotices(): NoticesApi {
   return { items, unread, hasUnread, markAllRead, markRead, clear, push }
 }
 
-export const useNotices = createSharedComposable(createNotices)
+/** Permanent singleton — not createSharedComposable (dispose → setup crash). */
+let noticesSingleton: NoticesApi | null = null
+
+export function useNotices(): NoticesApi {
+  if (noticesSingleton) return noticesSingleton
+  noticesSingleton = createNotices()
+  return noticesSingleton
+}
 
 /**
  * Точка на колокольчике. Отдельной функцией, чтобы шапке не тянуть весь

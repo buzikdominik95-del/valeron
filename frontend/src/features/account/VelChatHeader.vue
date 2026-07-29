@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import consultantPhoto from '@/img/consulente-tablet.webp'
+import consultantPhoto from '@/img/consulente-schierano.jpg'
 
 /**
  * Шапка переписки: фото консультанта, имя, статус «в сети», часы.

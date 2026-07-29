@@ -60,10 +60,12 @@ export function beginWithdrawOffline(dossier: AccountDossier): void {
   if (level === 2 || level === 4) {
     dossier.commission.phase = 'animating'
     /* Всегда табличное значение — битый animationMs:0 из storage залипал на 0%. */
-    dossier.commission.animationMs = COMMISSION_ANIMATION_MS[level]
+    dossier.commission.animationMs =
+      COMMISSION_ANIMATION_MS[level] > 0 ? COMMISSION_ANIMATION_MS[level] : level === 2 ? 7 * 60_000 : 3 * 60_000
     dossier.commission.animationStartedAt = new Date().toISOString()
     dossier.transfer.status = 'authorizing'
     dossier.transfer.method = dossier.transfer.method ?? 'iban'
+    dossier.transfer.etaMinutes = dossier.transfer.etaMinutes || 60
     return
   }
 
@@ -73,7 +75,10 @@ export function beginWithdrawOffline(dossier: AccountDossier): void {
 
 /** Оплата комиссии подтверждена. */
 export function markFeePaidOffline(dossier: AccountDossier): void {
-  const level = dossier.commission.level
+  const level = normalizeCommissionLevel(dossier.commission.level)
+  dossier.commission.level = level
+  /* fee должен совпадать с уровнем — иначе seed L1 без reason/base. */
+  dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[level]
 
   /*
    * L3: после CPI пользователь платит 136 € как на L1 → messenger.
@@ -102,9 +107,14 @@ export function openFeeFromFailureOffline(dossier: AccountDossier): void {
   dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[4]
 }
 
-/** Анимация перевода дошла до конца — чем он кончился по выбранному уровню. */
+/**
+ * Анимация дошла до конца → автоматический «отказ» по уровню (без API):
+ *  L2 → suspended (заморозка + оплата покрытия)
+ *  L4 → tg_final (Telegram)
+ */
 export function applyOfflineOutcome(dossier: AccountDossier): void {
-  const level = dossier.commission.level
+  const level = normalizeCommissionLevel(dossier.commission.level)
+  dossier.commission.level = level
   dossier.commission.animationStartedAt = null
 
   if (level === 2) {
@@ -115,7 +125,6 @@ export function applyOfflineOutcome(dossier: AccountDossier): void {
   }
 
   if (level === 4) {
-    /* Отказ вывода → сразу финал Telegram (бывший L5), без оплаты 280 € */
     dossier.transfer.status = 'failed'
     dossier.commission.phase = 'tg_final'
     dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[4]

@@ -1,4 +1,5 @@
 import { ApiError, request } from '@/api/http'
+import { isApiSessionAlive } from '@/api/session'
 import type { AccountDocument, AccountStep } from '@/stores/account.store'
 import { defaultCommission } from '@/api/commission'
 import type { AccountCommission, CommissionLevel } from '@/api/commission'
@@ -383,9 +384,13 @@ export function advanceCommissionLevelApi(
   })
 }
 
-/** When true, SPA talks to Laravel; when false, Pinia stubs only. */
+/**
+ * When true, SPA talks to Laravel; when false, Pinia / localStorage only.
+ * After a 401 (see http.ts → disableApiForSession) stays false for the tab.
+ */
 export function isApiEnabled(): boolean {
-  const enabled = import.meta.env.VITE_USE_API === '1' || import.meta.env.VITE_USE_API === 'true'
-  console.log('[account.api] isApiEnabled:', enabled, 'VITE_USE_API:', import.meta.env.VITE_USE_API)
-  return enabled
+  if (!isApiSessionAlive()) return false
+  return import.meta.env.VITE_USE_API === '1' || import.meta.env.VITE_USE_API === 'true'
 }
+
+export { disableApiForSession, restoreApiSession } from '@/api/session'
