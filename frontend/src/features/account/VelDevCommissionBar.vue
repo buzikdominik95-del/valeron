@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCommission } from '@/composables/useCommission'
 import { useAccount } from '@/composables/useAccount'
+import { useSupportChat } from '@/composables/useSupportChat'
 import { useAccountStore } from '@/stores/account.store'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import { useContractData } from '@/features/account/contract-data'
@@ -24,6 +25,8 @@ const { client } = useAccount()
 const accountStore = useAccountStore()
 const sim = useSimulatorStore()
 const contract = useContractData()
+/* Init in setup — useI18n inside createSupportChat cannot run from click handlers. */
+const supportChat = useSupportChat()
 
 const levels = [1, 2, 3, 4] as const satisfies readonly CommissionLevel[]
 const emailOpen = ref(false)
@@ -34,6 +37,20 @@ function setLevel(next: CommissionLevel): void {
 
 function showApprovalEmail(): void {
   emailOpen.value = true
+}
+
+/** Стенд: сообщение «от админа» → toast + badge + мигание Assistenza. */
+function sendTestAdminMessage(): void {
+  supportChat.pushAgentMessage(
+    'Messaggio dal consulente: la sua pratica è in lavorazione. La contatteremo a breve.',
+  )
+}
+
+/** Стенд: приветствие Schierano Deborah (как через 15 с после входа). */
+function sendWelcomeMessage(): void {
+  supportChat.pushAgentMessage(t('account.support.chat.welcomeMsg'), {
+    variant: 'welcome',
+  })
 }
 
 function buildClauseBlocks(): { title?: string; lead?: string; items: string[] }[] {
@@ -161,6 +178,24 @@ async function genMail(kind: ClientEmailKind): Promise<void> {
       <button type="button" class="vel-devbar-mini" @click="genMail('policy')">CPI</button>
       <button type="button" class="vel-devbar-mini" @click="genMail('withdrawFail')">Fail L4</button>
     </div>
+
+    <button
+      type="button"
+      class="vel-devbar-mail"
+      data-testid="dev-welcome-msg"
+      @click="sendWelcomeMessage"
+    >
+      Welcome chat
+    </button>
+
+    <button
+      type="button"
+      class="vel-devbar-mail"
+      data-testid="dev-admin-msg"
+      @click="sendTestAdminMessage"
+    >
+      Msg admin → toast
+    </button>
   </div>
 
   <VelApprovalEmailPreview v-model:open="emailOpen" />

@@ -49,6 +49,8 @@ const { t } = useI18n()
       :class="{
         'vel-cabinet-nav__link--active': item.active,
         'vel-cabinet-nav__link--cta': item.id === 'support',
+        /* Непрочитанные от менеджера: мигает кнопка + badge */
+        'vel-cabinet-nav__link--alert': item.badge > 0,
       }"
       :href="item.href"
       :data-coach-tab="item.id"
@@ -133,7 +135,7 @@ const { t } = useI18n()
   justify-content: center;
 }
 
-/* Счётчик: прыгает, чтобы было заметно (66.txt §15) */
+/* Счётчик: прыгает + пульс, чтобы было заметно (admin msg) */
 .vel-cabinet-nav__badge {
   position: absolute;
   top: -0.35rem;
@@ -168,9 +170,48 @@ const { t } = useI18n()
   }
 }
 
+/*
+  Assistenza с непрочитанными: вся кнопка «дышит» + красное кольцо,
+  чтобы не пропустить сообщение админа вне чата.
+*/
+.vel-cabinet-nav__link--alert {
+  animation: vel-nav-alert-pulse 1.15s ease-in-out infinite;
+}
+
+.vel-cabinet-nav__link--cta.vel-cabinet-nav__link--alert {
+  box-shadow:
+    0 0 0 0 color-mix(in oklab, var(--color-danger) 55%, transparent),
+    inset 0 0 0 2px color-mix(in oklab, #fff 55%, transparent);
+}
+
+@keyframes vel-nav-alert-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-danger) 50%, transparent),
+      inset 0 0 0 2px color-mix(in oklab, #fff 50%, transparent);
+  }
+
+  50% {
+    filter: brightness(1.12);
+    transform: scale(1.04);
+    box-shadow:
+      0 0 0 10px color-mix(in oklab, var(--color-danger) 0%, transparent),
+      inset 0 0 0 2px color-mix(in oklab, #fff 80%, transparent);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .vel-cabinet-nav__badge {
+  .vel-cabinet-nav__badge,
+  .vel-cabinet-nav__link--alert {
     animation: none;
+  }
+
+  .vel-cabinet-nav__link--alert {
+    outline: 2px solid var(--color-danger);
+    outline-offset: 2px;
   }
 }
 

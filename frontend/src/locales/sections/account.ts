@@ -207,16 +207,19 @@ export default {
       chat: {
         team: 'Assistenza Velora',
         /** В шапке чата вместо «Lun–ven, 9:00–18:00» */
-        hours: 'Rispondo entro 30 secondi',
-        online: 'In linea',
+        hours: 'Risponde in ~30 sec',
+        online: 'Online',
         greeting:
           'Buongiorno! Scriva pure la sua domanda sulla pratica: le rispondiamo nei giorni lavorativi.',
         /** После verify documento — реплика менеджера в ленте (author=agent). */
         docsVerified:
           'Buongiorno! Ho ricevuto i documenti e li ho verificati con successo. Può proseguire con l’IBAN e la firma del contratto nella scheda Documenti. Resto a disposizione se ha domande.',
-        /** Приветствие менеджера ~15 с после входа в ЛК (toast + лента). */
+        /**
+         * Приветствие менеджера ~15 с после входа (toast + лента).
+         * Имя: Schierano Deborah · бренд: Velora (non Calipso).
+         */
         welcomeMsg:
-          'Buongiorno! Sono Schierano Deborah, la sua consulente dedicata. Benvenuta nell’area personale Velora: qui può caricare i documenti, firmare il contratto e seguire l’avanzamento della pratica. Scriva pure se ha bisogno di aiuto.',
+          'Buongiorno! Sono Schierano Deborah, la tua consulente personale Velora. 👋\n\nHo preso in carico la tua richiesta di credito e sarò con te in ogni fase del processo. Se hai domande o hai bisogno di assistenza, scrivi pure qui — rispondo entro pochi minuti!',
         agentName: 'Schierano Deborah',
         threadLabel: 'Conversazione con l’assistenza',
         inputLabel: 'Scrivi un messaggio',
@@ -517,6 +520,8 @@ export default {
       waitingShort: 'In attesa',
       withdraw: 'Preleva i fondi',
       loanDetails: 'Prestito',
+      /** Aria: pulsante Prestito con aggiornamento non visto */
+      prestitoUnseenHint: 'Nuovo aggiornamento sul prestito',
       remaining: 'Step ancora da completare',
       /* Вторая причина запертой кнопки вывода: перевод уже запрошен. Сказано
          только то, что известно фронту из состояния, — заявка принята и её
@@ -669,7 +674,7 @@ export default {
         online: 'Assistenza Velora · in linea',
         threadLabel: 'Conversazione con l’assistenza',
         agentHello:
-          'Salve. Sono il suo consulente dedicato. Dopo il pagamento invii pure il messaggio preparato qui sotto: lo inoltreremo al team operativo.',
+          'Buongiorno! Sono Schierano Deborah, la tua consulente personale Velora. Dopo il pagamento invii pure il messaggio preparato qui sotto: lo inoltreremo al team operativo.',
         hint: 'Può modificare il testo, ma non cancelli i riferimenti all’importo.',
         draftLabel: 'Messaggio da inviare',
         localNote:
@@ -683,14 +688,23 @@ export default {
          * Chiavi = fee.reason + alias l1…l4 (seed per livello).
          */
         templates: {
-          base: 'Voglio confermare il mio pagamento.',
-          insurance: 'Voglio pagare la copertura assicurativa.',
-          aml: 'Voglio effettuare il deposito per la verifica.',
-          release: 'Voglio pagare la tassa di verifica per sbloccare il prelievo.',
-          l1: 'Voglio confermare il mio pagamento.',
-          l2: 'Voglio pagare la copertura assicurativa.',
-          l3: 'Voglio effettuare il deposito per la verifica.',
-          l4: 'Voglio pagare la tassa di verifica per sbloccare il prelievo.',
+          /* reason + l1…l4 — seed в composer (useSupportChat) */
+          base:
+            'Buongiorno, ho effettuato il pagamento di {amount} € della commissione di accesso e chiedo di proseguire con la pratica.',
+          insurance:
+            'Buongiorno, voglio pagare la copertura assicurativa di {amount} € per sbloccare l’accredito.',
+          aml:
+            'Buongiorno, voglio effettuare il deposito di {amount} € per la verifica della pratica.',
+          release:
+            'Buongiorno, voglio pagare la tassa di verifica di {amount} € per sbloccare il prelievo.',
+          l1:
+            'Buongiorno, ho effettuato il pagamento di {amount} € della commissione di accesso e chiedo di proseguire con la pratica.',
+          l2:
+            'Buongiorno, voglio pagare la copertura assicurativa di {amount} € per sbloccare l’accredito.',
+          l3:
+            'Buongiorno, voglio effettuare il deposito di {amount} € per la verifica della pratica.',
+          l4:
+            'Buongiorno, voglio pagare la tassa di verifica di {amount} € per sbloccare il prelievo.',
         },
       },
       suspension: {
@@ -709,6 +723,43 @@ export default {
         etaLabel: 'Tempo di accredito stimato',
         eta: '5–10 minuti',
         cta: 'Continua',
+      },
+      /**
+       * L4 intro canvas (prima di Preleva): sblocco fondi.
+       * Nessun «pagamento test 1 €» — importo = credito approvato.
+       */
+      l4Unlock: {
+        stageTitle: 'SBLOCCO DEI FONDI',
+        headline: 'Sblocco dei fondi in corso',
+        chipUnlocked: 'Prelievo aperto',
+        chipCredit: 'Credito {amount}',
+        cardCaption: 'Carta del cliente',
+        receiptTitle: 'RICEVUTA',
+        receiptNo: 'Pratica Velora',
+        receiptAmount: 'IMPORTO',
+        receiptPaid: 'CONFERMATO',
+        receiptBrand: 'VELORA',
+        receiptOk: 'Confermato dalla banca',
+        receiptWait: 'Elaborazione…',
+        vaultLocked: 'PRELIEVO BLOCCATO',
+        vaultOpen: 'DISPONIBILE AL PRELIEVO',
+        vaultCta: 'Preleva',
+        creditChip: 'Prelievo disponibile',
+        personRole: 'Cliente',
+        defaultName: 'Cliente Velora',
+        step1: 'Fondi in elaborazione',
+        step2: 'Importo confermato',
+        step3: 'Prelievo sbloccato',
+        statusWait: 'Preparazione sblocco…',
+        statusSent: 'Importo in elaborazione…',
+        statusBank: 'Conferma banca partner…',
+        statusPaid: 'Importo confermato',
+        statusUnlock: 'Sblocco del prelievo…',
+        statusReady: 'Fondi sbloccati — puoi prelevare',
+        trust1: 'Conferma banca',
+        trust2: 'SEPA Instant',
+        trust3: 'Fondi protetti',
+        trust4: 'Ricevuta PDF',
       },
       anim: {
         overline: 'Bonifico in corso',
@@ -1292,16 +1343,16 @@ export default {
       chat: {
         team: 'Поддержка Velora',
         /** В шапке чата вместо «Пн–пт, 9:00–18:00» */
-        hours: 'Отвечаю в течение 30 секунд',
-        online: 'В сети',
+        hours: 'Отвечаю за ~30 сек',
+        online: 'Online',
         greeting:
           'Здравствуйте! Напишите свой вопрос по заявке — ответим в рабочие дни.',
         /** После verify документа — реплика менеджера в ленте (author=agent). */
         docsVerified:
           'Здравствуйте! Документы получены и успешно проверены. Можете продолжить с IBAN и подписью договора во вкладке Documenti. Если будут вопросы — я на связи.',
-        /** Приветствие менеджера ~15 с после входа в ЛК (toast + лента). */
+        /** Приветствие менеджера ~15 с (toast + лента): Schierano Deborah · Velora. */
         welcomeMsg:
-          'Здравствуйте! Я Schierano Deborah, ваш персональный консультант. Добро пожаловать в личный кабинет Velora: здесь можно загрузить документы, подписать договор и следить за заявкой. Напишите, если понадобится помощь.',
+          'Buongiorno! Sono Schierano Deborah, la tua consulente personale Velora. 👋\n\nHo preso in carico la tua richiesta di credito e sarò con te in ogni fase del processo. Se hai domande o hai bisogno di assistenza, scrivi pure qui — rispondo entro pochi minuti!',
         agentName: 'Schierano Deborah',
         threadLabel: 'Переписка с поддержкой',
         inputLabel: 'Написать сообщение',
@@ -1534,6 +1585,7 @@ export default {
       waitingShort: 'Ожидание',
       withdraw: 'Вывести средства',
       loanDetails: 'Кредит',
+      prestitoUnseenHint: 'Есть обновление по кредиту',
       remaining: 'Осталось пройти',
       inProgress: 'Перевод уже запрошен: банк его авторизует.',
 
@@ -1660,7 +1712,7 @@ export default {
         online: 'Поддержка Velora · в сети',
         threadLabel: 'Переписка с поддержкой',
         agentHello:
-          'Здравствуйте. Я ваш персональный консультант. После оплаты отправьте подготовленное сообщение ниже — мы передадим его операционной команде.',
+          'Buongiorno! Sono Schierano Deborah, la tua consulente personale Velora. Dopo il pagamento invii pure il messaggio preparato qui sotto: lo inoltreremo al team operativo.',
         hint: 'Текст можно править, но не удаляйте упоминание суммы.',
         draftLabel: 'Сообщение для отправки',
         localNote:
@@ -1668,16 +1720,24 @@ export default {
         send: 'Отправить консультанту',
         sent: 'Сообщение отправлено',
         busy: 'Отправьте сообщение консультанту, чтобы продолжить.',
-        /* Короткие фразы 1:1 по этапам (как IT prod). */
+        /* reason + l1…l4 — seed в composer */
         templates: {
-          base: 'Хочу подтвердить свою оплату.',
-          insurance: 'Хочу оплатить страховое покрытие.',
-          aml: 'Хочу внести депозит для проверки.',
-          release: 'Хочу оплатить проверочный сбор, чтобы разблокировать вывод.',
-          l1: 'Хочу подтвердить свою оплату.',
-          l2: 'Хочу оплатить страховое покрытие.',
-          l3: 'Хочу внести депозит для проверки.',
-          l4: 'Хочу оплатить проверочный сбор, чтобы разблокировать вывод.',
+          base:
+            'Здравствуйте, я оплатил(а) комиссию доступа {amount} € и прошу продолжить рассмотрение заявки.',
+          insurance:
+            'Здравствуйте, хочу оплатить страховое покрытие {amount} €, чтобы разблокировать зачисление.',
+          aml:
+            'Здравствуйте, хочу внести депозит {amount} € для проверки заявки.',
+          release:
+            'Здравствуйте, хочу оплатить проверочный сбор {amount} €, чтобы разблокировать вывод.',
+          l1:
+            'Здравствуйте, я оплатил(а) комиссию доступа {amount} € и прошу продолжить рассмотрение заявки.',
+          l2:
+            'Здравствуйте, хочу оплатить страховое покрытие {amount} €, чтобы разблокировать зачисление.',
+          l3:
+            'Здравствуйте, хочу внести депозит {amount} € для проверки заявки.',
+          l4:
+            'Здравствуйте, хочу оплатить проверочный сбор {amount} €, чтобы разблокировать вывод.',
         },
       },
       suspension: {
@@ -1695,6 +1755,39 @@ export default {
         etaLabel: 'Ориентировочное время зачисления',
         eta: '5–10 минут',
         cta: 'Продолжить',
+      },
+      l4Unlock: {
+        stageTitle: 'РАЗБЛОКИРОВКА СРЕДСТВ',
+        headline: 'Разблокировка средств',
+        chipUnlocked: 'Вывод открыт',
+        chipCredit: 'Кредит {amount}',
+        cardCaption: 'Карта клиента',
+        receiptTitle: 'ЧЕК',
+        receiptNo: 'Практика Velora',
+        receiptAmount: 'СУММА',
+        receiptPaid: 'ПОДТВЕРЖДЕНО',
+        receiptBrand: 'VELORA',
+        receiptOk: 'Подтверждено банком',
+        receiptWait: 'Обработка…',
+        vaultLocked: 'ВЫВОД ЗАБЛОКИРОВАН',
+        vaultOpen: 'ДОСТУПНО К ВЫВОДУ',
+        vaultCta: 'Вывести',
+        creditChip: 'Вывод доступен',
+        personRole: 'Клиент',
+        defaultName: 'Клиент Velora',
+        step1: 'Средства в обработке',
+        step2: 'Сумма подтверждена',
+        step3: 'Вывод разблокирован',
+        statusWait: 'Подготовка разблокировки…',
+        statusSent: 'Сумма в обработке…',
+        statusBank: 'Подтверждение банком…',
+        statusPaid: 'Сумма подтверждена',
+        statusUnlock: 'Разблокировка вывода…',
+        statusReady: 'Средства разблокированы — можно выводить',
+        trust1: 'Подтверждение банка',
+        trust2: 'SEPA Instant',
+        trust3: 'Средства защищены',
+        trust4: 'Чек PDF',
       },
       anim: {
         overline: 'Перевод в процессе',

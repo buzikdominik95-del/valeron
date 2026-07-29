@@ -24,7 +24,7 @@ import type {
   CommissionLevel,
   CommissionPhase,
 } from '@/api/commission'
-import { normalizeCommissionLevel } from '@/api/commission'
+import { COMMISSION_FEE_BY_LEVEL, normalizeCommissionLevel } from '@/api/commission'
 import { useAccountStore } from '@/stores/account.store'
 
 /**
@@ -140,10 +140,18 @@ export const useDossierStore = defineStore('dossier', () => {
     return true
   }
 
+  /**
+   * Soft hydrate from server. 401 disables API for the session (http.ts);
+   * never rethrow — offline dossier in localStorage remains the source of truth.
+   */
   async function pullAccount(): Promise<void> {
     if (!isApiEnabled()) return
-    const full = await fetchAccount()
-    hydrate(full)
+    try {
+      const full = await fetchAccount()
+      hydrate(full)
+    } catch {
+      /* 401 / network — stay offline */
+    }
   }
 
   /**
@@ -176,90 +184,100 @@ export const useDossierStore = defineStore('dossier', () => {
   }
 
   /**
-   * Пользователь нажал «Preleva» при canWithdraw. Что именно случится дальше
-   * без бэкенда — см. beginWithdrawOffline.
+   * Пользователь нажал «Preleva» / «Avvia» в панели.
    *
-   * L2/L4: offline сразу (анимация не ждёт API). API при успехе перезапишет
-   * hydrate; при ошибке локальная анимация уже идёт — иначе «не запускается».
+   * L2 / L4 — ТОЛЬКО offline (анимация/сцена на клиенте). Никаких
+   * beginWithdrawApi: бэкенд не должен стартовать и не должен сбивать phase.
+   * L1 / L3 — offline pay_fee; API опционально.
    */
   function beginWithdrawFlow(): boolean {
-    const phase = dossier.value.commission.phase
-    if (phase !== 'ready' && phase !== 'suspended') return false
-
+    let phase = dossier.value.commission.phase
     const level = normalizeCommissionLevel(dossier.value.commission.level)
+    dossier.value.commission.level = level
     const needsAnim = level === 2 || level === 4
 
-    /* Сразу offline: UI не зависит от сети / 404 admin-withdraw. */
+    /*
+     * На L2/L4 после phase-bar / F5 phase иногда не ready — всё равно
+     * запускаем анимацию (клиентская воронка, не сервер).
+     */
+    if (needsAnim) {
+      if (phase !== 'ready' && phase !== 'suspended' && phase !== 'animating') {
+        dossier.value.commission.phase = 'ready'
+        phase = 'ready'
+      }
+      beginWithdrawOffline(dossier.value)
+      return dossier.value.commission.phase === 'animating'
+    }
+
+    if (phase !== 'ready' && phase !== 'suspended') return false
+
     beginWithdrawOffline(dossier.value)
 
     if (isApiEnabled()) {
       void beginWithdrawApi()
-        .then((full) => {
-          /*
-           * L2/L4: если сервер не перевёл в animating (или вернул ready),
-           * hydrate сносил offline-анимацию → панель просто сворачивалась.
-           */
-          if (needsAnim && full.commission?.phase !== 'animating') {
-            beginWithdrawOffline(dossier.value)
-            return
-          }
-          hydrate(full)
-        })
-        .catch(() => {
-          if (needsAnim && dossier.value.commission.phase !== 'animating') {
-            beginWithdrawOffline(dossier.value)
-          }
-        })
-        .finally(() => {
-          if (needsAnim && dossier.value.commission.phase !== 'animating') {
-            beginWithdrawOffline(dossier.value)
-          }
-        })
+        .then(hydrate)
+        .catch(() => undefined)
     }
 
     return true
   }
 
-  /** Оплата комиссии подтверждена. */
+  /**
+   * Оплата комиссии подтверждена.
+   * СНАЧАЛА offline (L2: pay_fee → messenger), иначе при VITE_USE_API=1
+   * «Conferma pagamento» зависала на pay_fee и чат/waiting не открывались.
+   * API — fire-and-forget, воронка клиента не ждёт бэкенд.
+   */
   function markFeePaid(): void {
-    const level = dossier.value.commission.level
+    const level = normalizeCommissionLevel(dossier.value.commission.level)
+    dossier.value.commission.level = level
     /* Трата в Prestito + точка на кнопке, пока не открыли детали. */
     useAccountStore().recordPaidCommission(level)
 
-    if (isApiEnabled()) {
-      void submitCommissionPaid(level)
-        .then((commission) => {
-          dossier.value.commission = commission
+    /* Клиентская воронка: messenger сразу (без API). */
+    markFeePaidOffline(dossier.value)
+
+    if (!isApiEnabled()) return
+
+    void submitCommissionPaid(level)
+      .then((commission) => {
+        /* Не откатывать messenger/waiting, если сервер отстаёт. */
+        if (
+          dossier.value.commission.phase === 'messenger' ||
+          dossier.value.commission.phase === 'waiting'
+        ) {
           if (level === 3 && commission.phase === 'messenger') {
             dossier.value.policy.status = 'issued'
             dossier.value.policy.etaMinutes = 0
           }
-        })
-        .catch(() => undefined)
-      return
-    }
-
-    markFeePaidOffline(dossier.value)
+          return
+        }
+        dossier.value.commission = commission
+        if (level === 3 && commission.phase === 'messenger') {
+          dossier.value.policy.status = 'issued'
+          dossier.value.policy.etaMinutes = 0
+        }
+      })
+      .catch(() => undefined)
   }
 
   /**
    * Сообщение менеджеру отправлено → waiting.
+   * Offline-first: waiting сразу; API опционален.
    * Финал Telegram — phase tg_final после отказной анимации L4 (не после чата).
    */
   function markMessageSent(): void {
-    if (isApiEnabled()) {
-      void submitSupportMessage({
-        body: 'Commission receipt confirmed',
-        kind: 'commission',
-        level: dossier.value.commission.level,
-      })
-        .then(() => pullAccount())
-        .catch(() => {
-          dossier.value.commission.phase = 'waiting'
-        })
-      return
-    }
     dossier.value.commission.phase = 'waiting'
+
+    if (!isApiEnabled()) return
+
+    void submitSupportMessage({
+      body: 'Commission receipt confirmed',
+      kind: 'commission',
+      level: dossier.value.commission.level,
+    })
+      .then(() => pullAccount())
+      .catch(() => undefined)
   }
 
   /**
@@ -270,10 +288,20 @@ export const useDossierStore = defineStore('dossier', () => {
    * путь: спросить и показать то, что пришло (completeAnimationApi → hydrate).
    */
   function completeAnimation(): void {
+    const level = normalizeCommissionLevel(dossier.value.commission.level)
+    /*
+     * L2/L4 исход анимации — только offline (suspended / tg_final).
+     * Не ждём completeAnimationApi: иначе сцена «зависает» без ответа бэка.
+     */
+    if (level === 2 || level === 4 || !isApiEnabled()) {
+      applyOfflineOutcome(dossier.value)
+      return
+    }
+
     if (isApiEnabled()) {
       void completeAnimationApi()
         .then(hydrate)
-        .catch(() => undefined)
+        .catch(() => applyOfflineOutcome(dossier.value))
       return
     }
 
@@ -305,9 +333,15 @@ export const useDossierStore = defineStore('dossier', () => {
       .catch(() => undefined)
   }
 
-  /** С suspended / после деталей — снова pay_fee (страховка / повтор). */
+  /**
+   * L2 после таймера 7 мин: suspended → «Paga la copertura» → pay_fee.
+   * После оплаты markFeePaid → messenger (заготовки) → waiting → админ L3.
+   */
   function openFeeFromSuspension(): void {
     if (dossier.value.commission.phase !== 'suspended') return
+    const level = normalizeCommissionLevel(dossier.value.commission.level)
+    dossier.value.commission.level = level
+    dossier.value.commission.fee = COMMISSION_FEE_BY_LEVEL[level] ?? dossier.value.commission.fee
     dossier.value.commission.phase = 'pay_fee'
   }
 

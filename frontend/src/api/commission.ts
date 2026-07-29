@@ -83,11 +83,15 @@ export function commissionAddsToLoanBalance(level: number): boolean {
   return level === 2 || level === 3
 }
 
+/**
+ * Таймер анимации вывода (стенные часы, не длительность canvas-loop):
+ *  L2: 7 минут → авто-отказ (suspended) → оплата страховки → messenger → admin L3
+ *  L4: 3 минуты → авто-отказ (tg_final)
+ */
 export const COMMISSION_ANIMATION_MS: Record<CommissionLevel, number> = {
   1: 0,
   2: 7 * 60 * 1000,
   3: 0,
-  /** Этап 4: анимация вывода 3 минуты → отказ → tg_final (Telegram) */
   4: 3 * 60 * 1000,
 }
 
