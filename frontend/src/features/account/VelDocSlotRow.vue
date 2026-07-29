@@ -71,15 +71,14 @@ function onChange(event: Event): void {
       class="vel-docslot__pick"
       :class="{ 'vel-docslot__pick--pulse': props.file === null }"
     >
+      <!--
+        Без capture — иначе iOS/Android открывают только камеру и
+        блокируют галерею; image/* + heic в DOC_ACCEPT достаточно.
+      -->
       <input
         class="sr-only"
         type="file"
         :accept="DOC_ACCEPT"
-        /*
-         * Без capture — иначе iOS/Android открывают только камеру и
-         * блокируют галерею; image/* + heic в DOC_ACCEPT достаточно.
-         * multiple=false, name — чтобы WebView не отбрасывал change.
-         */
         name="vel-doc-photo"
         :aria-label="
           props.file === null

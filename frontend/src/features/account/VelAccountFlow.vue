@@ -46,7 +46,7 @@ import { useSupportChat } from '@/composables/useSupportChat'
 const { t } = useI18n()
 const account = useAccountStore()
 const dossier = useDossierStore()
-const { steps, canWithdraw, isAuthorizing, allDone, approvedAmount } = useAccount()
+const { steps, canWithdraw, isAuthorizing, approvedAmount } = useAccount()
 const {
   isPayFee,
   isMessenger,
