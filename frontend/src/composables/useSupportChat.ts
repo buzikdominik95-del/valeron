@@ -264,6 +264,12 @@ function createSupportChat(): SupportChat {
   }
 
   let syncTimer: number | null = null
+  /** Первый sync только заливает историю — без toast на все старые agent msg. */
+  let chatSyncedOnce = false
+
+  function chatFingerprint(m: ChatMessage): string {
+    return `${m.author}\0${m.at}\0${m.text}`
+  }
 
   async function syncFromServer(): Promise<void> {
     if (!isApiEnabled()) return
@@ -271,7 +277,33 @@ function createSupportChat(): SupportChat {
     try {
       const serverMessages = await fetchSupportMessages(outboundEmail.value)
       const clean = Array.isArray(serverMessages) ? serverMessages.filter(isChatMessage) : []
-      messages.value = clean.slice(-CHAT_KEEP)
+      const next = clean.slice(-CHAT_KEEP)
+
+      if (chatSyncedOnce) {
+        const seen = new Set(messages.value.map(chatFingerprint))
+        const newAgent = next.filter(
+          (m) => m.author === 'agent' && !seen.has(chatFingerprint(m)),
+        )
+        if (newAgent.length > 0) {
+          /* Toast + badge только если не сидим в Assistenza. */
+          if (tab.value !== 'support') {
+            account.bumpSupportUnread(newAgent.length)
+            try {
+              notices.push('managerMessage')
+            } catch {
+              /* storage */
+            }
+            try {
+              agentNotify.show('agent')
+            } catch {
+              /* toast optional */
+            }
+          }
+        }
+      }
+
+      messages.value = next
+      chatSyncedOnce = true
     } catch (error) {
       console.warn('[useSupportChat] Failed to sync messages:', error)
     }
