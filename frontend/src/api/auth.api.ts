@@ -1,4 +1,4 @@
-import { ApiError } from '@/api/http'
+import { request } from '@/api/http'
 
 export interface AuthUser {
   id: number
@@ -6,125 +6,49 @@ export interface AuthUser {
   email: string
 }
 
-export interface RegisterPayload {
-  name: string
+export interface AuthCredentials {
   email: string
   password: string
-  password_confirmation: string
-  surname?: string
-  phone?: string
-  requested_amount?: number
-  document_type?: string
-  document_number?: string
 }
 
-function envOr(value: string | undefined, fallback: string): string {
-  if (value === undefined) return fallback
-  if (value === '') return fallback
-  return value
+export interface AuthRegisterPayload extends AuthCredentials {
+  name?: string
 }
 
-const API_ORIGIN = envOr(import.meta.env.VITE_API_ORIGIN, '').replace(/\/+$/, '')
-const API_BASE = envOr(import.meta.env.VITE_API_BASE, '/api').replace(/\/+$/, '')
-const AUTH_TOKEN_KEY = 'velora:authToken'
-
-interface ErrorShape {
-  message?: string
-  errors?: Record<string, string[]>
-}
-
-function persistAuthToken(token: string): void {
-  if (token.trim() === '') return
-  localStorage.setItem(AUTH_TOKEN_KEY, token)
-}
-
-function clearAuthToken(): void {
-  localStorage.removeItem(AUTH_TOKEN_KEY)
-}
-
-async function authRequest<TResponse>(
-  path: string,
-  body: unknown,
+/**
+ * SPA auth (Laravel Sanctum cookie session).
+ * Без дефолтных паролей — только то, что ввёл пользователь.
+ */
+export function login(
+  payload: AuthCredentials,
   signal?: AbortSignal,
-): Promise<TResponse> {
-  try {
-    const response = await fetch(`${API_ORIGIN}${API_BASE}${path}`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      credentials: 'include',
-      signal,
-      body: JSON.stringify(body),
-    })
-
-    const text = await response.text()
-    const payload = text.trim() === '' ? {} : (JSON.parse(text) as ErrorShape | TResponse)
-
-    if (!response.ok) {
-      const shape = payload as ErrorShape
-      throw new ApiError(
-        response.status,
-        shape.message ?? `Запрос завершился со статусом ${response.status}`,
-        shape.errors ?? {},
-      )
-    }
-
-    return payload as TResponse
-  } catch (error) {
-    if (error instanceof ApiError) {
-      throw error
-    }
-
-    if (error instanceof DOMException) {
-      if (error.name === 'AbortError') {
-        throw new ApiError(0, 'Запрос отменён')
-      }
-    }
-
-    throw new ApiError(0, error instanceof Error ? error.message : 'Сетевая ошибка')
-  }
-}
-
-export async function registerAccount(
-  payload: RegisterPayload,
-  signal?: AbortSignal,
-): Promise<{ user: AuthUser; token: string }> {
-  const response = await authRequest<{ user: AuthUser; token: string }>('/auth/register', payload, signal)
-  persistAuthToken(response.token)
-  return response
-}
-
-export async function loginAccount(
-  email: string,
-  password: string,
-  signal?: AbortSignal,
-): Promise<{ user: AuthUser; token: string }> {
-  const response = await authRequest<{ user: AuthUser; token: string }>(
-    '/auth/login',
-    { email, password },
+): Promise<{ user: AuthUser }> {
+  return request<{ user: AuthUser }>('/auth/login', {
+    method: 'POST',
+    body: {
+      email: payload.email.trim(),
+      password: payload.password,
+    },
     signal,
-  )
-  persistAuthToken(response.token)
-  return response
+  })
 }
 
-/** Backward-compatible helper used by account flow. */
-export function demoLogin(
-  email = 'marco@esempio.it',
-  password = 'password',
-  _name = 'Marco Rossi',
+/** Регистрация кабинета (email + password; name опционально). */
+export function register(
+  payload: AuthRegisterPayload,
   signal?: AbortSignal,
-): Promise<{ user: AuthUser; token: string }> {
-  return loginAccount(email, password, signal)
+): Promise<{ user: AuthUser }> {
+  return request<{ user: AuthUser }>('/auth/register', {
+    method: 'POST',
+    body: {
+      email: payload.email.trim(),
+      password: payload.password,
+      ...(payload.name?.trim() ? { name: payload.name.trim() } : {}),
+    },
+    signal,
+  })
 }
 
-export async function logout(signal?: AbortSignal): Promise<{ message: string }> {
-  try {
-    return await authRequest<{ message: string }>('/auth/logout', {}, signal)
-  } finally {
-    clearAuthToken()
-  }
+export function logout(signal?: AbortSignal): Promise<{ ok: true }> {
+  return request<{ ok: true }>('/auth/logout', { method: 'POST', signal })
 }
