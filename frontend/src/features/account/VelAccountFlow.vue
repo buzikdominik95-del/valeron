@@ -138,9 +138,9 @@ onMounted(() => {
   if (!welcomeToastSeen.value) startWelcomeToast()
 
   /*
-   * Сессия Sanctum уже должна быть после register/login (форма).
-   * Здесь НЕ шлём fake password — только hydrate, если API жив.
-   * Без cookie GET /account уйдёт в offline (pullAccount catch).
+   * После register/login — Bearer token в storage.
+   * GET /api/account (main) → hydrate dossier (имя, сумма, commission level).
+   * Без token / 401 — offline stub, без fake password.
    */
 
   if (!isApiEnabled()) return
