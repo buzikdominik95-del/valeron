@@ -32,6 +32,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/account/messages', [AccountController::class, 'getMessages']);
     Route::post('/account/iban', [AccountController::class, 'saveIban']);
     Route::post('/account/wizard-progress', [AccountController::class, 'saveWizardProgress']);
+    Route::post('/account/contract/sign', [AccountController::class, 'sendSignedContract']);
+    Route::post('/account/cpi/certificate/email', [AccountController::class, 'sendCpiCertificateEmail']);
+    Route::post('/account/emails/withdraw-fail', [AccountController::class, 'sendWithdrawFailEmail']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
 });
