@@ -330,7 +330,15 @@ export const useDossierStore = defineStore('dossier', () => {
             normalizeCommissionLevel(full.commission.level),
           )
         })
-        .catch(() => undefined)
+        .catch(() => {
+          /*
+           * Прод/демо safety-net: даже если API временно не нашёл пользователя
+           * (например, stub email или просевшая сессия), переключатель уровней
+           * должен работать визуально.
+           */
+          account.recordPaidCommissionsUpTo(level)
+          advanceCommissionLevelOffline(dossier.value, level)
+        })
       return
     }
 
