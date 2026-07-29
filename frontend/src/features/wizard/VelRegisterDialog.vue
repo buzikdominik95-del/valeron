@@ -142,6 +142,12 @@ function clearSecrets(): void {
 
 function finishSuccess(address: string, kind: 'login' | 'registered'): void {
   clearSecrets()
+  /*
+   * API-режим: level switcher в кабинете берёт fallback email из localStorage
+   * (velora:email). Без синхронизации после Accedi admin /commission/advance
+   * получает пустой/stub email и отвечает 404 User not found.
+   */
+  simulator.email = address
   if (kind === 'login') emit('login', address)
   else emit('registered', address)
 }
@@ -174,11 +180,15 @@ async function submitOnline(address: string, pwd: string): Promise<void> {
 
   try {
     if (isCreate.value) {
-      await apiRegister({ email: address, password: pwd, name })
+      const result = await apiRegister({ email: address, password: pwd, name })
+      const token = (result.token ?? '').trim()
+      if (token !== '') localStorage.setItem('velora:authToken', token)
       finishSuccess(address, 'registered')
       return
     }
-    await apiLogin({ email: address, password: pwd })
+    const result = await apiLogin({ email: address, password: pwd })
+    const token = (result.token ?? '').trim()
+    if (token !== '') localStorage.setItem('velora:authToken', token)
     finishSuccess(address, 'login')
   } catch (e: unknown) {
     if (e instanceof ApiError && (e.status === 401 || e.status === 422)) {
