@@ -98,12 +98,19 @@ class UserController extends Controller
         $user = AdminUser::query()->whereIn('role', ['manager', 'team_lead'])->findOrFail($id);
 
         try {
-            $user->delete();
-            AdminUiPermissionStore::removeFor($id);
+            \DB::transaction(function () use ($user, $id) {
+                \DB::table('users')->where('assigned_manager_id', $id)->update(['assigned_manager_id' => null]);
+                \DB::table('leads')->where('assigned_manager_id', $id)->update(['assigned_manager_id' => null]);
+                \DB::table('chats')->where('manager_id', $id)->update(['manager_id' => null]);
+
+                $user->delete();
+                AdminUiPermissionStore::removeFor($id);
+            });
         } catch (QueryException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Нельзя удалить менеджера: есть связанные лиды/чаты.',
+                'message' => 'Не удалось удалить менеджера: есть связанные записи.',
+                'error' => $e->getMessage(),
             ], 422);
         }
 
