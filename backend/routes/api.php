@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\ApprovalEmailController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\AdminLeadController;
 use App\Http\Controllers\Api\ManagerController;
+use App\Http\Controllers\Api\AdminCommissionController;
 
 // Test Sentry endpoint
 Route::get("/test-sentry", function() {
@@ -83,6 +84,9 @@ Route::prefix('admin')->group(function () {
     Route::post('tags', [TagController::class, 'store']);
     Route::delete('tags/{tag}', [TagController::class, 'destroy']);
     
+    // Commission level advance (client L1-L4 switch)
+    Route::post('commission/advance', [AdminCommissionController::class, 'advance']);
+
     // Commission levels
     Route::get('commission-levels', [CommissionLevelController::class, 'index']);
     Route::post('commission-levels', [CommissionLevelController::class, 'store']);
