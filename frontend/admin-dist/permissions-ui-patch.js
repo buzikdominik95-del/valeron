@@ -587,6 +587,48 @@
     return cand;
   }
 
+  function hideMonitoringIbanColumn() {
+    try {
+      var head = null;
+      var index = -1;
+
+      document.querySelectorAll('th').forEach(function (th) {
+        if (head) return;
+        var t = '';
+        if (typeof th.textContent === 'string') {
+          t = th.textContent.trim().toUpperCase();
+        }
+        if (t !== 'IBAN') return;
+
+        var tr = th.closest('tr');
+        if (!tr) return;
+        if (!tr.children) return;
+        if (tr.children.length === 0) return;
+
+        var i = Array.prototype.indexOf.call(tr.children, th);
+        if (i < 0) return;
+
+        head = th;
+        index = i;
+      });
+
+      if (!head) return;
+      if (index < 0) return;
+
+      head.style.setProperty('display', 'none', 'important');
+
+      var table = head.closest('table');
+      if (!table) return;
+
+      table.querySelectorAll('tbody tr').forEach(function (row) {
+        if (!row) return;
+        if (!row.children) return;
+        if (row.children.length <= index) return;
+        row.children[index].style.setProperty('display', 'none', 'important');
+      });
+    } catch (e) {}
+  }
+
   function applyHeaderTags() {
     var tags = collectTagsFromLeadInfo();
     var name = findLeadName();
@@ -631,6 +673,7 @@
     applyUnreadCounterStyle();
     cleanupPhoneRow();
     applyHeaderTags();
+    hideMonitoringIbanColumn();
   }, 1000);
 
   applyRights(parseStoredRights());

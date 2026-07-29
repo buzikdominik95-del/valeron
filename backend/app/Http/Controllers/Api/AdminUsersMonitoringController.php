@@ -40,18 +40,7 @@ class AdminUsersMonitoringController extends Controller
                     ->where('user_id', $user->id)
                     ->orderByDesc('updated_at')
                     ->orderByDesc('id')
-                    ->first(['credit_term_months', 'iban', 'requested_amount', 'document_number', 'first_name', 'last_name', 'email']);
-
-                $leadIban = DB::table('ibans')
-                    ->where('user_id', $user->id)
-                    ->orderByDesc('is_default')
-                    ->orderByDesc('updated_at')
-                    ->orderByDesc('id')
-                    ->value('iban');
-
-                if (empty($leadIban) && !empty($leadProfile?->iban)) {
-                    $leadIban = (string) $leadProfile->iban;
-                }
+                    ->first(['credit_term_months', 'requested_amount', 'document_number', 'first_name', 'last_name', 'email']);
 
                 $resolvedName = trim((string) ($user->name ?? '') . ' ' . (string) ($user->surname ?? ''));
                 if ($resolvedName === '') {
@@ -95,7 +84,6 @@ class AdminUsersMonitoringController extends Controller
                     'email' => $resolvedEmail,
                     'requested_amount' => $resolvedRequestedAmount ?? 0,
                     'loan_term_months' => $loanTermMonths,
-                    'lead_iban' => $leadIban,
                     'document_type' => $user->document_type,
                     'document_number' => $resolvedDocumentNumber,
                     'documents_status' => $docStatus,
