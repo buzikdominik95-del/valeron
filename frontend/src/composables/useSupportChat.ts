@@ -6,7 +6,6 @@ import { useAccountStore } from '@/stores/account.store'
 import { useAccount } from '@/composables/useAccount'
 import { useCommission } from '@/composables/useCommission'
 import { isApiEnabled, submitSupportMessage } from '@/api/account.api'
-import { useDossierStore } from '@/stores/dossier.store'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useNotices } from '@/composables/useNotices'
 import { useAgentNotify } from '@/composables/useAgentNotify'
@@ -93,7 +92,6 @@ function createSupportChat(): SupportChat {
     feeReason,
     confirmMessageSent,
   } = useCommission()
-  const dossier = useDossierStore()
   const { tab, select: selectTab } = useCabinetTab()
   const notices = useNotices()
   const agentNotify = useAgentNotify()
