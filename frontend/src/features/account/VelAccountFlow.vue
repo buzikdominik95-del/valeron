@@ -542,13 +542,15 @@ watch(isMessenger, (needChat) => {
 })
 
 /*
- * Waiting: НЕ редиректим сразу на Home.
- * Показываем системный toast сверху (как после docs); клик → Home + анимация.
+ * Waiting после заготовки L1: Home + VelWaitingAdmin + Preleva locked.
+ * Toast sistema — доп. подсказка.
  */
 watch(isWaiting, (waiting, was) => {
-  if (waiting && was === false) {
-    showSystemWaitingToast()
-  }
+  if (!(waiting && was === false)) return
+  selectTab('home')
+  commissionOpen.value = false
+  payoutPanelOpen.value = false
+  showSystemWaitingToast()
 })
 
 /** PDF в модалке: шаблон + ФИО/сумма/IBAN/подпись как на старом проде. */

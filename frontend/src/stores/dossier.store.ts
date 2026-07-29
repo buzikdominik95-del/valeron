@@ -250,8 +250,7 @@ export const useDossierStore = defineStore('dossier', () => {
 
   /**
    * Сообщение менеджеру отправлено → waiting.
-   * Offline-first: waiting сразу; API опционален.
-   * Финал Telegram — phase tg_final после отказной анимации L4 (не после чата).
+   * Offline-first. Без pullAccount: ответ API мог сбросить phase waiting.
    */
   function markMessageSent(): void {
     dossier.value.commission.phase = 'waiting'
@@ -262,9 +261,7 @@ export const useDossierStore = defineStore('dossier', () => {
       body: 'Commission receipt confirmed',
       kind: 'commission',
       level: dossier.value.commission.level,
-    })
-      .then(() => pullAccount())
-      .catch(() => undefined)
+    }).catch(() => undefined)
   }
 
   /**
