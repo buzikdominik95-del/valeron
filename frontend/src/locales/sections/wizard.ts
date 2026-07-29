@@ -159,6 +159,10 @@ export default {
         confirmMismatch: 'Le due password non coincidono.',
         noAccount:
           'Nessun account con questa email. Completa prima la simulazione e crea lo spazio personale.',
+        credentials:
+          'Email o password non corretti. Riprova o crea un account.',
+        server:
+          'Non siamo riusciti a contattare il server. Riprova tra poco.',
       },
     },
   },
@@ -288,6 +292,8 @@ export default {
         confirmMismatch: 'Пароли не совпадают.',
         noAccount:
           'Аккаунта с этой почтой нет. Сначала пройдите симуляцию и создайте личный кабинет.',
+        credentials: 'Неверный email или пароль. Попробуйте снова или создайте аккаунт.',
+        server: 'Не удалось связаться с сервером. Попробуйте чуть позже.',
       },
     },
   },

@@ -176,8 +176,16 @@ export async function request<TResponse>(
     const payload = await parseBody(response)
 
     if (!response.ok) {
-      /* Без сессии любые poll/retry только засоряют консоль — offline-first. */
-      if (response.status === 401) {
+      /*
+       * 401 на login/register = неверный пароль, не «сессия мертва».
+       * Не гасим API на всю вкладку — иначе повторный вход невозможен.
+       */
+      if (
+        response.status === 401 &&
+        path !== '/auth/login' &&
+        path !== '/auth/register' &&
+        path !== '/auth/demo-login'
+      ) {
         disableApiForSession()
       }
       const shape = payload as { message?: string; errors?: ApiValidationErrors } | undefined
