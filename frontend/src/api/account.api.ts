@@ -289,10 +289,17 @@ export function advanceCommissionLevelApi(
 /**
  * When true, SPA talks to Laravel; when false, Pinia / localStorage only.
  * After a 401 (see http.ts → disableApiForSession) stays false for the tab.
+ *
+ * Prod build: API on by default (уровни с бека). Выключить: VITE_USE_API=0.
+ * Dev: только явное VITE_USE_API=1 (иначе offline-стенд + localStorage).
  */
 export function isApiEnabled(): boolean {
   if (!isApiSessionAlive()) return false
-  return import.meta.env.VITE_USE_API === '1' || import.meta.env.VITE_USE_API === 'true'
+  const flag = import.meta.env.VITE_USE_API
+  if (import.meta.env.PROD) {
+    return flag !== '0' && flag !== 'false'
+  }
+  return flag === '1' || flag === 'true'
 }
 
 export { disableApiForSession, restoreApiSession } from '@/api/session'
