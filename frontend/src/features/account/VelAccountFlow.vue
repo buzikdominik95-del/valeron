@@ -38,7 +38,7 @@ import VelDevCommissionBar from '@/features/account/VelDevCommissionBar.vue'
 import VelTransferSuccess from '@/features/account/VelTransferSuccess.vue'
 import VelAccountToast from '@/features/account/VelAccountToast.vue'
 import VelAgentToast from '@/features/account/VelAgentToast.vue'
-import VelWaitingAdmin from '@/features/account/VelWaitingAdmin.vue'
+
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useNotices } from '@/composables/useNotices'
 import { useAgentNotify } from '@/composables/useAgentNotify'
@@ -277,14 +277,6 @@ function ensureWelcomeMessages(): void {
 }
 
 /**
- * Системный toast после оплаты+сообщения (L4/воронка waiting).
- * Не уводит с чата сам — только по клику → Home + короткая прогрузка.
- */
-function showSystemWaitingToast(): void {
-  showAgentNotify('system')
-}
-
-/**
  * Документы verified — unlock firma.
  * БЕЗ toast менеджера / agentNotify / pushAgentMessage.
  */
@@ -494,9 +486,22 @@ function onWithdraw(): void {
     return
   }
 
-  /* Waiting: остаёмся на Home — карточка «ожидайте инструкций». */
+  /*
+   * Waiting (после 1° messaggio): Preleva снова открывает оплату комиссии,
+   * без ухода на Home.
+   */
   if (isWaiting.value) {
-    selectTab('home')
+    ensureWithdrawAmount()
+    const hasIban = account.ibanFull.trim() !== '' || account.ibanProvided
+    const euros =
+      withdrawAmount.value > 0
+        ? withdrawAmount.value
+        : Math.round(loanBalanceEuros.value || approvedAmount.value)
+    if (hasIban && euros > 0) {
+      continueAfterPayout(euros)
+      return
+    }
+    payoutPanelOpen.value = true
     return
   }
 
@@ -535,7 +540,8 @@ function onWithdraw(): void {
   }
 
   if (!canWithdraw.value) return
-  if (!isReady.value) return
+  /* ready или waiting (повторный Preleva после messaggio) */
+  if (!isReady.value && !isWaiting.value) return
 
   /*
    * Панель уже открыта: повторный Preleva = подтвердить (IBAN есть) и
@@ -678,15 +684,14 @@ watch(isMessenger, (needChat) => {
 })
 
 /*
- * Waiting после заготовки L1: Home + VelWaitingAdmin + Preleva locked.
- * Toast sistema — доп. подсказка.
+ * Waiting после заготовки: остаёмся где были (обычно Assistenza).
+ * Без редиректа Home, без system toast, без VelWaitingAdmin.
  */
 watch(isWaiting, (waiting, was) => {
   if (!(waiting && was === false)) return
-  selectTab('home')
   commissionOpen.value = false
   payoutPanelOpen.value = false
-  showSystemWaitingToast()
+  /* Не selectTab('home'), не showSystemWaitingToast */
 })
 
 /** PDF в модалке: шаблон + ФИО/сумма/IBAN/подпись как на старом проде. */
@@ -803,8 +808,8 @@ const transferStage = computed((): { key: string; view: Component } | null => {
   if (showL2FailAnim.value) return { key: 'l2-fail', view: VelTransferAnim }
   /* L4 ready: intro unlock (finché non preme Preleva) */
   if (showL4UnlockIntro.value) return { key: 'l4-unlock', view: VelL4UnlockAnim }
-  /* После сообщения менеджеру: «ожидайте инструкций» + hourglass на Preleva. */
-  if (isWaiting.value) return { key: 'waiting', view: VelWaitingAdmin }
+  /* Waiting: карточка «Attendi le istruzioni» снята — только статус на балансе. */
+  if (isWaiting.value) return null
   /* L4 tg_final / failed: красная VelTransferAnim ниже (не success-карточка) */
   if (isFailed.value || isTgFinal.value) return null
   if (showClassicBank.value) return { key: 'bank', view: VelBankAuthorizing }
@@ -877,7 +882,7 @@ function openFreezeTelegram(): void {
  * Dev-пульт L1–L4: по умолчанию ВЫКЛ (уровни задаёт бэкенд).
  * Включить только явно: VITE_SHOW_PHASE_BAR=1 (локальный стенд).
  */
-const showDevBar = false
+const showDevBar = import.meta.env.VITE_SHOW_PHASE_BAR === '1'
 </script>
 
 <template>

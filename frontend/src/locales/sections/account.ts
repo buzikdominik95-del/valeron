@@ -481,6 +481,10 @@ export default {
          строка меняется вместе с состоянием: пока шаги не закрыты, там стоит
          lead, когда закрыты все — эта фраза. Дословно с кадра. */
       ready: 'Fondi pronti per il prelievo — procedi ora!',
+      /** L1 после 1° messaggio commission: attesa passaggio L2 */
+      readyAwaitingServices: 'In attesa del pagamento dei servizi Velora',
+      /** L2+: servizi Velora pagati con successo */
+      readyPaidServices: 'Hai pagato con successo i servizi Velora',
       counter: '{done} / {total} completati',
       /* Доступное имя полосы. Само значение уходит в aria-valuetext
          строкой counter — «3 / 5 completati». */
@@ -1563,6 +1567,8 @@ export default {
       lead: 'Чтобы вывести средства, пройдите все шаги',
       allDone: 'Все шаги пройдены',
       ready: 'Средства готовы к выводу — можно продолжать!',
+      readyAwaitingServices: 'Ожидается оплата услуг сервиса Velora',
+      readyPaidServices: 'Вы успешно оплатили услуги сервиса Velora',
       counter: '{done} / {total} пройдено',
       meterLabel: 'Пройденные шаги',
       go: 'Перейти',

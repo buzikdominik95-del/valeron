@@ -108,7 +108,7 @@ function createSupportChat(): SupportChat {
     confirmMessageSent,
   } = useCommission()
   const simulator = useSimulatorStore()
-  const { tab, select: selectTab } = useCabinetTab()
+  const { tab } = useCabinetTab()
   const notices = useNotices()
   const agentNotify = useAgentNotify()
 
@@ -617,20 +617,12 @@ function createSupportChat(): SupportChat {
   }
 
   /**
-   * L1 (и L2/L3 messenger): заготовка ушла → waiting.
-   * Preleva locked + карточка/анимация ожидания на Home.
+   * L1…L3 messenger: заготовка ушла → waiting.
+   * Остаёмся в чате (без редиректа Home / system toast / waiting-card).
    */
   function advanceFunnel(): void {
     if (!isMessenger.value) return
-    confirmMessageSent() /* phase = waiting */
-    notices.push('waitingInstructions')
-    /*
-     * Мягкий уход на Home: дать отправиться пузырю/скроллу,
-     * затем смена вкладки (не резкий jump).
-     */
-    window.setTimeout(() => {
-      selectTab('home')
-    }, 420)
+    confirmMessageSent() /* phase = waiting — статус «In attesa del consulente» */
   }
 
   async function send(): Promise<void> {
