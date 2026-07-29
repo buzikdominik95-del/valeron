@@ -479,7 +479,12 @@
       + '.commission-badge-boost{border:1px solid rgba(99,102,241,.95)!important;box-shadow:0 0 0 1px rgba(99,102,241,.45),0 0 14px rgba(99,102,241,.55);animation:commissionPulse 1.35s ease-in-out infinite alternate;}'
       + '.chat-header-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}'
       + '.chat-header-tag{display:inline-flex;align-items:center;justify-content:center;padding:2px 8px;border-radius:999px;font-size:11px;line-height:16px;border:1px solid rgba(99,102,241,.85);color:#d8ddff;background:rgba(99,102,241,.14);}'
-      + '@keyframes commissionPulse{from{box-shadow:0 0 0 1px rgba(99,102,241,.25),0 0 6px rgba(99,102,241,.25);}to{box-shadow:0 0 0 1px rgba(99,102,241,.75),0 0 16px rgba(99,102,241,.75);}}';
+      + '.chat-item{will-change:transform,opacity;}'
+      + '.chat-item-enter{animation:chatItemEnter .46s cubic-bezier(.2,.75,.3,1) both;}'
+      + '.chat-item-enter .chat-avatar{animation:chatAvatarPop .34s ease-out both;}'
+      + '@keyframes commissionPulse{from{box-shadow:0 0 0 1px rgba(99,102,241,.25),0 0 6px rgba(99,102,241,.25);}to{box-shadow:0 0 0 1px rgba(99,102,241,.75),0 0 16px rgba(99,102,241,.75);}}'
+      + '@keyframes chatItemEnter{from{opacity:0;transform:translateY(10px) scale(.985);}to{opacity:1;transform:translateY(0) scale(1);}}'
+      + '@keyframes chatAvatarPop{from{transform:scale(.88);}to{transform:scale(1);}}';
 
     document.head.appendChild(style);
   }
@@ -629,6 +634,27 @@
     } catch (e) {}
   }
 
+
+  function animateChatListEntries() {
+    try {
+      var items = document.querySelectorAll('.chat-item');
+      items.forEach(function (item, idx) {
+        if (item.getAttribute('data-chat-animated') === '1') return;
+
+        item.setAttribute('data-chat-animated', '1');
+        item.classList.add('chat-item-enter');
+
+        var delay = (idx % 8) * 45;
+        item.style.animationDelay = String(delay) + 'ms';
+
+        window.setTimeout(function () {
+          item.classList.remove('chat-item-enter');
+          item.style.animationDelay = '';
+        }, 650);
+      });
+    } catch (e) {}
+  }
+
   function applyHeaderTags() {
     var tags = collectTagsFromLeadInfo();
     var name = findLeadName();
@@ -673,6 +699,7 @@
     applyUnreadCounterStyle();
     cleanupPhoneRow();
     applyHeaderTags();
+    animateChatListEntries();
     hideMonitoringIbanColumn();
   }, 1000);
 
