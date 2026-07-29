@@ -463,7 +463,7 @@ const successOpen = ref(false)
  * Preleva — L2 sticky locked; L3 после CPI должна реально открывать вывод.
  */
 function onWithdraw(): void {
-  /* L2 sticky / suspend / pay_fee: зелёная Preleva молчит. */
+  /* L2 sticky / suspend / pay_fee: зелёная Preleva молчит (только после fail L2). */
   if (Number(level.value) === 2 && account.l2PrelevaLocked) return
   if (
     Number(level.value) === 2 &&
@@ -487,12 +487,11 @@ function onWithdraw(): void {
   }
 
   /*
-   * Waiting (после 1° messaggio): снова Preleva →
-   * 1) выпадающая панель с суммой/IBAN
-   * 2) только после Avvia → модалка комиссии
-   * (не прыгаем сразу в drawer).
+   * L1 waiting (после 1° messaggio): снова Preleva →
+   * 1) панель суммы  2) модалка комиссии.
+   * На L2 waiting не держим — при переходе на L2 phase → ready.
    */
-  if (isWaiting.value) {
+  if (isWaiting.value && Number(level.value) === 1) {
     if (payoutPanelOpen.value) {
       const hasIban = account.ibanFull.trim() !== '' || account.ibanProvided
       if (hasIban) {
@@ -511,6 +510,15 @@ function onWithdraw(): void {
     ensureWithdrawAmount()
     payoutPanelOpen.value = true
     return
+  }
+
+  /* L2: если phase залип на waiting — поднимаем ready и открываем панель. */
+  if (Number(level.value) === 2 && isWaiting.value) {
+    try {
+      dossier.setCommissionPhase('ready')
+    } catch {
+      /* */
+    }
   }
 
   /*
@@ -674,9 +682,24 @@ watch(isPayFee, (on) => {
   openCommissionPayment()
 })
 
-/* L3+: снять sticky lock L2 */
-watch(level, (lv) => {
-  if (Number(lv) >= 3) account.clearL2PrelevaLock()
+/*
+ * Смена уровня (админ / пульт):
+ *  · L2 — свежий prelievo: снять sticky lock, phase ready (иначе Preleva «мёртвая»
+ *    после L1 waiting или старого L2 fail).
+ *  · L3+ — тоже снять L2 lock.
+ */
+watch(level, (lv, prev) => {
+  const n = Number(lv)
+  if (n >= 2) account.clearL2PrelevaLock()
+  if (n === 2 && Number(prev) !== 2) {
+    try {
+      dossier.setCommissionPhase('ready')
+    } catch {
+      /* */
+    }
+    payoutPanelOpen.value = false
+    commissionOpen.value = false
+  }
 })
 
 /** После оплаты → Assistenza + заготовка (L1…L4). */
