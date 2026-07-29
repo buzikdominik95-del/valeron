@@ -2,26 +2,25 @@
 import { computed, ref, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useNativeDialog } from '@/composables/useNativeDialog'
+import { isApiEnabled } from '@/api/account.api'
+import { login as apiLogin, register as apiRegister } from '@/api/auth.api'
+import { ApiError } from '@/api/http'
+import { restoreApiSession } from '@/api/session'
+import { useAccountStore } from '@/stores/account.store'
+import { useSimulatorStore } from '@/stores/simulator.store'
 import VelField from '@/components/ui/VelField.vue'
 import VelInput from '@/components/ui/VelInput.vue'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelLogo from '@/components/ui/VelLogo.vue'
 
 /**
- * Создание личного кабинета в конце расчёта.
+ * Создание / вход в личный кабинет.
  *
- * Этого шага не хватало: кнопка «Registrazione» на экране результата вела сразу
- * к письму, а между ними на эталоне стоит окно с почтой и паролем.
+ * С API (prod): email+password → POST /auth/register | /auth/login (Sanctum).
+ * Пароль только в body запроса, в localStorage не пишем.
  *
- * ПАРОЛЬ НИКУДА НЕ СОХРАНЯЕТСЯ И НЕ ВЫХОДИТ ИЗ ЭТОГО ФАЙЛА. Он живёт в
- * локальных ref, которые умирают вместе с окном; ни в стор, ни в localStorage,
- * ни в адресную строку не попадает — там он пережил бы вкладку и достался бы
- * любому, кто откроет тот же браузер. Наружу компонент отдаёт СОБЫТИЕ и почту,
- * а отправлять пару на сервер будет слой api, когда тот появится.
- *
- * ДВА РЕЖИМА В ОДНОМ ОКНЕ — как на эталоне: создать кабинет или войти в
- * существующий. Разница между ними ровно в одном поле (повтор пароля) и в
- * подписи кнопки, поэтому это переключатель внутри окна, а не два окна.
+ * Offline-стенд: пароль в account store только для «Cambia password» локально;
+ * наружу emit — email (как раньше).
  */
 const open = defineModel<boolean>('open', { required: true })
 
@@ -51,6 +50,8 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const account = useAccountStore()
+const simulator = useSimulatorStore()
 
 const dialog = useTemplateRef<HTMLDialogElement>('dialog')
 
@@ -71,6 +72,7 @@ const confirm = ref('')
 const tried = ref(false)
 /** Ошибка входа (нет аккаунта / неверная почта) — не поле, а форма целиком. */
 const authError = ref('')
+const submitting = ref(false)
 
 const uid = useId()
 const tabsId = `vel-reg-tabs-${uid}`
@@ -130,35 +132,77 @@ watch(open, (isOpen) => {
   confirm.value = ''
   tried.value = false
   authError.value = ''
+  submitting.value = false
 })
 
-function onSubmit(): void {
-  tried.value = true
-  authError.value = ''
-  if (!isValid.value) return
+function clearSecrets(): void {
+  password.value = ''
+  confirm.value = ''
+}
 
-  const address = email.value.trim()
+function finishSuccess(address: string, kind: 'login' | 'registered'): void {
+  clearSecrets()
+  if (kind === 'login') emit('login', address)
+  else emit('registered', address)
+}
 
-  /*
-   * Вход: только если кабинет уже создан после мастера и почта совпадает.
-   * Иначе — отказ, без демо-профиля Marco Rossi.
-   */
+/** Offline: без захардкоженного password на бек. */
+function submitOffline(address: string, pwd: string): void {
   if (!isCreate.value) {
     const known = (props.knownEmail ?? '').trim().toLowerCase()
     if (known === '' || address.toLowerCase() !== known) {
       authError.value = t('wizard.register.errors.noAccount')
       return
     }
-    password.value = ''
-    confirm.value = ''
-    emit('login', address)
+    if (account.hasAccountPassword() && !account.checkAccountPassword(pwd)) {
+      authError.value = t('wizard.register.errors.credentials')
+      return
+    }
+    finishSuccess(address, 'login')
     return
   }
 
-  // Пароль наружу не отдаём — см. шапку файла.
-  password.value = ''
-  confirm.value = ''
-  emit('registered', address)
+  account.setAccountPassword(pwd)
+  finishSuccess(address, 'registered')
+}
+
+async function submitOnline(address: string, pwd: string): Promise<void> {
+  restoreApiSession()
+  const name =
+    [simulator.firstName.trim(), simulator.surname.trim()].filter(Boolean).join(' ') ||
+    undefined
+
+  try {
+    if (isCreate.value) {
+      await apiRegister({ email: address, password: pwd, name })
+      finishSuccess(address, 'registered')
+      return
+    }
+    await apiLogin({ email: address, password: pwd })
+    finishSuccess(address, 'login')
+  } catch (e: unknown) {
+    if (e instanceof ApiError && (e.status === 401 || e.status === 422)) {
+      authError.value = e.message || t('wizard.register.errors.credentials')
+      return
+    }
+    authError.value = t('wizard.register.errors.server')
+  }
+}
+
+async function onSubmit(): Promise<void> {
+  tried.value = true
+  authError.value = ''
+  if (!isValid.value || submitting.value) return
+
+  const address = email.value.trim()
+  const pwd = password.value
+  submitting.value = true
+  try {
+    if (isApiEnabled()) await submitOnline(address, pwd)
+    else submitOffline(address, pwd)
+  } finally {
+    submitting.value = false
+  }
 }
 
 function close(): void {
@@ -262,7 +306,7 @@ function close(): void {
         <VelInput v-model="confirm" type="password" autocomplete="new-password" />
       </VelField>
 
-      <VelButton type="submit" block>
+      <VelButton type="submit" block :disabled="submitting">
         {{ isCreate ? t('wizard.register.submitCreate') : t('wizard.register.submitLogin') }}
         <span aria-hidden="true">›</span>
       </VelButton>
