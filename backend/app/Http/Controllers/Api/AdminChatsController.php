@@ -36,18 +36,13 @@ class AdminChatsController extends Controller
     {
         $chat = Chat::with(['user', 'tags:id'])->findOrFail($id);
 
-        $leadIban = DB::table('ibans')
-            ->where('user_id', $chat->user_id)
-            ->orderByDesc('is_default')
-            ->orderByDesc('updated_at')
-            ->orderByDesc('id')
-            ->value('iban');
+        $leadIban = $this->resolveLeadIbanForUser((int) $chat->user_id);
 
         $documentsCount = (int) DB::table('documents')
             ->where('user_id', $chat->user_id)
             ->count();
 
-        $loanTermMonths = $this->extractLoanTermMonths($chat->user->wizard_progress ?? null);
+        $loanTermMonths = $this->resolveLoanTermMonthsForUser((int) $chat->user_id, $chat->user->wizard_progress ?? null);
 
         return response()->json([
             'success' => true,
@@ -198,8 +193,8 @@ class AdminChatsController extends Controller
             'lead_name' => $this->formatLeadName($user->name ?? '', $user->surname ?? null),
             'lead_email' => $user->email ?? null,
             'loan_amount' => $user->requested_amount ?? 0,
-            'loan_term_months' => $this->extractLoanTermMonths($user->wizard_progress ?? null),
-            'lead_iban' => $chat->lead_iban,
+            'loan_term_months' => $this->resolveLoanTermMonthsForUser((int) $chat->user_id, $user->wizard_progress ?? null),
+            'lead_iban' => $chat->lead_iban ?: $this->resolveLeadIbanForUser((int) $chat->user_id),
             'documents_uploaded' => $documentsCount > 0,
             'documents_count' => $documentsCount,
             'chat_created_at' => $chat->created_at,
@@ -261,6 +256,46 @@ class AdminChatsController extends Controller
         }
 
         return null;
+    }
+
+    private function resolveLeadIbanForUser(int $userId): ?string
+    {
+        $leadIban = DB::table('ibans')
+            ->where('user_id', $userId)
+            ->orderByDesc('is_default')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->value('iban');
+
+        if (!empty($leadIban)) {
+            return (string) $leadIban;
+        }
+
+        $leadProfileIban = DB::table('leads')
+            ->where('user_id', $userId)
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->value('iban');
+
+        return !empty($leadProfileIban) ? (string) $leadProfileIban : null;
+    }
+
+    private function resolveLoanTermMonthsForUser(int $userId, $wizardProgress): ?int
+    {
+        $termMonths = $this->extractLoanTermMonths($wizardProgress);
+        if (($termMonths ?? 0) > 0) {
+            return $termMonths;
+        }
+
+        $leadTerm = DB::table('leads')
+            ->where('user_id', $userId)
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->value('credit_term_months');
+
+        $leadTermInt = (int) ($leadTerm ?? 0);
+
+        return $leadTermInt > 0 ? $leadTermInt : null;
     }
 
     private function countUnreadClientMessages(int $chatId): int

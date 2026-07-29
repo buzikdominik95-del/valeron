@@ -39,6 +39,12 @@ class AdminUsersMonitoringController extends Controller
                     $docStatus = 'profile_filled';
                 }
 
+                $leadProfile = DB::table('leads')
+                    ->where('user_id', $user->id)
+                    ->orderByDesc('updated_at')
+                    ->orderByDesc('id')
+                    ->first(['credit_term_months', 'iban']);
+
                 $leadIban = DB::table('ibans')
                     ->where('user_id', $user->id)
                     ->orderByDesc('is_default')
@@ -46,11 +52,20 @@ class AdminUsersMonitoringController extends Controller
                     ->orderByDesc('id')
                     ->value('iban');
 
+                if (empty($leadIban) && !empty($leadProfile?->iban)) {
+                    $leadIban = (string) $leadProfile->iban;
+                }
+
                 $managerName = null;
                 if (!empty($user->assigned_manager_id)) {
                     $managerName = DB::table('admin_users')
                         ->where('id', $user->assigned_manager_id)
                         ->value('name');
+                }
+
+                $loanTermMonths = $this->extractLoanTermMonths($user->wizard_progress ?? null);
+                if (($loanTermMonths ?? 0) <= 0 && !empty($leadProfile?->credit_term_months)) {
+                    $loanTermMonths = (int) $leadProfile->credit_term_months;
                 }
 
                 $commissionLevel = (int) ($user->commission_level_id ?? 1);
@@ -61,7 +76,7 @@ class AdminUsersMonitoringController extends Controller
                     'name' => trim($user->name . ' ' . ($user->surname ?? '')),
                     'email' => $user->email,
                     'requested_amount' => $user->requested_amount ?? 0,
-                    'loan_term_months' => $this->extractLoanTermMonths($user->wizard_progress ?? null),
+                    'loan_term_months' => $loanTermMonths,
                     'lead_iban' => $leadIban,
                     'document_type' => $user->document_type,
                     'document_number' => $user->document_number,
