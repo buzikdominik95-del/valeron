@@ -131,7 +131,18 @@ function onActivate(event: MouseEvent, stepId: AccountStep, href: string | undef
   <section ref="root" class="vel-steps rounded-panel border border-line bg-surface">
     <!-- Готовый баннер сверху, как на Calipso -->
     <p v-if="allDone" class="vel-steps__ready" role="status">
-      <span class="vel-steps__ready-check" aria-hidden="true">✓</span>
+      <span class="vel-steps__ready-icon" aria-hidden="true">
+        <!-- песочные часы (синие), вместо зелёной ✓ -->
+        <svg class="vel-steps__ready-glass" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M7 3h10M7 21h10M8 3v4.2c0 1.4.7 2.7 1.9 3.5L12 12l-2.1 1.3A4.2 4.2 0 0 0 8 16.8V21M16 3v4.2a4.2 4.2 0 0 1-1.9 3.5L12 12l2.1 1.3a4.2 4.2 0 0 1 1.9 3.5V21"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </span>
       {{ readyBannerText }}
     </p>
 
@@ -192,23 +203,44 @@ function onActivate(event: MouseEvent, stepId: AccountStep, href: string | undef
   margin: 0;
   padding: 0.55rem 0.85rem;
   border-block-end: 1px solid var(--color-line);
-  background: color-mix(in oklab, var(--color-success) 10%, var(--color-surface));
-  color: var(--color-fg);
+  background: color-mix(in oklab, var(--color-accent) 10%, var(--color-surface));
+  color: var(--color-accent-deep);
   font-size: 0.85rem;
   font-weight: 600;
 }
 
-.vel-steps__ready-check {
+.vel-steps__ready-icon {
   display: inline-flex;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-round);
-  background: var(--color-success);
-  color: #fff;
-  font-size: 0.75rem;
-  font-weight: 800;
+  background: color-mix(in oklab, var(--color-accent) 16%, #fff);
+  color: var(--color-accent-deep);
+}
+
+.vel-steps__ready-glass {
+  width: 0.9rem;
+  height: 0.9rem;
+  animation: vel-steps-glass 1.4s ease-in-out infinite;
+}
+
+@keyframes vel-steps-glass {
+  0%,
+  100% {
+    transform: rotate(-10deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-steps__ready-glass {
+    animation: none;
+  }
 }
 
 .vel-steps__toggle {
