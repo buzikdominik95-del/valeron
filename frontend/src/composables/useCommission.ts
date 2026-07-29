@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { createSharedComposable, useIntervalFn, useUrlSearchParams } from '@vueuse/core'
 import { useDossierStore } from '@/stores/dossier.store'
 import { wantsFastAnim } from '@/lib/fast-anim'
+import { isApiEnabled } from '@/api/account.api'
 import type { CommissionLevel, CommissionPhase } from '@/api/commission'
 import { COMMISSION_ANIMATION_MS, isCommissionLevel } from '@/api/commission'
 
@@ -51,7 +52,10 @@ export interface CommissionApi {
   confirmMessageSent: () => void
   openFeeFromSuspension: () => void
   openFeeFromFailure: () => void
-  /** Демо: ?commLevel=2 или вызов из стенда */
+  /**
+   * Только offline-стенд / DEV-бар (VITE_SHOW_PHASE_BAR).
+   * При VITE_USE_API=1 уровень меняет бэкенд → hydrate, не клиент.
+   */
   applyAdminLevel: (level: CommissionLevel) => void
 }
 
@@ -63,8 +67,11 @@ function createCommission(): CommissionApi {
 
   const params = useUrlSearchParams('history')
 
-  // Демо-флаг админа из URL — один раз на вкладку.
-  if (!urlLevelApplied) {
+  /*
+   * ?commLevel=N — только offline-демо. С живым API URL не трогает level
+   * (источник правды — Laravel /admin + hydrate).
+   */
+  if (!urlLevelApplied && !isApiEnabled()) {
     const rawLevel = params.commLevel
     if (typeof rawLevel === 'string') {
       const n = Number(rawLevel)
@@ -251,6 +258,8 @@ function createCommission(): CommissionApi {
     openFeeFromSuspension: () => dossierStore.openFeeFromSuspension(),
     openFeeFromFailure: () => dossierStore.openFeeFromFailure(),
     applyAdminLevel: (next) => {
+      /* С API level только с сервера; кнопка пульта на проде скрыта. */
+      if (isApiEnabled()) return
       dossierStore.advanceCommissionLevel(next)
       if (next === 3) {
         queueMicrotask(() => {
