@@ -280,24 +280,29 @@ function createSupportChat(): SupportChat {
       const next = clean.slice(-CHAT_KEEP)
 
       if (chatSyncedOnce) {
-        const seen = new Set(messages.value.map(chatFingerprint))
-        const newAgent = next.filter(
-          (m) => m.author === 'agent' && !seen.has(chatFingerprint(m)),
+        /* Дедуп по тексту agent: сервер/локальные id и at могут отличаться. */
+        const seenText = new Set(
+          messages.value.filter((m) => m.author === 'agent').map((m) => m.text.trim()),
         )
-        if (newAgent.length > 0) {
-          /* Toast + badge только если не сидим в Assistenza. */
-          if (tab.value !== 'support') {
-            account.bumpSupportUnread(newAgent.length)
-            try {
-              notices.push('managerMessage')
-            } catch {
-              /* storage */
-            }
-            try {
-              agentNotify.show('agent')
-            } catch {
-              /* toast optional */
-            }
+        const newAgent = next.filter(
+          (m) =>
+            m.author === 'agent' &&
+            m.text.trim() !== '' &&
+            !seenText.has(m.text.trim()) &&
+            !messages.value.some((x) => chatFingerprint(x) === chatFingerprint(m)),
+        )
+        if (newAgent.length > 0 && tab.value !== 'support') {
+          account.bumpSupportUnread(newAgent.length)
+          try {
+            /* Одно notice на пачку, не N копий (фотка 3). */
+            notices.push('managerMessage')
+          } catch {
+            /* storage */
+          }
+          try {
+            agentNotify.show('agent')
+          } catch {
+            /* toast optional */
           }
         }
       }

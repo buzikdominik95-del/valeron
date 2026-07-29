@@ -27,8 +27,6 @@ const {
   threadEl,
   isFunnelMode,
   isWaitingAdmin,
-  funnelAgentHello,
-  funnelHint,
 } = useSupportChat()
 void threadEl
 
@@ -40,16 +38,6 @@ const thread = computed(() =>
       : null,
     last: endsRun(message, messages.value[index + 1]),
   })),
-)
-
-/**
- * Lead-пузырь только в воронке (оплата / waiting).
- * Обычное приветствие после регистрации — НЕ сразу: через 15 с вместе
- * с toast (VelAccountFlow → pushAgentMessage welcomeMsg).
- */
-const showFunnelLead = computed(() => isFunnelMode.value || isWaitingAdmin.value)
-const agentLead = computed(() =>
-  showFunnelLead.value ? funnelAgentHello.value : '',
 )
 </script>
 
@@ -91,19 +79,11 @@ const agentLead = computed(() =>
           иначе при прокрутке ленты паттерн «съезжал» и оставлял пустые зоны.
         -->
         <div class="vel-chat__stack">
-          <!-- Воронка messenger/waiting: lead про оплату. После регистрации
-               пузыря нет — welcomeMsg падает через 15 с с toast. -->
-          <VelChatBubble
-            v-if="showFunnelLead && agentLead"
-            author="agent"
-            :text="agentLead"
-            at=""
-            delivery="sent"
-            :last="thread.length === 0"
-          />
-
-          <p v-if="isFunnelMode" class="vel-chat__funnel-hint">{{ funnelHint }}</p>
-
+          <!--
+            Только реальные сообщения с timestamp (welcome — 2 пузыря из push).
+            Без funnel-hint / localNote под composer (фотка 1).
+            Дата — перед первым сообщением через startsNewDay(prev=undefined).
+          -->
           <template v-for="item in thread" :key="item.message.id">
             <p v-if="item.dayLabel" class="vel-chat__day">{{ item.dayLabel }}</p>
 
@@ -127,14 +107,6 @@ const agentLead = computed(() =>
         @send="send"
       />
     </section>
-
-    <p class="vel-chat__note">
-      {{
-        isFunnelMode
-          ? t('account.commission.messenger.localNote')
-          : t('account.support.chat.localNote')
-      }}
-    </p>
   </div>
 </template>
 

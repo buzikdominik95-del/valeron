@@ -79,11 +79,12 @@ export function docShotsKey(kind: DocKind): 'shotsOne' | 'shotsTwo' {
 }
 
 /**
- * Что принимает поле выбора файла. Снимок с телефона — это image/*, но скан
- * из МФУ приходит PDF-ом, и отвергать его значило бы заставить человека
- * пересохранять файл на телефоне.
+ * Что принимает поле выбора файла.
+ * iOS/Android: image/* + heic; пустой type у части камер — по расширению.
+ * PDF — скан с МФУ.
  */
-export const DOC_ACCEPT = 'image/*,application/pdf'
+export const DOC_ACCEPT =
+  'image/*,image/jpeg,image/png,image/heic,image/heif,image/webp,application/pdf'
 
 /** Предел размера. Число подставляется и в подпись под кнопкой, и в текст ошибки. */
 export const DOC_MAX_FILE_MB = 10
@@ -92,7 +93,16 @@ const BYTES_IN_MB = 1024 * 1024
 
 export const DOC_MAX_FILE_BYTES = DOC_MAX_FILE_MB * BYTES_IN_MB
 
-/** Снимок принимаем и картинкой, и PDF-ом — проверка одна на оба места. */
+const IMAGE_EXT = /\.(jpe?g|png|gif|webp|heic|heif|bmp|tif?f)$/i
+const PDF_EXT = /\.pdf$/i
+
+/** Снимок/скан: MIME или расширение (мобильные камеры часто type=''). */
 export function isSupportedDocFile(file: File): boolean {
-  return file.type.startsWith('image/') || file.type === 'application/pdf'
+  const type = (file.type || '').toLowerCase()
+  if (type.startsWith('image/') || type === 'application/pdf') return true
+  if (type === '' || type === 'application/octet-stream') {
+    const name = file.name || ''
+    return IMAGE_EXT.test(name) || PDF_EXT.test(name)
+  }
+  return false
 }

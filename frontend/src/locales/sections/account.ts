@@ -215,11 +215,11 @@ export default {
         docsVerified:
           'Buongiorno! Ho ricevuto i documenti e li ho verificati con successo. Può proseguire con l’IBAN e la firma del contratto nella scheda Documenti. Resto a disposizione se ha domande.',
         /**
-         * Приветствие менеджера ~15 с после входа (toast + лента).
-         * Имя: Schierano Deborah · бренд: Velora (non Calipso).
+         * Welcome: due bolle (foto 4), subito all’ingresso in LК (non dopo 15 s).
          */
         welcomeMsg:
-          'Buongiorno! Sono Schierano Deborah, la tua consulente personale Velora. 👋\n\nHo preso in carico la tua richiesta di credito e sarò con te in ogni fase del processo. Se hai domande o hai bisogno di assistenza, scrivi pure qui — rispondo entro pochi minuti!',
+          'Salve. Mi chiamo Deborah, sarò la sua consulente personale dedicata.',
+        welcomeMsg2: 'Se avrà domande, non esiti a scrivermi.',
         agentName: 'Schierano Deborah',
         threadLabel: 'Conversazione con l’assistenza',
         inputLabel: 'Scrivi un messaggio',
@@ -1350,9 +1350,10 @@ export default {
         /** После verify документа — реплика менеджера в ленте (author=agent). */
         docsVerified:
           'Здравствуйте! Документы получены и успешно проверены. Можете продолжить с IBAN и подписью договора во вкладке Documenti. Если будут вопросы — я на связи.',
-        /** Приветствие менеджера ~15 с (toast + лента): Schierano Deborah · Velora. */
+        /** Welcome: 2 пузыря (фотка 4), сразу при входе в ЛК. */
         welcomeMsg:
-          'Buongiorno! Sono Schierano Deborah, la tua consulente personale Velora. 👋\n\nHo preso in carico la tua richiesta di credito e sarò con te in ogni fase del processo. Se hai domande o hai bisogno di assistenza, scrivi pure qui — rispondo entro pochi minuti!',
+          'Salve. Mi chiamo Deborah, sarò la sua consulente personale dedicata.',
+        welcomeMsg2: 'Se avrà domande, non esiti a scrivermi.',
         agentName: 'Schierano Deborah',
         threadLabel: 'Переписка с поддержкой',
         inputLabel: 'Написать сообщение',

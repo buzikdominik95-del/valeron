@@ -4,9 +4,12 @@ import { computed, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTimeoutFn } from '@vueuse/core'
 import { useAccount } from '@/composables/useAccount'
+import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useCommission } from '@/composables/useCommission'
 import { useCpiBuild } from '@/composables/useCpiBuild'
+import { accountStepHref } from '@/features/account/account-anchors'
 import { useAccountStore } from '@/stores/account.store'
+import type { AccountStep } from '@/stores/account.store'
 import { COMMISSION_FEE_BY_LEVEL, commissionAddsToLoanBalance } from '@/api/commission'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
@@ -38,6 +41,7 @@ const emit = defineEmits<{
 
 const { t, n } = useI18n()
 const accountStore = useAccountStore()
+const { select: selectTab } = useCabinetTab()
 
 const {
   approvedAmount,
@@ -235,6 +239,46 @@ const counterText = computed(() =>
   t('account.progress.counter', { done: doneCount.value, total }),
 )
 
+/**
+ * Locked-блок «завершите шаги» выглядит кликабельно (фотка 5) —
+ * ведём на первый незакрытый шаг, как step bar / список passaggi.
+ */
+function tabForPending(stepId: AccountStep): 'home' | 'profile' | 'documents' | 'support' {
+  if (stepId === 'account') return 'profile'
+  if (stepId === 'signature' || stepId === 'documents') return 'documents'
+  return 'documents'
+}
+
+function openPendingSteps(): void {
+  const actionable =
+    pendingSteps.value.find(
+      (s) => s === 'account' || s === 'documents' || s === 'signature',
+    ) ?? pendingSteps.value[0]
+
+  if (actionable === undefined) {
+    selectTab('documents')
+    return
+  }
+
+  selectTab(tabForPending(actionable))
+  const href = accountStepHref(actionable)
+  if (href === undefined) {
+    requestAnimationFrame(() => {
+      document.getElementById('vel-account-content')?.scrollTo({ top: 0, behavior: 'smooth' })
+    })
+    return
+  }
+
+  /* Двойной rAF: вкладка Documenti/Profilo монтируется после select. */
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document
+        .getElementById(href.replace(/^#/, ''))
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  })
+}
+
 const withdrawLabel = computed(() =>
   showTgContact.value
     ? t('account.commission.freeze.reopenCta')
@@ -407,21 +451,34 @@ const balanceStatus = computed(() => {
       </VelButton>
     </div>
 
-    <!-- Онбординг: что ещё сделать (не дубль статуса воронки) -->
-    <div v-if="!canWithdraw" :id="lockedId" class="vel-payout__locked">
+    <!--
+      Онбординг: что ещё сделать (не дубль статуса воронки).
+      Кликабельно → Documenti / Profilo (как step bar, фотка 5).
+    -->
+    <button
+      v-if="!canWithdraw"
+      :id="lockedId"
+      type="button"
+      class="vel-payout__locked"
+      data-testid="payout-locked-steps"
+      :aria-label="`${t('account.progress.lead')}. ${counterText}`"
+      @click="openPendingSteps"
+    >
       <VelAccountSign sign="lock" class="vel-payout__sign" />
-      <div class="flex min-w-0 flex-col gap-2">
-        <p class="text-sm text-fg">{{ t('account.progress.lead') }}</p>
-        <p class="vel-label vel-num">{{ counterText }}</p>
-        <p class="text-xs text-faint">{{ t('account.payout.remaining') }}</p>
-        <ul class="vel-payout__remaining">
-          <li v-for="name in remainingNames" :key="name" class="vel-payout__step">
+      <span class="flex min-w-0 flex-col gap-2 text-left">
+        <span class="text-sm text-fg">{{ t('account.progress.lead') }}</span>
+        <span class="vel-label vel-num">{{ counterText }}</span>
+        <span class="text-xs text-faint">{{ t('account.payout.remaining') }}</span>
+        <!-- Без ul/li внутри button (невалидный HTML) — тот же вид. -->
+        <span class="vel-payout__remaining">
+          <span v-for="name in remainingNames" :key="name" class="vel-payout__step">
             <span class="vel-payout__box" aria-hidden="true"></span>
             {{ name }}
-          </li>
-        </ul>
-      </div>
-    </div>
+          </span>
+        </span>
+      </span>
+      <span class="vel-payout__locked-go" aria-hidden="true">→</span>
+    </button>
 
     <!-- Busy «В ходе выполнения» убран: тот же смысл в status справа сверху -->
 
@@ -747,11 +804,56 @@ const balanceStatus = computed(() => {
 
 .vel-payout__locked {
   display: flex;
+  align-items: flex-start;
   gap: 0.875rem;
+  width: 100%;
+  margin: 0;
   padding: 1rem 1.125rem;
   border: 1px solid var(--color-line-strong);
   border-radius: var(--radius-control);
   background-color: var(--color-raised);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.vel-payout__locked:hover {
+  border-color: color-mix(in oklab, var(--color-accent) 45%, var(--color-line-strong));
+  background-color: color-mix(in oklab, var(--color-accent) 6%, var(--color-raised));
+  box-shadow: 0 1px 0 color-mix(in oklab, #fff 70%, transparent);
+}
+
+.vel-payout__locked:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.vel-payout__locked:active {
+  background-color: color-mix(in oklab, var(--color-accent) 10%, var(--color-raised));
+}
+
+.vel-payout__locked-go {
+  flex: 0 0 auto;
+  margin-left: auto;
+  align-self: center;
+  color: var(--color-accent-deep);
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.75;
+  transition:
+    transform 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.vel-payout__locked:hover .vel-payout__locked-go {
+  opacity: 1;
+  transform: translateX(2px);
 }
 
 .vel-payout__sign {
