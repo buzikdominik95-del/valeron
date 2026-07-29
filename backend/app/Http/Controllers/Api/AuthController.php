@@ -24,11 +24,22 @@ class AuthController extends Controller
             'requested_amount' => 'nullable|numeric|min:0',
             'document_type' => 'nullable|string|max:50',
             'document_number' => 'nullable|string|max:100',
+            'loan_term_months' => 'nullable|integer|min:1|max:600',
+            'loan_term' => 'nullable|integer|min:1|max:600',
+            'credit_term_months' => 'nullable|integer|min:1|max:600',
+            'credit_term' => 'nullable|integer|min:1|max:600',
+            'term_months' => 'nullable|integer|min:1|max:600',
+            'term' => 'nullable|integer|min:1|max:600',
+            'requested_term_months' => 'nullable|integer|min:1|max:600',
+            'requested_term' => 'nullable|integer|min:1|max:600',
+            'wizard_progress' => 'nullable',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
+
+        $wizardProgress = $this->buildWizardProgressFromRequest($request);
 
         $user = User::create([
             'name' => $request->name,
@@ -38,6 +49,7 @@ class AuthController extends Controller
             'requested_amount' => $request->requested_amount,
             'document_type' => $request->document_type,
             'document_number' => $request->document_number,
+            'wizard_progress' => empty($wizardProgress) ? null : json_encode($wizardProgress, JSON_UNESCAPED_UNICODE),
             'password' => Hash::make($request->password),
             'commission_level_id' => 1,
         ]);
@@ -125,6 +137,59 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         return response()->json($request->user());
+    }
+
+    private function buildWizardProgressFromRequest(Request $request): array
+    {
+        $progress = [];
+
+        $rawProgress = $request->input('wizard_progress');
+        if (is_array($rawProgress)) {
+            $progress = $rawProgress;
+        } elseif (is_string($rawProgress) && trim($rawProgress) !== '') {
+            $decoded = json_decode($rawProgress, true);
+            if (is_array($decoded)) {
+                $progress = $decoded;
+            }
+        }
+
+        $termMonths = $this->extractLoanTermMonths($request);
+        if ($termMonths !== null) {
+            $progress['loan_term_months'] = $termMonths;
+            $progress['term_months'] = $termMonths;
+            $progress['term'] = $termMonths;
+
+            $credit = isset($progress['credit']) && is_array($progress['credit'])
+                ? $progress['credit']
+                : [];
+            $credit['term_months'] = $termMonths;
+            $progress['credit'] = $credit;
+        }
+
+        return $progress;
+    }
+
+    private function extractLoanTermMonths(Request $request): ?int
+    {
+        $termKeys = [
+            'loan_term_months',
+            'loan_term',
+            'credit_term_months',
+            'credit_term',
+            'term_months',
+            'term',
+            'requested_term_months',
+            'requested_term',
+        ];
+
+        foreach ($termKeys as $key) {
+            $value = (int) $request->input($key, 0);
+            if ($value > 0) {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     private function attachDefaultFdTag(Chat $chat): void

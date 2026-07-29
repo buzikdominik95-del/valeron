@@ -12,6 +12,7 @@ use App\Models\Tag;
 use App\Support\ManagerTrafficAssigner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class AccountController extends Controller
 {
@@ -140,6 +141,15 @@ class AccountController extends Controller
         $firstName = $nameParts[0] ?? '';
         $lastName = trim((string) ($user->surname ?? ($nameParts[1] ?? '')));
 
+        $leadIban = DB::table('ibans')
+            ->where('user_id', $user->id)
+            ->orderByDesc('is_default')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->value('iban');
+
+        $loanTermMonths = $this->extractLoanTermMonths($user->wizard_progress ?? null);
+
         $level = (int) ($user->commission_level_id ?? 1);
         if ($level < 1) $level = 1;
         if ($level > 4) $level = 4;
@@ -203,11 +213,13 @@ class AccountController extends Controller
                 'firstName' => $firstName,
                 'lastName' => $lastName,
                 'email' => $user->email,
+                'lead_iban' => $leadIban,
             ],
             'credit' => [
                 'approvedAmountCents' => (int) round(((float) ($user->requested_amount ?? 0)) * 100),
                 'ratePercent' => 3.8,
                 'isNew' => false,
+                'termMonths' => $loanTermMonths,
             ],
             'policy' => [
                 'status' => $level >= 4 ? 'issued' : 'processing',
@@ -238,6 +250,8 @@ class AccountController extends Controller
             'documents' => [
                 ['kind' => 'identity', 'fileName' => '', 'uploadedAt' => null],
             ],
+            'loan_term_months' => $loanTermMonths,
+            'lead_iban' => $leadIban,
             'payment_coords' => $paymentCoords,
             'paymentCoords' => $paymentCoords,
         ])
@@ -245,6 +259,192 @@ class AccountController extends Controller
             ->header('Pragma', 'no-cache');
     }
 
+
+    public function saveIban(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $validated = $request->validate([
+            'iban' => 'required|string|max:64',
+            'bic' => 'nullable|string|max:32',
+            'bank_name' => 'nullable|string|max:255',
+            'account_holder' => 'nullable|string|max:255',
+            'is_default' => 'nullable|boolean',
+        ]);
+
+        $iban = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) ($validated['iban'] ?? '')));
+        if (strlen($iban) < 10) {
+            return response()->json([
+                'message' => 'IBAN non valido',
+                'errors' => ['iban' => ['IBAN non valido']],
+            ], 422);
+        }
+
+        $isDefault = array_key_exists('is_default', $validated)
+            ? (bool) $validated['is_default']
+            : true;
+
+        $accountHolder = trim((string) ($validated['account_holder'] ?? ''));
+        if ($accountHolder === '') {
+            $accountHolder = trim((string) $user->name . ' ' . (string) ($user->surname ?? ''));
+        }
+
+        DB::transaction(function () use ($user, $validated, $iban, $isDefault, $accountHolder) {
+            if ($isDefault) {
+                DB::table('ibans')
+                    ->where('user_id', $user->id)
+                    ->update([
+                        'is_default' => false,
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            $existingId = DB::table('ibans')
+                ->where('user_id', $user->id)
+                ->whereRaw('UPPER(iban) = ?', [$iban])
+                ->value('id');
+
+            $payload = [
+                'user_id' => $user->id,
+                'iban' => $iban,
+                'bic' => $validated['bic'] ?? null,
+                'bank_name' => $validated['bank_name'] ?? null,
+                'account_holder' => $accountHolder !== '' ? $accountHolder : null,
+                'status' => 'pending',
+                'is_default' => $isDefault,
+                'updated_at' => now(),
+            ];
+
+            if ($existingId) {
+                DB::table('ibans')->where('id', $existingId)->update($payload);
+            } else {
+                $payload['created_at'] = now();
+                DB::table('ibans')->insert($payload);
+            }
+        });
+
+        return response()->json([
+            'ok' => true,
+            'lead_iban' => $iban,
+        ]);
+    }
+
+    public function saveWizardProgress(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $validated = $request->validate([
+            'wizard_progress' => 'nullable',
+            'loan_term_months' => 'nullable|integer|min:1|max:600',
+            'loan_term' => 'nullable|integer|min:1|max:600',
+            'credit_term_months' => 'nullable|integer|min:1|max:600',
+            'credit_term' => 'nullable|integer|min:1|max:600',
+            'term_months' => 'nullable|integer|min:1|max:600',
+            'term' => 'nullable|integer|min:1|max:600',
+            'requested_term_months' => 'nullable|integer|min:1|max:600',
+            'requested_term' => 'nullable|integer|min:1|max:600',
+        ]);
+
+        $currentProgress = $this->decodeWizardProgressData($user->wizard_progress ?? null);
+
+        $rawIncomingProgress = $validated['wizard_progress'] ?? null;
+        if (is_array($rawIncomingProgress)) {
+            $currentProgress = array_merge($currentProgress, $rawIncomingProgress);
+        } elseif (is_string($rawIncomingProgress) && trim($rawIncomingProgress) !== '') {
+            $decodedIncoming = json_decode($rawIncomingProgress, true);
+            if (is_array($decodedIncoming)) {
+                $currentProgress = array_merge($currentProgress, $decodedIncoming);
+            }
+        }
+
+        $loanTermMonths = $this->extractLoanTermMonths($validated);
+        if ($loanTermMonths !== null) {
+            $currentProgress['loan_term_months'] = $loanTermMonths;
+            $currentProgress['term_months'] = $loanTermMonths;
+            $currentProgress['term'] = $loanTermMonths;
+
+            $credit = isset($currentProgress['credit']) && is_array($currentProgress['credit'])
+                ? $currentProgress['credit']
+                : [];
+            $credit['term_months'] = $loanTermMonths;
+            $currentProgress['credit'] = $credit;
+        }
+
+        $user->wizard_progress = empty($currentProgress)
+            ? null
+            : json_encode($currentProgress, JSON_UNESCAPED_UNICODE);
+        $user->save();
+
+        return response()->json([
+            'ok' => true,
+            'loan_term_months' => $this->extractLoanTermMonths($currentProgress),
+        ]);
+    }
+
+    private function decodeWizardProgressData($rawData): array
+    {
+        if (is_array($rawData)) {
+            return $rawData;
+        }
+
+        $decoded = json_decode((string) ($rawData ?? ''), true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private function extractLoanTermMonths($source): ?int
+    {
+        if (is_array($source)) {
+            $data = $source;
+        } else {
+            $data = $this->decodeWizardProgressData($source);
+        }
+
+        $termKeys = [
+            'loan_term_months',
+            'loan_term',
+            'credit_term_months',
+            'credit_term',
+            'term_months',
+            'term',
+            'requested_term_months',
+            'requested_term',
+        ];
+
+        foreach ($termKeys as $key) {
+            if (!array_key_exists($key, $data)) {
+                continue;
+            }
+
+            $value = (int) $data[$key];
+            if ($value > 0) {
+                return $value;
+            }
+        }
+
+        if (isset($data['credit']) && is_array($data['credit'])) {
+            foreach (['term_months', 'term', 'loan_term'] as $nestedKey) {
+                if (!array_key_exists($nestedKey, $data['credit'])) {
+                    continue;
+                }
+
+                $value = (int) $data['credit'][$nestedKey];
+                if ($value > 0) {
+                    return $value;
+                }
+            }
+        }
+
+        return null;
+    }
 
     private function attachDefaultFdTag(Chat $chat): void
     {
