@@ -312,6 +312,10 @@ const withdrawLabel = computed(() =>
  * hold: только действия (pay_fee / messenger).
  */
 const balanceStatus = computed(() => {
+  /* 0) После messaggio (waiting) — всегда «In attesa del consulente» (L1/L2) */
+  if (isWaiting.value) {
+    return { kind: 'wait' as const, text: t('account.payout.balanceStatus.wait') }
+  }
   /* 1) Вывод отклонён — L2 suspended / L4 failed / tg_final / reject-сцена */
   if (
     isTgFinal.value ||
@@ -324,10 +328,6 @@ const balanceStatus = computed(() => {
   /* 2) Ожидание сертификата CPI (генерация / до галочки) */
   if (cpiBlocksWithdraw.value) {
     return { kind: 'cert' as const, text: t('account.payout.balanceStatus.cert') }
-  }
-  /* 3) Ожидание консультанта */
-  if (isWaiting.value) {
-    return { kind: 'wait' as const, text: t('account.payout.balanceStatus.wait') }
   }
   /* 4) Идёт перевод (анимация / authorizing) — только пока ещё не reject */
   if (isAnimating.value || isAuthorizing.value) {

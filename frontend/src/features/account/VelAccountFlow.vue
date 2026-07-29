@@ -790,15 +790,16 @@ const showL4RejectScene = computed(
 )
 
 /**
- * L2 после отказа анимации: сцена VelTransferAnim (failed) + красная Paga
- * вместо «Le mie coordinate». Карточка «Dati trasmessi» (VelSuspensionCard)
- * больше не показывается — только анимация.
+ * L2 fail-сцена + красная Paga: только suspended / pay_fee (до оплаты).
+ * После messenger/waiting — убираем (как L1: кабинет обновляется после messaggio).
  */
 const showL2FailAnim = computed(
   () =>
-    level.value === 2 &&
-    (isSuspended.value || isPayFee.value || isFailed.value || isRejectAnim.value) &&
-    !isAnimating.value,
+    Number(level.value) === 2 &&
+    (isSuspended.value || isPayFee.value) &&
+    !isAnimating.value &&
+    !isMessenger.value &&
+    !isWaiting.value,
 )
 
 /**
