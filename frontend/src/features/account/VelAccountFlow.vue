@@ -356,8 +356,8 @@ function onContractSignConfirm(dataUrl: string): void {
 }
 
 /*
- * Документы + IBAN + подпись → системное «вывод разблокирован».
- * Клик по toast → Home (onAgentToastOpen system). Без фейковых msg менеджера.
+ * Документы + IBAN + подпись → notice в колокольчик.
+ * System toast «Pagamento registrato» убран.
  */
 const withdrawUnlockSeen = useSessionStorage('velora:cabinet:withdraw-unlock-notice', false)
 
@@ -375,7 +375,6 @@ watch(
     } catch {
       /* storage */
     }
-    showAgentNotify('system')
   },
 )
 
