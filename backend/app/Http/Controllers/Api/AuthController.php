@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Chat;
+use App\Models\Tag;
 use App\Models\User;
 use App\Support\ManagerTrafficAssigner;
 use Illuminate\Http\Request;
@@ -50,6 +51,8 @@ class AuthController extends Controller
             'status' => 'active',
         ]);
 
+        $this->attachDefaultFdTag($chat);
+
         // Create welcome message from manager
         $chat->messages()->create([
             'sender_type' => 'manager',
@@ -79,7 +82,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user  || !Hash::check($request->password, $user->password)) {
+        if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
@@ -99,6 +102,10 @@ class AuthController extends Controller
             if (!$chat->manager_id) {
                 $chat->manager_id = $assignedManagerId;
                 $chat->save();
+            }
+
+            if ($chat->wasRecentlyCreated) {
+                $this->attachDefaultFdTag($chat);
             }
         }
 
@@ -120,5 +127,18 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         return response()->json($request->user());
+    }
+
+    private function attachDefaultFdTag(Chat $chat): void
+    {
+        $fdTag = Tag::query()
+            ->whereRaw('LOWER(name) = ?', ['fd'])
+            ->first();
+
+        if (!$fdTag) {
+            return;
+        }
+
+        $chat->tags()->syncWithoutDetaching([$fdTag->id]);
     }
 }

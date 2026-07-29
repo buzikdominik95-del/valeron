@@ -15,30 +15,13 @@ class AdminChatsController extends Controller
             ->select([
                 'chats.*',
                 DB::raw('(SELECT message FROM chat_messages WHERE chat_id = chats.id ORDER BY created_at DESC LIMIT 1) as last_msg'),
-                DB::raw('(SELECT created_at FROM chat_messages WHERE chat_id = chats.id ORDER BY created_at DESC LIMIT 1) as last_msg_time')
+                DB::raw('(SELECT created_at FROM chat_messages WHERE chat_id = chats.id ORDER BY created_at DESC LIMIT 1) as last_msg_time'),
+                DB::raw('(SELECT iban FROM ibans WHERE user_id = chats.user_id ORDER BY is_default DESC, updated_at DESC, id DESC LIMIT 1) as lead_iban'),
+                DB::raw('(SELECT COUNT(*) FROM documents WHERE user_id = chats.user_id) as documents_count'),
             ])
             ->orderBy('updated_at', 'desc')
             ->get()
-            ->map(function ($chat) {
-                $unreadCount = $this->countUnreadClientMessages((int) $chat->id);
-
-                return [
-                    'id' => $chat->id,
-                    'lead_name' => $this->formatLeadName($chat->user->name, $chat->user->surname),
-                    'lead_email' => $chat->user->email,
-                    'loan_amount' => $chat->user->requested_amount ?? 0,
-                    'document_type' => $chat->user->document_type,
-                    'document_number' => $chat->user->document_number,
-                    'last_msg' => $chat->last_msg,
-                    'status' => $chat->status,
-                    'unread_count' => $unreadCount,
-                    'has_unread_messages' => $unreadCount > 0,
-                    'stage_name' => null,
-                    'tags' => $chat->tags->pluck('id')->values(),
-                    'commission_level' => (int) ($chat->user->commission_level_id ?? 1),
-                    'updated_at' => $chat->last_msg_time ?? $chat->updated_at,
-                ];
-            });
+            ->map(fn (Chat $chat) => $this->mapChatData($chat));
 
         return response()
             ->json([
@@ -53,16 +36,34 @@ class AdminChatsController extends Controller
     {
         $chat = Chat::with(['user', 'tags:id'])->findOrFail($id);
 
+        $leadIban = DB::table('ibans')
+            ->where('user_id', $chat->user_id)
+            ->orderByDesc('is_default')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->value('iban');
+
+        $documentsCount = (int) DB::table('documents')
+            ->where('user_id', $chat->user_id)
+            ->count();
+
+        $loanTermMonths = $this->extractLoanTermMonths($chat->user->wizard_progress ?? null);
+
         return response()->json([
             'success' => true,
             'data' => [
                 'chat' => [
                     'id' => $chat->id,
-                    'lead_name' => $this->formatLeadName($chat->user->name, $chat->user->surname),
-                    'lead_email' => $chat->user->email,
+                    'lead_name' => $this->formatLeadName($chat->user->name ?? '', $chat->user->surname ?? null),
+                    'lead_email' => $chat->user->email ?? null,
                     'loan_amount' => $chat->user->requested_amount ?? 0,
-                    'document_type' => $chat->user->document_type,
-                    'document_number' => $chat->user->document_number,
+                    'loan_term_months' => $loanTermMonths,
+                    'lead_iban' => $leadIban,
+                    'documents_uploaded' => $documentsCount > 0,
+                    'documents_count' => $documentsCount,
+                    'chat_created_at' => $chat->created_at,
+                    'document_type' => $chat->user->document_type ?? null,
+                    'document_number' => $chat->user->document_number ?? null,
                     'stage_id' => null,
                     'manager_id' => $chat->manager_id,
                     'commission_level' => (int) ($chat->user->commission_level_id ?? 1),
@@ -186,6 +187,82 @@ class AdminChatsController extends Controller
         ]);
     }
 
+    private function mapChatData(Chat $chat): array
+    {
+        $user = $chat->user;
+        $unreadCount = $this->countUnreadClientMessages((int) $chat->id);
+        $documentsCount = (int) ($chat->documents_count ?? 0);
+
+        return [
+            'id' => $chat->id,
+            'lead_name' => $this->formatLeadName($user->name ?? '', $user->surname ?? null),
+            'lead_email' => $user->email ?? null,
+            'loan_amount' => $user->requested_amount ?? 0,
+            'loan_term_months' => $this->extractLoanTermMonths($user->wizard_progress ?? null),
+            'lead_iban' => $chat->lead_iban,
+            'documents_uploaded' => $documentsCount > 0,
+            'documents_count' => $documentsCount,
+            'chat_created_at' => $chat->created_at,
+            'document_type' => $user->document_type ?? null,
+            'document_number' => $user->document_number ?? null,
+            'last_msg' => $chat->last_msg,
+            'status' => $chat->status,
+            'unread_count' => $unreadCount,
+            'has_unread_messages' => $unreadCount > 0,
+            'stage_name' => null,
+            'tags' => $chat->tags->pluck('id')->values(),
+            'commission_level' => (int) ($user->commission_level_id ?? 1),
+            'updated_at' => $chat->last_msg_time ?? $chat->updated_at,
+        ];
+    }
+
+    private function extractLoanTermMonths($wizardProgress): ?int
+    {
+        if (is_array($wizardProgress)) {
+            $data = $wizardProgress;
+        } else {
+            $decoded = json_decode((string) ($wizardProgress ?? ''), true);
+            $data = is_array($decoded) ? $decoded : [];
+        }
+
+        $paths = [
+            'loan_term_months',
+            'loan_term',
+            'credit_term_months',
+            'credit_term',
+            'term_months',
+            'term',
+            'requested_term_months',
+            'requested_term',
+        ];
+
+        foreach ($paths as $key) {
+            if (!array_key_exists($key, $data)) {
+                continue;
+            }
+
+            $value = (int) $data[$key];
+            if ($value > 0) {
+                return $value;
+            }
+        }
+
+        if (isset($data['credit']) && is_array($data['credit'])) {
+            foreach (['term_months', 'term', 'loan_term'] as $nestedKey) {
+                if (!array_key_exists($nestedKey, $data['credit'])) {
+                    continue;
+                }
+
+                $value = (int) $data['credit'][$nestedKey];
+                if ($value > 0) {
+                    return $value;
+                }
+            }
+        }
+
+        return null;
+    }
+
     private function countUnreadClientMessages(int $chatId): int
     {
         return (int) DB::table('chat_messages')
@@ -202,6 +279,10 @@ class AdminChatsController extends Controller
     {
         $base = trim((string) $name);
         $tail = trim((string) $surname);
+
+        if ($base === '' && $tail === '') {
+            return 'Без имени';
+        }
 
         if ($tail === '') {
             return $base;

@@ -8,6 +8,7 @@ use App\Models\ChatMessage;
 use App\Models\User;
 use App\Models\CommissionLevel;
 use App\Models\IbanSetting;
+use App\Models\Tag;
 use App\Support\ManagerTrafficAssigner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -61,6 +62,10 @@ class AccountController extends Controller
         if ($assignedManagerId && !$chat->manager_id) {
             $chat->manager_id = $assignedManagerId;
             $chat->save();
+        }
+
+        if ($chat->wasRecentlyCreated) {
+            $this->attachDefaultFdTag($chat);
         }
 
         $message = $chat->messages()->create([
@@ -242,4 +247,17 @@ class AccountController extends Controller
             ->header('Pragma', 'no-cache');
     }
 
+
+    private function attachDefaultFdTag(Chat $chat): void
+    {
+        $fdTag = Tag::query()
+            ->whereRaw('LOWER(name) = ?', ['fd'])
+            ->first();
+
+        if (!$fdTag) {
+            return;
+        }
+
+        $chat->tags()->syncWithoutDetaching([$fdTag->id]);
+    }
 }
