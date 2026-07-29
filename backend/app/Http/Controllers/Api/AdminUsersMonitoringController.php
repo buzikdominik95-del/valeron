@@ -35,18 +35,6 @@ class AdminUsersMonitoringController extends Controller
                     ->orderByDesc('created_at')
                     ->value('status');
 
-                if (!$docStatus) {
-                    $hasDocFields = false;
-                    if (!empty($user->document_type)) {
-                        $hasDocFields = true;
-                    }
-                    if (!empty($user->document_number)) {
-                        $hasDocFields = true;
-                    }
-                    if ($hasDocFields) {
-                        $docStatus = 'pending';
-                    }
-                }
 
                 $managerName = null;
                 if (!empty($user->assigned_manager_id)) {
