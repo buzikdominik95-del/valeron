@@ -258,8 +258,11 @@ function createCommission(): CommissionApi {
     openFeeFromSuspension: () => dossierStore.openFeeFromSuspension(),
     openFeeFromFailure: () => dossierStore.openFeeFromFailure(),
     applyAdminLevel: (next) => {
-      /* С API level только с сервера; кнопка пульта на проде скрыта. */
-      if (isApiEnabled()) return
+      /*
+       * Пульт всегда делегирует в store.
+       * В API-режиме store отправит /admin/commission/advance,
+       * в offline-режиме переключит локально.
+       */
       dossierStore.advanceCommissionLevel(next)
       if (next === 3) {
         queueMicrotask(() => {
