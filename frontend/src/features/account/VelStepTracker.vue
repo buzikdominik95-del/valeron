@@ -2,6 +2,7 @@
 import { computed, ref, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
+import { useCommission } from '@/composables/useCommission'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import type { CabinetTab } from '@/composables/useCabinetTab'
 import { accountStepHref } from '@/features/account/account-anchors'
@@ -23,6 +24,7 @@ import VelStepMeter from '@/features/account/VelStepMeter.vue'
  */
 const { t } = useI18n()
 const { steps, total, doneCount, allDone } = useAccount()
+const { level, isWaiting } = useCommission()
 const { tab, select } = useCabinetTab()
 
 const open = ref(true)
@@ -34,6 +36,18 @@ const counterText = computed(() =>
 const headTitle = computed(() =>
   allDone.value ? t('account.progress.allDone') : t('account.progress.lead'),
 )
+
+/**
+ * Баннер над чек-листом:
+ *  · L1 waiting (после 1-го сообщения) — «ожидается оплата услуг Velora»
+ *  · L2+ — «успешно оплатили услуги Velora»
+ *  · иначе — «Fondi pronti…»
+ */
+const readyBannerText = computed(() => {
+  if (Number(level.value) >= 2) return t('account.progress.readyPaidServices')
+  if (isWaiting.value) return t('account.progress.readyAwaitingServices')
+  return t('account.progress.ready')
+})
 
 const items = computed(() =>
   steps.value.map((step) => {
@@ -118,7 +132,7 @@ function onActivate(event: MouseEvent, stepId: AccountStep, href: string | undef
     <!-- Готовый баннер сверху, как на Calipso -->
     <p v-if="allDone" class="vel-steps__ready" role="status">
       <span class="vel-steps__ready-check" aria-hidden="true">✓</span>
-      {{ t('account.progress.ready') }}
+      {{ readyBannerText }}
     </p>
 
     <button

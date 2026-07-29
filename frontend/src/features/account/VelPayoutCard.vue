@@ -148,13 +148,14 @@ const withdrawLocked = computed(() => {
     isTgFinal.value ||
     isSuspended.value ||
     isPayFee.value ||
-    isMessenger.value ||
-    isWaiting.value
+    isMessenger.value
+    /* waiting: Preleva остаётся активной, воронка комиссии доступна снова */
   )
 })
 
 /**
- * Busy: анимация / messenger / waiting / CPI / authorizing.
+ * Busy: анимация / messenger / CPI / authorizing.
+ * waiting — не busy (Preleva и комиссия остаются).
  * pay_fee не busy — иначе после × модалки Preleva выглядела «мертвой».
  */
 const funnelBusy = computed(
@@ -164,7 +165,6 @@ const funnelBusy = computed(
     !isSuspended.value &&
     (isAnimating.value ||
       isMessenger.value ||
-      isWaiting.value ||
       cpiBlocksWithdraw.value ||
       isAuthorizing.value),
 )

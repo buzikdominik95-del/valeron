@@ -59,7 +59,7 @@ const showTransferBand = computed(
     isSuspended.value ||
     isPayFee.value ||
     isMessenger.value ||
-    isWaiting.value ||
+    /* isWaiting — без отдельной карточки под балансом */
     isFailed.value ||
     isTgFinal.value ||
     isPolicyBuild.value ||
