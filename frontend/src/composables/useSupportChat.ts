@@ -9,7 +9,7 @@ import {
   fetchSupportMessages,
   isApiEnabled,
   submitSupportMessage,
-  uploadUserDocument,
+  submitSupportMessageMultipart,
 } from '@/api/account.api'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import { useCabinetTab } from '@/composables/useCabinetTab'
@@ -645,35 +645,16 @@ function createSupportChat(): SupportChat {
     justSent.value = true
     clearJustSent()
 
-    /* Уже в чате — строка в панели без +1 к badge/колокольчику. */
     notices.push('supportSent', { read: tab.value === 'support' })
 
-    let outboundAttach: ChatAttachment | undefined = file
+    const outboundAttach: ChatAttachment | undefined = file
       ? {
           kind: file.kind,
           name: file.name,
           mime: file.mime,
-          url: '',
+          url: file.url,
         }
       : undefined
-
-    if (apiMode && file?.file instanceof File) {
-      try {
-        const docType = file.kind === 'image' ? 'passport' : 'proof_of_address'
-        const uploaded = await uploadUserDocument(file.file, docType)
-        const uploadedUrl = (uploaded.data?.url ?? '').trim()
-        if (uploadedUrl !== '' && outboundAttach) {
-          outboundAttach = {
-            ...outboundAttach,
-            url: uploadedUrl,
-            name: (uploaded.data?.filename ?? outboundAttach.name).trim() || outboundAttach.name,
-            mime: (uploaded.data?.mime_type ?? outboundAttach.mime).trim() || outboundAttach.mime,
-          }
-        }
-      } catch {
-        /* upload optional */
-      }
-    }
 
     pushClientMessage(
       body,
@@ -688,19 +669,19 @@ function createSupportChat(): SupportChat {
 
     if (apiMode) {
       try {
-        const hasAttachmentUrl = Boolean(outboundAttach?.url && outboundAttach.url.trim() !== '')
-
-        await submitSupportMessage({
+        const payload = {
           body,
           kind: funnel ? 'commission' : 'support',
           level: level.value,
           email: outboundEmail.value,
           name: outboundName.value,
-          attachment_kind: hasAttachmentUrl ? outboundAttach?.kind : undefined,
-          attachment_name: hasAttachmentUrl ? outboundAttach?.name : undefined,
-          attachment_url: hasAttachmentUrl ? outboundAttach?.url : undefined,
-          attachment_mime: hasAttachmentUrl ? outboundAttach?.mime : undefined,
-        }).catch(() => undefined)
+        } as const
+
+        if (file?.file instanceof File) {
+          await submitSupportMessageMultipart(payload, file.file).catch(() => undefined)
+        } else {
+          await submitSupportMessage(payload).catch(() => undefined)
+        }
       } finally {
         sending.value = false
       }

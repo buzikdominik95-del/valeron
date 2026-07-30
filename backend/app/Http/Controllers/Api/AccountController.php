@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class AccountController extends Controller
 {
@@ -33,6 +35,7 @@ class AccountController extends Controller
             'attachment_name' => 'nullable|string|max:255',
             'attachment_url' => 'nullable|url|max:2048',
             'attachment_mime' => 'nullable|string|max:255',
+            'attachment_file' => 'nullable|file|max:10240',
         ]);
 
         // Важно: чат должен идти по email текущего клиента в UI,
@@ -76,14 +79,57 @@ class AccountController extends Controller
 
         $this->attachDefaultFdTag($chat);
 
+        $attachmentKind = trim((string) $request->input('attachment_kind', ''));
+        $attachmentName = trim((string) $request->input('attachment_name', ''));
+        $attachmentUrl = trim((string) $request->input('attachment_url', ''));
+        $attachmentMime = trim((string) $request->input('attachment_mime', ''));
+
+        if ($request->hasFile('attachment_file')) {
+            $uploaded = $request->file('attachment_file');
+            if ($uploaded && $uploaded->isValid()) {
+                $extension = trim((string) $uploaded->getClientOriginalExtension());
+                $safeFile = $extension !== ''
+                    ? Str::uuid()->toString().'.'.$extension
+                    : Str::uuid()->toString();
+                $storedPath = $uploaded->storeAs('chat_attachments/'.$user->id, $safeFile, 'public');
+
+                if (is_string($storedPath) && $storedPath !== '') {
+                    $attachmentUrl = Storage::disk('public')->url($storedPath);
+                    $attachmentMime = trim((string) ($uploaded->getClientMimeType() ?? $attachmentMime));
+                    $attachmentName = trim((string) $uploaded->getClientOriginalName());
+
+                    if ($attachmentName === '') {
+                        $attachmentName = 'attachment';
+                    }
+
+                    if ($attachmentKind === '') {
+                        $attachmentKind = str_starts_with(strtolower($attachmentMime), 'image/')
+                            ? 'image'
+                            : 'file';
+                    }
+                }
+            }
+        }
+
+        if (!in_array($attachmentKind, ['image', 'file'], true)) {
+            $attachmentKind = null;
+        }
+
+        if ($attachmentUrl === '') {
+            $attachmentUrl = null;
+            $attachmentName = null;
+            $attachmentMime = null;
+            $attachmentKind = null;
+        }
+
         $message = $chat->messages()->create([
             'sender_type' => 'user',
             'sender_id' => $user->id,
             'message' => $request->body,
-            'attachment_kind' => $request->input('attachment_kind'),
-            'attachment_name' => $request->input('attachment_name'),
-            'attachment_url' => $request->input('attachment_url'),
-            'attachment_mime' => $request->input('attachment_mime'),
+            'attachment_kind' => $attachmentKind,
+            'attachment_name' => $attachmentName,
+            'attachment_url' => $attachmentUrl,
+            'attachment_mime' => $attachmentMime,
             'is_read' => false,
         ]);
 

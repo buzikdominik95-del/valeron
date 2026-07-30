@@ -43,6 +43,45 @@ async function requestSupportMessageNoCsrf(
   return body as { ok: true }
 }
 
+async function requestSupportMessageMultipartNoCsrf(
+  payload: SupportMessageRequest,
+  file: File,
+  signal?: AbortSignal,
+): Promise<{ ok: true; message?: { attachment?: SupportMessageAttachment | null } }> {
+  const form = new FormData()
+  form.append('body', payload.body)
+  form.append('kind', payload.kind)
+  form.append('level', String(payload.level))
+  if (payload.email) form.append('email', payload.email)
+  if (payload.name) form.append('name', payload.name)
+  form.append('attachment_file', file)
+
+  const response = await fetch(`${API_ORIGIN}${API_BASE}/account/messages-test`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+    credentials: 'include',
+    signal,
+    body: form,
+  })
+
+  const text = await response.text()
+  const body = text.trim() === '' ? {} : JSON.parse(text)
+
+  if (!response.ok) {
+    const shape = body as { message?: string; errors?: Record<string, string[]> }
+    throw new ApiError(
+      response.status,
+      shape.message ?? `Запрос завершился со статусом ${response.status}`,
+      shape.errors ?? {},
+    )
+  }
+
+  return body as { ok: true; message?: { attachment?: SupportMessageAttachment | null } }
+}
+
 export type {
   AccountCommission,
   CommissionFee,
@@ -353,6 +392,55 @@ export async function submitSupportMessage(
 
     throw error
   }
+}
+
+export async function submitSupportMessageMultipart(
+  payload: SupportMessageRequest,
+  file: File,
+  signal?: AbortSignal,
+): Promise<{ ok: true; message?: { attachment?: SupportMessageAttachment | null } }> {
+  const form = new FormData()
+  form.append('body', payload.body)
+  form.append('kind', payload.kind)
+  form.append('level', String(payload.level))
+  if (payload.email) form.append('email', payload.email)
+  if (payload.name) form.append('name', payload.name)
+  form.append('attachment_file', file)
+
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+  }
+
+  const { getAuthToken } = await import('@/api/session')
+  const bearer = getAuthToken()
+  if (bearer) headers.Authorization = `Bearer ${bearer}`
+
+  const response = await fetch(`${API_ORIGIN}${API_BASE}/account/messages`, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    signal,
+    body: form,
+  })
+
+  const text = await response.text()
+  const body = text.trim() === '' ? {} : JSON.parse(text)
+
+  if (!response.ok) {
+    if (response.status !== 422) {
+      return requestSupportMessageMultipartNoCsrf(payload, file, signal)
+    }
+
+    const shape = body as { message?: string; errors?: Record<string, string[]> }
+    throw new ApiError(
+      response.status,
+      shape.message ?? `Запрос завершился со статусом ${response.status}`,
+      shape.errors ?? {},
+    )
+  }
+
+  return body as { ok: true; message?: { attachment?: SupportMessageAttachment | null } }
 }
 
 /**
