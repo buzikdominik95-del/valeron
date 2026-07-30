@@ -114,7 +114,7 @@ class AdminChatsController extends Controller
                     $isManager = true;
                 }
 
-                $attachmentUrl = trim((string) ($msg->attachment_url ?? ''));
+                $attachmentUrl = $this->normalizeAttachmentUrl($msg->attachment_url ?? null) ?? '';
                 $attachmentKind = trim((string) ($msg->attachment_kind ?? ''));
 
                 return [
@@ -197,6 +197,9 @@ class AdminChatsController extends Controller
             'updated_at' => now(),
         ]);
 
+        $responseAttachmentUrl = $this->normalizeAttachmentUrl($message->attachment_url ?? null);
+        $hasAttachment = !empty($responseAttachmentUrl) && in_array((string) $message->attachment_kind, ['image', 'file'], true);
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -205,10 +208,10 @@ class AdminChatsController extends Controller
                 'is_manager' => true,
                 'sender_name' => $senderName,
                 'created_at' => $message->created_at,
-                'attachment' => (!empty($message->attachment_url) && in_array((string) $message->attachment_kind, ['image', 'file'], true)) ? [
+                'attachment' => $hasAttachment ? [
                     'kind' => (string) $message->attachment_kind,
                     'name' => (string) ($message->attachment_name ?? ''),
-                    'url' => (string) $message->attachment_url,
+                    'url' => (string) $responseAttachmentUrl,
                     'mime' => (string) ($message->attachment_mime ?? ''),
                 ] : null,
             ],
@@ -577,6 +580,26 @@ class AdminChatsController extends Controller
         $decoded = json_decode((string) ($rawData ?? ''), true);
 
         return is_array($decoded) ? $decoded : [];
+    }
+
+    private function normalizeAttachmentUrl(?string $url): ?string
+    {
+        $clean = trim((string) ($url ?? ''));
+        if ($clean === '') {
+            return null;
+        }
+
+        if (preg_match('/^https?:\/\//i', $clean) === 1) {
+            $path = parse_url($clean, PHP_URL_PATH);
+            if (is_string($path)) {
+                $path = trim($path);
+                if (str_starts_with($path, '/storage/')) {
+                    return $path;
+                }
+            }
+        }
+
+        return $clean;
     }
 
     private function toBool($value): bool
