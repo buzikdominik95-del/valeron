@@ -29,7 +29,7 @@ const props = defineProps<{
   /** Локальное фото (data URL) — legacy. */
   imageUrl?: string
   /** Фото или файл. */
-  attachment?: ChatAttachment
+  attachment?: ChatAttachment | null
 }>()
 
 const { t, d } = useI18n()

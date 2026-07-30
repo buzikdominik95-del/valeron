@@ -3,22 +3,33 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Chat;
+use App\Models\AdminUser;
+use App\Support\AdminManagerLevelStore;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AdminChatsController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $chats = Chat::with(['user', 'tags:id'])
+        $actor = $this->resolveCurrentAdminUser($request);
+
+        $query = Chat::with(['user', 'tags:id'])
             ->select([
                 'chats.*',
                 DB::raw('(SELECT message FROM chat_messages WHERE chat_id = chats.id ORDER BY created_at DESC LIMIT 1) as last_msg'),
                 DB::raw('(SELECT created_at FROM chat_messages WHERE chat_id = chats.id ORDER BY created_at DESC LIMIT 1) as last_msg_time'),
                 DB::raw('(SELECT iban FROM ibans WHERE user_id = chats.user_id ORDER BY is_default DESC, updated_at DESC, id DESC LIMIT 1) as lead_iban'),
                 DB::raw('(SELECT COUNT(*) FROM documents WHERE user_id = chats.user_id) as documents_count'),
-            ])
+            ]);
+
+        if ($actor && in_array($actor->role, ['manager', 'team_lead'], true)) {
+            $query->where('chats.manager_id', $actor->id);
+        }
+
+        $chats = $query
             ->orderBy('updated_at', 'desc')
             ->get()
             ->map(fn (Chat $chat) => $this->mapChatData($chat));
@@ -32,9 +43,14 @@ class AdminChatsController extends Controller
             ->header('Pragma', 'no-cache');
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
+        $actor = $this->resolveCurrentAdminUser($request);
         $chat = Chat::with(['user', 'tags:id'])->findOrFail($id);
+
+        if (!$this->canAccessChat($actor, $chat)) {
+            return response()->json(['success' => false, 'message' => 'Доступ к чату запрещён'], 403);
+        }
 
         $leadProfile = $this->resolveLeadProfileForUser((int) $chat->user_id, $chat->user->email ?? null);
 
@@ -78,9 +94,14 @@ class AdminChatsController extends Controller
         ]);
     }
 
-    public function messages($chatId)
+    public function messages(Request $request, $chatId)
     {
+        $actor = $this->resolveCurrentAdminUser($request);
         $chat = Chat::findOrFail($chatId);
+
+        if (!$this->canAccessChat($actor, $chat)) {
+            return response()->json(['success' => false, 'message' => 'Доступ к чату запрещён'], 403);
+        }
         $messages = $chat->messages()
             ->orderBy('created_at', 'asc')
             ->get()
@@ -93,6 +114,9 @@ class AdminChatsController extends Controller
                     $isManager = true;
                 }
 
+                $attachmentUrl = trim((string) ($msg->attachment_url ?? ''));
+                $attachmentKind = trim((string) ($msg->attachment_kind ?? ''));
+
                 return [
                     'id' => $msg->id,
                     'message' => $msg->message,
@@ -100,6 +124,12 @@ class AdminChatsController extends Controller
                     'sender_name' => $isManager ? 'Менеджер' : 'Клиент',
                     'created_at' => $msg->created_at,
                     'is_read' => (bool) ($msg->is_read ?? false),
+                    'attachment' => ($attachmentUrl !== '' && in_array($attachmentKind, ['image', 'file'], true)) ? [
+                        'kind' => $attachmentKind,
+                        'name' => (string) ($msg->attachment_name ?? ''),
+                        'url' => $attachmentUrl,
+                        'mime' => (string) ($msg->attachment_mime ?? ''),
+                    ] : null,
                 ];
             });
 
@@ -116,15 +146,35 @@ class AdminChatsController extends Controller
     {
         $request->validate([
             'message' => 'required|string|max:5000',
+            'attachment_kind' => 'nullable|string|in:image,file',
+            'attachment_name' => 'nullable|string|max:255',
+            'attachment_url' => 'nullable|url|max:2048',
+            'attachment_mime' => 'nullable|string|max:255',
         ]);
 
+        $actor = $this->resolveCurrentAdminUser($request);
         $chat = Chat::findOrFail($chatId);
+
+        if (!$this->canAccessChat($actor, $chat)) {
+            return response()->json(['success' => false, 'message' => 'Доступ к чату запрещён'], 403);
+        }
+
+        if (in_array((string) $chat->status, ['closed', 'completed'], true) && $actor && in_array($actor->role, ['manager', 'team_lead'], true)) {
+            return response()->json(['success' => false, 'message' => 'Чат завершён для этого менеджера'], 409);
+        }
+
+        $senderId = $actor ? (int) $actor->id : 1;
+        $senderName = $actor ? (string) $actor->name : 'Менеджер';
 
         $message = $chat->messages()->create([
             'chat_id' => $chat->id,
             'sender_type' => 'manager',
-            'sender_id' => 1,
+            'sender_id' => $senderId,
             'message' => $request->message,
+            'attachment_kind' => $request->input('attachment_kind'),
+            'attachment_name' => $request->input('attachment_name'),
+            'attachment_url' => $request->input('attachment_url'),
+            'attachment_mime' => $request->input('attachment_mime'),
             'is_read' => true,
             'read_at' => now(),
         ]);
@@ -153,15 +203,26 @@ class AdminChatsController extends Controller
                 'id' => $message->id,
                 'message' => $message->message,
                 'is_manager' => true,
-                'sender_name' => 'Менеджер',
+                'sender_name' => $senderName,
                 'created_at' => $message->created_at,
+                'attachment' => (!empty($message->attachment_url) && in_array((string) $message->attachment_kind, ['image', 'file'], true)) ? [
+                    'kind' => (string) $message->attachment_kind,
+                    'name' => (string) ($message->attachment_name ?? ''),
+                    'url' => (string) $message->attachment_url,
+                    'mime' => (string) ($message->attachment_mime ?? ''),
+                ] : null,
             ],
         ]);
     }
 
     public function updateMeta(Request $request, $chatId)
     {
+        $actor = $this->resolveCurrentAdminUser($request);
         $chat = Chat::with('user')->findOrFail($chatId);
+
+        if (!$this->canAccessChat($actor, $chat)) {
+            return response()->json(['success' => false, 'message' => 'Доступ к чату запрещён'], 403);
+        }
 
         $validated = $request->validate([
             'tags' => 'sometimes|array',
@@ -186,6 +247,103 @@ class AdminChatsController extends Controller
             'data' => [
                 'tags' => $chat->tags()->pluck('tags.id')->values(),
                 'commission_level' => (int) ($chat->user->commission_level_id ?? 1),
+            ],
+        ]);
+    }
+
+    public function completeAndTransfer(Request $request, $chatId)
+    {
+        $actor = $this->resolveCurrentAdminUser($request);
+        if (!$actor) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+
+        if (!in_array($actor->role, ['manager', 'team_lead', 'admin', 'super_admin'], true)) {
+            return response()->json(['success' => false, 'message' => 'Недостаточно прав'], 403);
+        }
+
+        $chat = Chat::with('user')->findOrFail($chatId);
+        if (!$this->canAccessChat($actor, $chat)) {
+            return response()->json(['success' => false, 'message' => 'Доступ к чату запрещён'], 403);
+        }
+
+        if (!$chat->user) {
+            return response()->json(['success' => false, 'message' => 'Клиент не найден'], 404);
+        }
+
+        $currentLevel = (int) ($chat->user->commission_level_id ?? 1);
+        $nextLevel = $currentLevel + 1;
+
+        if (in_array($actor->role, ['manager', 'team_lead'], true)) {
+            $handled = AdminManagerLevelStore::getFor((int) $actor->id);
+            if (!in_array($currentLevel, $handled, true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Вы не отвечаете за этот уровень комиссии',
+                    'current_level' => $currentLevel,
+                    'handled_levels' => $handled,
+                ], 403);
+            }
+        }
+
+        $targetManager = $this->pickNextLevelManager($nextLevel, (int) $actor->id);
+
+        DB::transaction(function () use ($chat, $currentLevel, $nextLevel, $targetManager, $actor) {
+            $chat->user->commission_level_id = $nextLevel;
+
+            if ($targetManager) {
+                $chat->user->assigned_manager_id = (int) $targetManager->id;
+            }
+
+            $chat->user->save();
+
+            if ($targetManager) {
+                DB::table('leads')
+                    ->where('user_id', $chat->user_id)
+                    ->update([
+                        'assigned_manager_id' => (int) $targetManager->id,
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            $chat->status = 'completed';
+            $chat->manager_id = (int) $actor->id;
+            $chat->updated_at = now();
+            $chat->save();
+
+            $chat->messages()->create([
+                'chat_id' => $chat->id,
+                'sender_type' => 'system',
+                'sender_id' => null,
+                'message' => $targetManager
+                    ? sprintf(
+                        'Чат завершён менеджером %s на уровне %d и клиент передан менеджеру %s на уровень %d.',
+                        (string) ($actor->name ?? 'manager'),
+                        $currentLevel,
+                        (string) ($targetManager->name ?? 'manager'),
+                        $nextLevel
+                    )
+                    : sprintf(
+                        'Чат завершён менеджером %s на уровне %d. Уровень клиента повышен до %d.',
+                        (string) ($actor->name ?? 'manager'),
+                        $currentLevel,
+                        $nextLevel
+                    ),
+                'is_read' => true,
+                'read_at' => now(),
+            ]);
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Чат завершен',
+            'data' => [
+                'chat_id' => (int) $chat->id,
+                'from_manager_id' => (int) $actor->id,
+                'to_manager_id' => $targetManager ? (int) $targetManager->id : null,
+                'to_manager_name' => $targetManager ? (string) $targetManager->name : null,
+                'new_commission_level' => $nextLevel,
+                'chat_status' => 'completed',
             ],
         ]);
     }
@@ -438,6 +596,79 @@ class AdminChatsController extends Controller
         }
 
         return false;
+    }
+
+    private function resolveCurrentAdminUser(Request $request): ?AdminUser
+    {
+        $token = $request->bearerToken();
+        if (!$token) {
+            return null;
+        }
+
+        $accessToken = PersonalAccessToken::findToken($token);
+        if (!$accessToken) {
+            return null;
+        }
+
+        $tokenable = $accessToken->tokenable;
+        return $tokenable instanceof AdminUser ? $tokenable : null;
+    }
+
+    private function canAccessChat(?AdminUser $actor, Chat $chat): bool
+    {
+        if (!$actor) {
+            return true;
+        }
+
+        if (in_array($actor->role, ['manager', 'team_lead'], true)) {
+            return (int) $chat->manager_id === (int) $actor->id;
+        }
+
+        return true;
+    }
+
+    private function pickNextLevelManager(int $level, int $excludeManagerId = 0): ?AdminUser
+    {
+        $activeManagers = AdminUser::query()
+            ->whereIn('role', ['manager', 'team_lead'])
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->get();
+
+        $eligible = $activeManagers->filter(function (AdminUser $manager) use ($level, $excludeManagerId) {
+            if ((int) $manager->id === $excludeManagerId) {
+                return false;
+            }
+
+            $levels = AdminManagerLevelStore::getFor((int) $manager->id);
+            return in_array($level, $levels, true);
+        })->values();
+
+        if ($eligible->isEmpty()) {
+            return null;
+        }
+
+        $chatCounts = DB::table('chats')
+            ->selectRaw('manager_id, COUNT(*) as c')
+            ->whereIn('manager_id', $eligible->pluck('id')->all())
+            ->where(function ($q) {
+                $q->whereNull('status')->orWhere('status', '!=', 'closed');
+            })
+            ->groupBy('manager_id')
+            ->pluck('c', 'manager_id');
+
+        $best = null;
+        $bestCount = null;
+
+        foreach ($eligible as $manager) {
+            $count = (int) ($chatCounts[(string) $manager->id] ?? 0);
+            if ($best === null || $count < $bestCount) {
+                $best = $manager;
+                $bestCount = $count;
+            }
+        }
+
+        return $best;
     }
 
     private function countUnreadClientMessages(int $chatId): int

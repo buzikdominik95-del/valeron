@@ -279,6 +279,13 @@ export function submitTransfer(
  * Сообщение менеджеру (в т.ч. заготовка «ho pagato la commissione»).
  * Бэкенд доставит в CRM / open-source messenger (Chatwoot / Matrix bridge).
  */
+export interface SupportMessageAttachment {
+  kind: 'image' | 'file'
+  name: string
+  url: string
+  mime: string
+}
+
 export interface SupportMessageRequest {
   /** Готовый шаблон или свободный текст. */
   body: string
@@ -287,6 +294,10 @@ export interface SupportMessageRequest {
   level: CommissionLevel
   email?: string
   name?: string
+  attachment_kind?: 'image' | 'file'
+  attachment_name?: string
+  attachment_url?: string
+  attachment_mime?: string
 }
 
 export interface SupportThreadMessage {
@@ -295,6 +306,7 @@ export interface SupportThreadMessage {
   text: string
   at: string
   delivery: 'sent' | 'local' | 'failed'
+  attachment?: SupportMessageAttachment | null
 }
 
 export async function fetchSupportMessages(
@@ -544,11 +556,22 @@ export function saveDocumentsVerifiedToProfile(
  */
 export type BackendDocType = 'passport' | 'license' | 'contract' | 'proof_of_address'
 
+export interface UploadUserDocumentResponse {
+  message?: string
+  data?: {
+    id?: number
+    filename?: string
+    mime_type?: string
+    path?: string
+    url?: string | null
+  }
+}
+
 export async function uploadUserDocument(
   file: File,
   type: BackendDocType,
   signal?: AbortSignal,
-): Promise<unknown> {
+): Promise<UploadUserDocumentResponse> {
   const form = new FormData()
   form.append('file', file)
   form.append('type', type)
@@ -583,7 +606,7 @@ export async function uploadUserDocument(
     )
   }
 
-  return body
+  return body as UploadUserDocumentResponse
 }
 
 export { disableApiForSession, restoreApiSession } from '@/api/session'
