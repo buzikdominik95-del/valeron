@@ -1,17 +1,14 @@
 <script setup lang="ts">
 /**
- * Мигающий «?» (Calipso): рядом с заголовком / SEPA / green callout.
+ * Мигающий «?» — один размер и пульс везде (заголовок, SEPA, green callout).
  */
-withDefaults(
-  defineProps<{
-    label: string
-    /** L3/L4 callout: крупнее */
-    size?: 'md' | 'lg'
-    /** L3/L4: сильнее пульс */
-    pulse?: 'soft' | 'strong'
-  }>(),
-  { size: 'md', pulse: 'soft' },
-)
+defineProps<{
+  label: string
+  /** @deprecated единый размер; prop оставлен для совместимости вызовов */
+  size?: 'md' | 'lg'
+  /** @deprecated единый пульс; prop оставлен для совместимости вызовов */
+  pulse?: 'soft' | 'strong'
+}>()
 
 const emit = defineEmits<{ click: [] }>()
 </script>
@@ -20,10 +17,6 @@ const emit = defineEmits<{ click: [] }>()
   <button
     type="button"
     class="vel-help-dot"
-    :class="[
-      size === 'lg' ? 'vel-help-dot--lg' : '',
-      pulse === 'strong' ? 'vel-help-dot--strong' : '',
-    ]"
     :aria-label="label"
     @click.stop="emit('click')"
   >
@@ -33,51 +26,42 @@ const emit = defineEmits<{ click: [] }>()
 
 <style scoped>
 .vel-help-dot {
+  --help-d: 1.3rem;
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 1.35rem;
-  height: 1.35rem;
+  width: var(--help-d);
+  height: var(--help-d);
+  min-width: var(--help-d);
+  min-height: var(--help-d);
   margin: 0;
   padding: 0;
-  border: 1.5px solid color-mix(in oklab, var(--color-accent) 55%, transparent);
+  box-sizing: border-box;
+  border: 2px solid #5aaf8f;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--color-accent) 12%, var(--color-surface));
-  color: var(--color-accent-deep);
+  background: #eef8f3;
+  color: #1a6b52;
   cursor: pointer;
   vertical-align: middle;
-  animation: vel-help-dot-pulse 1.8s ease-in-out infinite;
+  box-shadow:
+    0 0 0 2.5px #fff,
+    0 1px 3px rgba(15, 23, 42, 0.1);
+  animation: vel-help-dot-pulse 1.15s ease-in-out infinite;
   transition:
     background-color 140ms ease,
     border-color 140ms ease,
     color 140ms ease;
 }
 
-.vel-help-dot--lg {
-  width: 1.85rem;
-  height: 1.85rem;
-  border-width: 2px;
-  background: color-mix(in oklab, var(--color-surface) 92%, var(--color-accent));
-  box-shadow: 0 0 0 2px var(--color-surface);
-}
-
-.vel-help-dot--lg .vel-help-dot__mark {
-  font-size: 0.95rem;
-}
-
-.vel-help-dot--strong {
-  animation: vel-help-dot-pulse-strong 1.05s ease-in-out infinite;
-}
-
 .vel-help-dot:hover {
-  background: color-mix(in oklab, var(--color-accent) 22%, var(--color-surface));
-  border-color: var(--color-accent);
-  color: var(--color-accent);
+  background: #e0f3ea;
+  border-color: #4a9e7f;
+  color: #145a45;
 }
 
 .vel-help-dot:focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--color-accent) 45%, transparent);
+  outline: 2px solid color-mix(in oklab, #5aaf8f 55%, transparent);
   outline-offset: 2px;
 }
 
@@ -85,35 +69,22 @@ const emit = defineEmits<{ click: [] }>()
   font-size: 0.72rem;
   font-weight: 800;
   line-height: 1;
+  color: inherit;
 }
 
 @keyframes vel-help-dot-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-accent) 35%, transparent);
-    opacity: 1;
-  }
-  50% {
-    box-shadow: 0 0 0 0.35rem color-mix(in oklab, var(--color-accent) 0%, transparent);
-    opacity: 0.88;
-  }
-}
-
-@keyframes vel-help-dot-pulse-strong {
-  0%,
-  100% {
     transform: scale(1);
     box-shadow:
-      0 0 0 0 color-mix(in oklab, var(--color-accent) 55%, transparent),
-      0 0 0 2px var(--color-surface);
-    opacity: 1;
+      0 0 0 2.5px #fff,
+      0 0 0 0 rgba(90, 175, 143, 0.45);
   }
   50% {
-    transform: scale(1.12);
+    transform: scale(1.1);
     box-shadow:
-      0 0 0 0.55rem color-mix(in oklab, var(--color-accent) 0%, transparent),
-      0 0 0 2px var(--color-surface);
-    opacity: 0.92;
+      0 0 0 2.5px #fff,
+      0 0 0 0.45rem rgba(90, 175, 143, 0);
   }
 }
 

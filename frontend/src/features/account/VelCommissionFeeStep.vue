@@ -24,13 +24,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ next: [] }>()
 const { t, n } = useI18n()
-const { feeReason, feeEuros, level } = useCommission()
-
-/** L2/L3: крупный «?» на бордере callout. */
-const calloutHelpLg = computed(() => {
-  const lv = Number(level.value)
-  return lv === 2 || lv === 3
-})
+const { feeReason, feeEuros } = useCommission()
 
 const parts = computed(() => commissionBreakdown(feeEuros.value, feeReason.value))
 const labelSet = computed(() => breakdownLabelSet(feeReason.value))
@@ -121,19 +115,11 @@ const detailsFooter = computed(() => {
       <p class="m-0" v-html="t('account.commission.fee.serviceNoteHtml')" />
     </div>
 
-    <!-- L2/L3: green = title + body; ? на бордере (крупнее + stronger pulse) -->
-    <div
-      v-if="showReasonCallout"
-      data-reveal
-      class="vel-cfee__callout"
-      :class="{ 'vel-cfee__callout--help-lg': calloutHelpLg }"
-      role="note"
-    >
+    <!-- L2/L3: green = title + body; ? на углу бордера (единый VelHelpDot) -->
+    <div v-if="showReasonCallout" data-reveal class="vel-cfee__callout" role="note">
       <VelHelpDot
         class="vel-cfee__callout-help"
         :label="t('account.commission.help.openLabel')"
-        :size="calloutHelpLg ? 'lg' : 'md'"
-        :pulse="calloutHelpLg ? 'strong' : 'soft'"
         @click="detailsOpen = true"
       />
       <h3 class="vel-cfee__callout-title m-0">{{ reasonTitle }}</h3>
@@ -303,92 +289,17 @@ const detailsFooter = computed(() => {
   padding-inline-end: 0.35rem;
 }
 
-/*
- * «?»-круг: центр ровно на верхнем-правом угле зелёного блока.
- * Явный круг (border + bg) — не полагаемся только на component defaults.
- */
+/* Центр «?» на верхнем-правом угле callout (стиль — общий VelHelpDot) */
 .vel-cfee__callout-help {
   --help-d: 1.3rem;
   position: absolute;
   z-index: 4;
-  /* центр = угол border-box: top/right - half size + half border */
   top: calc(-0.5 * var(--help-d));
   right: calc(-0.5 * var(--help-d));
-  width: var(--help-d);
-  height: var(--help-d);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: visible;
-  pointer-events: auto;
-}
-
-.vel-cfee__callout--help-lg .vel-cfee__callout-help {
-  --help-d: 1.65rem;
-}
-
-.vel-cfee__callout-help :deep(.vel-help-dot),
-.vel-cfee__callout-help :deep(.vel-help-dot--lg),
-.vel-cfee__callout-help :deep(.vel-help-dot--strong) {
-  position: relative;
-  top: auto;
-  left: auto;
-  display: inline-flex !important;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: var(--help-d) !important;
-  height: var(--help-d) !important;
-  min-width: var(--help-d);
-  min-height: var(--help-d);
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  border: 2px solid #5aaf8f !important;
-  border-radius: 999px !important;
-  background: #eef8f3 !important;
-  color: #1a6b52 !important;
-  box-shadow:
-    0 0 0 2.5px #fff,
-    0 1px 3px rgba(15, 23, 42, 0.1);
-  transform: none;
-  opacity: 1;
-  animation: vel-cfee-help-pulse 1.15s ease-in-out infinite;
-}
-
-.vel-cfee__callout-help :deep(.vel-help-dot__mark) {
-  font-size: 0.72rem;
-  font-weight: 800;
-  line-height: 1;
-  color: inherit;
-}
-
-.vel-cfee__callout--help-lg .vel-cfee__callout-help :deep(.vel-help-dot__mark) {
-  font-size: 0.85rem;
-}
-
-@keyframes vel-cfee-help-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-    box-shadow:
-      0 0 0 2.5px #fff,
-      0 0 0 0 rgba(90, 175, 143, 0.45);
-  }
-  50% {
-    transform: scale(1.1);
-    box-shadow:
-      0 0 0 2.5px #fff,
-      0 0 0 0.45rem rgba(90, 175, 143, 0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .vel-cfee__callout-help :deep(.vel-help-dot),
-  .vel-cfee__callout-help :deep(.vel-help-dot--lg),
-  .vel-cfee__callout-help :deep(.vel-help-dot--strong) {
-    animation: none;
-  }
 }
 
 .vel-cfee__cta {
