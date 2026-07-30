@@ -26,10 +26,10 @@ const emit = defineEmits<{ next: [] }>()
 const { t, n } = useI18n()
 const { feeReason, feeEuros, level } = useCommission()
 
-/** L3/L4: крупный «?» на бордере callout. */
+/** L2/L3: крупный «?» на бордере callout. */
 const calloutHelpLg = computed(() => {
   const lv = Number(level.value)
-  return lv >= 3
+  return lv === 2 || lv === 3
 })
 
 const parts = computed(() => commissionBreakdown(feeEuros.value, feeReason.value))
@@ -121,7 +121,7 @@ const detailsFooter = computed(() => {
       <p class="m-0" v-html="t('account.commission.fee.serviceNoteHtml')" />
     </div>
 
-    <!-- L2/L3: green = title + body; ? на бордере (L3/L4 крупнее) -->
+    <!-- L2/L3: green = title + body; ? на бордере (крупнее + stronger pulse) -->
     <div
       v-if="showReasonCallout"
       data-reveal
