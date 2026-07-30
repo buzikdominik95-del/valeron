@@ -499,8 +499,8 @@ async function buildFilledAttachmentBlobs(
   const base = assetBase()
   const { slug, num } = fileSlug(p)
   const fullName = p.fullName || `${p.firstName} ${p.lastName}`.trim() || 'Cliente'
-  const stampUrl = new URL('cpi/velora-seal.png', base).href
-  const lenderSigUrl = new URL('cpi/lender-signature.png', base).href
+  const stampUrl = new URL('cpi/lender-prestatore.png', base).href
+  const lenderSigUrl = new URL('cpi/lender-prestatore.png', base).href
 
   if (kind === 'contract') {
     try {
