@@ -41,7 +41,12 @@ function toggleSepaHelp(): void {
       {{ t('account.payment.lead') }}
     </p>
 
-    <div ref="methodWrap" data-reveal class="vel-cpay__method-wrap">
+    <div
+      ref="methodWrap"
+      data-reveal
+      class="vel-cpay__method-wrap"
+      :data-vel-help-anchor="sepaHelpOpen ? 'open' : '1'"
+    >
       <div
         class="vel-cpay__method rounded-control border border-accent/40 bg-accent/5 px-3 py-2"
       >

@@ -116,7 +116,6 @@ onUnmounted(() => {
 
 <style scoped>
 .vel-help-pop {
-  position: fixed;
   box-sizing: border-box;
   max-width: calc(100vw - 1.5rem);
   padding: 0.85rem 1rem 0.9rem;

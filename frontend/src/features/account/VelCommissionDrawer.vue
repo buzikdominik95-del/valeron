@@ -195,7 +195,11 @@ watch(open, (isOpen) => {
           <p class="vel-label m-0">{{ t('account.commissionDrawer.overlinePlain') }}</p>
           <div class="vel-cdraw__title-row">
             <h2 :id="titleId" class="vel-cdraw__title m-0">{{ stepTitle }}</h2>
-            <span v-if="showFeeHelp" class="vel-cdraw__help-anchor">
+            <span
+              v-if="showFeeHelp"
+              class="vel-cdraw__help-anchor"
+              :data-vel-help-anchor="feeHelpOpen ? 'open' : '1'"
+            >
               <VelHelpDot
                 :label="t('account.commission.help.openLabel')"
                 @click="toggleFeeHelp"
