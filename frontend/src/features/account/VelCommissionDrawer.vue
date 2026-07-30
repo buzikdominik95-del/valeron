@@ -285,8 +285,9 @@ watch(open, (isOpen) => {
   inline-size: min(100% - 0.75rem, 32rem);
   /* Без внутреннего скролла: влезаем в экран за счёт плотности */
   max-block-size: min(96dvh, 48rem);
-  overflow: hidden;
-  overscroll-behavior: none;
+  overflow-x: visible;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-panel);
@@ -304,13 +305,15 @@ watch(open, (isOpen) => {
   flex-direction: column;
   gap: 0.85rem;
   max-block-size: min(96dvh, 48rem);
-  padding: 1rem 1.1rem 1.15rem;
-  overflow: hidden;
+  /* padding-top/right: место под ? на бордере callout */
+  padding: 1.15rem 1.25rem 1.15rem 1.1rem;
+  overflow: visible;
 }
 
 .vel-cdraw__body {
   min-block-size: 1px;
-  overflow: hidden;
+  /* visible: «?» callout выходит за край зелёного блока */
+  overflow: visible;
 }
 
 /* Сетка шапки: [назад 2.5] | title | [× 2.5] — одна линия, все шаги */
