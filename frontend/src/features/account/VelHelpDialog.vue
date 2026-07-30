@@ -83,6 +83,7 @@ function close(): void {
 }
 
 .vel-help-dlg__form {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -94,15 +95,29 @@ function close(): void {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.55rem;
+  /* место под ×, чтобы title не уезжал под крестик */
+  padding-inline-end: 0.15rem;
 }
 
-/* L2: заголовок по центру, без badge «?» */
+/* L2: title по центру; × absolute — не наезжает на текст */
 .vel-help-dlg__head--plain {
-  grid-template-columns: 2rem minmax(0, 1fr) 2rem;
+  display: block;
+  position: relative;
+  padding-block-start: 0.1rem;
+  padding-inline: 2rem;
+  min-block-size: 2rem;
 }
 
 .vel-help-dlg__head--plain .vel-help-dlg__title {
   text-align: center;
+  padding-inline: 0.25rem;
+  line-height: 1.3;
+}
+
+.vel-help-dlg__head--plain .vel-help-dlg__x {
+  position: absolute;
+  top: -0.15rem;
+  right: -0.25rem;
 }
 
 .vel-help-dlg__badge {
@@ -119,13 +134,17 @@ function close(): void {
 }
 
 .vel-help-dlg__title {
+  min-inline-size: 0;
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .vel-help-dlg__x {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: 2rem;
@@ -139,6 +158,7 @@ function close(): void {
   font-size: 1.35rem;
   line-height: 1;
   cursor: pointer;
+  z-index: 2;
 }
 
 .vel-help-dlg__x:hover {
