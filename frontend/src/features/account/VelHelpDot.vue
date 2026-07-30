@@ -1,11 +1,17 @@
 <script setup lang="ts">
 /**
- * Мигающий «?» (Calipso): рядом с заголовком / SEPA / info-box.
- * Сам по себе только trigger; popover/dialog — снаружи.
+ * Мигающий «?» (Calipso): рядом с заголовком / SEPA / green callout.
  */
-defineProps<{
-  label: string
-}>()
+withDefaults(
+  defineProps<{
+    label: string
+    /** L3/L4 callout: крупнее */
+    size?: 'md' | 'lg'
+    /** L3/L4: сильнее пульс */
+    pulse?: 'soft' | 'strong'
+  }>(),
+  { size: 'md', pulse: 'soft' },
+)
 
 const emit = defineEmits<{ click: [] }>()
 </script>
@@ -14,6 +20,10 @@ const emit = defineEmits<{ click: [] }>()
   <button
     type="button"
     class="vel-help-dot"
+    :class="[
+      size === 'lg' ? 'vel-help-dot--lg' : '',
+      pulse === 'strong' ? 'vel-help-dot--strong' : '',
+    ]"
     :aria-label="label"
     @click.stop="emit('click')"
   >
@@ -44,6 +54,22 @@ const emit = defineEmits<{ click: [] }>()
     color 140ms ease;
 }
 
+.vel-help-dot--lg {
+  width: 1.85rem;
+  height: 1.85rem;
+  border-width: 2px;
+  background: color-mix(in oklab, var(--color-surface) 92%, var(--color-accent));
+  box-shadow: 0 0 0 2px var(--color-surface);
+}
+
+.vel-help-dot--lg .vel-help-dot__mark {
+  font-size: 0.95rem;
+}
+
+.vel-help-dot--strong {
+  animation: vel-help-dot-pulse-strong 1.05s ease-in-out infinite;
+}
+
 .vel-help-dot:hover {
   background: color-mix(in oklab, var(--color-accent) 22%, var(--color-surface));
   border-color: var(--color-accent);
@@ -70,6 +96,24 @@ const emit = defineEmits<{ click: [] }>()
   50% {
     box-shadow: 0 0 0 0.35rem color-mix(in oklab, var(--color-accent) 0%, transparent);
     opacity: 0.88;
+  }
+}
+
+@keyframes vel-help-dot-pulse-strong {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-accent) 55%, transparent),
+      0 0 0 2px var(--color-surface);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.12);
+    box-shadow:
+      0 0 0 0.55rem color-mix(in oklab, var(--color-accent) 0%, transparent),
+      0 0 0 2px var(--color-surface);
+    opacity: 0.92;
   }
 }
 
