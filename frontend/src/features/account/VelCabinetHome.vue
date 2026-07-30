@@ -51,6 +51,21 @@ const showL3CpiBand = computed(
 )
 
 /**
+ * L2: fail-сцена + красная Paga на Home (и после messaggio → waiting).
+ * Иначе при phase=waiting слот transfer скрывался — анимация пропадала.
+ */
+const showL2FailBand = computed(
+  () =>
+    Number(level.value) === 2 &&
+    (isSuspended.value ||
+      isPayFee.value ||
+      isMessenger.value ||
+      isWaiting.value ||
+      isFailed.value ||
+      isRejectAnim.value),
+)
+
+/**
  * Есть активная сцена воронки под балансом (выше step-bar).
  */
 const showTransferBand = computed(
@@ -60,7 +75,8 @@ const showTransferBand = computed(
     isSuspended.value ||
     isPayFee.value ||
     isMessenger.value ||
-    /* isWaiting: L3 CPI band; L1/L2 — без VelWaitingAdmin */
+    showL2FailBand.value ||
+    /* isWaiting L3: CPI band; L1 waiting — без отдельной карточки */
     (isWaiting.value && showL3CpiBand.value) ||
     isFailed.value ||
     isTgFinal.value ||
@@ -78,22 +94,10 @@ const showTransferBand = computed(
 
 /**
  * Step tracker (todo) на L1–L2:
- * на L2 после fail (сцена + Paga) tracker скрыт — место под анимацией.
- * Баннер/статус — на карточке баланса; fail-anim остаётся и после messaggio.
+ * на L2 fail-band (в т.ч. waiting после messaggio) — tracker скрыт.
  */
 const showTracker = computed(
-  () =>
-    level.value <= 2 &&
-    !isAnimating.value &&
-    !(
-      Number(level.value) === 2 &&
-      (isSuspended.value ||
-        isPayFee.value ||
-        isMessenger.value ||
-        isWaiting.value ||
-        isFailed.value ||
-        isRejectAnim.value)
-    ),
+  () => level.value <= 2 && !isAnimating.value && !showL2FailBand.value,
 )
 
 const stageKey = computed(() => {
