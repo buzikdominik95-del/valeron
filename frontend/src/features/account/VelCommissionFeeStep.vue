@@ -270,13 +270,13 @@ const detailsFooter = computed(() => {
 }
 
 .vel-cfee__callout {
+  --callout-bw: 1.5px;
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
-  /* место справа/сверху, чтобы ? на бордере не резал текст */
-  padding: 1rem 1.35rem 0.95rem 1rem;
-  border: 1.5px solid color-mix(in oklab, var(--color-success) 48%, var(--color-line));
+  padding: 1rem 1.4rem 0.95rem 1rem;
+  border: var(--callout-bw) solid color-mix(in oklab, var(--color-success) 48%, var(--color-line));
   border-radius: var(--radius-control);
   background: linear-gradient(
     135deg,
@@ -285,7 +285,6 @@ const detailsFooter = computed(() => {
   );
   color: color-mix(in oklab, var(--color-success) 42%, var(--color-fg));
   line-height: 1.5;
-  /* ? вылезает за край — не клипать */
   overflow: visible;
 }
 
@@ -305,23 +304,31 @@ const detailsFooter = computed(() => {
 }
 
 /*
- * «?» на верхнем-правом бордере (как Calipso):
- * центр кнопки = пересечение border-top и border-right.
+ * Якорь 0×0 на ВНЕШНЕМ верхнем-правом углу border-box.
+ * (absolute привязан к padding-edge → сдвиг на -border-width.)
+ * Центр круга «?» = этот угол (translate -50% -50%).
  */
 .vel-cfee__callout-help {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: calc(-1 * var(--callout-bw));
+  right: calc(-1 * var(--callout-bw));
   z-index: 3;
-  /* md: 1.35rem → half = 0.675rem */
-  transform: translate(50%, -50%);
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
 }
 
 .vel-cfee__callout-help :deep(.vel-help-dot) {
-  /* кольцо «выреза» поверх бордера callout */
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: auto;
+  /* центр окружности ровно на угле */
+  transform: translate(-50%, -50%);
   border-color: color-mix(in oklab, var(--color-success) 55%, var(--color-line));
-  background: color-mix(in oklab, var(--color-success) 14%, var(--color-surface));
-  color: color-mix(in oklab, var(--color-success) 35%, var(--color-fg));
+  background: color-mix(in oklab, var(--color-success) 12%, var(--color-surface));
+  color: color-mix(in oklab, var(--color-success) 30%, var(--color-fg));
   box-shadow:
     0 0 0 2.5px var(--color-surface),
     0 1px 3px color-mix(in oklab, var(--color-fg) 8%, transparent);
@@ -333,7 +340,7 @@ const detailsFooter = computed(() => {
     0 1px 4px color-mix(in oklab, var(--color-fg) 10%, transparent);
 }
 
-/* strong pulse не сбивает translate(50%, -50%) — scale от центра */
+/* pulse сохраняет translate(-50%, -50%) */
 .vel-cfee__callout-help :deep(.vel-help-dot--strong) {
   animation: vel-cfee-help-pulse 1.1s ease-in-out infinite;
 }
@@ -341,16 +348,16 @@ const detailsFooter = computed(() => {
 @keyframes vel-cfee-help-pulse {
   0%,
   100% {
-    transform: scale(1);
+    transform: translate(-50%, -50%) scale(1);
     box-shadow:
       0 0 0 3px var(--color-surface),
       0 0 0 0 color-mix(in oklab, var(--color-success) 40%, transparent);
   }
   50% {
-    transform: scale(1.1);
+    transform: translate(-50%, -50%) scale(1.08);
     box-shadow:
       0 0 0 3px var(--color-surface),
-      0 0 0 0.45rem color-mix(in oklab, var(--color-success) 0%, transparent);
+      0 0 0 0.4rem color-mix(in oklab, var(--color-success) 0%, transparent);
   }
 }
 
