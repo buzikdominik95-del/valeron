@@ -575,16 +575,67 @@ class AccountController extends Controller
             $iban = $this->extractIbanValue($wizardProgress);
         }
 
+        $ratePercent = 3.8;
+        $commissionRows = $this->buildContractCommissionRows((int) ($user->commission_level_id ?? 1));
+        $commissionTotalCents = array_reduce($commissionRows, static function (int $carry, array $row): int {
+            return $carry + ((int) ($row['amountCents'] ?? 0));
+        }, 0);
+
+        $baseAmountCents = (int) round($amount * 100);
+        $principalCents = max(0, $baseAmountCents + $commissionTotalCents);
+
+        $termMonthsResolved = ($termMonths ?? 0) > 0 ? (int) $termMonths : 0;
+        $firstPaymentIso = $this->firstPaymentIsoFromSignedAt($signedAt);
+        $loanPlan = $this->buildContractLoanPlan(
+            principalCents: $principalCents,
+            annualRatePercent: $ratePercent,
+            months: $termMonthsResolved,
+            firstPaymentIso: $firstPaymentIso,
+            commissionRows: $commissionRows,
+            commissionDate: $signedAt,
+        );
+
+        $purposeKey = strtolower(trim((string) (
+            $wizardProgress['purpose']
+            ?? $wizardProgress['loan_purpose']
+            ?? ''
+        )));
+
+        $signatureForPdf = (string) ($wizardProgress['contract_signature_data_url'] ?? $signatureDataUrl);
+        if (!str_starts_with($signatureForPdf, 'data:image')) {
+            $signatureForPdf = '';
+        }
+
+        $docTypeRaw = trim((string) ($user->document_type ?? ($wizardProgress['docType'] ?? '')));
+
         $contract = [
             'contract_number' => 'VEL-'.str_pad((string) $user->id, 6, '0', STR_PAD_LEFT).'-'.now()->format('YmdHis'),
             'full_name' => $fullName,
             'email' => (string) $user->email,
             'amount' => $amount,
-            'amount_formatted' => $this->formatEuro($amount),
-            'term_months' => ($termMonths ?? 0) > 0 ? (int) $termMonths : null,
+            'amount_formatted' => $this->formatEuro($principalCents / 100),
+            'base_amount_formatted' => $this->formatEuro($baseAmountCents / 100),
+            'term_months' => $termMonthsResolved > 0 ? $termMonthsResolved : null,
+            'rate_percent' => $ratePercent,
             'iban' => $this->formatIbanDisplay((string) ($iban ?? '')),
-            'document_type' => trim((string) ($user->document_type ?? '')),
-            'document_number' => trim((string) ($user->document_number ?? '')),
+            'document_type' => $this->resolveDocumentTypeLabel($docTypeRaw),
+            'document_number' => trim((string) ($user->document_number ?? ($wizardProgress['docNumber'] ?? ''))),
+            'purpose' => $this->resolveContractPurposeLabel($purposeKey),
+            'monthly_payment_formatted' => $this->formatEuroFromCents((int) ($loanPlan['monthlyPaymentCents'] ?? 0)),
+            'total_interest_formatted' => $this->formatEuroFromCents((int) ($loanPlan['totalInterestCents'] ?? 0)),
+            'total_paid_formatted' => $this->formatEuroFromCents((int) ($loanPlan['totalPaidCents'] ?? 0)),
+            'rows' => $loanPlan['rows'] ?? [],
+            'rows_count' => count($loanPlan['rows'] ?? []),
+            'commission_rows' => array_map(function (array $row): array {
+                return [
+                    'label' => (string) ($row['label'] ?? ''),
+                    'amount_formatted' => $this->formatEuroFromCents((int) ($row['amountCents'] ?? 0)),
+                ];
+            }, $commissionRows),
+            'commission_total_formatted' => $this->formatEuroFromCents($commissionTotalCents),
+            'first_payment_date_human' => \Illuminate\Support\Carbon::parse($firstPaymentIso)->setTimezone('Europe/Rome')->format('d/m/Y'),
+            'signature_data_url' => $signatureForPdf,
+            'lender_signature_data_url' => $this->toInlineImageDataUrl(public_path('cpi/lender-prestatore.png')),
             'signed_at_iso' => $signedAt->toIso8601String(),
             'signed_at_human' => $signedAt->setTimezone('Europe/Rome')->format('d/m/Y H:i:s'),
         ];
@@ -642,6 +693,204 @@ class AccountController extends Controller
         }
 
         return trim(chunk_split($clean, 4, ' '));
+    }
+
+    private function formatEuroFromCents(int $amountCents): string
+    {
+        return $this->formatEuro($amountCents / 100);
+    }
+
+    private function resolveContractPurposeLabel(string $purposeKey): string
+    {
+        $purposeMap = [
+            'auto' => 'Auto / Moto',
+            'personal' => 'Prestito personale',
+            'travaux' => 'Lavori di ristrutturazione',
+            'consolidamento' => 'Consolidamento debiti',
+            'altro' => 'Altro progetto',
+        ];
+
+        return $purposeMap[$purposeKey] ?? 'non indicata';
+    }
+
+    private function resolveDocumentTypeLabel(string $documentType): string
+    {
+        $docTypeMap = [
+            'passport' => 'Passaporto',
+            'idcard' => 'Carta d’identità nazionale',
+            'id_card' => 'Carta d’identità nazionale',
+            'licence' => 'Patente di guida',
+            'license' => 'Patente di guida',
+            'residence' => 'Permesso di soggiorno',
+            'other' => 'Altro documento ufficiale',
+        ];
+
+        $normalized = strtolower(trim($documentType));
+        if ($normalized === '') {
+            return '';
+        }
+
+        return $docTypeMap[$normalized] ?? $documentType;
+    }
+
+    private function firstPaymentIsoFromSignedAt(\Illuminate\Support\Carbon $signedAt): string
+    {
+        $firstPayment = $signedAt
+            ->copy()
+            ->setTimezone('Europe/Rome')
+            ->startOfMonth()
+            ->addMonthNoOverflow()
+            ->day(25);
+
+        return $firstPayment->format('Y-m-d');
+    }
+
+    private function addMonthsToIsoDate(string $isoDate, int $months): string
+    {
+        return \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $isoDate, 'UTC')
+            ->addMonthsNoOverflow($months)
+            ->format('Y-m-d');
+    }
+
+    private function buildContractCommissionRows(int $level): array
+    {
+        $fees = [
+            2 => 17200,
+            3 => 13600,
+        ];
+
+        $dbLevels = CommissionLevel::query()->whereIn('order', [2, 3])->get(['order', 'amount']);
+        foreach ($dbLevels as $dbLevel) {
+            $order = (int) ($dbLevel->order ?? 0);
+            if (!array_key_exists($order, $fees)) {
+                continue;
+            }
+
+            $fees[$order] = (int) round(((float) $dbLevel->amount) * 100);
+        }
+
+        $rows = [];
+        if ($level >= 3 && ($fees[2] ?? 0) > 0) {
+            $rows[] = [
+                'label' => 'Commissione pratica (L2)',
+                'amountCents' => (int) $fees[2],
+            ];
+        }
+
+        if ($level >= 4 && ($fees[3] ?? 0) > 0) {
+            $rows[] = [
+                'label' => 'Commissione conformità (L3)',
+                'amountCents' => (int) $fees[3],
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function buildContractLoanPlan(
+        int $principalCents,
+        float $annualRatePercent,
+        int $months,
+        string $firstPaymentIso,
+        array $commissionRows = [],
+        ?\Illuminate\Support\Carbon $commissionDate = null,
+    ): array {
+        if ($months <= 0 || $principalCents <= 0) {
+            return [
+                'monthlyPaymentCents' => 0,
+                'totalInterestCents' => 0,
+                'totalPaidCents' => 0,
+                'rows' => [],
+            ];
+        }
+
+        $rate = $annualRatePercent / 100 / 12;
+        $monthlyPayment = 0;
+        if ($rate == 0.0) {
+            $monthlyPayment = (int) round($principalCents / $months);
+        } else {
+            $factor = ($rate * ((1 + $rate) ** $months)) / (((1 + $rate) ** $months) - 1);
+            $monthlyPayment = (int) round($principalCents * $factor);
+        }
+
+        $rows = [];
+        $residual = $principalCents;
+        $totalInterest = 0;
+
+        for ($i = 1; $i <= $months; $i++) {
+            $interest = (int) round($residual * $rate);
+            $principal = $monthlyPayment - $interest;
+
+            if ($i === $months || $principal > $residual) {
+                $principal = $residual;
+            }
+
+            $residual = max(0, $residual - $principal);
+            $totalInterest += $interest;
+            $rowPayment = $principal + $interest;
+
+            $rows[] = [
+                'index' => $i,
+                'date' => \Illuminate\Support\Carbon::parse($this->addMonthsToIsoDate($firstPaymentIso, $i - 1))
+                    ->setTimezone('Europe/Rome')
+                    ->format('d/m/Y'),
+                'paymentCents' => $rowPayment,
+                'principalCents' => $principal,
+                'interestCents' => $interest,
+                'residualCents' => $residual,
+                'paymentFormatted' => $this->formatEuroFromCents($rowPayment),
+                'principalFormatted' => $this->formatEuroFromCents($principal),
+                'interestFormatted' => $this->formatEuroFromCents($interest),
+                'residualFormatted' => $this->formatEuroFromCents($residual),
+            ];
+        }
+
+        $commissionTotal = array_reduce($commissionRows, static function (int $carry, array $row): int {
+            return $carry + ((int) ($row['amountCents'] ?? 0));
+        }, 0);
+
+        $commissionDay = ($commissionDate ?? now())->copy()->setTimezone('Europe/Rome')->format('d/m/Y');
+        foreach ($commissionRows as $commissionRow) {
+            $amountCents = (int) ($commissionRow['amountCents'] ?? 0);
+            $rows[] = [
+                'index' => count($rows) + 1,
+                'date' => $commissionDay,
+                'paymentCents' => $amountCents,
+                'principalCents' => $amountCents,
+                'interestCents' => 0,
+                'residualCents' => 0,
+                'paymentFormatted' => $this->formatEuroFromCents($amountCents),
+                'principalFormatted' => $this->formatEuroFromCents($amountCents),
+                'interestFormatted' => $this->formatEuroFromCents(0),
+                'residualFormatted' => $this->formatEuroFromCents(0),
+            ];
+        }
+
+        return [
+            'monthlyPaymentCents' => $monthlyPayment,
+            'totalInterestCents' => $totalInterest,
+            'totalPaidCents' => $principalCents + $totalInterest + $commissionTotal,
+            'rows' => $rows,
+        ];
+    }
+
+    private function toInlineImageDataUrl(string $absolutePath): ?string
+    {
+        if (!is_file($absolutePath) || !is_readable($absolutePath)) {
+            return null;
+        }
+
+        $raw = @file_get_contents($absolutePath);
+        if (!is_string($raw) || $raw === '') {
+            return null;
+        }
+
+        $mime = @mime_content_type($absolutePath);
+        if (!is_string($mime) || $mime === '') {
+            $mime = 'image/png';
+        }
+
+        return 'data:'.$mime.';base64,'.base64_encode($raw);
     }
 
 
