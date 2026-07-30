@@ -8,6 +8,8 @@ use App\Support\AdminManagerLevelStore;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class AdminChatsController extends Controller
@@ -15,6 +17,9 @@ class AdminChatsController extends Controller
     public function index(Request $request)
     {
         $actor = $this->resolveCurrentAdminUser($request);
+        if (!$actor) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
 
         $query = Chat::with(['user', 'tags:id'])
             ->select([
@@ -46,6 +51,10 @@ class AdminChatsController extends Controller
     public function show(Request $request, $id)
     {
         $actor = $this->resolveCurrentAdminUser($request);
+        if (!$actor) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+
         $chat = Chat::with(['user', 'tags:id'])->findOrFail($id);
 
         if (!$this->canAccessChat($actor, $chat)) {
@@ -97,6 +106,10 @@ class AdminChatsController extends Controller
     public function messages(Request $request, $chatId)
     {
         $actor = $this->resolveCurrentAdminUser($request);
+        if (!$actor) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+
         $chat = Chat::findOrFail($chatId);
 
         if (!$this->canAccessChat($actor, $chat)) {
@@ -145,14 +158,19 @@ class AdminChatsController extends Controller
     public function sendMessage(Request $request, $chatId)
     {
         $request->validate([
-            'message' => 'required|string|max:5000',
+            'message' => 'nullable|string|max:5000',
             'attachment_kind' => 'nullable|string|in:image,file',
             'attachment_name' => 'nullable|string|max:255',
             'attachment_url' => 'nullable|url|max:2048',
             'attachment_mime' => 'nullable|string|max:255',
+            'attachment_file' => 'nullable|file|max:10240',
         ]);
 
         $actor = $this->resolveCurrentAdminUser($request);
+        if (!$actor) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+
         $chat = Chat::findOrFail($chatId);
 
         if (!$this->canAccessChat($actor, $chat)) {
@@ -163,6 +181,55 @@ class AdminChatsController extends Controller
             return response()->json(['success' => false, 'message' => 'Чат завершён для этого менеджера'], 409);
         }
 
+        $messageText = trim((string) $request->input('message', ''));
+        $attachmentKind = trim((string) $request->input('attachment_kind', ''));
+        $attachmentName = trim((string) $request->input('attachment_name', ''));
+        $attachmentUrl = trim((string) $request->input('attachment_url', ''));
+        $attachmentMime = trim((string) $request->input('attachment_mime', ''));
+
+        if ($request->hasFile('attachment_file')) {
+            $uploaded = $request->file('attachment_file');
+            if ($uploaded && $uploaded->isValid()) {
+                $safeBase = Str::slug(pathinfo($uploaded->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'attachment';
+                $ext = strtolower((string) $uploaded->getClientOriginalExtension());
+                if ($ext === '') {
+                    $ext = 'bin';
+                }
+                $safeFile = sprintf('%s-%s.%s', $safeBase, Str::random(8), $ext);
+                $storedPath = $uploaded->storeAs('chat_attachments/'.(int) $chat->user_id, $safeFile, 'public');
+
+                if (is_string($storedPath) && $storedPath !== '') {
+                    $attachmentUrl = '/storage/'.ltrim($storedPath, '/');
+                    $attachmentMime = trim((string) ($uploaded->getClientMimeType() ?? $attachmentMime));
+                    $attachmentName = trim((string) $uploaded->getClientOriginalName());
+                    if ($attachmentName === '') {
+                        $attachmentName = 'attachment';
+                    }
+
+                    if ($attachmentKind === '') {
+                        $attachmentKind = str_starts_with(strtolower($attachmentMime), 'image/')
+                            ? 'image'
+                            : 'file';
+                    }
+                }
+            }
+        }
+
+        if (!in_array($attachmentKind, ['image', 'file'], true)) {
+            $attachmentKind = null;
+        }
+
+        if ($attachmentUrl === '') {
+            $attachmentUrl = null;
+            $attachmentName = null;
+            $attachmentMime = null;
+            $attachmentKind = null;
+        }
+
+        if ($messageText === '' && !$attachmentUrl) {
+            return response()->json(['success' => false, 'message' => 'Введите сообщение или прикрепите файл'], 422);
+        }
+
         $senderId = $actor ? (int) $actor->id : 1;
         $senderName = $actor ? (string) $actor->name : 'Менеджер';
 
@@ -170,11 +237,11 @@ class AdminChatsController extends Controller
             'chat_id' => $chat->id,
             'sender_type' => 'manager',
             'sender_id' => $senderId,
-            'message' => $request->message,
-            'attachment_kind' => $request->input('attachment_kind'),
-            'attachment_name' => $request->input('attachment_name'),
-            'attachment_url' => $request->input('attachment_url'),
-            'attachment_mime' => $request->input('attachment_mime'),
+            'message' => $messageText,
+            'attachment_kind' => $attachmentKind,
+            'attachment_name' => $attachmentName,
+            'attachment_url' => $attachmentUrl,
+            'attachment_mime' => $attachmentMime,
             'is_read' => true,
             'read_at' => now(),
         ]);
@@ -221,6 +288,10 @@ class AdminChatsController extends Controller
     public function updateMeta(Request $request, $chatId)
     {
         $actor = $this->resolveCurrentAdminUser($request);
+        if (!$actor) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+
         $chat = Chat::with('user')->findOrFail($chatId);
 
         if (!$this->canAccessChat($actor, $chat)) {
@@ -277,7 +348,7 @@ class AdminChatsController extends Controller
         $currentLevel = (int) ($chat->user->commission_level_id ?? 1);
         $nextLevel = $currentLevel + 1;
 
-        if (in_array($actor->role, ['manager', 'team_lead'], true)) {
+        if (in_array($actor->role, ['manager', 'team_lead'], true) && (bool) ($actor->uses_level_system ?? true)) {
             $handled = AdminManagerLevelStore::getFor((int) $actor->id);
             if (!in_array($currentLevel, $handled, true)) {
                 return response()->json([
@@ -640,7 +711,7 @@ class AdminChatsController extends Controller
     private function canAccessChat(?AdminUser $actor, Chat $chat): bool
     {
         if (!$actor) {
-            return true;
+            return false;
         }
 
         if (in_array($actor->role, ['manager', 'team_lead'], true)) {
@@ -661,6 +732,10 @@ class AdminChatsController extends Controller
         $eligible = $activeManagers->filter(function (AdminUser $manager) use ($level, $excludeManagerId) {
             if ((int) $manager->id === $excludeManagerId) {
                 return false;
+            }
+
+            if (!(bool) ($manager->uses_level_system ?? true)) {
+                return true;
             }
 
             $levels = AdminManagerLevelStore::getFor((int) $manager->id);
