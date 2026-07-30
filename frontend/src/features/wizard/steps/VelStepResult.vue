@@ -27,6 +27,21 @@ const { amount } = useCreditSimulator()
 /** Единственное действие экрана: куда вести дальше — решает родитель. */
 const emit = defineEmits<{ cta: [] }>()
 
+/** Meta Pixel: Lead при «Finalizza la mia richiesta». */
+function trackLead(): void {
+  try {
+    const fbq = (window as Window & { fbq?: (...args: unknown[]) => void }).fbq
+    if (typeof fbq === 'function') fbq('track', 'Lead')
+  } catch {
+    /* pixel blocked / adblock */
+  }
+}
+
+function onCtaClick(): void {
+  trackLead()
+  emit('cta')
+}
+
 /**
  * Одобрено меньше запрошенного на 15…20% — так работает частичное одобрение,
  * и правило одно на весь проект (approvedFromRequested в offer-terms). Карточка
@@ -112,7 +127,7 @@ const tickerValue = computed(() => (amountRevealed.value ? approvedAmount.value 
 
       <!-- available + footnote убраны по брифу (зачёркнутые строки на фотке 5). -->
       <div class="flex w-full flex-col gap-3">
-        <VelButton type="button" size="lg" block @click="emit('cta')">
+        <VelButton type="button" size="lg" block @click="onCtaClick">
           {{ t('wizard.result.cta') }}
           <span aria-hidden="true">→</span>
         </VelButton>
