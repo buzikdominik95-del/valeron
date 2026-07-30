@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCommission } from '@/composables/useCommission'
 import {
@@ -8,15 +8,13 @@ import {
 } from '@/lib/commission-breakdown'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
-import VelHelpDot from '@/features/account/VelHelpDot.vue'
-import VelHelpDialog from '@/features/account/VelHelpDialog.vue'
 
 /**
  * Шаг 2 drawer: сумма + breakdown.
- * L1: «?» у заголовка + note non detraibile.
- * L2/L3: green callout + «?» → modale Dettagli.
+ * «?» — в шапке drawer (Commissione da versare), не здесь.
+ * L1: note non detraibile; reason body всегда под заголовком motivo.
  */
-const props = defineProps<{
+defineProps<{
   reasonTitle: string
   reasonBody: string
   feeText: string
@@ -43,36 +41,8 @@ function lineAmount(euros: number): string {
   })
 }
 
-/** L1: note non detraibile. */
+/** L1: note non detraibile (зелёный блок). */
 const showServiceNote = computed(() => feeReason.value === 'base')
-/** L2/L3(+): green box with reason + help. */
-const showReasonCallout = computed(
-  () => feeReason.value === 'insurance' || feeReason.value === 'aml' || feeReason.value === 'release',
-)
-
-const helpOpen = ref(false)
-
-const helpBodyHtml = computed(() => {
-  if (feeReason.value === 'base') {
-    return t('account.commission.help.serviceTipHtml')
-  }
-  if (feeReason.value === 'insurance') {
-    return t('account.commission.help.details.insuranceHtml')
-  }
-  if (feeReason.value === 'aml') {
-    return t('account.commission.help.details.amlHtml', { amount: props.feeText })
-  }
-  return t('account.commission.help.details.releaseHtml', { amount: props.feeText })
-})
-
-const helpFooter = computed(() => {
-  if (feeReason.value === 'insurance') return t('account.commission.help.details.insuranceFooter')
-  if (feeReason.value === 'aml') return t('account.commission.help.details.amlFooter')
-  if (feeReason.value === 'release') return t('account.commission.help.details.releaseFooter')
-  return ''
-})
-
-const helpTitle = computed(() => t('account.commission.help.detailsTitle'))
 </script>
 
 <template>
@@ -98,34 +68,17 @@ const helpTitle = computed(() => t('account.commission.help.detailsTitle'))
       </ul>
     </div>
 
-    <!-- L1: note non detraibile -->
+    <!-- L1 only: note non detraibile -->
     <div v-if="showServiceNote" data-reveal class="vel-cfee__note" role="note">
       <p class="m-0" v-html="t('account.commission.fee.serviceNoteHtml')" />
     </div>
 
-    <!-- L2/L3: callout + ? (Calipso) -->
-    <div v-if="showReasonCallout" data-reveal class="vel-cfee__callout" role="note">
-      <VelHelpDot
-        class="vel-cfee__callout-help"
-        :label="t('account.commission.help.openLabel')"
-        @click="helpOpen = true"
-      />
-      <p class="m-0">{{ reasonBody }}</p>
-    </div>
-
-    <!-- Motivo + L1 help dot on title -->
+    <!-- Motivo: title + body (L2/L3 body was wrongly only in green callout) -->
     <div data-reveal class="flex items-start gap-3">
       <VelAccountSign sign="card" size="lg" class="shrink-0 text-accent-deep" />
       <div class="min-w-0">
-        <div class="vel-cfee__title-row">
-          <h3 class="m-0 text-lg font-semibold text-fg">{{ reasonTitle }}</h3>
-          <VelHelpDot
-            v-if="showServiceNote"
-            :label="t('account.commission.help.openLabel')"
-            @click="helpOpen = true"
-          />
-        </div>
-        <p v-if="!showReasonCallout" class="m-0 mt-1 text-sm text-muted">{{ reasonBody }}</p>
+        <h3 class="m-0 text-lg font-semibold text-fg">{{ reasonTitle }}</h3>
+        <p class="m-0 mt-1 text-sm text-muted">{{ reasonBody }}</p>
       </div>
     </div>
 
@@ -135,13 +88,6 @@ const helpTitle = computed(() => t('account.commission.help.detailsTitle'))
       </VelButton>
       <p class="vel-cfee__ssl m-0">{{ t('account.payment.sslNote') }}</p>
     </div>
-
-    <VelHelpDialog
-      v-model:open="helpOpen"
-      :title="helpTitle"
-      :body-html="helpBodyHtml"
-      :footer="helpFooter || undefined"
-    />
   </div>
 </template>
 
@@ -240,34 +186,6 @@ const helpTitle = computed(() => t('account.commission.help.detailsTitle'))
 .vel-cfee__note :deep(strong) {
   font-weight: 800;
   color: inherit;
-}
-
-.vel-cfee__callout {
-  position: relative;
-  padding: 0.95rem 2.4rem 0.95rem 1rem;
-  border: 1.5px solid color-mix(in oklab, var(--color-success) 42%, var(--color-line));
-  border-radius: var(--radius-control);
-  background: linear-gradient(
-    135deg,
-    color-mix(in oklab, var(--color-success) 11%, var(--color-surface)),
-    color-mix(in oklab, var(--color-success) 5%, var(--color-surface))
-  );
-  color: color-mix(in oklab, var(--color-success) 42%, var(--color-fg));
-  font-size: 0.875rem;
-  line-height: 1.5;
-}
-
-.vel-cfee__callout-help {
-  position: absolute;
-  top: 0.55rem;
-  right: 0.55rem;
-}
-
-.vel-cfee__title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  flex-wrap: wrap;
 }
 
 .vel-cfee__cta {

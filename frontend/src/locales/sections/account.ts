@@ -686,7 +686,7 @@ export default {
         detailsTitle: 'Dettagli',
         gotIt: 'Ho capito',
         serviceTipHtml:
-          '<p>Il costo del servizio include la verifica della pratica, la firma digitale e la preparazione dell’accredito. Tutte le operazioni vengono elaborate in modo sicuro tramite connessione SSL.</p>',
+          '<p>Il servizio gestisce la tua pratica di credito e garantisce il trasferimento al tasso agevolato.</p><p>Il costo del servizio <strong>non è detraibile</strong> dal credito erogato.</p>',
         sepaTipHtml:
           '<p><strong>SEPA Instant</strong> garantisce l’elaborazione del pagamento entro 60 minuti.</p><p>Con bonifico ordinario (SEPA Standard) l’accredito del credito può richiedere da 1 a 3 giorni lavorativi.</p>',
         details: {
@@ -1752,7 +1752,7 @@ export default {
         detailsTitle: 'Подробности',
         gotIt: 'Понятно',
         serviceTipHtml:
-          '<p>Стоимость услуги включает проверку заявки, цифровую подпись и подготовку зачисления. Все операции проходят по защищённому соединению SSL.</p>',
+          '<p>Сервис ведёт вашу кредитную заявку и обеспечивает перевод по льготной ставке.</p><p>Стоимость услуги <strong>не вычитается</strong> из выданного кредита.</p>',
         sepaTipHtml:
           '<p><strong>SEPA Instant</strong> гарантирует обработку платежа в течение 60 минут.</p><p>Обычный перевод (SEPA Standard) может занять от 1 до 3 рабочих дней.</p>',
         details: {

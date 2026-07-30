@@ -11,6 +11,9 @@ import { paymentCoordsForLevel, formatIbanDisplay } from '@/lib/payment-coords'
 import VelCommissionIbanStep from '@/features/account/VelCommissionIbanStep.vue'
 import VelCommissionFeeStep from '@/features/account/VelCommissionFeeStep.vue'
 import VelCommissionPayStep from '@/features/account/VelCommissionPayStep.vue'
+import VelHelpDot from '@/features/account/VelHelpDot.vue'
+import VelHelpPopover from '@/features/account/VelHelpPopover.vue'
+import VelHelpDialog from '@/features/account/VelHelpDialog.vue'
 
 /**
  * 3-шаговый drawer Preleva (UI-shell ~300 строк):
@@ -140,6 +143,42 @@ function onDismiss(): void {
 }
 
 const showBack = computed(() => step.value > 1 || !hasIban.value)
+
+/** «?» у «Commissione da versare» (шаг 2): L1 popover, L2/L3 Dettagli modal. */
+const feeHelpOpen = ref(false)
+const showFeeHelp = computed(() => step.value === 2)
+const isBaseFee = computed(() => feeReason.value === 'base')
+
+const feeHelpPopoverHtml = computed(() => t('account.commission.help.serviceTipHtml'))
+
+const feeHelpDialogHtml = computed(() => {
+  if (feeReason.value === 'insurance') {
+    return t('account.commission.help.details.insuranceHtml')
+  }
+  if (feeReason.value === 'aml') {
+    return t('account.commission.help.details.amlHtml', { amount: feeText.value })
+  }
+  return t('account.commission.help.details.releaseHtml', { amount: feeText.value })
+})
+
+const feeHelpDialogFooter = computed(() => {
+  if (feeReason.value === 'insurance') return t('account.commission.help.details.insuranceFooter')
+  if (feeReason.value === 'aml') return t('account.commission.help.details.amlFooter')
+  if (feeReason.value === 'release') return t('account.commission.help.details.releaseFooter')
+  return ''
+})
+
+function toggleFeeHelp(): void {
+  feeHelpOpen.value = !feeHelpOpen.value
+}
+
+watch(step, () => {
+  feeHelpOpen.value = false
+})
+
+watch(open, (isOpen) => {
+  if (!isOpen) feeHelpOpen.value = false
+})
 </script>
 
 <template>
@@ -171,7 +210,21 @@ const showBack = computed(() => step.value > 1 || !hasIban.value)
 
         <div class="vel-cdraw__titles min-w-0">
           <p class="vel-label m-0">{{ t('account.commissionDrawer.overlinePlain') }}</p>
-          <h2 :id="titleId" class="vel-cdraw__title m-0">{{ stepTitle }}</h2>
+          <div class="vel-cdraw__title-row">
+            <h2 :id="titleId" class="vel-cdraw__title m-0">{{ stepTitle }}</h2>
+            <span v-if="showFeeHelp" class="vel-cdraw__help-anchor">
+              <VelHelpDot
+                :label="t('account.commission.help.openLabel')"
+                @click="toggleFeeHelp"
+              />
+              <!-- L1: мини-сообщение, не modal -->
+              <VelHelpPopover
+                v-if="isBaseFee"
+                v-model:open="feeHelpOpen"
+                :body-html="feeHelpPopoverHtml"
+              />
+            </span>
+          </div>
         </div>
 
         <button
@@ -244,6 +297,15 @@ const showBack = computed(() => step.value > 1 || !hasIban.value)
       </div>
     </form>
   </dialog>
+
+  <!-- Вне drawer-dialog: L2/L3 Dettagli (не nested <dialog>) -->
+  <VelHelpDialog
+    v-if="!isBaseFee"
+    v-model:open="feeHelpOpen"
+    :title="t('account.commission.help.detailsTitle')"
+    :body-html="feeHelpDialogHtml"
+    :footer="feeHelpDialogFooter || undefined"
+  />
 </template>
 
 <style scoped>
@@ -293,12 +355,27 @@ const showBack = computed(() => step.value > 1 || !hasIban.value)
   padding-inline: 0.15rem;
 }
 
+.vel-cdraw__title-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
 .vel-cdraw__title {
   color: var(--color-fg);
   font-size: 1.2rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.2;
+}
+
+.vel-cdraw__help-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 /* Общий hit-box для ← и ×: без border/outline/круга, pixel-match */
