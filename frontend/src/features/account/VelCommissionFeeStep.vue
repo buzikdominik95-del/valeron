@@ -115,22 +115,23 @@ const detailsFooter = computed(() => {
       <p class="m-0" v-html="t('account.commission.fee.serviceNoteHtml')" />
     </div>
 
-    <!-- L2/L3: green callout = reason body + ? -->
+    <!-- L2/L3: green = title (Copertura / Deposito) + body + ? -->
     <div v-if="showReasonCallout" data-reveal class="vel-cfee__callout" role="note">
       <VelHelpDot
         class="vel-cfee__callout-help"
         :label="t('account.commission.help.openLabel')"
         @click="detailsOpen = true"
       />
-      <p class="m-0">{{ reasonBody }}</p>
+      <h3 class="vel-cfee__callout-title m-0">{{ reasonTitle }}</h3>
+      <p class="vel-cfee__callout-body m-0">{{ reasonBody }}</p>
     </div>
 
-    <!-- Motivo: L1 title+body; L2/L3 только title (body в callout) -->
-    <div data-reveal class="flex items-start gap-3">
+    <!-- L1 only: icon + title + body (не дублируем L2/L3) -->
+    <div v-if="!showReasonCallout" data-reveal class="flex items-start gap-3">
       <VelAccountSign sign="card" size="lg" class="shrink-0 text-accent-deep" />
       <div class="min-w-0">
         <h3 class="m-0 text-lg font-semibold text-fg">{{ reasonTitle }}</h3>
-        <p v-if="!showReasonCallout" class="m-0 mt-1 text-sm text-muted">{{ reasonBody }}</p>
+        <p class="m-0 mt-1 text-sm text-muted">{{ reasonBody }}</p>
       </div>
     </div>
 
@@ -251,7 +252,10 @@ const detailsFooter = computed(() => {
 
 .vel-cfee__callout {
   position: relative;
-  padding: 0.95rem 2.5rem 0.95rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.95rem 2.6rem 0.95rem 1rem;
   border: 1.5px solid color-mix(in oklab, var(--color-success) 42%, var(--color-line));
   border-radius: var(--radius-control);
   background: linear-gradient(
@@ -260,6 +264,19 @@ const detailsFooter = computed(() => {
     color-mix(in oklab, var(--color-success) 5%, var(--color-surface))
   );
   color: color-mix(in oklab, var(--color-success) 42%, var(--color-fg));
+  line-height: 1.5;
+}
+
+.vel-cfee__callout-title {
+  color: color-mix(in oklab, var(--color-success) 28%, var(--color-fg));
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  padding-inline-end: 0.25rem;
+}
+
+.vel-cfee__callout-body {
   font-size: 0.875rem;
   line-height: 1.5;
 }
