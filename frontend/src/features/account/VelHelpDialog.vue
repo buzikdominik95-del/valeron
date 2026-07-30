@@ -17,8 +17,10 @@ withDefaults(
     footer?: string
     /** L3 Dettagli: green «?»; L2 copertura — title only. */
     showBadge?: boolean
+    /** L3 AML: шире/выше, без скролла. */
+    size?: 'default' | 'lg'
   }>(),
-  { showBadge: true },
+  { showBadge: true, size: 'default' },
 )
 
 const { t } = useI18n()
@@ -35,7 +37,12 @@ function close(): void {
 <template>
   <!-- Teleport: поверх commission drawer, без nested <dialog> glitches -->
   <Teleport to="body">
-    <dialog ref="dialog" class="vel-help-dlg" :aria-labelledby="titleId">
+    <dialog
+      ref="dialog"
+      class="vel-help-dlg"
+      :class="{ 'vel-help-dlg--lg': size === 'lg' }"
+      :aria-labelledby="titleId"
+    >
       <form class="vel-help-dlg__form" method="dialog" @submit.prevent="close">
         <header
           class="vel-help-dlg__head"
@@ -67,15 +74,21 @@ function close(): void {
 
 <style scoped>
 .vel-help-dlg {
-  inline-size: min(100% - 1.25rem, 22.5rem);
-  max-block-size: min(90dvh, 36rem);
-  overflow-y: auto;
+  /* По умолчанию — компактно; --lg (L3) — шире/выше, контент без скролла */
+  inline-size: min(100% - 1.25rem, 24rem);
+  max-block-size: min(92dvh, 40rem);
+  overflow: visible;
   padding: 0;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-panel);
   background: var(--color-surface);
   color: var(--color-fg);
   box-shadow: 0 1.25rem 2.5rem color-mix(in oklab, var(--color-fg) 22%, transparent);
+}
+
+.vel-help-dlg--lg {
+  inline-size: min(100% - 1rem, 28.5rem);
+  max-block-size: min(94dvh, 48rem);
 }
 
 .vel-help-dlg::backdrop {
@@ -86,8 +99,15 @@ function close(): void {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 1.15rem 1.2rem 1.25rem;
+  gap: 0.85rem;
+  padding: 1.1rem 1.25rem 1.15rem;
+  /* Не режем footer — весь блок целиком */
+  overflow: visible;
+}
+
+.vel-help-dlg--lg .vel-help-dlg__form {
+  gap: 0.75rem;
+  padding: 1.05rem 1.35rem 1.1rem;
 }
 
 .vel-help-dlg__head {
@@ -168,13 +188,19 @@ function close(): void {
 
 .vel-help-dlg__body {
   color: var(--color-muted);
-  font-size: 0.9rem;
-  line-height: 1.55;
+  font-size: 0.875rem;
+  line-height: 1.5;
   text-align: center;
+  overflow: visible;
+}
+
+.vel-help-dlg--lg .vel-help-dlg__body {
+  font-size: 0.84rem;
+  line-height: 1.48;
 }
 
 .vel-help-dlg__body :deep(p) {
-  margin: 0 0 0.75rem;
+  margin: 0 0 0.65rem;
 }
 
 .vel-help-dlg__body :deep(p:last-child) {
@@ -187,13 +213,24 @@ function close(): void {
 }
 
 .vel-help-dlg__ok {
-  margin-block-start: 0.15rem;
+  margin-block-start: 0.05rem;
+  flex-shrink: 0;
 }
 
 .vel-help-dlg__foot {
   color: var(--color-faint);
-  font-size: 0.75rem;
-  line-height: 1.45;
+  font-size: 0.72rem;
+  line-height: 1.4;
   text-align: center;
+  flex-shrink: 0;
+}
+
+/* Очень низкий экран — fallback, чтобы CTA не обрезался */
+@media (max-height: 620px) {
+  .vel-help-dlg,
+  .vel-help-dlg--lg {
+    max-block-size: 96dvh;
+    overflow-y: auto;
+  }
 }
 </style>
