@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use Carbon\Carbon;
+
 use App\Models\User;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
@@ -95,6 +97,21 @@ class AdminUsersMonitoringController extends Controller
                 $commissionLevel = (int) ($user->commission_level_id ?? 1);
                 $commissionLevelChanged = $commissionLevel > 1;
 
+                $lastSeenAt = DB::table('personal_access_tokens')
+                    ->where('tokenable_type', 'App\\Models\\User')
+                    ->where('tokenable_id', $user->id)
+                    ->max('last_used_at');
+
+                $isOnline = false;
+                if (!empty($lastSeenAt)) {
+                    try {
+                        $lastSeenUtc = Carbon::parse($lastSeenAt, 'UTC');
+                        $isOnline = $lastSeenUtc->greaterThanOrEqualTo(now('UTC')->subMinutes(3));
+                    } catch (\Throwable $e) {
+                        $isOnline = false;
+                    }
+                }
+
                 return [
                     'id' => $user->id,
                     'name' => $resolvedName !== '' ? $resolvedName : 'Без имени',
@@ -106,6 +123,8 @@ class AdminUsersMonitoringController extends Controller
                     'lead_iban' => $resolvedLeadIban,
                     'documents_status' => $docStatus,
                     'status' => 'pending',
+                    'client_presence' => $isOnline ? 'online' : 'offline',
+                    'client_last_seen_at' => $lastSeenAt,
                     'created_at' => $user->created_at,
                     'chat_id' => $chatId,
                     'has_unread_messages' => $unreadCount > 0,
