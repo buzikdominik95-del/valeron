@@ -289,8 +289,8 @@ watch(open, (isOpen) => {
   inline-size: min(100% - 0.75rem, 32rem);
   /* Без внутреннего скролла: влезаем в экран за счёт плотности */
   max-block-size: min(96dvh, 48rem);
-  overflow-x: visible;
-  overflow-y: auto;
+  /* visible: fixed help-popover child must not clip on mobile */
+  overflow: visible;
   overscroll-behavior: contain;
   padding: 0;
   border: 1px solid var(--color-line);
