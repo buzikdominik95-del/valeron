@@ -85,13 +85,6 @@ const CLAUSE_BLOCKS = [
     </div>
   </section>
 
-  <!--
-    ЮРИДИЧЕСКАЯ СНОСКА. Первая строка — ЗАГЛУШКА: настоящие
-    регистрационные данные вписывает ВЛАДЕЛЕЦ ПРОДУКТА перед выкладкой.
-  -->
-  <div class="vel-csheet__legal">
-
-  </div>
 </template>
 
 <style scoped>
@@ -129,21 +122,5 @@ const CLAUSE_BLOCKS = [
   color: var(--color-fg);
   font-size: 0.74rem;
   line-height: 1.6;
-}
-
-.vel-csheet__legal {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.6rem 0.75rem;
-  border-inline-start: 2px solid var(--color-line-strong);
-  background-color: var(--color-ground);
-}
-
-.vel-csheet__legal-line {
-  margin: 0;
-  color: var(--color-faint);
-  font-size: 0.65rem;
-  line-height: 1.5;
 }
 </style>

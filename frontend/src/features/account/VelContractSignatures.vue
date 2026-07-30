@@ -27,13 +27,7 @@ const lenderMark = computed(() => `${base}cpi/lender-prestatore.png`)
     <div class="vel-csign__pair">
       <!-- Firma del Prestatore -->
       <div class="vel-csign__slot">
-        <div
-          class="vel-csign__box"
-          :class="{
-            'vel-csign__box--filled': signed,
-            'vel-csign__box--no-line': signed,
-          }"
-        >
+        <div class="vel-csign__box" :class="{ 'vel-csign__box--filled': signed }">
           <template v-if="signed">
             <div class="vel-csign__lender">
               <img
@@ -47,19 +41,14 @@ const lenderMark = computed(() => `${base}cpi/lender-prestatore.png`)
               />
             </div>
           </template>
+          <span v-else class="vel-csign__placeholder-line" aria-hidden="true" />
         </div>
         <p class="vel-csign__label">{{ t('contract.sheet.signatures.lender') }}</p>
       </div>
 
-      <!-- Firma del Prenditore — росчерк на линии, как раньше -->
+      <!-- Firma del Prenditore — росчерк на линии -->
       <div class="vel-csign__slot">
-        <div
-          class="vel-csign__box"
-          :class="{
-            'vel-csign__box--filled': !!signatureSrc,
-            'vel-csign__box--no-line': !!signatureSrc,
-          }"
-        >
+        <div class="vel-csign__box" :class="{ 'vel-csign__box--filled': !!signatureSrc }">
           <img
             v-if="signatureSrc"
             class="vel-csign__borrower-sig"
@@ -70,6 +59,7 @@ const lenderMark = computed(() => `${base}cpi/lender-prestatore.png`)
             decoding="async"
             draggable="false"
           />
+          <span v-else class="vel-csign__placeholder-line" aria-hidden="true" />
         </div>
         <p class="vel-csign__label">{{ t('contract.sheet.signatures.borrower') }}</p>
       </div>
@@ -118,7 +108,7 @@ const lenderMark = computed(() => `${base}cpi/lender-prestatore.png`)
   overflow: visible;
 }
 
-/* Бланк: линия только пока пусто (без «пустой синей черты» после подписи). */
+/* Линия подписи всегда (как на бланке). */
 .vel-csign__box {
   display: flex;
   min-block-size: 5.75rem;
@@ -130,14 +120,15 @@ const lenderMark = computed(() => `${base}cpi/lender-prestatore.png`)
   overflow: visible;
 }
 
-.vel-csign__box--no-line {
-  border-block-end-color: transparent;
-}
-
-/* Обе колонки — одинаковая высота, росчерк у линии (не «в воздухе») */
 .vel-csign__box--filled {
   min-block-size: 9.5rem;
   overflow: visible;
+}
+
+.vel-csign__placeholder-line {
+  display: block;
+  width: 100%;
+  block-size: 1px;
 }
 
 .vel-csign__lender {
