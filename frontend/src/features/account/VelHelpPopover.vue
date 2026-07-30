@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { onUnmounted, watch } from 'vue'
+import { nextTick, onUnmounted, ref, watch } from 'vue'
 import { onClickOutside, useEventListener } from '@vueuse/core'
 import { useTemplateRef } from 'vue'
 
 /**
- * Мини-сообщение рядом с «?» (не modal).
- * bodyHtml — 1–2 абзаца; закрытие: × / outside / Escape.
+ * Мини-сообщение у «?» — fixed + Teleport, чтобы не клипалось
+ * overflow dialog/drawer на мобилке.
  */
 const open = defineModel<boolean>('open', { default: false })
 
@@ -13,57 +13,112 @@ defineProps<{
   bodyHtml: string
 }>()
 
-const root = useTemplateRef<HTMLElement>('root')
-
-onClickOutside(root, () => {
-  if (open.value) open.value = false
-})
-
-useEventListener(document, 'keydown', (e: KeyboardEvent) => {
-  if (e.key === 'Escape' && open.value) open.value = false
-})
+const panel = useTemplateRef<HTMLElement>('panel')
+const pos = ref<Record<string, string>>({})
 
 function close(): void {
   open.value = false
 }
 
-let scrollParent: Element | null = null
-function onScroll(): void {
-  if (open.value) open.value = false
+function place(): void {
+  const el = panel.value
+  if (!el) return
+
+  /* якорь: span.vel-cdraw__help-anchor / method-wrap — parent пока popover был inline;
+     после Teleport parent = body, поэтому ищем [data-help-anchor] near last focus
+     или element with data-vel-help-open */
+  const anchor =
+    document.querySelector<HTMLElement>('[data-vel-help-anchor="open"]') ??
+    document.querySelector<HTMLElement>('[data-vel-help-anchor]')
+
+  const margin = 12
+  const width = Math.min(300, window.innerWidth - margin * 2)
+  let left = (window.innerWidth - width) / 2
+  let top = margin + 48
+
+  if (anchor) {
+    const r = anchor.getBoundingClientRect()
+    left = r.left + r.width / 2 - width / 2
+    left = Math.max(margin, Math.min(left, window.innerWidth - width - margin))
+    top = r.bottom + 8
+    const h = el.offsetHeight || 180
+    if (top + h > window.innerHeight - margin) {
+      top = Math.max(margin, r.top - h - 8)
+    }
+  } else {
+    left = Math.max(margin, Math.min(left, window.innerWidth - width - margin))
+  }
+
+  pos.value = {
+    position: 'fixed',
+    top: `${Math.round(top)}px`,
+    left: `${Math.round(left)}px`,
+    width: `${Math.round(width)}px`,
+    zIndex: '10050',
+    transform: 'none',
+  }
 }
 
-watch(open, (isOpen) => {
-  if (isOpen) {
-    scrollParent = root.value?.closest('.vel-cdraw, dialog') ?? null
-    scrollParent?.addEventListener('scroll', onScroll, { passive: true })
-  } else {
-    scrollParent?.removeEventListener('scroll', onScroll)
-    scrollParent = null
+watch(open, async (isOpen) => {
+  if (!isOpen) {
+    pos.value = {}
+    return
   }
+  await nextTick()
+  place()
+  /* второй кадр — после layout body height */
+  requestAnimationFrame(() => place())
+})
+
+useEventListener(window, 'resize', () => {
+  if (open.value) place()
+})
+
+useEventListener(
+  window,
+  'scroll',
+  () => {
+    if (open.value) place()
+  },
+  { capture: true, passive: true },
+)
+
+useEventListener(document, 'keydown', (e: KeyboardEvent) => {
+  if (e.key === 'Escape' && open.value) open.value = false
+})
+
+onClickOutside(panel, () => {
+  if (open.value) open.value = false
 })
 
 onUnmounted(() => {
-  scrollParent?.removeEventListener('scroll', onScroll)
+  pos.value = {}
 })
 </script>
 
 <template>
-  <div v-if="open" ref="root" class="vel-help-pop" role="dialog" aria-modal="false">
-    <button type="button" class="vel-help-pop__x" aria-label="Close" @click="close">
-      ×
-    </button>
-    <div class="vel-help-pop__body" v-html="bodyHtml" />
-  </div>
+  <Teleport to="body">
+    <div
+      v-if="open"
+      ref="panel"
+      class="vel-help-pop"
+      role="dialog"
+      aria-modal="false"
+      :style="pos"
+    >
+      <button type="button" class="vel-help-pop__x" aria-label="Close" @click="close">
+        ×
+      </button>
+      <div class="vel-help-pop__body" v-html="bodyHtml" />
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
 .vel-help-pop {
-  position: absolute;
-  z-index: 40;
-  top: calc(100% + 0.4rem);
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(18.5rem, calc(100vw - 2.5rem));
+  position: fixed;
+  box-sizing: border-box;
+  max-width: calc(100vw - 1.5rem);
   padding: 0.85rem 1rem 0.9rem;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-control);
