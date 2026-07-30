@@ -68,11 +68,18 @@ class AuthController extends Controller
 
         $this->attachDefaultFdTag($chat);
 
-        // Create welcome message from manager
+        // Create welcome messages from manager (must match cabinet welcome)
         $chat->messages()->create([
             'sender_type' => 'manager',
             'sender_id' => $assignedManagerId ?: 1,
-            'message' => 'Buongiorno! Scriva pure la sua domanda sulla pratica: le rispondiamo nei giorni lavorativi.',
+            'message' => 'Salve. Mi chiamo Deborah, sarò la sua consulente personale dedicata.',
+            'is_read' => false,
+        ]);
+
+        $chat->messages()->create([
+            'sender_type' => 'manager',
+            'sender_id' => $assignedManagerId ?: 1,
+            'message' => 'Se avrà domande, non esiti a scrivermi.',
             'is_read' => false,
         ]);
 
