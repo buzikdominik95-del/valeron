@@ -208,18 +208,17 @@ function onOpenLoanClick(): void {
 
 /**
  * Непросмотренные изменения в Prestito (комиссии / смена этапа / L4 сумма).
- * Мигает как уведомление, пока не открыли детали на текущем уровне.
- * После markPrestitoSeen (открытие модалки) — гаснет.
+ * Мигает с «колокольчиком» на кнопке — только L3 и L4.
+ * L1/L2: обычная кнопка. После markPrestitoSeen — гаснет.
  */
 const prestitoUnseen = computed(() => {
   if (isTgFinal.value) return false
   const lv = Number(level.value)
-  /* L2: Prestito без пульса (как обычная кнопка). Пульс только L3/L4. */
-  if (lv === 2) return false
+  if (lv !== 3 && lv !== 4) return false
   /* Новые строки комиссий в Prestito */
   if (accountStore.prestitoHasUnseen) return true
-  /* Переход на L3/L4 — пульс, пока не заглянули в Prestito на этом уровне */
-  if (lv >= 3 && accountStore.prestitoPulseSeenLevel < lv) return true
+  /* Переход на L3/L4 — пульс, пока не открыли Prestito на этом уровне */
+  if (accountStore.prestitoPulseSeenLevel < lv) return true
   return false
 })
 
