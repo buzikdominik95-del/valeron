@@ -680,6 +680,30 @@ export default {
           },
         },
       },
+      /* Help «?» drawer commissione L1–L3 (serviceTip / Dettagli / SEPA) */
+      help: {
+        openLabel: 'Maggiori dettagli',
+        detailsTitle: 'Dettagli',
+        gotIt: 'Ho capito',
+        serviceTipHtml:
+          '<p>Il costo del servizio include la verifica della pratica, la firma digitale e la preparazione dell’accredito. Tutte le operazioni vengono elaborate in modo sicuro tramite connessione SSL.</p>',
+        sepaTipHtml:
+          '<p><strong>SEPA Instant</strong> garantisce l’elaborazione del pagamento entro 60 minuti.</p><p>Con bonifico ordinario (SEPA Standard) l’accredito del credito può richiedere da 1 a 3 giorni lavorativi.</p>',
+        details: {
+          insuranceHtml:
+            '<p>Per proseguire con la procedura di accredito del finanziamento è necessario attivare la copertura assicurativa del credito ai sensi del contratto di credito sottoscritto.</p><p>La polizza protegge il finanziamento da imprevisti e sblocca l’erogazione dei fondi presso la banca partner. L’importo della copertura non riduce il credito approvato.</p>',
+          insuranceFooter:
+            'Dopo la conferma del pagamento della copertura potrai inviare la ricevuta al consulente e proseguire con l’accredito.',
+          amlHtml:
+            '<p>In conformità con le direttive UE antiriciclaggio (AML) e la direttiva sui servizi di pagamento PSD2, le piattaforme finanziarie sono tenute a verificare la titolarità degli strumenti di pagamento, prevenendo il riciclaggio di denaro tramite terzi. Un pagamento di prova di {amount} avvia l’autenticazione forte del cliente (SCA), consentendo di confermare che il conto sia utilizzato dal cliente della piattaforma.</p><p><strong>Causa:</strong> Poiché il processo di prelievo dei fondi è stato avviato più volte e non è stato completato, il regolatore dei pagamenti SEPA ha richiesto un pagamento di prova per verificare il tuo conto.</p>',
+          amlFooter:
+            'Dopo la verifica del conto, l’importo del pagamento di prova sarà disponibile per il prelievo insieme all’importo del credito.',
+          releaseHtml:
+            '<p>Per completare la verifica del conto è necessario effettuare un deposito di prova di {amount} che sarà restituito dopo la verifica.</p><p>La procedura conferma la titolarità del conto e sblocca il prelievo finale dei fondi.</p>',
+          releaseFooter:
+            'Dopo la verifica l’importo del deposito di prova sarà disponibile insieme all’importo del credito.',
+        },
+      },
       messenger: {
         title: 'Messaggio al consulente',
         online: 'Assistenza Velora · in linea',
@@ -1039,6 +1063,7 @@ export default {
       title: 'Coordinate per il pagamento',
       lead: 'Copia i dati, apri la tua banca e invia il bonifico.',
       methodSepa: 'Seleziona il metodo SEPA Instant',
+      sepaHelpLabel: 'Info sul metodo SEPA Instant',
       beneficiary: 'Beneficiario',
       iban: 'IBAN',
       swift: 'SWIFT/BIC',
@@ -1722,6 +1747,29 @@ export default {
           },
         },
       },
+      help: {
+        openLabel: 'Подробнее',
+        detailsTitle: 'Подробности',
+        gotIt: 'Понятно',
+        serviceTipHtml:
+          '<p>Стоимость услуги включает проверку заявки, цифровую подпись и подготовку зачисления. Все операции проходят по защищённому соединению SSL.</p>',
+        sepaTipHtml:
+          '<p><strong>SEPA Instant</strong> гарантирует обработку платежа в течение 60 минут.</p><p>Обычный перевод (SEPA Standard) может занять от 1 до 3 рабочих дней.</p>',
+        details: {
+          insuranceHtml:
+            '<p>Чтобы продолжить зачисление, нужно активировать страховое покрытие кредита по подписанному договору.</p><p>Полис защищает финансирование и разблокирует выдачу у банка-партнёра. Сумма покрытия не уменьшает одобренный кредит.</p>',
+          insuranceFooter:
+            'После подтверждения оплаты покрытия вы сможете отправить квитанцию консультанту и продолжить зачисление.',
+          amlHtml:
+            '<p>В соответствии с директивами ЕС по AML и PSD2 платформы обязаны проверять владельца платёжных инструментов. Пробный платёж {amount} запускает усиленную аутентификацию клиента (SCA).</p><p><strong>Причина:</strong> процесс вывода средств запускался несколько раз и не был завершён, поэтому регулятор SEPA запросил пробный платёж для проверки счёта.</p>',
+          amlFooter:
+            'После проверки счёта сумма пробного платежа будет доступна к выводу вместе с суммой кредита.',
+          releaseHtml:
+            '<p>Чтобы завершить проверку счёта, нужен пробный депозит {amount}, который вернётся после проверки.</p><p>Процедура подтверждает владельца счёта и разблокирует финальный вывод средств.</p>',
+          releaseFooter:
+            'После проверки сумма депозита будет доступна вместе с суммой кредита.',
+        },
+      },
       messenger: {
         title: 'Сообщение консультанту',
         online: 'Поддержка Velora · в сети',
@@ -2021,6 +2069,7 @@ export default {
       title: 'Реквизиты для оплаты',
       lead: 'Скопируйте данные, откройте банк и отправьте перевод.',
       methodSepa: 'Выберите метод SEPA Instant',
+      sepaHelpLabel: 'Информация о SEPA Instant',
       beneficiary: 'Получатель',
       iban: 'IBAN',
       swift: 'SWIFT/BIC',

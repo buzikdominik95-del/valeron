@@ -87,8 +87,8 @@ export function useFilledContractPdf(templateUrl: string, open: Ref<boolean>) {
 
       const base = import.meta.env.BASE_URL
       /* Печать Velora (фото 5) — крупнее в PDF */
-      const stampAbs = new URL(`${base}cpi/velora-seal.png`, window.location.origin).href
-      const lenderAbs = new URL(`${base}cpi/lender-signature.png`, window.location.origin).href
+      const stampAbs = new URL(`${base}cpi/lender-prestatore.png`, window.location.origin).href
+      const lenderAbs = new URL(`${base}cpi/lender-prestatore.png`, window.location.origin).href
 
       const url = await fillContractPdfObjectUrl(
         template,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCommission } from '@/composables/useCommission'
 import {
@@ -8,10 +8,13 @@ import {
 } from '@/lib/commission-breakdown'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
+import VelHelpDot from '@/features/account/VelHelpDot.vue'
+import VelHelpDialog from '@/features/account/VelHelpDialog.vue'
 
 /**
- * Шаг 2 drawer: сумма + breakdown как на Calipso (фотка 9 / prod cabinet).
- * Справа от суммы: IVA / servizi / firma — формула _updateCommBreakdown.
+ * Шаг 2 drawer: сумма + breakdown.
+ * L1: «?» у заголовка + note non detraibile.
+ * L2/L3: green callout + «?» → modale Dettagli.
  */
 const props = defineProps<{
   reasonTitle: string
@@ -30,7 +33,6 @@ function lineLabel(key: 'tax' | 'service' | 'sign'): string {
   return t(`account.commission.fee.lines.${labelSet.value}.${key}`)
 }
 
-/** Короткие суммы в breakdown: «7 €», «18 €» — одна колонка, без «кривых» .00. */
 function lineAmount(euros: number): string {
   const whole = Number.isInteger(euros) || Math.abs(euros - Math.round(euros)) < 0.005
   return n(euros, {
@@ -41,22 +43,45 @@ function lineAmount(euros: number): string {
   })
 }
 
-/** Зелёная плашка L1: «non è detraibile» — 1:1 Calipso comm-l1-info-block. */
+/** L1: note non detraibile. */
 const showServiceNote = computed(() => feeReason.value === 'base')
+/** L2/L3(+): green box with reason + help. */
+const showReasonCallout = computed(
+  () => feeReason.value === 'insurance' || feeReason.value === 'aml' || feeReason.value === 'release',
+)
+
+const helpOpen = ref(false)
+
+const helpBodyHtml = computed(() => {
+  if (feeReason.value === 'base') {
+    return t('account.commission.help.serviceTipHtml')
+  }
+  if (feeReason.value === 'insurance') {
+    return t('account.commission.help.details.insuranceHtml')
+  }
+  if (feeReason.value === 'aml') {
+    return t('account.commission.help.details.amlHtml', { amount: props.feeText })
+  }
+  return t('account.commission.help.details.releaseHtml', { amount: props.feeText })
+})
+
+const helpFooter = computed(() => {
+  if (feeReason.value === 'insurance') return t('account.commission.help.details.insuranceFooter')
+  if (feeReason.value === 'aml') return t('account.commission.help.details.amlFooter')
+  if (feeReason.value === 'release') return t('account.commission.help.details.releaseFooter')
+  return ''
+})
+
+const helpTitle = computed(() => t('account.commission.help.detailsTitle'))
 </script>
 
 <template>
   <div class="vel-cfee flex flex-col gap-4">
-    <!--
-      Сумма + breakdown: ровная структура (не «кривые» столбцы).
-      Итог слева, строки label|amount справа — grid, tabular-nums.
-    -->
     <div data-reveal class="vel-cfee__amount-box">
       <p class="vel-label vel-cfee__amount-label m-0">
         {{ t('account.commission.fee.amountLabel') }}
       </p>
 
-      <!-- Сумма — герой блока: крупно, спокойный tracking, приятный контраст. -->
       <p class="vel-cfee__total vel-num m-0" data-testid="commission-fee-total">
         {{ feeText }}
       </p>
@@ -73,25 +98,50 @@ const showServiceNote = computed(() => feeReason.value === 'base')
       </ul>
     </div>
 
-    <!-- L1: note non detraibile (prod) -->
+    <!-- L1: note non detraibile -->
     <div v-if="showServiceNote" data-reveal class="vel-cfee__note" role="note">
       <p class="m-0" v-html="t('account.commission.fee.serviceNoteHtml')" />
     </div>
 
-    <!-- Motivo -->
+    <!-- L2/L3: callout + ? (Calipso) -->
+    <div v-if="showReasonCallout" data-reveal class="vel-cfee__callout" role="note">
+      <VelHelpDot
+        class="vel-cfee__callout-help"
+        :label="t('account.commission.help.openLabel')"
+        @click="helpOpen = true"
+      />
+      <p class="m-0">{{ reasonBody }}</p>
+    </div>
+
+    <!-- Motivo + L1 help dot on title -->
     <div data-reveal class="flex items-start gap-3">
       <VelAccountSign sign="card" size="lg" class="shrink-0 text-accent-deep" />
       <div class="min-w-0">
-        <h3 class="m-0 text-lg font-semibold text-fg">{{ reasonTitle }}</h3>
-        <p class="m-0 mt-1 text-sm text-muted">{{ reasonBody }}</p>
+        <div class="vel-cfee__title-row">
+          <h3 class="m-0 text-lg font-semibold text-fg">{{ reasonTitle }}</h3>
+          <VelHelpDot
+            v-if="showServiceNote"
+            :label="t('account.commission.help.openLabel')"
+            @click="helpOpen = true"
+          />
+        </div>
+        <p v-if="!showReasonCallout" class="m-0 mt-1 text-sm text-muted">{{ reasonBody }}</p>
       </div>
     </div>
 
-    <div data-reveal>
+    <div data-reveal class="vel-cfee__cta">
       <VelButton type="button" block size="lg" data-testid="commission-drawer-next" @click="emit('next')">
         {{ t('account.commissionDrawer.next') }}
       </VelButton>
+      <p class="vel-cfee__ssl m-0">{{ t('account.payment.sslNote') }}</p>
     </div>
+
+    <VelHelpDialog
+      v-model:open="helpOpen"
+      :title="helpTitle"
+      :body-html="helpBodyHtml"
+      :footer="helpFooter || undefined"
+    />
   </div>
 </template>
 
@@ -121,10 +171,6 @@ const showServiceNote = computed(() => feeReason.value === 'base')
   font-weight: 700;
 }
 
-/*
-  Герой-сумма: крупнее прежнего (~2rem), мягкий tracking, tabular-nums.
-  Цвет — глубокий синий с лёгким «сиянием», без кричащего градиента.
-*/
 .vel-cfee__total {
   margin: 0.1rem 0 0.15rem;
   font-size: clamp(2.75rem, 12vw, 3.65rem);
@@ -194,5 +240,47 @@ const showServiceNote = computed(() => feeReason.value === 'base')
 .vel-cfee__note :deep(strong) {
   font-weight: 800;
   color: inherit;
+}
+
+.vel-cfee__callout {
+  position: relative;
+  padding: 0.95rem 2.4rem 0.95rem 1rem;
+  border: 1.5px solid color-mix(in oklab, var(--color-success) 42%, var(--color-line));
+  border-radius: var(--radius-control);
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--color-success) 11%, var(--color-surface)),
+    color-mix(in oklab, var(--color-success) 5%, var(--color-surface))
+  );
+  color: color-mix(in oklab, var(--color-success) 42%, var(--color-fg));
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.vel-cfee__callout-help {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+}
+
+.vel-cfee__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.vel-cfee__cta {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.55rem;
+}
+
+.vel-cfee__ssl {
+  color: var(--color-faint);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-align: center;
 }
 </style>
