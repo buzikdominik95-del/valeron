@@ -94,7 +94,7 @@ const detailsFooter = computed(() => {
 </script>
 
 <template>
-  <div class="vel-cfee flex flex-col gap-4">
+  <div class="vel-cfee flex flex-col gap-3">
     <div data-reveal class="vel-cfee__amount-box">
       <p class="vel-label vel-cfee__amount-label m-0">
         {{ t('account.commission.fee.amountLabel') }}
@@ -173,8 +173,8 @@ const detailsFooter = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.85rem;
-  padding: 1.25rem 1.25rem 1.15rem;
+  gap: 0.55rem;
+  padding: 0.95rem 1rem 0.9rem;
   border: 1px solid color-mix(in oklab, var(--color-accent) 28%, var(--color-line));
   border-radius: var(--radius-panel);
   background:
@@ -195,8 +195,8 @@ const detailsFooter = computed(() => {
 }
 
 .vel-cfee__total {
-  margin: 0.1rem 0 0.15rem;
-  font-size: clamp(2.75rem, 12vw, 3.65rem);
+  margin: 0.05rem 0 0.1rem;
+  font-size: clamp(2rem, 9vw, 3.2rem);
   font-weight: 800;
   letter-spacing: -0.045em;
   line-height: 0.95;
@@ -209,9 +209,9 @@ const detailsFooter = computed(() => {
 .vel-cfee__lines {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  margin: 0.15rem 0 0;
-  padding: 0.75rem 0 0;
+  gap: 0.35rem;
+  margin: 0.1rem 0 0;
+  padding: 0.55rem 0 0;
   border-block-start: 1px solid color-mix(in oklab, var(--color-accent) 18%, var(--color-line));
   list-style: none;
 }

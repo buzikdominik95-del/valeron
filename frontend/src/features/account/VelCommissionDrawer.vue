@@ -282,10 +282,11 @@ watch(open, (isOpen) => {
 
 <style scoped>
 .vel-cdraw {
-  inline-size: min(100% - 1rem, 32rem);
-  max-block-size: min(94dvh, 44rem);
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  inline-size: min(100% - 0.75rem, 32rem);
+  /* Без внутреннего скролла: влезаем в экран за счёт плотности */
+  max-block-size: min(96dvh, 48rem);
+  overflow: hidden;
+  overscroll-behavior: none;
   padding: 0;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-panel);
@@ -301,53 +302,81 @@ watch(open, (isOpen) => {
 .vel-cdraw__form {
   display: flex;
   flex-direction: column;
-  gap: 1.15rem;
-  padding: 1.35rem 1.5rem 1.5rem;
+  gap: 0.85rem;
+  max-block-size: min(96dvh, 48rem);
+  padding: 1rem 1.1rem 1.15rem;
+  overflow: hidden;
 }
 
 .vel-cdraw__body {
   min-block-size: 1px;
+  overflow: hidden;
 }
 
-/* Сетка шапки: [назад 2.75] | title | [× 2.75] — одна линия, все шаги */
+/* Сетка шапки: [назад 2.5] | title | [× 2.5] — одна линия, все шаги */
 .vel-cdraw__head {
   display: grid;
-  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+  grid-template-columns: 2.5rem minmax(0, 1fr) 2.5rem;
   align-items: center;
-  column-gap: 0.35rem;
-  min-block-size: 2.75rem;
+  column-gap: 0.2rem;
+  min-block-size: 2.5rem;
+  flex-shrink: 0;
 }
 
 .vel-cdraw__titles {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.1rem;
+  gap: 0.05rem;
   text-align: center;
-  padding-inline: 0.15rem;
+  padding-inline: 0.1rem;
+  min-inline-size: 0;
 }
 
+/* Title + ? всегда в одну строку (мобилка) */
 .vel-cdraw__title-row {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-inline-size: 0;
+  width: 100%;
 }
 
 .vel-cdraw__title {
+  flex: 0 1 auto;
+  min-inline-size: 0;
   color: var(--color-fg);
-  font-size: 1.2rem;
+  font-size: clamp(0.92rem, 3.8vw, 1.15rem);
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 .vel-cdraw__help-anchor {
   position: relative;
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
   flex-shrink: 0;
+}
+
+@media (max-width: 380px) {
+  .vel-cdraw__form {
+    gap: 0.7rem;
+    padding: 0.85rem 0.85rem 1rem;
+  }
+
+  .vel-cdraw__title {
+    font-size: 0.88rem;
+  }
+
+  .vel-cdraw__seg-btn {
+    min-height: 2.4rem;
+    font-size: 0.65rem;
+  }
 }
 
 /* Общий hit-box для ← и ×: без border/outline/круга, pixel-match */
@@ -356,8 +385,8 @@ watch(open, (isOpen) => {
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2.5rem;
+  height: 2.5rem;
   margin: 0;
   padding: 0;
   border: 0;
@@ -415,12 +444,12 @@ watch(open, (isOpen) => {
 }
 
 .vel-cdraw__seg-btn {
-  min-height: 2.75rem;
+  min-height: 2.5rem;
   border: none;
   border-radius: calc(var(--radius-control) - 2px);
   background: transparent;
   color: var(--color-muted);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   cursor: pointer;
   transition:

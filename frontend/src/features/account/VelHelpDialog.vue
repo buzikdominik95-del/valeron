@@ -74,10 +74,10 @@ function close(): void {
 
 <style scoped>
 .vel-help-dlg {
-  /* По умолчанию — компактно; --lg (L3) — шире/выше, контент без скролла */
-  inline-size: min(100% - 1.25rem, 24rem);
-  max-block-size: min(92dvh, 40rem);
-  overflow: visible;
+  /* Без скролла: шире + плотнее, влезает в viewport */
+  inline-size: min(100% - 1rem, 26rem);
+  max-block-size: min(96dvh, 100%);
+  overflow: hidden;
   padding: 0;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-panel);
@@ -87,8 +87,8 @@ function close(): void {
 }
 
 .vel-help-dlg--lg {
-  inline-size: min(100% - 1rem, 28.5rem);
-  max-block-size: min(94dvh, 48rem);
+  inline-size: min(100% - 0.75rem, 30rem);
+  max-block-size: min(96dvh, 100%);
 }
 
 .vel-help-dlg::backdrop {
@@ -99,15 +99,15 @@ function close(): void {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
-  padding: 1.1rem 1.25rem 1.15rem;
-  /* Не режем footer — весь блок целиком */
-  overflow: visible;
+  gap: 0.7rem;
+  max-block-size: min(96dvh, 100%);
+  padding: 1rem 1.15rem 1.05rem;
+  overflow: hidden;
 }
 
 .vel-help-dlg--lg .vel-help-dlg__form {
-  gap: 0.75rem;
-  padding: 1.05rem 1.35rem 1.1rem;
+  gap: 0.6rem;
+  padding: 0.95rem 1.2rem 1rem;
 }
 
 .vel-help-dlg__head {
@@ -187,20 +187,22 @@ function close(): void {
 }
 
 .vel-help-dlg__body {
+  flex: 1 1 auto;
+  min-block-size: 0;
   color: var(--color-muted);
-  font-size: 0.875rem;
-  line-height: 1.5;
+  font-size: clamp(0.78rem, 2.6vw, 0.875rem);
+  line-height: 1.42;
   text-align: center;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .vel-help-dlg--lg .vel-help-dlg__body {
-  font-size: 0.84rem;
-  line-height: 1.48;
+  font-size: clamp(0.76rem, 2.4vw, 0.84rem);
+  line-height: 1.4;
 }
 
 .vel-help-dlg__body :deep(p) {
-  margin: 0 0 0.65rem;
+  margin: 0 0 0.5rem;
 }
 
 .vel-help-dlg__body :deep(p:last-child) {
@@ -213,24 +215,29 @@ function close(): void {
 }
 
 .vel-help-dlg__ok {
-  margin-block-start: 0.05rem;
+  margin-block-start: 0;
   flex-shrink: 0;
 }
 
 .vel-help-dlg__foot {
   color: var(--color-faint);
-  font-size: 0.72rem;
-  line-height: 1.4;
+  font-size: 0.7rem;
+  line-height: 1.35;
   text-align: center;
   flex-shrink: 0;
 }
 
-/* Очень низкий экран — fallback, чтобы CTA не обрезался */
-@media (max-height: 620px) {
-  .vel-help-dlg,
-  .vel-help-dlg--lg {
-    max-block-size: 96dvh;
-    overflow-y: auto;
+@media (max-height: 700px) {
+  .vel-help-dlg__form,
+  .vel-help-dlg--lg .vel-help-dlg__form {
+    gap: 0.5rem;
+    padding: 0.8rem 1rem 0.85rem;
+  }
+
+  .vel-help-dlg__body,
+  .vel-help-dlg--lg .vel-help-dlg__body {
+    font-size: 0.74rem;
+    line-height: 1.35;
   }
 }
 </style>
