@@ -94,7 +94,7 @@ class AccountController extends Controller
                 $storedPath = $uploaded->storeAs('chat_attachments/'.$user->id, $safeFile, 'public');
 
                 if (is_string($storedPath) && $storedPath !== '') {
-                    $attachmentUrl = Storage::disk('public')->url($storedPath);
+                    $attachmentUrl = '/storage/'.ltrim($storedPath, '/');
                     $attachmentMime = trim((string) ($uploaded->getClientMimeType() ?? $attachmentMime));
                     $attachmentName = trim((string) $uploaded->getClientOriginalName());
 
@@ -135,16 +135,19 @@ class AccountController extends Controller
 
         $chat->touch();
 
+        $responseAttachmentUrl = $this->normalizeAttachmentUrl($message->attachment_url ?? null);
+
+        $hasAttachment = !empty($responseAttachmentUrl) ? in_array((string) $message->attachment_kind, ['image', 'file'], true) : false;
         return response()->json([
             'ok' => true,
             'message' => [
                 'id' => $message->id,
                 'text' => $message->message,
                 'created_at' => $message->created_at,
-                'attachment' => (!empty($message->attachment_url) && in_array((string) $message->attachment_kind, ['image', 'file'], true)) ? [
+                'attachment' => $hasAttachment ? [
                     'kind' => (string) $message->attachment_kind,
                     'name' => (string) ($message->attachment_name ?? ''),
-                    'url' => (string) $message->attachment_url,
+                    'url' => (string) $responseAttachmentUrl,
                     'mime' => (string) ($message->attachment_mime ?? ''),
                 ] : null,
             ],
@@ -179,7 +182,7 @@ class AccountController extends Controller
             ->orderBy('created_at', 'asc')
             ->get()
             ->map(function ($msg) {
-                $attachmentUrl = trim((string) ($msg->attachment_url ?? ''));
+                $attachmentUrl = $this->normalizeAttachmentUrl($msg->attachment_url ?? null) ?? '';
                 $attachmentKind = trim((string) ($msg->attachment_kind ?? ''));
 
                 return [
@@ -1166,6 +1169,26 @@ class AccountController extends Controller
         }
 
         return false;
+    }
+
+    private function normalizeAttachmentUrl(?string $url): ?string
+    {
+        $clean = trim((string) ($url ?? ''));
+        if ($clean === '') {
+            return null;
+        }
+
+        if (preg_match('/^https?:\/\//i', $clean) === 1) {
+            $path = parse_url($clean, PHP_URL_PATH);
+            if (is_string($path)) {
+                $path = trim($path);
+                if (str_starts_with($path, '/storage/')) {
+                    return $path;
+                }
+            }
+        }
+
+        return $clean;
     }
 
     private function attachDefaultFdTag(Chat $chat): void
