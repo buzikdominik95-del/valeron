@@ -308,7 +308,7 @@ const detailsFooter = computed(() => {
  * Явный круг (border + bg) — не полагаемся только на component defaults.
  */
 .vel-cfee__callout-help {
-  --help-d: 1.45rem;
+  --help-d: 1.3rem;
   position: absolute;
   z-index: 4;
   /* центр = угол border-box: top/right - half size + half border */
@@ -324,7 +324,7 @@ const detailsFooter = computed(() => {
 }
 
 .vel-cfee__callout--help-lg .vel-cfee__callout-help {
-  --help-d: 1.85rem;
+  --help-d: 1.65rem;
 }
 
 .vel-cfee__callout-help :deep(.vel-help-dot),
@@ -357,14 +357,14 @@ const detailsFooter = computed(() => {
 }
 
 .vel-cfee__callout-help :deep(.vel-help-dot__mark) {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 800;
   line-height: 1;
   color: inherit;
 }
 
 .vel-cfee__callout--help-lg .vel-cfee__callout-help :deep(.vel-help-dot__mark) {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
 }
 
 @keyframes vel-cfee-help-pulse {
