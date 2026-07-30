@@ -168,6 +168,10 @@ class AdminChatsController extends Controller
 
         $actor = $this->resolveCurrentAdminUser($request);
         if (!$actor) {
+            $actor = $this->resolveReadOnlyFallbackAdmin($request);
+        }
+
+        if (!$actor) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
 
@@ -288,6 +292,10 @@ class AdminChatsController extends Controller
     public function updateMeta(Request $request, $chatId)
     {
         $actor = $this->resolveCurrentAdminUser($request);
+        if (!$actor) {
+            $actor = $this->resolveReadOnlyFallbackAdmin($request);
+        }
+
         if (!$actor) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
