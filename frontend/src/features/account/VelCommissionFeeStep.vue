@@ -94,7 +94,7 @@ const detailsFooter = computed(() => {
 </script>
 
 <template>
-  <div class="vel-cfee flex flex-col gap-3">
+  <div class="vel-cfee flex flex-col gap-3" style="overflow: visible">
     <div data-reveal class="vel-cfee__amount-box">
       <p class="vel-label vel-cfee__amount-label m-0">
         {{ t('account.commission.fee.amountLabel') }}
@@ -169,6 +169,10 @@ const detailsFooter = computed(() => {
 </template>
 
 <style scoped>
+.vel-cfee {
+  overflow: visible;
+}
+
 .vel-cfee__amount-box {
   display: flex;
   flex-direction: column;
@@ -270,8 +274,9 @@ const detailsFooter = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
-  padding: 0.95rem 2.6rem 0.95rem 1rem;
-  border: 1.5px solid color-mix(in oklab, var(--color-success) 42%, var(--color-line));
+  /* место справа/сверху, чтобы ? на бордере не резал текст */
+  padding: 1rem 1.35rem 0.95rem 1rem;
+  border: 1.5px solid color-mix(in oklab, var(--color-success) 48%, var(--color-line));
   border-radius: var(--radius-control);
   background: linear-gradient(
     135deg,
@@ -280,6 +285,8 @@ const detailsFooter = computed(() => {
   );
   color: color-mix(in oklab, var(--color-success) 42%, var(--color-fg));
   line-height: 1.5;
+  /* ? вылезает за край — не клипать */
+  overflow: visible;
 }
 
 .vel-cfee__callout-title {
@@ -288,25 +295,69 @@ const detailsFooter = computed(() => {
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.3;
-  padding-inline-end: 0.25rem;
+  padding-inline-end: 0.85rem;
 }
 
 .vel-cfee__callout-body {
   font-size: 0.875rem;
   line-height: 1.5;
+  padding-inline-end: 0.35rem;
 }
 
-/* «?» сидит на бордере callout (половина снаружи) */
+/*
+ * «?» на верхнем-правом бордере (как Calipso):
+ * центр кнопки = пересечение border-top и border-right.
+ */
 .vel-cfee__callout-help {
   position: absolute;
   top: 0;
   right: 0;
-  z-index: 2;
-  transform: translate(42%, -42%);
+  z-index: 3;
+  /* md: 1.35rem → half = 0.675rem */
+  transform: translate(50%, -50%);
 }
 
-.vel-cfee__callout--help-lg .vel-cfee__callout-help {
-  transform: translate(45%, -45%);
+.vel-cfee__callout-help :deep(.vel-help-dot) {
+  /* кольцо «выреза» поверх бордера callout */
+  border-color: color-mix(in oklab, var(--color-success) 55%, var(--color-line));
+  background: color-mix(in oklab, var(--color-success) 14%, var(--color-surface));
+  color: color-mix(in oklab, var(--color-success) 35%, var(--color-fg));
+  box-shadow:
+    0 0 0 2.5px var(--color-surface),
+    0 1px 3px color-mix(in oklab, var(--color-fg) 8%, transparent);
+}
+
+.vel-cfee__callout-help :deep(.vel-help-dot--lg) {
+  box-shadow:
+    0 0 0 3px var(--color-surface),
+    0 1px 4px color-mix(in oklab, var(--color-fg) 10%, transparent);
+}
+
+/* strong pulse не сбивает translate(50%, -50%) — scale от центра */
+.vel-cfee__callout-help :deep(.vel-help-dot--strong) {
+  animation: vel-cfee-help-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes vel-cfee-help-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 3px var(--color-surface),
+      0 0 0 0 color-mix(in oklab, var(--color-success) 40%, transparent);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow:
+      0 0 0 3px var(--color-surface),
+      0 0 0 0.45rem color-mix(in oklab, var(--color-success) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-cfee__callout-help :deep(.vel-help-dot--strong) {
+    animation: none;
+  }
 }
 
 .vel-cfee__cta {
