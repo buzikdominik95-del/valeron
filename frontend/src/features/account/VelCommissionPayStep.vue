@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCommission } from '@/composables/useCommission'
+import { onClickOutside } from '@vueuse/core'
+import { useTemplateRef } from 'vue'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelCopyRow from '@/features/account/VelCopyRow.vue'
+import VelHelpDot from '@/features/account/VelHelpDot.vue'
+import VelHelpPopover from '@/features/account/VelHelpPopover.vue'
 
-/**
- * Шаг 3: реквизиты + «Invia ricevuta» + Conferma + SSL.
- * Lead / «Seleziona SEPA Instant» убраны — лишний шум (все уровни).
- */
+/** Шаг 3: lead + SEPA (текст по центру) + реквизиты + ricevuta + CTA. */
 defineProps<{
   beneficiary: string
   iban: string
@@ -20,11 +21,45 @@ const emit = defineEmits<{ confirm: [] }>()
 const { t } = useI18n()
 const { level } = useCommission()
 
+const sepaHelpOpen = ref(false)
+const methodWrap = useTemplateRef<HTMLElement>('methodWrap')
+
+onClickOutside(methodWrap, () => {
+  if (sepaHelpOpen.value) sepaHelpOpen.value = false
+})
+
 const showReceiptNote = computed(() => Number(level.value) >= 1)
+
+function toggleSepaHelp(): void {
+  sepaHelpOpen.value = !sepaHelpOpen.value
+}
 </script>
 
 <template>
   <div class="vel-cpay flex flex-col gap-4">
+    <p data-reveal class="m-0 text-center text-sm text-muted">
+      {{ t('account.payment.lead') }}
+    </p>
+
+    <div ref="methodWrap" data-reveal class="vel-cpay__method-wrap">
+      <div
+        class="vel-cpay__method rounded-control border border-accent/40 bg-accent/5 px-3 py-2"
+      >
+        <!-- текст + ? вместе по центру поля -->
+        <span class="vel-cpay__method-inner">
+          <span class="vel-cpay__method-label">{{ t('account.payment.methodSepa') }}</span>
+          <VelHelpDot
+            :label="t('account.payment.sepaHelpLabel')"
+            @click="toggleSepaHelp"
+          />
+        </span>
+      </div>
+      <VelHelpPopover
+        v-model:open="sepaHelpOpen"
+        :body-html="t('account.commission.help.sepaTipHtml')"
+      />
+    </div>
+
     <div data-reveal class="rounded-control border border-line bg-ground px-3">
       <VelCopyRow :label="t('account.payment.beneficiary')" :value="beneficiary" />
       <VelCopyRow :label="t('account.payment.iban')" :value="iban" mono />
@@ -51,6 +86,34 @@ const showReceiptNote = computed(() => Number(level.value) >= 1)
 </template>
 
 <style scoped>
+.vel-cpay__method-wrap {
+  position: relative;
+}
+
+/* Текст + ? — одна группа по центру поля */
+.vel-cpay__method {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 2.5rem;
+}
+
+.vel-cpay__method-inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  max-inline-size: 100%;
+}
+
+.vel-cpay__method-label {
+  color: var(--color-accent-deep);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+}
+
 .vel-cpay__cta {
   display: flex;
   flex-direction: column;
