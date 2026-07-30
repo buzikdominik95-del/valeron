@@ -304,64 +304,88 @@ const detailsFooter = computed(() => {
 }
 
 /*
- * Якорь 0×0 на ВНЕШНЕМ верхнем-правом углу border-box.
- * (absolute привязан к padding-edge → сдвиг на -border-width.)
- * Центр круга «?» = этот угол (translate -50% -50%).
+ * «?»-круг: центр ровно на верхнем-правом угле зелёного блока.
+ * Явный круг (border + bg) — не полагаемся только на component defaults.
  */
 .vel-cfee__callout-help {
+  --help-d: 1.45rem;
   position: absolute;
-  top: calc(-1 * var(--callout-bw));
-  right: calc(-1 * var(--callout-bw));
-  z-index: 3;
-  width: 0;
-  height: 0;
+  z-index: 4;
+  /* центр = угол border-box: top/right - half size + half border */
+  top: calc(-0.5 * var(--help-d));
+  right: calc(-0.5 * var(--help-d));
+  width: var(--help-d);
+  height: var(--help-d);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: visible;
-  pointer-events: none;
-}
-
-.vel-cfee__callout-help :deep(.vel-help-dot) {
-  position: absolute;
-  top: 0;
-  left: 0;
   pointer-events: auto;
-  /* центр окружности ровно на угле */
-  transform: translate(-50%, -50%);
-  border-color: color-mix(in oklab, var(--color-success) 55%, var(--color-line));
-  background: color-mix(in oklab, var(--color-success) 12%, var(--color-surface));
-  color: color-mix(in oklab, var(--color-success) 30%, var(--color-fg));
-  box-shadow:
-    0 0 0 2.5px var(--color-surface),
-    0 1px 3px color-mix(in oklab, var(--color-fg) 8%, transparent);
 }
 
-.vel-cfee__callout-help :deep(.vel-help-dot--lg) {
-  box-shadow:
-    0 0 0 3px var(--color-surface),
-    0 1px 4px color-mix(in oklab, var(--color-fg) 10%, transparent);
+.vel-cfee__callout--help-lg .vel-cfee__callout-help {
+  --help-d: 1.85rem;
 }
 
-/* pulse сохраняет translate(-50%, -50%) */
+.vel-cfee__callout-help :deep(.vel-help-dot),
+.vel-cfee__callout-help :deep(.vel-help-dot--lg),
 .vel-cfee__callout-help :deep(.vel-help-dot--strong) {
-  animation: vel-cfee-help-pulse 1.1s ease-in-out infinite;
+  position: relative;
+  top: auto;
+  left: auto;
+  display: inline-flex !important;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--help-d) !important;
+  height: var(--help-d) !important;
+  min-width: var(--help-d);
+  min-height: var(--help-d);
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  border: 2px solid #5aaf8f !important;
+  border-radius: 999px !important;
+  background: #eef8f3 !important;
+  color: #1a6b52 !important;
+  box-shadow:
+    0 0 0 2.5px #fff,
+    0 1px 3px rgba(15, 23, 42, 0.1);
+  transform: none;
+  opacity: 1;
+  animation: vel-cfee-help-pulse 1.15s ease-in-out infinite;
+}
+
+.vel-cfee__callout-help :deep(.vel-help-dot__mark) {
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1;
+  color: inherit;
+}
+
+.vel-cfee__callout--help-lg .vel-cfee__callout-help :deep(.vel-help-dot__mark) {
+  font-size: 0.95rem;
 }
 
 @keyframes vel-cfee-help-pulse {
   0%,
   100% {
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
     box-shadow:
-      0 0 0 3px var(--color-surface),
-      0 0 0 0 color-mix(in oklab, var(--color-success) 40%, transparent);
+      0 0 0 2.5px #fff,
+      0 0 0 0 rgba(90, 175, 143, 0.45);
   }
   50% {
-    transform: translate(-50%, -50%) scale(1.08);
+    transform: scale(1.1);
     box-shadow:
-      0 0 0 3px var(--color-surface),
-      0 0 0 0.4rem color-mix(in oklab, var(--color-success) 0%, transparent);
+      0 0 0 2.5px #fff,
+      0 0 0 0.45rem rgba(90, 175, 143, 0);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .vel-cfee__callout-help :deep(.vel-help-dot),
+  .vel-cfee__callout-help :deep(.vel-help-dot--lg),
   .vel-cfee__callout-help :deep(.vel-help-dot--strong) {
     animation: none;
   }
