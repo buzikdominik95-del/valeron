@@ -2,8 +2,6 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCommission } from '@/composables/useCommission'
-import { onClickOutside } from '@vueuse/core'
-import { useTemplateRef } from 'vue'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelCopyRow from '@/features/account/VelCopyRow.vue'
 import VelHelpDot from '@/features/account/VelHelpDot.vue'
@@ -22,11 +20,6 @@ const { t } = useI18n()
 const { level } = useCommission()
 
 const sepaHelpOpen = ref(false)
-const methodWrap = useTemplateRef<HTMLElement>('methodWrap')
-
-onClickOutside(methodWrap, () => {
-  if (sepaHelpOpen.value) sepaHelpOpen.value = false
-})
 
 const showReceiptNote = computed(() => Number(level.value) >= 1)
 
@@ -42,7 +35,6 @@ function toggleSepaHelp(): void {
     </p>
 
     <div
-      ref="methodWrap"
       data-reveal
       class="vel-cpay__method-wrap"
       :data-vel-help-anchor="sepaHelpOpen ? 'open' : '1'"

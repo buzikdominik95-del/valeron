@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { nextTick, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { onClickOutside, useEventListener } from '@vueuse/core'
 import { useTemplateRef } from 'vue'
 
 /**
- * Мини-сообщение у «?» — fixed + Teleport, чтобы не клипалось
- * overflow dialog/drawer на мобилке.
+ * Мини-сообщение у «?».
+ * Teleport в открытый <dialog> (top layer) — иначе fixed на body
+ * оказывается ПОД dialog.showModal() и «ничего не видно».
  */
 const open = defineModel<boolean>('open', { default: false })
 
@@ -15,26 +16,40 @@ defineProps<{
 
 const panel = useTemplateRef<HTMLElement>('panel')
 const pos = ref<Record<string, string>>({})
+/** куда телепортить: open dialog или body (fallback) */
+const teleportTarget = ref<string | HTMLElement>('body')
+/** не закрывать сразу после открытия (тот же click) */
+let ignoreOutsideUntil = 0
 
 function close(): void {
   open.value = false
+}
+
+function resolveTeleport(): HTMLElement | string {
+  if (typeof document === 'undefined') return 'body'
+  const openDlg =
+    document.querySelector<HTMLElement>('dialog.vel-cdraw[open]') ??
+    document.querySelector<HTMLElement>('dialog[open]')
+  return openDlg ?? 'body'
+}
+
+function resolveAnchor(): HTMLElement | null {
+  if (typeof document === 'undefined') return null
+  return (
+    document.querySelector<HTMLElement>('[data-vel-help-anchor="open"]') ??
+    document.querySelector<HTMLElement>('[data-vel-help-anchor]')
+  )
 }
 
 function place(): void {
   const el = panel.value
   if (!el) return
 
-  /* якорь: span.vel-cdraw__help-anchor / method-wrap — parent пока popover был inline;
-     после Teleport parent = body, поэтому ищем [data-help-anchor] near last focus
-     или element with data-vel-help-open */
-  const anchor =
-    document.querySelector<HTMLElement>('[data-vel-help-anchor="open"]') ??
-    document.querySelector<HTMLElement>('[data-vel-help-anchor]')
-
+  const anchor = resolveAnchor()
   const margin = 12
   const width = Math.min(300, window.innerWidth - margin * 2)
   let left = (window.innerWidth - width) / 2
-  let top = margin + 48
+  let top = margin + 56
 
   if (anchor) {
     const r = anchor.getBoundingClientRect()
@@ -45,8 +60,6 @@ function place(): void {
     if (top + h > window.innerHeight - margin) {
       top = Math.max(margin, r.top - h - 8)
     }
-  } else {
-    left = Math.max(margin, Math.min(left, window.innerWidth - width - margin))
   }
 
   pos.value = {
@@ -54,7 +67,7 @@ function place(): void {
     top: `${Math.round(top)}px`,
     left: `${Math.round(left)}px`,
     width: `${Math.round(width)}px`,
-    zIndex: '10050',
+    zIndex: '2147483646',
     transform: 'none',
   }
 }
@@ -64,10 +77,14 @@ watch(open, async (isOpen) => {
     pos.value = {}
     return
   }
+  ignoreOutsideUntil = Date.now() + 280
+  teleportTarget.value = resolveTeleport()
   await nextTick()
   place()
-  /* второй кадр — после layout body height */
-  requestAnimationFrame(() => place())
+  requestAnimationFrame(() => {
+    place()
+    requestAnimationFrame(place)
+  })
 })
 
 useEventListener(window, 'resize', () => {
@@ -87,17 +104,26 @@ useEventListener(document, 'keydown', (e: KeyboardEvent) => {
   if (e.key === 'Escape' && open.value) open.value = false
 })
 
-onClickOutside(panel, () => {
-  if (open.value) open.value = false
-})
+onClickOutside(
+  panel,
+  () => {
+    if (Date.now() < ignoreOutsideUntil) return
+    if (open.value) open.value = false
+  },
+  {
+    ignore: ['.vel-help-dot', '[data-vel-help-anchor]'],
+  },
+)
 
 onUnmounted(() => {
   pos.value = {}
 })
+
+const teleportTo = computed(() => teleportTarget.value)
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport :to="teleportTo" :disabled="!open">
     <div
       v-if="open"
       ref="panel"
@@ -105,6 +131,7 @@ onUnmounted(() => {
       role="dialog"
       aria-modal="false"
       :style="pos"
+      @click.stop
     >
       <button type="button" class="vel-help-pop__x" aria-label="Close" @click="close">
         ×
