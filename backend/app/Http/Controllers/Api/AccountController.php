@@ -29,6 +29,10 @@ class AccountController extends Controller
             'level' => 'nullable|integer',
             'email' => 'nullable|email',
             'name' => 'nullable|string',
+            'attachment_kind' => 'nullable|string|in:image,file',
+            'attachment_name' => 'nullable|string|max:255',
+            'attachment_url' => 'nullable|url|max:2048',
+            'attachment_mime' => 'nullable|string|max:255',
         ]);
 
         // Важно: чат должен идти по email текущего клиента в UI,
@@ -76,6 +80,10 @@ class AccountController extends Controller
             'sender_type' => 'user',
             'sender_id' => $user->id,
             'message' => $request->body,
+            'attachment_kind' => $request->input('attachment_kind'),
+            'attachment_name' => $request->input('attachment_name'),
+            'attachment_url' => $request->input('attachment_url'),
+            'attachment_mime' => $request->input('attachment_mime'),
             'is_read' => false,
         ]);
 
@@ -87,6 +95,12 @@ class AccountController extends Controller
                 'id' => $message->id,
                 'text' => $message->message,
                 'created_at' => $message->created_at,
+                'attachment' => (!empty($message->attachment_url) && in_array((string) $message->attachment_kind, ['image', 'file'], true)) ? [
+                    'kind' => (string) $message->attachment_kind,
+                    'name' => (string) ($message->attachment_name ?? ''),
+                    'url' => (string) $message->attachment_url,
+                    'mime' => (string) ($message->attachment_mime ?? ''),
+                ] : null,
             ],
         ]);
     }
@@ -119,12 +133,21 @@ class AccountController extends Controller
             ->orderBy('created_at', 'asc')
             ->get()
             ->map(function ($msg) {
+                $attachmentUrl = trim((string) ($msg->attachment_url ?? ''));
+                $attachmentKind = trim((string) ($msg->attachment_kind ?? ''));
+
                 return [
                     'id' => $msg->id,
                     'author' => $msg->sender_type === 'manager' ? 'agent' : 'client',
                     'text' => $msg->message,
                     'at' => $msg->created_at->toISOString(),
                     'delivery' => 'sent',
+                    'attachment' => ($attachmentUrl !== '' && in_array($attachmentKind, ['image', 'file'], true)) ? [
+                        'kind' => $attachmentKind,
+                        'name' => (string) ($msg->attachment_name ?? ''),
+                        'url' => $attachmentUrl,
+                        'mime' => (string) ($msg->attachment_mime ?? ''),
+                    ] : null,
                 ];
             });
 

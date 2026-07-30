@@ -4,6 +4,7 @@ namespace App\Modules\Users\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class DocumentResource extends JsonResource
 {
@@ -14,6 +15,8 @@ class DocumentResource extends JsonResource
             'user_id' => $this->user_id,
             'type' => $this->type,
             'filename' => $this->filename,
+            'path' => $this->path,
+            'url' => $this->path ? Storage::disk('public')->url($this->path) : null,
             'mime_type' => $this->mime_type,
             'size' => $this->size,
             'status' => $this->status,

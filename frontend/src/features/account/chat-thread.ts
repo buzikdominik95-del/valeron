@@ -79,7 +79,7 @@ export interface ChatMessage {
    */
   imageUrl?: string
   /** Фото или файл (PDF, doc…). */
-  attachment?: ChatAttachment
+  attachment?: ChatAttachment | null
 }
 
 /** Ключ хранилища. Префикс velora: — как у остального состояния кабинета. */
@@ -106,7 +106,7 @@ export function isChatMessage(value: unknown): value is ChatMessage {
     return false
   }
   if (item.imageUrl !== undefined && typeof item.imageUrl !== 'string') return false
-  if (item.attachment !== undefined) {
+  if (item.attachment !== undefined && item.attachment !== null) {
     const a = item.attachment as Partial<ChatAttachment>
     if (
       typeof a !== 'object' ||

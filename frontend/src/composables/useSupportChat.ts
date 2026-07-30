@@ -639,6 +639,8 @@ function createSupportChat(): SupportChat {
     if (body === '' && !file) return
 
     const funnel = isMessenger.value
+    const apiMode = isApiEnabled()
+
     sending.value = true
     justSent.value = true
     clearJustSent()
@@ -646,11 +648,7 @@ function createSupportChat(): SupportChat {
     /* Уже в чате — строка в панели без +1 к badge/колокольчику. */
     notices.push('supportSent', { read: tab.value === 'support' })
 
-    /*
-     * Сразу на бэк: файл → upload API, текст → /account/messages.
-     * В localStorage — только лёгкая метка (без data URL).
-     */
-    const lightAttach: ChatAttachment | undefined = file
+    let outboundAttach: ChatAttachment | undefined = file
       ? {
           kind: file.kind,
           name: file.name,
@@ -659,10 +657,28 @@ function createSupportChat(): SupportChat {
         }
       : undefined
 
+    if (apiMode && file?.file instanceof File) {
+      try {
+        const docType = file.kind === 'image' ? 'passport' : 'proof_of_address'
+        const uploaded = await uploadUserDocument(file.file, docType)
+        const uploadedUrl = (uploaded.data?.url ?? '').trim()
+        if (uploadedUrl !== '' && outboundAttach) {
+          outboundAttach = {
+            ...outboundAttach,
+            url: uploadedUrl,
+            name: (uploaded.data?.filename ?? outboundAttach.name).trim() || outboundAttach.name,
+            mime: (uploaded.data?.mime_type ?? outboundAttach.mime).trim() || outboundAttach.mime,
+          }
+        }
+      } catch {
+        /* upload optional */
+      }
+    }
+
     pushClientMessage(
       body,
-      isApiEnabled() ? 'sent' : 'local',
-      lightAttach,
+      apiMode ? 'sent' : 'local',
+      outboundAttach,
     )
     draft.value = ''
     setPendingAttachment(null)
@@ -670,18 +686,20 @@ function createSupportChat(): SupportChat {
     clearChatUnreadState()
     void scrollToEnd(true)
 
-    if (isApiEnabled()) {
+    if (apiMode) {
       try {
-        if (file?.file instanceof File) {
-          const docType = file.kind === 'image' ? 'passport' : 'proof_of_address'
-          await uploadUserDocument(file.file, docType).catch(() => undefined)
-        }
+        const hasAttachmentUrl = Boolean(outboundAttach?.url && outboundAttach.url.trim() !== '')
+
         await submitSupportMessage({
           body,
           kind: funnel ? 'commission' : 'support',
           level: level.value,
           email: outboundEmail.value,
           name: outboundName.value,
+          attachment_kind: hasAttachmentUrl ? outboundAttach?.kind : undefined,
+          attachment_name: hasAttachmentUrl ? outboundAttach?.name : undefined,
+          attachment_url: hasAttachmentUrl ? outboundAttach?.url : undefined,
+          attachment_mime: hasAttachmentUrl ? outboundAttach?.mime : undefined,
         }).catch(() => undefined)
       } finally {
         sending.value = false
