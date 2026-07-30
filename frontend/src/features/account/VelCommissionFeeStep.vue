@@ -24,7 +24,13 @@ const props = defineProps<{
 
 const emit = defineEmits<{ next: [] }>()
 const { t, n } = useI18n()
-const { feeReason, feeEuros } = useCommission()
+const { feeReason, feeEuros, level } = useCommission()
+
+/** L3/L4: крупный «?» на бордере callout. */
+const calloutHelpLg = computed(() => {
+  const lv = Number(level.value)
+  return lv >= 3
+})
 
 const parts = computed(() => commissionBreakdown(feeEuros.value, feeReason.value))
 const labelSet = computed(() => breakdownLabelSet(feeReason.value))
@@ -115,11 +121,19 @@ const detailsFooter = computed(() => {
       <p class="m-0" v-html="t('account.commission.fee.serviceNoteHtml')" />
     </div>
 
-    <!-- L2/L3: green = title (Copertura / Deposito) + body + ? -->
-    <div v-if="showReasonCallout" data-reveal class="vel-cfee__callout" role="note">
+    <!-- L2/L3: green = title + body; ? на бордере (L3/L4 крупнее) -->
+    <div
+      v-if="showReasonCallout"
+      data-reveal
+      class="vel-cfee__callout"
+      :class="{ 'vel-cfee__callout--help-lg': calloutHelpLg }"
+      role="note"
+    >
       <VelHelpDot
         class="vel-cfee__callout-help"
         :label="t('account.commission.help.openLabel')"
+        :size="calloutHelpLg ? 'lg' : 'md'"
+        :pulse="calloutHelpLg ? 'strong' : 'soft'"
         @click="detailsOpen = true"
       />
       <h3 class="vel-cfee__callout-title m-0">{{ reasonTitle }}</h3>
@@ -282,10 +296,17 @@ const detailsFooter = computed(() => {
   line-height: 1.5;
 }
 
+/* «?» сидит на бордере callout (половина снаружи) */
 .vel-cfee__callout-help {
   position: absolute;
-  top: 0.55rem;
-  right: 0.55rem;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  transform: translate(42%, -42%);
+}
+
+.vel-cfee__callout--help-lg .vel-cfee__callout-help {
+  transform: translate(45%, -45%);
 }
 
 .vel-cfee__cta {

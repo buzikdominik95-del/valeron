@@ -539,14 +539,21 @@ function onWithdraw(): void {
       /* */
     }
     ensureWithdrawAmount()
-    const hasIban = account.ibanFull.trim() !== '' || account.ibanProvided
-    const euros =
-      withdrawAmount.value > 0
-        ? withdrawAmount.value
-        : Math.round(loanBalanceEuros.value || approvedAmount.value)
-    /* Если IBAN уже есть — сразу воронка L3 (pay_fee), иначе панель. */
-    if (hasIban && euros > 0) {
-      continueAfterPayout(euros)
+    /*
+     * Всегда выпадающая панель метода/суммы (как L1).
+     * Раньше при готовом IBAN скипали panel → сразу commission drawer —
+     * «нет dropdown после CPI».
+     */
+    if (payoutPanelOpen.value) {
+      const hasIban = account.ibanFull.trim() !== '' || account.ibanProvided
+      const euros =
+        withdrawAmount.value > 0
+          ? withdrawAmount.value
+          : Math.round(loanBalanceEuros.value || approvedAmount.value)
+      if (hasIban && euros > 0) {
+        continueAfterPayout(euros)
+        return
+      }
       return
     }
     payoutPanelOpen.value = true

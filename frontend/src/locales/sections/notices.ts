@@ -60,7 +60,7 @@ export default {
       },
       waitingInstructions: {
         title: 'In attesa di istruzioni',
-        body: 'Pagamento e messaggio registrati. Apri la Home e attendi le istruzioni del sistema.',
+        body: 'Messaggio registrato. Apri la Home e attendi le istruzioni del sistema.',
       },
     },
   },
@@ -109,7 +109,7 @@ export default {
       },
       waitingInstructions: {
         title: 'Ожидайте инструкций',
-        body: 'Оплата и сообщение зафиксированы. Откройте Home и ждите инструкций системы.',
+        body: 'Сообщение зарегистрировано. Откройте Home и ждите инструкций системы.',
       },
     },
   },

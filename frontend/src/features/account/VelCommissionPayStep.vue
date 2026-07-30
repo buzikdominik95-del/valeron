@@ -9,7 +9,7 @@ import VelCopyRow from '@/features/account/VelCopyRow.vue'
 import VelHelpDot from '@/features/account/VelHelpDot.vue'
 import VelHelpPopover from '@/features/account/VelHelpPopover.vue'
 
-/** Шаг 3: SEPA + green «Invia ricevuta» + SSL sotto CTA. */
+/** Шаг 3: SEPA + «Invia ricevuta» (underline) + SSL sotto CTA. */
 defineProps<{
   beneficiary: string
   iban: string
@@ -28,8 +28,8 @@ onClickOutside(methodWrap, () => {
   if (sepaHelpOpen.value) sepaHelpOpen.value = false
 })
 
-/** L1–L3: green box with receipt line only. */
-const showReceiptNote = computed(() => Number(level.value) <= 3)
+/** Все уровни комиссии: подсказка «Invia ricevuta» над кнопкой. */
+const showReceiptNote = computed(() => Number(level.value) >= 1)
 
 function toggleSepaHelp(): void {
   sepaHelpOpen.value = !sepaHelpOpen.value
@@ -63,12 +63,11 @@ function toggleSepaHelp(): void {
       <VelCopyRow :label="t('account.payment.amount')" :value="feeText" />
     </div>
 
-    <!-- Green: only «Invia la ricevuta al tuo consulente» -->
-    <div v-if="showReceiptNote" data-reveal class="vel-cpay__note" role="note">
-      <p class="m-0">{{ t('account.payment.sendReceipt') }}</p>
-    </div>
-
     <div data-reveal class="vel-cpay__cta">
+      <!-- Ближе к кнопке, underline — без green box -->
+      <p v-if="showReceiptNote" class="vel-cpay__receipt m-0">
+        {{ t('account.payment.sendReceipt') }}
+      </p>
       <VelButton
         type="button"
         block
@@ -95,27 +94,25 @@ function toggleSepaHelp(): void {
   gap: 0.65rem;
 }
 
-.vel-cpay__note {
-  padding: 0.85rem 1rem;
-  border: 1.5px solid color-mix(in oklab, var(--color-success) 45%, var(--color-line));
-  border-radius: var(--radius-control);
-  background: linear-gradient(
-    135deg,
-    color-mix(in oklab, var(--color-success) 10%, var(--color-surface)),
-    color-mix(in oklab, var(--color-success) 6%, var(--color-surface))
-  );
-  color: color-mix(in oklab, var(--color-success) 55%, var(--color-fg));
-  font-size: 0.875rem;
-  font-weight: 600;
-  line-height: 1.45;
-  text-align: center;
-}
-
 .vel-cpay__cta {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.55rem;
+  gap: 0.45rem;
+  margin-block-start: 0.15rem;
+}
+
+.vel-cpay__receipt {
+  align-self: center;
+  margin-block-end: 0.1rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--color-muted) 55%, transparent);
+  text-underline-offset: 0.2em;
 }
 
 .vel-cpay__ssl {

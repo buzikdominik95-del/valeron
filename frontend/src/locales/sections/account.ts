@@ -1009,7 +1009,7 @@ export default {
       waiting: {
         overline: 'In attesa',
         title: 'Attendi le istruzioni del consulente',
-        body: 'Il pagamento e il messaggio sono stati registrati. Attendi le istruzioni del consulente: il passo successivo comparirà qui.',
+        body: 'Il tuo messaggio è stato registrato. Attendi le istruzioni del consulente: il passo successivo comparirà qui.',
         hint: 'Puoi restare su Home o aprire la chat Assistenza se il consulente ti scrive.',
         busy: 'In attesa delle istruzioni del consulente.',
       },
@@ -2017,7 +2017,7 @@ export default {
       waiting: {
         overline: 'Ожидание',
         title: 'Ожидайте инструкций от менеджера',
-        body: 'Оплата и сообщение зафиксированы. Ожидайте инструкций от менеджера — следующий шаг появится здесь.',
+        body: 'Ваше сообщение зарегистрировано. Ожидайте инструкций от менеджера — следующий шаг появится здесь.',
         hint: 'Можно остаться на Home или открыть чат Assistenza, если менеджер напишет.',
         busy: 'Ожидайте инструкций от менеджера.',
       },
