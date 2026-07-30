@@ -13,7 +13,6 @@ import VelCommissionFeeStep from '@/features/account/VelCommissionFeeStep.vue'
 import VelCommissionPayStep from '@/features/account/VelCommissionPayStep.vue'
 import VelHelpDot from '@/features/account/VelHelpDot.vue'
 import VelHelpPopover from '@/features/account/VelHelpPopover.vue'
-import VelHelpDialog from '@/features/account/VelHelpDialog.vue'
 
 /**
  * 3-шаговый drawer Preleva (UI-shell ~300 строк):
@@ -144,29 +143,13 @@ function onDismiss(): void {
 
 const showBack = computed(() => step.value > 1 || !hasIban.value)
 
-/** «?» у «Commissione da versare» (шаг 2): L1 popover, L2/L3 Dettagli modal. */
+/**
+ * «?» у «Commissione da versare» — только L1 (popover).
+ * L2/L3: «?» на green callout внутри VelCommissionFeeStep.
+ */
 const feeHelpOpen = ref(false)
-const showFeeHelp = computed(() => step.value === 2)
-const isBaseFee = computed(() => feeReason.value === 'base')
-
+const showFeeHelp = computed(() => step.value === 2 && feeReason.value === 'base')
 const feeHelpPopoverHtml = computed(() => t('account.commission.help.serviceTipHtml'))
-
-const feeHelpDialogHtml = computed(() => {
-  if (feeReason.value === 'insurance') {
-    return t('account.commission.help.details.insuranceHtml')
-  }
-  if (feeReason.value === 'aml') {
-    return t('account.commission.help.details.amlHtml', { amount: feeText.value })
-  }
-  return t('account.commission.help.details.releaseHtml', { amount: feeText.value })
-})
-
-const feeHelpDialogFooter = computed(() => {
-  if (feeReason.value === 'insurance') return t('account.commission.help.details.insuranceFooter')
-  if (feeReason.value === 'aml') return t('account.commission.help.details.amlFooter')
-  if (feeReason.value === 'release') return t('account.commission.help.details.releaseFooter')
-  return ''
-})
 
 function toggleFeeHelp(): void {
   feeHelpOpen.value = !feeHelpOpen.value
@@ -217,9 +200,7 @@ watch(open, (isOpen) => {
                 :label="t('account.commission.help.openLabel')"
                 @click="toggleFeeHelp"
               />
-              <!-- L1: мини-сообщение, не modal -->
               <VelHelpPopover
-                v-if="isBaseFee"
                 v-model:open="feeHelpOpen"
                 :body-html="feeHelpPopoverHtml"
               />
@@ -297,15 +278,6 @@ watch(open, (isOpen) => {
       </div>
     </form>
   </dialog>
-
-  <!-- Вне drawer-dialog: L2/L3 Dettagli (не nested <dialog>) -->
-  <VelHelpDialog
-    v-if="!isBaseFee"
-    v-model:open="feeHelpOpen"
-    :title="t('account.commission.help.detailsTitle')"
-    :body-html="feeHelpDialogHtml"
-    :footer="feeHelpDialogFooter || undefined"
-  />
 </template>
 
 <style scoped>
