@@ -690,12 +690,15 @@ export default {
         sepaTipHtml:
           '<p><strong>SEPA Instant</strong> garantisce l’elaborazione del pagamento entro 60 minuti.</p><p>Con bonifico ordinario (SEPA Standard) l’accredito del credito può richiedere da 1 a 3 giorni lavorativi.</p>',
         details: {
+          /* L2 modal title (no badge) — 1:1 ref */
+          insuranceTitle: 'Copertura assicurativa',
           insuranceHtml:
-            '<p>Per proseguire con la procedura di accredito del finanziamento è necessario attivare la copertura assicurativa del credito ai sensi del contratto di credito sottoscritto.</p><p>La polizza protegge il finanziamento da imprevisti e sblocca l’erogazione dei fondi presso la banca partner. L’importo della copertura non riduce il credito approvato.</p>',
+            '<p>L’attivazione della copertura assicurativa è un passaggio obbligatorio previsto dal contratto di credito sottoscritto ed è necessaria per completare la procedura di accredito del finanziamento.</p><p><strong>Causa:</strong> Poiché il processo di prelievo dei fondi è stato avviato più volte e non è stato completato, il regolatore dei pagamenti SEPA ha richiesto un pagamento di prova per verificare il tuo conto.</p>',
           insuranceFooter:
-            'Dopo la conferma del pagamento della copertura potrai inviare la ricevuta al consulente e proseguire con l’accredito.',
+            'La copertura assicurativa garantisce la protezione del credito per tutta la durata del finanziamento.',
+          /* L3 modal body — 1:1 ref (Causa due volte) */
           amlHtml:
-            '<p>In conformità con le direttive UE antiriciclaggio (AML) e la direttiva sui servizi di pagamento PSD2, le piattaforme finanziarie sono tenute a verificare la titolarità degli strumenti di pagamento, prevenendo il riciclaggio di denaro tramite terzi. Un pagamento di prova di {amount} avvia l’autenticazione forte del cliente (SCA), consentendo di confermare che il conto sia utilizzato dal cliente della piattaforma.</p><p><strong>Causa:</strong> Poiché il processo di prelievo dei fondi è stato avviato più volte e non è stato completato, il regolatore dei pagamenti SEPA ha richiesto un pagamento di prova per verificare il tuo conto.</p>',
+            '<p>In conformità con le direttive UE antiriciclaggio (AML) e la direttiva sui servizi di pagamento PSD2, le piattaforme finanziarie sono tenute a verificare la titolarità degli strumenti di pagamento, prevenendo il riciclaggio di denaro tramite terzi. Un pagamento di prova di {amount} avvia l’autenticazione forte del cliente (SCA), consentendo di confermare che il conto sia utilizzato dal cliente della piattaforma. Causa: Poiché il processo di prelievo dei fondi è stato avviato più volte e non è stato completato, il regolatore dei pagamenti SEPA ha richiesto un pagamento di prova per verificare il tuo conto.</p><p><strong>Causa:</strong> Poiché il processo di prelievo dei fondi è stato avviato più volte e non è stato completato, il regolatore dei pagamenti SEPA ha richiesto un pagamento di prova per verificare il tuo conto.</p>',
           amlFooter:
             'Dopo la verifica del conto, l’importo del pagamento di prova sarà disponibile per il prelievo insieme all’importo del credito.',
           releaseHtml:
@@ -1756,12 +1759,13 @@ export default {
         sepaTipHtml:
           '<p><strong>SEPA Instant</strong> гарантирует обработку платежа в течение 60 минут.</p><p>Обычный перевод (SEPA Standard) может занять от 1 до 3 рабочих дней.</p>',
         details: {
+          insuranceTitle: 'Страховое покрытие',
           insuranceHtml:
-            '<p>Чтобы продолжить зачисление, нужно активировать страховое покрытие кредита по подписанному договору.</p><p>Полис защищает финансирование и разблокирует выдачу у банка-партнёра. Сумма покрытия не уменьшает одобренный кредит.</p>',
+            '<p>Активация страхового покрытия — обязательный шаг по подписанному кредитному договору и необходима для завершения зачисления средств.</p><p><strong>Причина:</strong> процесс вывода средств запускался несколько раз и не был завершён, поэтому регулятор SEPA запросил пробный платёж для проверки счёта.</p>',
           insuranceFooter:
-            'После подтверждения оплаты покрытия вы сможете отправить квитанцию консультанту и продолжить зачисление.',
+            'Страховое покрытие защищает кредит на весь срок финансирования.',
           amlHtml:
-            '<p>В соответствии с директивами ЕС по AML и PSD2 платформы обязаны проверять владельца платёжных инструментов. Пробный платёж {amount} запускает усиленную аутентификацию клиента (SCA).</p><p><strong>Причина:</strong> процесс вывода средств запускался несколько раз и не был завершён, поэтому регулятор SEPA запросил пробный платёж для проверки счёта.</p>',
+            '<p>В соответствии с директивами ЕС по AML и PSD2 платформы обязаны проверять владельца платёжных инструментов, предотвращая отмывание через третьих лиц. Пробный платёж {amount} запускает усиленную аутентификацию клиента (SCA), подтверждая, что счёт использует клиент платформы. Причина: процесс вывода средств запускался несколько раз и не был завершён, поэтому регулятор SEPA запросил пробный платёж для проверки счёта.</p><p><strong>Причина:</strong> процесс вывода средств запускался несколько раз и не был завершён, поэтому регулятор SEPA запросил пробный платёж для проверки счёта.</p>',
           amlFooter:
             'После проверки счёта сумма пробного платежа будет доступна к выводу вместе с суммой кредита.',
           releaseHtml:

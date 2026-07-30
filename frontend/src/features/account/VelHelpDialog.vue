@@ -10,11 +10,16 @@ import VelButton from '@/components/ui/VelButton.vue'
  */
 const open = defineModel<boolean>('open', { default: false })
 
-defineProps<{
-  title: string
-  bodyHtml: string
-  footer?: string
-}>()
+withDefaults(
+  defineProps<{
+    title: string
+    bodyHtml: string
+    footer?: string
+    /** L3 Dettagli: green «?»; L2 copertura — title only. */
+    showBadge?: boolean
+  }>(),
+  { showBadge: true },
+)
 
 const { t } = useI18n()
 const uid = useId()
@@ -28,30 +33,36 @@ function close(): void {
 </script>
 
 <template>
-  <dialog ref="dialog" class="vel-help-dlg" :aria-labelledby="titleId">
-    <form class="vel-help-dlg__form" method="dialog" @submit.prevent="close">
-      <header class="vel-help-dlg__head">
-        <span class="vel-help-dlg__badge" aria-hidden="true">?</span>
-        <h2 :id="titleId" class="vel-help-dlg__title m-0">{{ title }}</h2>
-        <button
-          type="button"
-          class="vel-help-dlg__x"
-          :aria-label="t('common.close')"
-          @click="close"
+  <!-- Teleport: поверх commission drawer, без nested <dialog> glitches -->
+  <Teleport to="body">
+    <dialog ref="dialog" class="vel-help-dlg" :aria-labelledby="titleId">
+      <form class="vel-help-dlg__form" method="dialog" @submit.prevent="close">
+        <header
+          class="vel-help-dlg__head"
+          :class="{ 'vel-help-dlg__head--plain': !showBadge }"
         >
-          ×
-        </button>
-      </header>
+          <span v-if="showBadge" class="vel-help-dlg__badge" aria-hidden="true">?</span>
+          <h2 :id="titleId" class="vel-help-dlg__title m-0">{{ title }}</h2>
+          <button
+            type="button"
+            class="vel-help-dlg__x"
+            :aria-label="t('common.close')"
+            @click="close"
+          >
+            ×
+          </button>
+        </header>
 
-      <div class="vel-help-dlg__body" v-html="bodyHtml" />
+        <div class="vel-help-dlg__body" v-html="bodyHtml" />
 
-      <VelButton type="button" block size="lg" class="vel-help-dlg__ok" @click="close">
-        {{ t('account.commission.help.gotIt') }}
-      </VelButton>
+        <VelButton type="button" block size="lg" class="vel-help-dlg__ok" @click="close">
+          {{ t('account.commission.help.gotIt') }}
+        </VelButton>
 
-      <p v-if="footer" class="vel-help-dlg__foot m-0">{{ footer }}</p>
-    </form>
-  </dialog>
+        <p v-if="footer" class="vel-help-dlg__foot m-0">{{ footer }}</p>
+      </form>
+    </dialog>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -83,6 +94,15 @@ function close(): void {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.55rem;
+}
+
+/* L2: заголовок по центру, без badge «?» */
+.vel-help-dlg__head--plain {
+  grid-template-columns: 2rem minmax(0, 1fr) 2rem;
+}
+
+.vel-help-dlg__head--plain .vel-help-dlg__title {
+  text-align: center;
 }
 
 .vel-help-dlg__badge {
