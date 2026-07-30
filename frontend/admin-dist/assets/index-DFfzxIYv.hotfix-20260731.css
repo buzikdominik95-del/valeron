@@ -106,3 +106,10 @@
   color:#fcd34d !important;
   box-shadow:0 0 0 1px rgba(245,158,11,.35),0 0 14px rgba(245,158,11,.30),inset 0 0 8px rgba(245,158,11,.18) !important;
 }
+/* hotfix 2026-07-31: typo variant profile_filed -> waiting style */
+.monitoring .docs-profile_filed[data-v-15558975]{
+  border:1px solid rgba(245,158,11,.95) !important;
+  background:rgba(245,158,11,.22) !important;
+  color:#fcd34d !important;
+  box-shadow:0 0 0 1px rgba(245,158,11,.35),0 0 14px rgba(245,158,11,.30),inset 0 0 8px rgba(245,158,11,.18) !important;
+}
