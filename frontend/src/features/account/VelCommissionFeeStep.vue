@@ -149,6 +149,7 @@ const detailsFooter = computed(() => {
       :body-html="detailsBodyHtml"
       :footer="detailsFooter || undefined"
       :show-badge="detailsShowBadge"
+      :size="feeReason === 'aml' || feeReason === 'release' ? 'lg' : 'default'"
     />
   </div>
 </template>
