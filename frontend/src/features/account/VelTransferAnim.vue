@@ -124,7 +124,8 @@ const showL2PagaCta = computed(
       isRejectAnim.value),
 )
 
-const l2PagaLabel = computed(() => t('account.commission.suspension.cta'))
+/** L2 fail CTA: «Mostra dettagli» (не «Paga la copertura»). */
+const l2PagaLabel = computed(() => t('account.commission.anim.viewDetailsCta'))
 
 function onL2PagaClick(): void {
   if (typeof openCommission === 'function') openCommission()
