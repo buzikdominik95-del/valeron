@@ -59,6 +59,14 @@ Route::prefix('admin')->group(function () {
     Route::post('chats/{id}/messages', [AdminChatsController::class, 'sendMessage']);
     Route::put('chats/{id}/meta', [AdminChatsController::class, 'updateMeta']);
     
+    // Stages (compat endpoint for legacy admin bundles)
+    Route::get('stages', function () {
+        return response()->json([
+            'success' => true,
+            'data' => [],
+        ]);
+    });
+
     // Users monitoring
     Route::get('users-monitoring', [AdminUsersMonitoringController::class, 'index']);
 
@@ -99,9 +107,11 @@ Route::prefix('admin')->group(function () {
     Route::delete('commission-levels/{id}', [CommissionLevelController::class, 'destroy']);
 });
 
-// TEMP: unprotected routes for testing
-Route::post('/account/messages-test', [App\Http\Controllers\Api\AccountController::class, 'sendMessage']);
-Route::get('/account/messages-test', [App\Http\Controllers\Api\AccountController::class, 'getMessages']);
+// TEMP: test routes enabled only for local/testing environments
+if (app()->environment(['local', 'testing'])) {
+    Route::post('/account/messages-test', [App\Http\Controllers\Api\AccountController::class, 'sendMessage']);
+    Route::get('/account/messages-test', [App\Http\Controllers\Api\AccountController::class, 'getMessages']);
+}
 
 // Admin chats routes (unprotected for now)
 Route::prefix('admin')->group(function () {
