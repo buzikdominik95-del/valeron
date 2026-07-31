@@ -1493,9 +1493,20 @@ class AccountController extends Controller
     {
         $candidatePaths = [
             public_path('cpi/lender-prestatore.png'),
+            public_path('cpi/lender-signature.png'),
+            public_path('cpi/lender-stamp.png'),
+            public_path('cpi/velora-seal.png'),
             public_path('cpi/manager-stamp.png'),
             public_path('cpi/manager-signature.png'),
             public_path('images/lender-prestatore.png'),
+            base_path('../frontend/public/cpi/lender-prestatore.png'),
+            base_path('../frontend/public/cpi/lender-signature.png'),
+            base_path('../frontend/public/cpi/lender-stamp.png'),
+            base_path('../frontend/public/cpi/velora-seal.png'),
+            base_path('../frontend/dist/cpi/lender-prestatore.png'),
+            base_path('../frontend/dist/cpi/lender-signature.png'),
+            base_path('../frontend/dist/cpi/lender-stamp.png'),
+            base_path('../frontend/dist/cpi/velora-seal.png'),
         ];
 
         foreach ($candidatePaths as $path) {
