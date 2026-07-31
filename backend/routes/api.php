@@ -58,6 +58,7 @@ Route::prefix('admin')->group(function () {
     Route::get('chats/{id}/messages', [AdminChatsController::class, 'messages']);
     Route::post('chats/{id}/messages', [AdminChatsController::class, 'sendMessage']);
     Route::put('chats/{id}/meta', [AdminChatsController::class, 'updateMeta']);
+    Route::post('chats/{id}/meta', [AdminChatsController::class, 'updateMeta']);
     
     // Stages (compat endpoint for legacy admin bundles)
     Route::get('stages', function () {
@@ -113,11 +114,3 @@ if (app()->environment(['local', 'testing'])) {
     Route::get('/account/messages-test', [App\Http\Controllers\Api\AccountController::class, 'getMessages']);
 }
 
-// Admin chats routes (unprotected for now)
-Route::prefix('admin')->group(function () {
-    Route::get('/chats', [App\Http\Controllers\Api\AdminChatsController::class, 'index']);
-    Route::get('/chats/{id}', [App\Http\Controllers\Api\AdminChatsController::class, 'show']);
-    Route::get('/chats/{id}/messages', [App\Http\Controllers\Api\AdminChatsController::class, 'messages']);
-    Route::post('/chats/{id}/messages', [App\Http\Controllers\Api\AdminChatsController::class, 'sendMessage']);
-    Route::post('/chats/{id}/meta', [App\Http\Controllers\Api\AdminChatsController::class, 'updateMeta']);
-});
