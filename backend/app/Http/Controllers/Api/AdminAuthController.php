@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminUser;
+use App\Support\AdminManagerLevelStore;
 use App\Support\AdminUiPermissionStore;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -49,6 +50,8 @@ class AdminAuthController extends Controller
                 'name' => $admin->name,
                 'email' => $admin->email,
                 'role' => $admin->role,
+                'uses_level_system' => (bool) ($admin->uses_level_system ?? true),
+                'handled_levels' => AdminManagerLevelStore::getFor((int) $admin->id),
                 'hidden_elements' => AdminUiPermissionStore::getFor((int) $admin->id),
             ],
             'token' => $token,
@@ -83,6 +86,8 @@ class AdminAuthController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role ?? 'admin',
+                'uses_level_system' => (bool) ($user->uses_level_system ?? true),
+                'handled_levels' => AdminManagerLevelStore::getFor((int) $user->id),
                 'hidden_elements' => AdminUiPermissionStore::getFor((int) $user->id),
             ],
         ]);

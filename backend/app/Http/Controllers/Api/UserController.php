@@ -24,6 +24,8 @@ class UserController extends Controller
                 'id' => $user->id,
                 'username' => $user->name,
                 'role' => $user->role,
+                'uses_level_system' => (bool) ($user->uses_level_system ?? true),
+                'handled_levels' => AdminManagerLevelStore::getFor((int) $user->id),
                 'hidden_elements' => AdminUiPermissionStore::getFor((int) $user->id),
                 'created_at' => $user->created_at,
             ]);
@@ -42,6 +44,9 @@ class UserController extends Controller
             'role' => 'required|in:manager,team_lead',
             'hidden_elements' => 'nullable|array',
             'hidden_elements.*' => 'string|max:80',
+            'uses_level_system' => 'nullable|boolean',
+            'handled_levels' => 'nullable|array',
+            'handled_levels.*' => 'integer|min:1|max:50',
         ]);
 
         $email = strtolower(preg_replace('/\s+/', '.', trim($validated['username']))) . '@admin.it-velora.com';
@@ -49,16 +54,28 @@ class UserController extends Controller
             $email = strtolower(preg_replace('/\s+/', '.', trim($validated['username']))) . '.' . time() . '@admin.it-velora.com';
         }
 
+        $usesLevelSystem = array_key_exists('uses_level_system', $validated)
+            ? (bool) $validated['uses_level_system']
+            : true;
+
         $user = AdminUser::create([
             'name' => $validated['username'],
             'email' => $email,
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
             'is_active' => true,
+            'uses_level_system' => $usesLevelSystem,
         ]);
 
         $hidden = $validated['hidden_elements'] ?? [];
         AdminUiPermissionStore::setFor((int) $user->id, $hidden);
+
+        $levels = is_array($validated['handled_levels'] ?? null) ? $validated['handled_levels'] : [];
+        if ($usesLevelSystem) {
+            AdminManagerLevelStore::setFor((int) $user->id, $levels);
+        } else {
+            AdminManagerLevelStore::removeFor((int) $user->id);
+        }
 
         return response()->json([
             'success' => true,
