@@ -10,10 +10,11 @@ import VelButton from '@/components/ui/VelButton.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
 import VelHelpDot from '@/features/account/VelHelpDot.vue'
 import VelHelpDialog from '@/features/account/VelHelpDialog.vue'
+import VelHelpPopover from '@/features/account/VelHelpPopover.vue'
 
 /**
  * Шаг 2 drawer: сумма + breakdown.
- * L1: note non detraibile; «?» в шапке drawer (popover).
+ * L1: note non detraibile; «?» на углу amount-box (popover service tip).
  * L2/L3: reason body в green callout + «?» → modal Dettagli.
  */
 const props = defineProps<{
@@ -45,6 +46,14 @@ function lineAmount(euros: number): string {
 
 /** L1: note non detraibile. */
 const showServiceNote = computed(() => feeReason.value === 'base')
+
+/** L1: «?» на углу amount-box → popover service tip. */
+const showAmountHelp = computed(() => feeReason.value === 'base')
+const serviceHelpOpen = ref(false)
+
+function toggleServiceHelp(): void {
+  serviceHelpOpen.value = !serviceHelpOpen.value
+}
 
 /** L2/L3(+): body в green box + help modal. */
 const showReasonCallout = computed(
@@ -90,6 +99,22 @@ const detailsFooter = computed(() => {
 <template>
   <div class="vel-cfee flex flex-col gap-3" style="overflow: visible">
     <div data-reveal class="vel-cfee__amount-box">
+      <!-- L1: «?» на углу importo; якорь popover = сам «?», не весь amount-box -->
+      <span
+        v-if="showAmountHelp"
+        class="vel-cfee__amount-help"
+        :data-vel-help-anchor="serviceHelpOpen ? 'open' : '1'"
+      >
+        <VelHelpDot
+          :label="t('account.commission.help.openLabel')"
+          @click="toggleServiceHelp"
+        />
+        <VelHelpPopover
+          v-model:open="serviceHelpOpen"
+          :body-html="t('account.commission.help.serviceTipHtml')"
+        />
+      </span>
+
       <p class="vel-label vel-cfee__amount-label m-0">
         {{ t('account.commission.fee.amountLabel') }}
       </p>
@@ -160,6 +185,7 @@ const detailsFooter = computed(() => {
 }
 
 .vel-cfee__amount-box {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -177,6 +203,20 @@ const detailsFooter = computed(() => {
   box-shadow:
     0 0.35rem 1.1rem color-mix(in oklab, var(--color-accent-deep) 6%, transparent),
     inset 0 1px 0 color-mix(in oklab, #fff 70%, transparent);
+  overflow: visible;
+}
+
+/* Центр «?» на верхнем-правом угле amount-box (L1) */
+.vel-cfee__amount-help {
+  --help-d: 1.43rem;
+  position: absolute;
+  z-index: 4;
+  top: calc(-0.5 * var(--help-d));
+  right: calc(-0.5 * var(--help-d));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
 }
 
 .vel-cfee__amount-label {
@@ -291,7 +331,7 @@ const detailsFooter = computed(() => {
 
 /* Центр «?» на верхнем-правом угле callout (стиль — общий VelHelpDot) */
 .vel-cfee__callout-help {
-  --help-d: 1.3rem;
+  --help-d: 1.43rem;
   position: absolute;
   z-index: 4;
   top: calc(-0.5 * var(--help-d));

@@ -47,18 +47,23 @@ function place(): void {
 
   const anchor = resolveAnchor()
   const margin = 12
+  const gap = 8
   const width = Math.min(300, window.innerWidth - margin * 2)
   let left = (window.innerWidth - width) / 2
   let top = margin + 56
 
   if (anchor) {
     const r = anchor.getBoundingClientRect()
-    left = r.left + r.width / 2 - width / 2
-    left = Math.max(margin, Math.min(left, window.innerWidth - width - margin))
-    top = r.bottom + 8
     const h = el.offsetHeight || 180
+
+    /* Предпочитаем панель под «?», выровненную по правому краю якоря
+       (угол amount-box / callout — «?» справа). */
+    left = r.right - width
+    left = Math.max(margin, Math.min(left, window.innerWidth - width - margin))
+
+    top = r.bottom + gap
     if (top + h > window.innerHeight - margin) {
-      top = Math.max(margin, r.top - h - 8)
+      top = Math.max(margin, r.top - h - gap)
     }
   }
 
