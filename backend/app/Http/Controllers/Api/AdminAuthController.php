@@ -59,7 +59,7 @@ class AdminAuthController extends Controller
     {
         $user = $request->user('sanctum') ?? $request->user();
         if (!$user) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
+            return response()->json(['message' => 'Already logged out']);
         }
 
         $token = $user->currentAccessToken();
