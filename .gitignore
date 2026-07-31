@@ -15,3 +15,10 @@ codebase-memory/
 
 # Frontend build artifacts
 frontend/dist/
+
+# Server-side transient artifacts
+*.bak
+*.bak_*
+*.bak-*
+HTTPS
+progress/window_backups/
