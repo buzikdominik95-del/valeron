@@ -15,6 +15,8 @@ use App\Http\Controllers\Api\AdminLeadController;
 use App\Http\Controllers\Api\ManagerController;
 use App\Http\Controllers\Api\AdminCommissionController;
 
+$adminAuthRequire = filter_var(env('ADMIN_API_REQUIRE_AUTH', false), FILTER_VALIDATE_BOOL);
+
 // Test Sentry endpoint
 Route::get("/test-sentry", function() {
     throw new \Exception("🔥 Test Sentry from API - " . now());
@@ -47,11 +49,21 @@ Route::post('account/emails/credit-approval', [ApprovalEmailController::class, '
 
 // Admin Auth routes
 Route::post('/admin/auth/login', [AdminAuthController::class, 'login']);
-Route::post('/admin/auth/logout', [AdminAuthController::class, 'logout']);
-Route::get('/admin/auth/me', [AdminAuthController::class, 'me']);
+$adminLogoutRoute = Route::post('/admin/auth/logout', [AdminAuthController::class, 'logout']);
+$adminMeRoute = Route::get('/admin/auth/me', [AdminAuthController::class, 'me']);
+
+if ($adminAuthRequire) {
+    $adminLogoutRoute->middleware('auth:sanctum');
+    $adminMeRoute->middleware('auth:sanctum');
+}
 
 // Admin routes
-Route::prefix('admin')->group(function () {
+$adminRoutes = Route::prefix('admin');
+if ($adminAuthRequire) {
+    $adminRoutes->middleware('auth:sanctum');
+}
+
+$adminRoutes->group(function () {
     // Chats
     Route::get('chats', [AdminChatsController::class, 'index']);
     Route::get('chats/{id}', [AdminChatsController::class, 'show']);
