@@ -61,13 +61,14 @@ PY
 python3 - <<PY
 from pathlib import Path
 
+canonical = "${CANONICAL_DOMAIN}".strip()
 path = Path("nginx.conf")
 text = path.read_text()
 needle = "# ===== VELORA HTTPS ====="
 if needle not in text:
     raise SystemExit("VELORA HTTPS block not found")
 
-redirect_line = f"        return 301 https://${CANONICAL_DOMAIN}$request_uri;"
+redirect_line = f"        return 301 https://{canonical}\$request_uri;"
 if redirect_line in text:
     print("nginx canonical redirect already present")
 else:
@@ -89,8 +90,8 @@ echo "[apply] clear laravel cache"
 docker exec calipso_app php /var/www/backend/artisan route:clear
 docker exec calipso_app php /var/www/backend/artisan config:clear
 
-echo "[apply] run migrations"
-docker exec calipso_app php /var/www/backend/artisan migrate --force
+echo "[apply] run targeted migration (hot-path indexes)"
+docker exec calipso_app php /var/www/backend/artisan migrate --path=database/migrations/2026_07_31_121500_add_hot_path_indexes_for_chat_and_tokens.php --force
 
 echo "[apply] validate/reload nginx"
 docker exec calipso_nginx nginx -t

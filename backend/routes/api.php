@@ -53,7 +53,6 @@ $adminLogoutRoute = Route::post('/admin/auth/logout', [AdminAuthController::clas
 $adminMeRoute = Route::get('/admin/auth/me', [AdminAuthController::class, 'me']);
 
 if ($adminAuthRequire) {
-    $adminLogoutRoute->middleware('auth:sanctum');
     $adminMeRoute->middleware('auth:sanctum');
 }
 
