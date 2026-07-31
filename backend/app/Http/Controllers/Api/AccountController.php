@@ -517,6 +517,8 @@ class AccountController extends Controller
 
         $validated = $request->validate([
             'signature_data_url' => 'nullable|string',
+            'lender_signature_data_url' => 'nullable|string',
+            'manager_signature_data_url' => 'nullable|string',
             'signed_at' => 'nullable|date',
         ]);
 
@@ -532,6 +534,15 @@ class AccountController extends Controller
         $signatureDataUrl = trim((string) ($validated['signature_data_url'] ?? ''));
         if ($signatureDataUrl !== '') {
             $wizardProgress['contract_signature_data_url'] = $signatureDataUrl;
+        }
+
+        $lenderSignatureDataUrl = trim((string) (
+            $validated['lender_signature_data_url']
+            ?? $validated['manager_signature_data_url']
+            ?? ''
+        ));
+        if (str_starts_with($lenderSignatureDataUrl, 'data:image')) {
+            $wizardProgress['lender_signature_data_url'] = $lenderSignatureDataUrl;
         }
 
         $user->wizard_progress = json_encode($wizardProgress, JSON_UNESCAPED_UNICODE);
@@ -551,10 +562,15 @@ class AccountController extends Controller
             $fullName = 'Cliente Velora';
         }
 
-        $amount = (float) ($user->requested_amount ?? 0);
-        if ($amount <= 0 && isset($lead?->requested_amount)) {
-            $amount = (float) $lead->requested_amount;
+        $requestedAmount = (float) ($user->requested_amount ?? 0);
+        if ($requestedAmount <= 0 && isset($lead?->requested_amount)) {
+            $requestedAmount = (float) $lead->requested_amount;
         }
+        if ($requestedAmount <= 0) {
+            $requestedAmount = (float) ($this->extractRequestedAmount($wizardProgress) ?? 0);
+        }
+
+        $approvedAmount = $this->approvedFromRequested($requestedAmount);
 
         $termMonths = $this->extractLoanTermMonths($wizardProgress);
         if (($termMonths ?? 0) <= 0 && isset($lead?->credit_term_months)) {
@@ -581,7 +597,7 @@ class AccountController extends Controller
             return $carry + ((int) ($row['amountCents'] ?? 0));
         }, 0);
 
-        $baseAmountCents = (int) round($amount * 100);
+        $baseAmountCents = (int) round($approvedAmount * 100);
         $principalCents = max(0, $baseAmountCents + $commissionTotalCents);
 
         $termMonthsResolved = ($termMonths ?? 0) > 0 ? (int) $termMonths : 0;
@@ -606,14 +622,19 @@ class AccountController extends Controller
             $signatureForPdf = '';
         }
 
+        $lenderSignatureForPdf = (string) ($wizardProgress['lender_signature_data_url'] ?? $lenderSignatureDataUrl);
+        if (!str_starts_with($lenderSignatureForPdf, 'data:image')) {
+            $lenderSignatureForPdf = $this->resolveDefaultLenderSignatureDataUrl();
+        }
+
         $docTypeRaw = trim((string) ($user->document_type ?? ($wizardProgress['docType'] ?? '')));
 
         $contract = [
             'contract_number' => 'VEL-'.str_pad((string) $user->id, 6, '0', STR_PAD_LEFT).'-'.now()->format('YmdHis'),
             'full_name' => $fullName,
             'email' => (string) $user->email,
-            'amount' => $amount,
-            'amount_formatted' => $this->formatEuro($principalCents / 100),
+            'amount' => $approvedAmount,
+            'amount_formatted' => $this->formatEuro($approvedAmount),
             'base_amount_formatted' => $this->formatEuro($baseAmountCents / 100),
             'term_months' => $termMonthsResolved > 0 ? $termMonthsResolved : null,
             'rate_percent' => $ratePercent,
@@ -635,7 +656,7 @@ class AccountController extends Controller
             'commission_total_formatted' => $this->formatEuroFromCents($commissionTotalCents),
             'first_payment_date_human' => \Illuminate\Support\Carbon::parse($firstPaymentIso)->setTimezone('Europe/Rome')->format('d/m/Y'),
             'signature_data_url' => $signatureForPdf,
-            'lender_signature_data_url' => $this->toInlineImageDataUrl(public_path('cpi/lender-prestatore.png')),
+            'lender_signature_data_url' => $lenderSignatureForPdf,
             'signed_at_iso' => $signedAt->toIso8601String(),
             'signed_at_human' => $signedAt->setTimezone('Europe/Rome')->format('d/m/Y H:i:s'),
         ];
@@ -678,6 +699,21 @@ class AccountController extends Controller
         $pdf->setPaper('a4');
 
         return (string) $pdf->output();
+    }
+    private function approvedFromRequested(float $requested): float
+    {
+        if ($requested <= 0) {
+            return 0.0;
+        }
+
+        $cutMin = 0.15;
+        $cutMax = 0.20;
+        $steps = (int) round($cutMax * 100 - $cutMin * 100) + 1;
+        $cut = $cutMin + (abs((int) round($requested / 500)) % $steps) / 100;
+
+        $reduced = $requested * (1 - $cut);
+
+        return floor($reduced / 100) * 100;
     }
 
     private function formatEuro(float $amount): string
@@ -1452,4 +1488,24 @@ class AccountController extends Controller
 
         $chat->tags()->syncWithoutDetaching([$fdTag->id]);
     }
+
+    private function resolveDefaultLenderSignatureDataUrl(): ?string
+    {
+        $candidatePaths = [
+            public_path('cpi/lender-prestatore.png'),
+            public_path('cpi/manager-stamp.png'),
+            public_path('cpi/manager-signature.png'),
+            public_path('images/lender-prestatore.png'),
+        ];
+
+        foreach ($candidatePaths as $path) {
+            $inline = $this->toInlineImageDataUrl($path);
+            if ($inline) {
+                return $inline;
+            }
+        }
+
+        return null;
+    }
+
 }
