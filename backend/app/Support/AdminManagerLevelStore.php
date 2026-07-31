@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\DB;
 
 class AdminManagerLevelStore
 {
+    private const PRIMARY_KEY = 'manager_handled_levels';
+
     /** @var array<int>|null */
     private static ?array $defaultLevels = null;
 
@@ -19,40 +21,92 @@ class AdminManagerLevelStore
         }
 
         $keys = [
+            self::PRIMARY_KEY,
             'manager_levels_by_admin',
             'admin_manager_levels',
-            'manager_handled_levels',
         ];
 
         foreach ($keys as $key) {
-            $raw = DB::table('system_settings')->where('key', $key)->value('value');
-
-            if (!is_string($raw)) {
+            $map = self::getSettingsMap($key);
+            if (empty($map)) {
                 continue;
             }
 
-            if (trim($raw) === '') {
-                continue;
-            }
-
-            $decoded = json_decode($raw, true);
-            if (!is_array($decoded)) {
-                continue;
-            }
-
-            $entry = $decoded[(string) $adminId] ?? $decoded[$adminId] ?? null;
+            $entry = $map[(string) $adminId] ?? $map[$adminId] ?? null;
             if (!is_array($entry)) {
                 continue;
             }
 
-            $levels = array_values(array_unique(array_filter(array_map(static fn ($v) => (int) $v, $entry), static fn ($v) => $v > 0)));
-            sort($levels);
+            $levels = self::sanitizeLevels($entry);
             if (!empty($levels)) {
                 return $levels;
             }
         }
 
         return self::getDefaultLevels();
+    }
+
+    /**
+     * @param array<int,mixed> $levels
+     */
+    public static function setFor(int $adminId, array $levels): void
+    {
+        if ($adminId <= 0) {
+            return;
+        }
+
+        $normalized = self::sanitizeLevels($levels);
+        if (empty($normalized)) {
+            $normalized = [1];
+        }
+
+        $map = self::getSettingsMap(self::PRIMARY_KEY);
+        $map[(string) $adminId] = $normalized;
+        self::saveSettingsMap(self::PRIMARY_KEY, $map);
+    }
+
+    public static function removeFor(int $adminId): void
+    {
+        if ($adminId <= 0) {
+            return;
+        }
+
+        $map = self::getSettingsMap(self::PRIMARY_KEY);
+        $changed = false;
+
+        if (array_key_exists((string) $adminId, $map)) {
+            unset($map[(string) $adminId]);
+            $changed = true;
+        }
+
+        if (array_key_exists($adminId, $map)) {
+            unset($map[$adminId]);
+            $changed = true;
+        }
+
+        if ($changed) {
+            self::saveSettingsMap(self::PRIMARY_KEY, $map);
+        }
+    }
+
+    /**
+     * @param array<int,mixed> $levels
+     * @return array<int>
+     */
+    private static function sanitizeLevels(array $levels): array
+    {
+        $result = [];
+        foreach ($levels as $value) {
+            $n = (int) $value;
+            if ($n > 0) {
+                $result[] = $n;
+            }
+        }
+
+        $result = array_values(array_unique($result));
+        sort($result);
+
+        return $result;
     }
 
     /**
@@ -99,5 +153,37 @@ class AdminManagerLevelStore
         self::$defaultLevels = $levels;
 
         return self::$defaultLevels;
+    }
+
+    private static function getSettingsMap(string $key): array
+    {
+        $raw = DB::table('system_settings')->where('key', $key)->value('value');
+
+        if (!is_string($raw)) {
+            return [];
+        }
+
+        if (trim($raw) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        return $decoded;
+    }
+
+    private static function saveSettingsMap(string $key, array $map): void
+    {
+        DB::table('system_settings')->updateOrInsert(
+            ['key' => $key],
+            [
+                'value' => json_encode($map, JSON_UNESCAPED_UNICODE),
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminUser;
+use App\Support\AdminManagerLevelStore;
 use App\Support\AdminUiPermissionStore;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -79,15 +80,30 @@ class UserController extends Controller
         $validated = $request->validate([
             'hidden_elements' => 'required|array',
             'hidden_elements.*' => 'string|max:80',
+            'uses_level_system' => 'nullable|boolean',
+            'handled_levels' => 'nullable|array',
+            'handled_levels.*' => 'integer|min:1|max:50',
         ]);
 
         AdminUiPermissionStore::setFor((int) $user->id, $validated['hidden_elements']);
 
+        if (array_key_exists('uses_level_system', $validated)) {
+            $user->uses_level_system = (bool) $validated['uses_level_system'];
+            $user->save();
+        }
+
+        if (array_key_exists('handled_levels', $validated)) {
+            $levels = is_array($validated['handled_levels']) ? $validated['handled_levels'] : [];
+            AdminManagerLevelStore::setFor((int) $user->id, $levels);
+        }
+
         return response()->json([
             'success' => true,
-            'message' => 'Права интерфейса сохранены',
+            'message' => 'Ограничения менеджера сохранены',
             'data' => [
                 'id' => $user->id,
+                'uses_level_system' => (bool) ($user->uses_level_system ?? true),
+                'handled_levels' => AdminManagerLevelStore::getFor((int) $user->id),
                 'hidden_elements' => AdminUiPermissionStore::getFor((int) $user->id),
             ],
         ]);
