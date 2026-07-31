@@ -124,7 +124,7 @@ const showL2PagaCta = computed(
       isRejectAnim.value),
 )
 
-/** L2 fail CTA: «Visualizza i dettagli» (не «Paga la copertura»). */
+/** L2 fail CTA: «Mostra dettagli» (не «Paga la copertura»). */
 const l2PagaLabel = computed(() => t('account.commission.anim.viewDetailsCta'))
 
 function onL2PagaClick(): void {
