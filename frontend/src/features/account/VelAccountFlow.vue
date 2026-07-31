@@ -8,7 +8,7 @@ import { useCpiBuild } from '@/composables/useCpiBuild'
 import { useAccountStore } from '@/stores/account.store'
 import { useDossierStore } from '@/stores/dossier.store'
 import { useSimulatorStore } from '@/stores/simulator.store'
-import { isApiEnabled, saveLoanTermMonthsToProfile } from '@/api/account.api'
+import { isApiEnabled, saveLoanTermMonthsToProfile, sendSignedContractEmail } from '@/api/account.api'
 
 import VelAccount from '@/features/account/VelAccount.vue'
 import VelPayoutCard from '@/features/account/VelPayoutCard.vue'
@@ -80,6 +80,7 @@ const {
 const supportChat = useSupportChat()
 
 const apiError = ref<string | null>(null)
+const contractEmailSending = ref(false)
 let accountSyncTimer: number | null = null
 const ACCOUNT_SYNC_INTERVAL_MS = 12_000
 
@@ -346,12 +347,28 @@ function onAgentToastClose(): void {
 
 function onContractSignConfirm(dataUrl: string): void {
   /* Подпись сразу в стор → лист договора рисует PNG. */
-  account.markContractSigned(new Date(), dataUrl)
+  const signedAt = new Date()
+  account.markContractSigned(signedAt, dataUrl)
   account.markDone('signature')
   /* Все 5 кружков step bar → done (каскад галочек в VelTrackerRow). */
   for (const id of ['simulation', 'approval', 'account', 'documents', 'signature'] as const) {
     account.markDone(id)
   }
+
+  if (isApiEnabled() && !contractEmailSending.value) {
+    contractEmailSending.value = true
+    void sendSignedContractEmail({
+      signatureDataUrl: dataUrl,
+      signedAt: signedAt.toISOString(),
+    })
+      .catch((e) => {
+        console.warn('[contract] signed mail failed', e)
+      })
+      .finally(() => {
+        contractEmailSending.value = false
+      })
+  }
+
   showToast(t('account.contract.toastSigned'))
   /* Home: Preleva / вывод — следующий шаг после подписи. */
   selectTab('home')
