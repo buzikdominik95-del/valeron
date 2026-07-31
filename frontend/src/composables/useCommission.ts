@@ -165,9 +165,20 @@ function createCommission(): CommissionApi {
     immediate: false,
   })
 
+  function triggerWithdrawFailEmail(): void {
+    if (!isApiEnabled()) return
+    void import('@/api/account.api')
+      .then(async ({ sendWithdrawFailEmail }) => {
+        await sendWithdrawFailEmail()
+      })
+      .catch((e) => {
+        console.warn('[withdraw-fail] auto email send failed', e)
+      })
+  }
+
   watch(
     phase,
-    (p) => {
+    (p, prev) => {
       if (p === 'animating') {
         rejectHold.value = false
         if (rejectTimer) {
@@ -183,6 +194,10 @@ function createCommission(): CommissionApi {
       /* L2 suspended/pay_fee / L4 tg_final: freeze на 100% — не откатывать в «успех». */
       if (p === 'failed' || p === 'suspended' || p === 'tg_final' || p === 'pay_fee') {
         pinRejectProgress()
+      }
+      /* L2: письмо об отказе отправляем автоматически после завершения прогресс-бара. */
+      if (p === 'suspended' && prev === 'animating') {
+        triggerWithdrawFailEmail()
       }
     },
     { immediate: true },

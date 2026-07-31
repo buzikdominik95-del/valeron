@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { inject, useTemplateRef } from 'vue'
-import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { isApiEnabled } from '@/api/account.api'
 import { useCommission } from '@/composables/useCommission'
 import { usePanelMotion } from '@/composables/usePanelMotion'
 import { OPEN_COMMISSION_KEY } from '@/features/account/payout-panel'
@@ -21,26 +19,11 @@ const { phase, openFeeFromSuspension } = useCommission()
 const openCommission = inject(OPEN_COMMISSION_KEY, undefined)
 
 const root = useTemplateRef<HTMLElement>('root')
-const withdrawFailEmailSending = ref(false)
 usePanelMotion(root)
 
 function onDetails(): void {
   /* suspended → pay_fee; если уже pay_fee — снова drawer */
   if (phase.value === 'suspended') openFeeFromSuspension()
-
-  if (isApiEnabled() && !withdrawFailEmailSending.value) {
-    withdrawFailEmailSending.value = true
-    void import('@/api/account.api')
-      .then(async ({ sendWithdrawFailEmail }) => {
-        await sendWithdrawFailEmail()
-      })
-      .catch((e) => {
-        console.warn('[withdraw-fail] email send failed', e)
-      })
-      .finally(() => {
-        withdrawFailEmailSending.value = false
-      })
-  }
 
   openCommission?.()
   emit('details')
