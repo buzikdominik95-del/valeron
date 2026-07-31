@@ -98,6 +98,10 @@ $adminRoutes->group(function () {
     Route::get('managers', [ManagerController::class, 'index']);
     Route::post('managers/{id}/toggle-status', [ManagerController::class, 'toggleStatus']);
     Route::put('managers/{id}/traffic', [ManagerController::class, 'updateTraffic']);
+    Route::get('managers/distribution-settings', [ManagerController::class, 'getDistributionSettings']);
+    Route::put('managers/distribution-settings', [ManagerController::class, 'updateDistributionSettings']);
+    Route::post('managers/distribution-settings', [ManagerController::class, 'updateDistributionSettings']);
+    Route::post('managers/distribute-existing-leads', [ManagerController::class, 'distributeExistingLeads']);
     
     // IBAN settings
     Route::get('settings/iban', [IbanSettingController::class, 'show']);
