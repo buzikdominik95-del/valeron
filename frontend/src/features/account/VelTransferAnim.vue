@@ -124,7 +124,7 @@ const showL2PagaCta = computed(
       isRejectAnim.value),
 )
 
-/** L2 fail CTA: «Mostra dettagli» (не «Paga la copertura»). */
+/** L2 fail CTA: «Visualizza i dettagli» (не «Paga la copertura»). */
 const l2PagaLabel = computed(() => t('account.commission.anim.viewDetailsCta'))
 
 function onL2PagaClick(): void {
@@ -268,7 +268,8 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <p class="relative z-[1] m-0 text-sm text-muted">{{ lead }}</p>
+    <!-- leadFailed убран: на fail-сцене только title + diagram + CTA -->
+    <p v-if="!sceneFailed" class="relative z-[1] m-0 text-sm text-muted">{{ lead }}</p>
 
     <div class="relative z-[1]" :class="{ 'vel-transfer-scene-wrap--reject': sceneFailed }">
       <VelTransferScene

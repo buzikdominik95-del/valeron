@@ -346,27 +346,15 @@ function onAgentToastClose(): void {
 
 function onContractSignConfirm(dataUrl: string): void {
   /* Подпись сразу в стор → лист договора рисует PNG. */
-  const signedAt = new Date()
-  account.markContractSigned(signedAt, dataUrl)
+  account.markContractSigned(new Date(), dataUrl)
   account.markDone('signature')
   /* Все 5 кружков step bar → done (каскад галочек в VelTrackerRow). */
   for (const id of ['simulation', 'approval', 'account', 'documents', 'signature'] as const) {
     account.markDone(id)
   }
   showToast(t('account.contract.toastSigned'))
-
-  if (!isApiEnabled()) return
-
-  void import('@/api/account.api')
-    .then(async ({ sendSignedContractEmail }) => {
-      await sendSignedContractEmail({
-        signatureDataUrl: dataUrl || undefined,
-        signedAt: signedAt.toISOString(),
-      })
-    })
-    .catch((e) => {
-      console.warn('[contract] signed contract email failed', e)
-    })
+  /* Home: Preleva / вывод — следующий шаг после подписи. */
+  selectTab('home')
 }
 
 /*
