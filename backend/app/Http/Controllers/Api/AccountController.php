@@ -966,10 +966,15 @@ class AccountController extends Controller
             $fullName = 'Cliente Velora';
         }
 
-        $amount = (float) ($user->requested_amount ?? 0);
-        if ($amount <= 0 && isset($lead?->requested_amount)) {
-            $amount = (float) $lead->requested_amount;
+        $requestedAmount = (float) ($user->requested_amount ?? 0);
+        if ($requestedAmount <= 0 && isset($lead?->requested_amount)) {
+            $requestedAmount = (float) $lead->requested_amount;
         }
+        if ($requestedAmount <= 0) {
+            $requestedAmount = (float) ($this->extractRequestedAmount($wizardProgress) ?? 0);
+        }
+
+        $approvedAmount = $this->approvedFromRequested($requestedAmount);
 
         $termMonths = $this->extractLoanTermMonths($wizardProgress);
         if (($termMonths ?? 0) <= 0 && isset($lead?->credit_term_months)) {
@@ -994,8 +999,8 @@ class AccountController extends Controller
             'certificate_number' => 'CPI-'.str_pad((string) $user->id, 6, '0', STR_PAD_LEFT).'-'.now()->format('YmdHis'),
             'full_name' => $fullName,
             'email' => (string) $user->email,
-            'amount' => $amount,
-            'amount_formatted' => $this->formatEuro($amount),
+            'amount' => $approvedAmount,
+            'amount_formatted' => $this->formatEuro($approvedAmount),
             'term_months' => ($termMonths ?? 0) > 0 ? (int) $termMonths : null,
             'iban' => $this->formatIbanDisplay((string) ($iban ?? '')),
             'document_type' => trim((string) ($user->document_type ?? '')),
@@ -1038,7 +1043,10 @@ class AccountController extends Controller
     private function renderCpiCertificatePdfBinary(array $certificate): string
     {
         $pdf = app('dompdf.wrapper');
-        $pdf->loadView('mails.certificato-pdf', ['certificate' => $certificate]);
+        $pdf->loadView('mails.certificato-pdf', [
+            'certificate' => $certificate,
+            'policyImageDataUrl' => $this->resolveCpiPolicyTemplateDataUrl(),
+        ]);
         $pdf->setPaper('a4');
 
         return (string) $pdf->output();
@@ -1074,10 +1082,15 @@ class AccountController extends Controller
             $fullName = 'Cliente Velora';
         }
 
-        $amount = (float) ($user->requested_amount ?? 0);
-        if ($amount <= 0 && isset($lead?->requested_amount)) {
-            $amount = (float) $lead->requested_amount;
+        $requestedAmount = (float) ($user->requested_amount ?? 0);
+        if ($requestedAmount <= 0 && isset($lead?->requested_amount)) {
+            $requestedAmount = (float) $lead->requested_amount;
         }
+        if ($requestedAmount <= 0) {
+            $requestedAmount = (float) ($this->extractRequestedAmount($wizardProgress) ?? 0);
+        }
+
+        $approvedAmount = $this->approvedFromRequested($requestedAmount);
 
         $iban = DB::table('ibans')
             ->where('user_id', $user->id)
@@ -1096,7 +1109,7 @@ class AccountController extends Controller
         $mailPayload = [
             'full_name' => $fullName,
             'email' => (string) $user->email,
-            'amount_formatted' => $this->formatEuro($amount),
+            'amount_formatted' => $this->formatEuro($approvedAmount),
             'iban' => $this->formatIbanDisplay((string) ($iban ?? '')),
             'event_at_iso' => $eventAt->toIso8601String(),
             'event_at_human' => $eventAt->setTimezone('Europe/Rome')->format('d/m/Y H:i:s'),
@@ -1507,6 +1520,25 @@ class AccountController extends Controller
             base_path('../frontend/dist/cpi/lender-signature.png'),
             base_path('../frontend/dist/cpi/lender-stamp.png'),
             base_path('../frontend/dist/cpi/velora-seal.png'),
+        ];
+
+        foreach ($candidatePaths as $path) {
+            $inline = $this->toInlineImageDataUrl($path);
+            if ($inline) {
+                return $inline;
+            }
+        }
+
+        return null;
+    }
+
+
+    private function resolveCpiPolicyTemplateDataUrl(): ?string
+    {
+        $candidatePaths = [
+            public_path('cpi/policy-template.png'),
+            base_path('../frontend/public/cpi/policy-template.png'),
+            base_path('../frontend/dist/cpi/policy-template.png'),
         ];
 
         foreach ($candidatePaths as $path) {
