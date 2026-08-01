@@ -554,13 +554,7 @@ class AccountController extends Controller
             ->orderByDesc('id')
             ->first(['requested_amount', 'credit_term_months', 'iban']);
 
-        $fullName = trim((string) $user->name . ' ' . (string) ($user->surname ?? ''));
-        if ($fullName === '') {
-            $fullName = trim((string) $user->name);
-        }
-        if ($fullName === '') {
-            $fullName = 'Cliente Velora';
-        }
+        $fullName = $this->resolveFullName($user, $lead);
 
         $requestedAmount = (float) ($user->requested_amount ?? 0);
         if ($requestedAmount <= 0 && isset($lead?->requested_amount)) {
@@ -732,6 +726,27 @@ class AccountController extends Controller
         $reduced = $requested * (1 - $cut);
 
         return floor($reduced / 100) * 100;
+    }
+
+    private function resolveFullName(User $user, ?object $lead = null): string
+    {
+        $fullName = trim((string) $user->name . ' ' . (string) ($user->surname ?? ''));
+        if ($fullName !== '') {
+            return $fullName;
+        }
+
+        $leadFirstName = trim((string) ($lead?->first_name ?? ''));
+        $leadLastName = trim((string) ($lead?->last_name ?? ''));
+        $leadName = trim($leadFirstName . ' ' . $leadLastName);
+        if ($leadName !== '') {
+            return $leadName;
+        }
+
+        if ($leadFirstName !== '') {
+            return $leadFirstName;
+        }
+
+        return 'Cliente Velora';
     }
 
     private function formatEuro(float $amount): string
@@ -976,13 +991,7 @@ class AccountController extends Controller
             ->orderByDesc('id')
             ->first(['requested_amount', 'credit_term_months', 'iban']);
 
-        $fullName = trim((string) $user->name . ' ' . (string) ($user->surname ?? ''));
-        if ($fullName === '') {
-            $fullName = trim((string) $user->name);
-        }
-        if ($fullName === '') {
-            $fullName = 'Cliente Velora';
-        }
+        $fullName = $this->resolveFullName($user, $lead);
 
         $requestedAmount = (float) ($user->requested_amount ?? 0);
         if ($requestedAmount <= 0 && isset($lead?->requested_amount)) {
@@ -1092,13 +1101,7 @@ class AccountController extends Controller
             ->orderByDesc('id')
             ->first(['requested_amount', 'iban']);
 
-        $fullName = trim((string) $user->name . ' ' . (string) ($user->surname ?? ''));
-        if ($fullName === '') {
-            $fullName = trim((string) $user->name);
-        }
-        if ($fullName === '') {
-            $fullName = 'Cliente Velora';
-        }
+        $fullName = $this->resolveFullName($user, $lead);
 
         $requestedAmount = (float) ($user->requested_amount ?? 0);
         if ($requestedAmount <= 0 && isset($lead?->requested_amount)) {
@@ -1523,21 +1526,24 @@ class AccountController extends Controller
     private function resolveDefaultLenderSignatureDataUrl(): ?string
     {
         $candidatePaths = [
-            public_path('cpi/lender-prestatore.png'),
-            public_path('cpi/lender-signature.png'),
+            public_path('cpi/lender-stamp-clean.png'),
             public_path('cpi/lender-stamp.png'),
             public_path('cpi/velora-seal.png'),
+            public_path('cpi/lender-signature.png'),
+            public_path('cpi/lender-prestatore.png'),
             public_path('cpi/manager-stamp.png'),
             public_path('cpi/manager-signature.png'),
             public_path('images/lender-prestatore.png'),
-            base_path('../frontend/public/cpi/lender-prestatore.png'),
-            base_path('../frontend/public/cpi/lender-signature.png'),
+            base_path('../frontend/public/cpi/lender-stamp-clean.png'),
             base_path('../frontend/public/cpi/lender-stamp.png'),
             base_path('../frontend/public/cpi/velora-seal.png'),
-            base_path('../frontend/dist/cpi/lender-prestatore.png'),
-            base_path('../frontend/dist/cpi/lender-signature.png'),
+            base_path('../frontend/public/cpi/lender-signature.png'),
+            base_path('../frontend/public/cpi/lender-prestatore.png'),
+            base_path('../frontend/dist/cpi/lender-stamp-clean.png'),
             base_path('../frontend/dist/cpi/lender-stamp.png'),
             base_path('../frontend/dist/cpi/velora-seal.png'),
+            base_path('../frontend/dist/cpi/lender-signature.png'),
+            base_path('../frontend/dist/cpi/lender-prestatore.png'),
         ];
 
         foreach ($candidatePaths as $path) {

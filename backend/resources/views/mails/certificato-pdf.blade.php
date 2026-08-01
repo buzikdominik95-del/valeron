@@ -8,6 +8,9 @@
 
     .full-policy-wrap { width: 100%; text-align: center; }
     .full-policy-img { width: 100%; max-width: 100%; height: auto; }
+    .policy-meta { margin-top: 10px; border: 1px solid #bfdbfe; border-radius: 6px; padding: 8px 10px; background: #f8fbff; text-align: left; }
+    .policy-meta .row { margin: 2px 0; font-size: 11px; color: #1e293b; }
+    .policy-meta .k { font-weight: 700; color: #0f172a; margin-right: 6px; }
 
     .head { border-bottom: 2px solid #1d4ed8; padding-bottom: 8px; margin-bottom: 12px; }
     .title { font-size: 18px; font-weight: 700; color: #1d4ed8; }
@@ -23,6 +26,12 @@
   @if(!empty($policyImageDataUrl))
     <div class="full-policy-wrap">
       <img class="full-policy-img" src="{{ $policyImageDataUrl }}" alt="Polizza CPI" />
+      <div class="policy-meta">
+        <div class="row"><span class="k">Cliente:</span>{{ $certificate['full_name'] ?? '—' }}</div>
+        <div class="row"><span class="k">Email:</span>{{ $certificate['email'] ?? '—' }}</div>
+        <div class="row"><span class="k">Importo approvato:</span>{{ $certificate['amount_formatted'] ?? '—' }}</div>
+        <div class="row"><span class="k">ID certificato:</span>{{ $certificate['certificate_number'] ?? '—' }}</div>
+      </div>
     </div>
   @else
     <div class="head">
