@@ -3,10 +3,9 @@ import type { ComputedRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
-import { useCommission } from '@/composables/useCommission'
 import { useAccountStore } from '@/stores/account.store'
 import { TERM_DEFAULT, useSimulatorStore } from '@/stores/simulator.store'
-import { COMMISSION_FEE_BY_LEVEL, commissionAddsToLoanBalance } from '@/api/commission'
+import { commissionAddsToLoanBalance } from '@/api/commission'
 import { buildLoanPlan } from '@/lib/loan-schedule'
 import type { LoanPlan } from '@/lib/loan-schedule'
 import {
@@ -84,7 +83,6 @@ export interface ContractView {
 export function useContractData(): ContractView {
   const { t, te, locale } = useI18n()
   const { client, approvedAmount, ratePercent } = useAccount()
-  const { level } = useCommission()
   const accountStore = useAccountStore()
   const { contractSigned, contractSignedAt, ibanMasked, paidCommissionExpenses } =
     storeToRefs(accountStore)
@@ -128,36 +126,17 @@ export function useContractData(): ContractView {
   const months = computed(() => (termMonths.value > 0 ? termMonths.value : TERM_DEFAULT))
 
   /**
-   * Тело кредита + комиссии L2…L4 (как в Prestito / балансе).
-   * L1 base к кредиту не идёт. Fallback по level, если список ещё пуст.
+   * Тело кредита в договоре фиксировано: только одобренная сумма.
+   * Переключение этапов L3/L4 не должно менять условия договора.
    */
-  const principalCents = computed(() => {
-    let cents = Math.round(approvedAmount.value * 100)
-    const fees = paidCommissionExpenses.value.filter((e) =>
-      commissionAddsToLoanBalance(e.level),
-    )
-    if (fees.length > 0) {
-      for (const exp of fees) cents += exp.amountCents
-      return cents
-    }
-    if (level.value >= 3) cents += COMMISSION_FEE_BY_LEVEL[2].amountCents
-    if (level.value >= 4) cents += COMMISSION_FEE_BY_LEVEL[3].amountCents
-    return cents
-  })
+  const principalCents = computed(() => Math.round(approvedAmount.value * 100))
 
-  /** Сумма оплаченных комиссий в центах (для итога totalPaid) — без L1 / L4. */
-  const feesPaidCents = computed(() => {
-    const list = paidCommissionExpenses.value.filter((e) =>
-      commissionAddsToLoanBalance(e.level),
-    )
-    if (list.length > 0) {
-      return list.reduce((s, e) => s + e.amountCents, 0)
-    }
-    let cents = 0
-    if (level.value >= 3) cents += COMMISSION_FEE_BY_LEVEL[2].amountCents
-    if (level.value >= 4) cents += COMMISSION_FEE_BY_LEVEL[3].amountCents
-    return cents
-  })
+  /** Сумма реально оплаченных комиссий в центах (без стадийных fallback). */
+  const feesPaidCents = computed(() =>
+    paidCommissionExpenses.value
+      .filter((e) => commissionAddsToLoanBalance(e.level))
+      .reduce((sum, e) => sum + e.amountCents, 0),
+  )
 
   const plan = computed<LoanPlan>(() =>
     buildLoanPlan(
@@ -209,7 +188,7 @@ export function useContractData(): ContractView {
     { key: 'iban', label: t('contract.sheet.fields.iban'), value: ibanMasked.value },
   ])
 
-  /** Importo erogato = одобрено + комиссии (единый источник с балансом). */
+  /** Importo erogato в договоре = только одобренная сумма. */
   const amountText = computed(() => money.value.format(principalCents.value / 100))
   const monthlyText = computed(() => money.value.format(plan.value.monthlyPaymentCents / 100))
   const durationText = computed(() => t('contract.sheet.months', { count: months.value }))
@@ -228,30 +207,18 @@ export function useContractData(): ContractView {
   })
 
   /**
-   * Rate + строки комиссий L2…L4 (без L1 base).
-   * Fallback по level — как principalCents, если store ещё пуст.
+   * В договор попадают только фактически оплаченные комиссии,
+   * без добавления виртуальных строк по текущему этапу.
    */
-  const feeExpenseRows = computed(() => {
-    const stored = paidCommissionExpenses.value.filter((e) =>
-      commissionAddsToLoanBalance(e.level),
-    )
-    if (stored.length > 0) {
-      return stored.map((exp) => ({
+  const feeExpenseRows = computed(() =>
+    paidCommissionExpenses.value
+      .filter((e) => commissionAddsToLoanBalance(e.level))
+      .map((exp) => ({
         level: exp.level,
         amountCents: exp.amountCents,
         paidAt: exp.paidAt,
-      }))
-    }
-    const list: { level: number; amountCents: number; paidAt: string }[] = []
-    const today = new Date().toISOString().slice(0, 10)
-    if (level.value >= 3) {
-      list.push({ level: 2, amountCents: COMMISSION_FEE_BY_LEVEL[2].amountCents, paidAt: today })
-    }
-    if (level.value >= 4) {
-      list.push({ level: 3, amountCents: COMMISSION_FEE_BY_LEVEL[3].amountCents, paidAt: today })
-    }
-    return list
-  })
+      })),
+  )
 
   const rows = computed<ContractScheduleRow[]>(() => {
     const installments = plan.value.rows.map((row) => ({
@@ -278,8 +245,8 @@ export function useContractData(): ContractView {
   })
 
   /*
-   * Строка итога: rate + комиссии в count и totalPaid;
-   * principal — полное тело (одобрено + комиссии).
+   * Строка итога: основной график + фактически оплаченные комиссии.
+   * principal всегда равен договорной сумме кредита.
    */
   const totals = computed<ContractScheduleRow>(() => {
     const rowCount = months.value + feeExpenseRows.value.length
