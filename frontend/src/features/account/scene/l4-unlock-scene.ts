@@ -292,6 +292,28 @@ function gCard(ctx: CanvasRenderingContext2D, x: number, y: number, s: number): 
   ctx.stroke()
 }
 
+/** Mini icona banca (sotto caption slot sinistro). */
+function gBank(ctx: CanvasRenderingContext2D, x: number, y: number, s: number): void {
+  const k = s / 24
+  ctx.beginPath()
+  ctx.moveTo(x - 9 * k, y + 2 * k)
+  ctx.lineTo(x, y - 7 * k)
+  ctx.lineTo(x + 9 * k, y + 2 * k)
+  ctx.closePath()
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.rect(x - 7.5 * k, y + 2 * k, 15 * k, 6 * k)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.moveTo(x - 4 * k, y + 2 * k)
+  ctx.lineTo(x - 4 * k, y + 8 * k)
+  ctx.moveTo(x, y + 2 * k)
+  ctx.lineTo(x, y + 8 * k)
+  ctx.moveTo(x + 4 * k, y + 2 * k)
+  ctx.lineTo(x + 4 * k, y + 8 * k)
+  ctx.stroke()
+}
+
 function gLock(ctx: CanvasRenderingContext2D, x: number, y: number, s: number): void {
   const k = s / 24
   ctx.beginPath()
@@ -727,6 +749,9 @@ function drawPerson(ctx: CanvasRenderingContext2D, f: number, look: 'bob' | 'cro
   ctx.restore()
 }
 
+/**
+ * Banca partner (ex carta VELORA) — edificio stile transfer-scene, slot sinistro.
+ */
 function drawCard(
   ctx: CanvasRenderingContext2D,
   f: number,
@@ -736,65 +761,158 @@ function drawCard(
 ): void {
   const app = I(f, T.card[0], T.card[1], 0, 1, easeOut)
   if (app <= 0.001) return
-  const sc = I(f, T.card[0], T.card[1], 0.8, 1, easeBack)
-  const fl = Math.sin(f / 34) * 6
+  const sc = I(f, T.card[0], T.card[1], 0.82, 1, easeBack)
+  const fl = Math.sin(f / 34) * 4
   let kick = 0
   const kt = f - T.coin[0]
-  if (kt >= 0 && kt < 16) kick = Math.sin((kt / 16) * Math.PI) * 0.035
-  ctx.save()
-  ctx.globalAlpha = app
-  ctx.translate(CARD.x, CARD.y + fl)
-  ctx.rotate(-0.09 - kick)
-  ctx.scale(sc, sc)
-  ctx.save()
-  ctx.shadowColor = 'rgba(20,40,150,.4)'
-  ctx.shadowBlur = 44
-  ctx.shadowOffsetY = 24
-  const g = ctx.createLinearGradient(-150, -95, 150, 95)
-  g.addColorStop(0, '#4f6bff')
-  g.addColorStop(0.55, '#2544c2')
-  g.addColorStop(1, '#122a8f')
-  ctx.fillStyle = g
-  rr(ctx, -150, -95, 300, 190, 24)
-  ctx.fill()
-  ctx.restore()
-  ctx.strokeStyle = '#fff'
-  ctx.lineWidth = 5
-  ctx.beginPath()
-  ctx.moveTo(96, -70)
-  ctx.lineTo(110, -40)
-  ctx.lineTo(124, -70)
-  ctx.stroke()
-  txt(ctx, 'VELORA', -128, -62, 15, 'bold', 'rgba(255,255,255,.85)', 'left', '0.24em')
-  const cg = ctx.createLinearGradient(-124, -26, -78, 10)
-  cg.addColorStop(0, C.gold2)
-  cg.addColorStop(1, C.gold4)
-  ctx.fillStyle = cg
-  rr(ctx, -124, -26, 46, 36, 7)
-  ctx.fill()
-  ctx.fillStyle = 'rgba(255,255,255,.8)'
-  for (let gr = 0; gr < 3; gr++) {
-    for (let i = 0; i < 4; i++) {
-      ctx.beginPath()
-      ctx.arc(-122 + gr * 44 + i * 9, 44, 3, 0, 7)
-      ctx.fill()
-    }
-  }
-  const tail = accountTail.slice(-4) || '••••'
-  txt(ctx, tail, 20, 50, 20, 'bold', 'rgba(255,255,255,.92)', 'left', '0.14em')
-  /* Credit amount instead of test 1 € */
-  txt(ctx, amountLabel, 132, 80, 22, 'bold', '#fff', 'right')
-  ctx.restore()
+  if (kt >= 0 && kt < 16) kick = Math.sin((kt / 16) * Math.PI) * 0.02
 
   ctx.save()
   ctx.globalAlpha = app
+  ctx.translate(CARD.x, CARD.y + fl + 18)
+  ctx.rotate(-kick)
+  ctx.scale(sc, sc)
+
+  /* Ombra sotto la base */
+  ctx.save()
+  ctx.shadowColor = 'rgba(20,40,150,.28)'
+  ctx.shadowBlur = 36
+  ctx.shadowOffsetY = 16
+  ctx.fillStyle = 'rgba(18,42,143,.12)'
+  ctx.beginPath()
+  ctx.ellipse(0, 92, 168, 22, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+
+  /* Gradini */
+  ctx.fillStyle = '#8ea4f5'
+  rr(ctx, -168, 72, 336, 18, 6)
+  ctx.fill()
+  ctx.fillStyle = '#6f8aef'
+  rr(ctx, -152, 56, 304, 18, 6)
+  ctx.fill()
+  ctx.fillStyle = '#5574e6'
+  rr(ctx, -136, 40, 272, 18, 6)
+  ctx.fill()
+
+  /* Stylobate */
+  ctx.fillStyle = C.brand
+  rr(ctx, -128, 26, 256, 14, 4)
+  ctx.fill()
+
+  /* Muro */
+  ctx.fillStyle = '#e8edfb'
+  rr(ctx, -116, -98, 232, 124, 6)
+  ctx.fill()
+  ctx.strokeStyle = C.brand
+  ctx.lineWidth = 2.4
+  rr(ctx, -116, -98, 232, 124, 6)
+  ctx.stroke()
+
+  /* Porta */
+  ctx.fillStyle = C.deep
+  ctx.beginPath()
+  ctx.moveTo(-22, 26)
+  ctx.lineTo(-22, -36)
+  ctx.arc(0, -36, 22, Math.PI, 0)
+  ctx.lineTo(22, 26)
+  ctx.closePath()
+  ctx.fill()
+
+  /* Finestre */
+  ctx.fillStyle = '#c5d2f8'
+  ctx.strokeStyle = C.deep
+  ctx.lineWidth = 2
+  for (const wx of [-88, 60] as const) {
+    rr(ctx, wx, -78, 28, 40, 4)
+    ctx.fill()
+    rr(ctx, wx, -78, 28, 40, 4)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(wx + 14, -78)
+    ctx.lineTo(wx + 14, -38)
+    ctx.moveTo(wx, -58)
+    ctx.lineTo(wx + 28, -58)
+    ctx.stroke()
+  }
+
+  /* Colonne */
+  for (let i = 0; i < 5; i++) {
+    const x = -96 + i * 48
+    ctx.fillStyle = '#dce4fb'
+    ctx.strokeStyle = C.brand
+    ctx.lineWidth = 2
+    rr(ctx, x - 9, -92, 18, 108, 3)
+    ctx.fill()
+    rr(ctx, x - 9, -92, 18, 108, 3)
+    ctx.stroke()
+    ctx.fillStyle = C.brand
+    rr(ctx, x - 13, -100, 26, 10, 2)
+    ctx.fill()
+    rr(ctx, x - 12, 10, 24, 10, 2)
+    ctx.fill()
+  }
+
+  /* Architrave + BANCA */
+  ctx.fillStyle = C.brand
+  rr(ctx, -144, -126, 288, 26, 5)
+  ctx.fill()
+  txt(ctx, 'BANCA', 0, -108, 16, 'bold', 'rgba(255,255,255,.9)', 'center', '0.28em')
+
+  /* Frontone */
+  ctx.beginPath()
+  ctx.moveTo(-152, -126)
+  ctx.lineTo(0, -198)
+  ctx.lineTo(152, -126)
+  ctx.closePath()
+  ctx.fillStyle = '#c8d4f7'
+  ctx.fill()
+  ctx.strokeStyle = C.brand
+  ctx.lineWidth = 2.8
+  ctx.stroke()
+  ctx.strokeStyle = C.brand
+  ctx.lineWidth = 2.4
+  circ(ctx, 0, -158, 14)
+  ctx.stroke()
+  for (let i = 0; i < 8; i++) {
+    const a = (i * Math.PI) / 4
+    ctx.beginPath()
+    ctx.moveTo(Math.cos(a) * 18, -158 + Math.sin(a) * 18)
+    ctx.lineTo(Math.cos(a) * 23, -158 + Math.sin(a) * 23)
+    ctx.stroke()
+  }
+
+  /* Bandiera */
+  ctx.strokeStyle = C.brand
+  ctx.lineWidth = 3
+  ctx.beginPath()
+  ctx.moveTo(0, -198)
+  ctx.lineTo(0, -238)
+  ctx.stroke()
+  const wave = Math.sin(f / 9) * 3.5
+  ctx.fillStyle = C.brand2
+  ctx.beginPath()
+  ctx.moveTo(0, -236)
+  ctx.quadraticCurveTo(20, -230 + wave, 38, -224)
+  ctx.quadraticCurveTo(20, -218 + wave, 0, -214)
+  ctx.closePath()
+  ctx.fill()
+
+  /* Importo sotto la base (ex on-card amount) */
+  txt(ctx, amountLabel, 0, 118, 22, 'bold', C.ink, 'center')
+
+  ctx.restore()
+
+  const tail = accountTail.slice(-4) || '••••'
+  ctx.save()
+  ctx.globalAlpha = app
   txt(ctx, caption, CARD.x, 660, 24, 'bold', C.mid, 'center')
-  const s2 = `•• ${tail}`
+  const s2 = `IBAN •• ${tail}`
   const wd = tw(ctx, s2, 20, 'normal')
   ctx.strokeStyle = C.faint
   ctx.lineWidth = 2
-  gCard(ctx, CARD.x - wd / 2 - 15, 684, 21)
-  txt(ctx, s2, CARD.x - wd / 2 + 4, 691, 20, 'normal', C.faint, 'left')
+  gBank(ctx, CARD.x - wd / 2 - 16, 684, 21)
+  txt(ctx, s2, CARD.x - wd / 2 + 6, 691, 20, 'normal', C.faint, 'left')
   ctx.restore()
 }
 
@@ -805,7 +923,8 @@ function drawCoinFlight(
 ): void {
   const t = (f - T.coin[0]) / (T.coin[1] - T.coin[0])
   if (t < 0 || t > 1) return
-  const a = { x: CARD.x + 110, y: CARD.y + 30 }
+  /* Moneta parte dalla facciata banca (ex angolo carta) */
+  const a = { x: CARD.x + 40, y: CARD.y - 20 }
   const b = { x: RCP.x - 30, y: RCP.y - 92 }
   const ctrl = { x: (a.x + b.x) / 2, y: Math.min(a.y, b.y) - 230 }
   const e = easeIO(t)
