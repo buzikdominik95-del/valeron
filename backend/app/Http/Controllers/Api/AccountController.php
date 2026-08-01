@@ -1060,6 +1060,33 @@ class AccountController extends Controller
         return 'data:'.$mime.';base64,'.base64_encode($raw);
     }
 
+    private function decodePdfDataUrl(string $dataUrl): ?string
+    {
+        if (!preg_match('/^data:application\/pdf;base64,(.+)$/i', $dataUrl, $matches)) {
+            return null;
+        }
+
+        $payload = preg_replace('/\s+/', '', (string) ($matches[1] ?? ''));
+        if (!is_string($payload) || $payload === '') {
+            return null;
+        }
+
+        $binary = base64_decode($payload, true);
+        if (!is_string($binary) || $binary === '') {
+            return null;
+        }
+
+        if (strlen($binary) > 10 * 1024 * 1024) {
+            return null;
+        }
+
+        if (!str_starts_with($binary, '%PDF')) {
+            return null;
+        }
+
+        return $binary;
+    }
+
 
     public function sendCpiCertificateEmail(Request $request)
     {
@@ -1071,6 +1098,7 @@ class AccountController extends Controller
 
         $validated = $request->validate([
             'viewed_at' => 'nullable|date',
+            'certificate_pdf_data_url' => 'nullable|string',
         ]);
 
         $viewedAt = isset($validated['viewed_at'])
@@ -1137,7 +1165,14 @@ class AccountController extends Controller
         $pdfFileName = 'Certificato_CPI_'.$user->id.'_'.$viewedAt->format('Ymd_His').'.pdf';
 
         try {
-            $pdfBinary = $this->renderCpiCertificatePdfBinary($certificate);
+            $pdfBinary = '';
+            $certificatePdfDataUrl = trim((string) ($validated['certificate_pdf_data_url'] ?? ''));
+            if ($certificatePdfDataUrl !== '') {
+                $pdfBinary = (string) ($this->decodePdfDataUrl($certificatePdfDataUrl) ?? '');
+            }
+            if ($pdfBinary === '') {
+                $pdfBinary = $this->renderCpiCertificatePdfBinary($certificate);
+            }
 
             Mail::to($user->email)->send(new CertificatoMail(
                 certificate: $certificate,

@@ -602,6 +602,7 @@ export function sendSignedContractEmail(
 
 export interface SendCpiCertificatePayload {
   viewedAt?: string
+  certificatePdfDataUrl?: string
 }
 
 export interface SendCpiCertificateResponse {
@@ -619,6 +620,7 @@ export function sendCpiCertificateEmail(
     method: 'POST',
     body: {
       viewed_at: payload.viewedAt ?? null,
+      certificate_pdf_data_url: payload.certificatePdfDataUrl ?? null,
     },
     signal,
   })

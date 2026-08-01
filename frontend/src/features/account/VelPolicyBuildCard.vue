@@ -15,6 +15,7 @@ import VelBorderBeam from '@/components/magic/VelBorderBeam.vue'
 import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
 import VelCpiGenAnim from '@/features/account/VelCpiGenAnim.vue'
 import VelCpiViewConfirm from '@/features/account/VelCpiViewConfirm.vue'
+import { fillCpiCertificatePdf } from '@/lib/fill-contract-pdf'
 
 /**
  * L3 Home:
@@ -84,13 +85,41 @@ function onConfirmViewed(): void {
 }
 
 
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result ?? ''))
+    reader.onerror = () => reject(reader.error ?? new Error('FileReader failed'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+async function buildCabinetCpiPdfDataUrl(): Promise<string | null> {
+  try {
+    const bytes = await fillCpiCertificatePdf(CPI_POLICY_IMG, {
+      fullName: holderName.value || 'Cliente Velora',
+    })
+    const bytesCopy = new Uint8Array(bytes.byteLength)
+    bytesCopy.set(bytes)
+    const blob = new Blob([bytesCopy.buffer], { type: 'application/pdf' })
+    return await blobToDataUrl(blob)
+  } catch (e) {
+    console.warn('[cpi] build cabinet pdf failed', e)
+    return null
+  }
+}
+
 function sendCertificateEmailOnClose(): void {
   if (!isApiEnabled() || certEmailSending.value) return
 
   certEmailSending.value = true
   void import('@/api/account.api')
     .then(async ({ sendCpiCertificateEmail }) => {
-      await sendCpiCertificateEmail({ viewedAt: new Date().toISOString() })
+      const certificatePdfDataUrl = await buildCabinetCpiPdfDataUrl()
+      await sendCpiCertificateEmail({
+        viewedAt: new Date().toISOString(),
+        certificatePdfDataUrl: certificatePdfDataUrl ?? undefined,
+      })
     })
     .catch((e) => {
       console.warn('[cpi] certificate email failed', e)
