@@ -4,13 +4,13 @@ import { computed, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTimeoutFn } from '@vueuse/core'
 import { useAccount } from '@/composables/useAccount'
+import { useDossierStore } from '@/stores/dossier.store'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useCommission } from '@/composables/useCommission'
 import { useCpiBuild } from '@/composables/useCpiBuild'
 import { accountStepHref } from '@/features/account/account-anchors'
 import { useAccountStore } from '@/stores/account.store'
 import type { AccountStep } from '@/stores/account.store'
-import { COMMISSION_FEE_BY_LEVEL, commissionAddsToLoanBalance } from '@/api/commission'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
 
@@ -41,10 +41,10 @@ const emit = defineEmits<{
 
 const { t, n } = useI18n()
 const accountStore = useAccountStore()
+const dossierStore = useDossierStore()
 const { select: selectTab } = useCabinetTab()
 
 const {
-  approvedAmount,
   canWithdraw,
   isAuthorizing,
   pendingSteps,
@@ -73,22 +73,6 @@ const lockedId = `vel-payout-locked-${uid}`
 /** Единый статус действий — в шапке рядом с «Ваш баланс» (без дубля busy-плашки). */
 const statusId = `vel-payout-status-${uid}`
 
-/**
- * Одобрено + комиссии L2…L4 (не L1 base 37 € — к счёту не идёт).
- * Store после confirmFeePaid / admin advance; fallback из таблицы.
- */
-const paidFeesEuros = computed(() => {
-  const list = accountStore.paidCommissionExpenses
-  let cents = 0
-  for (let lv = 1; lv < level.value && lv <= 4; lv++) {
-    if (!commissionAddsToLoanBalance(lv)) continue
-    const row = list.find((e) => e.level === lv)
-    const fee = COMMISSION_FEE_BY_LEVEL[lv as 1 | 2 | 3 | 4]
-    cents += row?.amountCents ?? fee.amountCents
-  }
-  return cents / 100
-})
-
 /* При смене этапа дописываем недостающие комиссии (L3 136 € на L4). */
 watch(
   level,
@@ -98,7 +82,11 @@ watch(
   { immediate: true },
 )
 
-const displayAmount = computed(() => approvedAmount.value + paidFeesEuros.value)
+const displayAmount = computed(() => {
+  const fromServer = Number(dossierStore.dossier.credit.approvedAmountCents ?? 0) / 100
+  if (Number.isFinite(fromServer) && fromServer > 0) return fromServer
+  return 0
+})
 
 const amountText = computed(() => n(displayAmount.value, 'currency'))
 
