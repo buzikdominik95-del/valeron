@@ -91,6 +91,7 @@ const coords = computed(() => {
 })
 const feeText = computed(() => n(feeEuros.value, 'currency'))
 const sepaIban = computed(() => formatIbanDisplay(coords.value.iban))
+const paymentTexts = computed(() => (dossier.value.paymentCoords ?? dossier.value.payment_coords)?.texts ?? {})
 
 const commissionContent = computed(() => dossier.value.commission.content ?? {})
 const reasonTitle = computed(() => {
@@ -297,6 +298,14 @@ watch(open, (isOpen) => {
           :iban="sepaIban"
           :swift="coords.swift"
           :fee-text="feeText"
+          :lead-override="paymentTexts.lead"
+          :method-label-override="paymentTexts.method"
+          :beneficiary-label-override="paymentTexts.beneficiaryLabel"
+          :iban-label-override="paymentTexts.ibanLabel"
+          :swift-label-override="paymentTexts.swiftLabel"
+          :amount-label-override="paymentTexts.amountLabel"
+          :receipt-text-override="paymentTexts.receiptText"
+          :confirm-text-override="paymentTexts.confirmText"
           @confirm="onConfirm"
         />
       </div>

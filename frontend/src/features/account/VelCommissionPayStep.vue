@@ -8,11 +8,19 @@ import VelHelpDot from '@/features/account/VelHelpDot.vue'
 import VelHelpPopover from '@/features/account/VelHelpPopover.vue'
 
 /** Шаг 3: lead + SEPA (текст по центру) + реквизиты + ricevuta + CTA. */
-defineProps<{
+const props = defineProps<{
   beneficiary: string
   iban: string
   swift: string
   feeText: string
+  leadOverride?: string
+  methodLabelOverride?: string
+  beneficiaryLabelOverride?: string
+  ibanLabelOverride?: string
+  swiftLabelOverride?: string
+  amountLabelOverride?: string
+  receiptTextOverride?: string
+  confirmTextOverride?: string
 }>()
 
 const emit = defineEmits<{ confirm: [] }>()
@@ -20,6 +28,46 @@ const { t } = useI18n()
 const { level } = useCommission()
 
 const sepaHelpOpen = ref(false)
+
+const leadText = computed(() => {
+  const custom = String(props.leadOverride ?? '').trim()
+  return custom !== '' ? custom : t('account.payment.lead')
+})
+
+const methodLabelText = computed(() => {
+  const custom = String(props.methodLabelOverride ?? '').trim()
+  return custom !== '' ? custom : t('account.payment.methodSepa')
+})
+
+const beneficiaryLabelText = computed(() => {
+  const custom = String(props.beneficiaryLabelOverride ?? '').trim()
+  return custom !== '' ? custom : t('account.payment.beneficiary')
+})
+
+const ibanLabelText = computed(() => {
+  const custom = String(props.ibanLabelOverride ?? '').trim()
+  return custom !== '' ? custom : t('account.payment.iban')
+})
+
+const swiftLabelText = computed(() => {
+  const custom = String(props.swiftLabelOverride ?? '').trim()
+  return custom !== '' ? custom : t('account.payment.swift')
+})
+
+const amountLabelText = computed(() => {
+  const custom = String(props.amountLabelOverride ?? '').trim()
+  return custom !== '' ? custom : t('account.payment.amount')
+})
+
+const receiptText = computed(() => {
+  const custom = String(props.receiptTextOverride ?? '').trim()
+  return custom !== '' ? custom : t('account.payment.sendReceipt')
+})
+
+const confirmText = computed(() => {
+  const custom = String(props.confirmTextOverride ?? '').trim()
+  return custom !== '' ? custom : t('account.payment.confirm')
+})
 
 const showReceiptNote = computed(() => Number(level.value) >= 1)
 
@@ -31,7 +79,7 @@ function toggleSepaHelp(): void {
 <template>
   <div class="vel-cpay flex flex-col gap-4">
     <p data-reveal class="m-0 text-center text-sm text-muted">
-      {{ t('account.payment.lead') }}
+      {{ leadText }}
     </p>
 
     <div
@@ -44,7 +92,7 @@ function toggleSepaHelp(): void {
       >
         <!-- текст + ? вместе по центру поля -->
         <span class="vel-cpay__method-inner">
-          <span class="vel-cpay__method-label">{{ t('account.payment.methodSepa') }}</span>
+          <span class="vel-cpay__method-label">{{ methodLabelText }}</span>
           <VelHelpDot
             :label="t('account.payment.sepaHelpLabel')"
             @click="toggleSepaHelp"
@@ -58,15 +106,15 @@ function toggleSepaHelp(): void {
     </div>
 
     <div data-reveal class="rounded-control border border-line bg-ground px-3">
-      <VelCopyRow :label="t('account.payment.beneficiary')" :value="beneficiary" />
-      <VelCopyRow :label="t('account.payment.iban')" :value="iban" mono />
-      <VelCopyRow :label="t('account.payment.swift')" :value="swift" mono />
-      <VelCopyRow :label="t('account.payment.amount')" :value="feeText" />
+      <VelCopyRow :label="beneficiaryLabelText" :value="beneficiary" />
+      <VelCopyRow :label="ibanLabelText" :value="iban" mono />
+      <VelCopyRow :label="swiftLabelText" :value="swift" mono />
+      <VelCopyRow :label="amountLabelText" :value="feeText" />
     </div>
 
     <div data-reveal class="vel-cpay__cta">
       <p v-if="showReceiptNote" class="vel-cpay__receipt m-0">
-        {{ t('account.payment.sendReceipt') }}
+        {{ receiptText }}
       </p>
       <VelButton
         type="button"
@@ -75,7 +123,7 @@ function toggleSepaHelp(): void {
         data-testid="commission-drawer-confirm"
         @click="emit('confirm')"
       >
-        {{ t('account.payment.confirm') }}
+        {{ confirmText }}
       </VelButton>
       <p class="vel-cpay__ssl m-0">{{ t('account.payment.sslNote') }}</p>
     </div>

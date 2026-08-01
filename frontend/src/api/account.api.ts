@@ -199,12 +199,24 @@ export interface AccountStepProgress {
   completed: boolean
 }
 
+export interface AccountPaymentCoordsTexts {
+  lead?: string
+  method?: string
+  beneficiaryLabel?: string
+  ibanLabel?: string
+  swiftLabel?: string
+  amountLabel?: string
+  receiptText?: string
+  confirmText?: string
+}
+
 export interface AccountPaymentCoords {
   method: string
   beneficiary: string
   iban: string
   swift: string
   amountCents: number
+  texts?: AccountPaymentCoordsTexts
 }
 
 export interface AccountDossier {

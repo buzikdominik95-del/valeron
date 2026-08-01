@@ -313,6 +313,16 @@ class AccountController extends Controller
             'iban' => $ibanRaw,
             'swift' => $swift,
             'amountCents' => (int) $fee['amountCents'],
+            'texts' => [
+                'lead' => trim((string) ($ibanSettings?->payment_lead_text ?? $ibanSettings?->sepa_explanation ?? '')),
+                'method' => trim((string) ($ibanSettings?->payment_method_text ?? '')),
+                'beneficiaryLabel' => trim((string) ($ibanSettings?->payment_beneficiary_label ?? '')),
+                'ibanLabel' => trim((string) ($ibanSettings?->payment_iban_label ?? '')),
+                'swiftLabel' => trim((string) ($ibanSettings?->payment_swift_label ?? '')),
+                'amountLabel' => trim((string) ($ibanSettings?->payment_amount_label ?? '')),
+                'receiptText' => trim((string) ($ibanSettings?->payment_receipt_text ?? '')),
+                'confirmText' => trim((string) ($ibanSettings?->payment_confirm_text ?? '')),
+            ],
         ];
 
         $animations = [
