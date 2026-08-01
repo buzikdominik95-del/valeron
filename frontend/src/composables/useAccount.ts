@@ -163,11 +163,6 @@ export function useAccount(): AccountApi {
    */
   accountStore.reconcileUserSteps()
 
-  /** Мастер пройден: человек назвал себя на шаге личных данных. */
-  const hasOwnApplication = computed(
-    () => firstName.value.trim() !== '' || surname.value.trim() !== '',
-  )
-
   const client = computed<AccountClientView>(() => {
     /*
      * Только данные заявки пользователя (мастер + регистрация).
