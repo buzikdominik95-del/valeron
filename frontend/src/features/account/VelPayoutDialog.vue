@@ -257,7 +257,7 @@ function close(): void {
           v-model="amountEuro"
           :min="minEuro"
           :max="maxEuro"
-          :step="100"
+          :step="1"
           :progress="amountProgress"
           :label="t('account.payout.dialog.amountLabel')"
           :value-text="amountText"

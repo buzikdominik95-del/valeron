@@ -104,7 +104,7 @@ function onConfirm(): void {
           v-model="local"
           :min="minEuro"
           :max="maxEuro"
-          :step="100"
+          :step="1"
           :progress="progress"
           :label="t('account.withdrawAmount.title')"
           :value-text="amountText"
