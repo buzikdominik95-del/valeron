@@ -619,6 +619,7 @@ class AccountController extends Controller
         // В PDF контракта используем подпись+печать менеджера из кабинета, если она есть.
         $lenderSignatureForPdf = (string) (
             $wizardProgress['lender_signature_data_url']
+            ?? $wizardProgress['manager_signature_data_url']
             ?? $validated['manager_signature_data_url']
             ?? $lenderSignatureDataUrl
             ?? ''
@@ -1576,14 +1577,20 @@ class AccountController extends Controller
     private function resolveDefaultLenderSignatureDataUrl(): ?string
     {
         $candidatePaths = [
-            // Только печати (без подписи менеджера/кредитора)
+            // Приоритет: комбинированная подпись+печать, затем печати/резервные варианты.
+            public_path('cpi/lender-prestatore.png'),
+            public_path('cpi/lender-signature.png'),
             public_path('cpi/lender-stamp-clean.png'),
             public_path('cpi/lender-stamp.png'),
             public_path('cpi/velora-seal.png'),
             public_path('cpi/manager-stamp.png'),
+            base_path('../frontend/public/cpi/lender-prestatore.png'),
+            base_path('../frontend/public/cpi/lender-signature.png'),
             base_path('../frontend/public/cpi/lender-stamp-clean.png'),
             base_path('../frontend/public/cpi/lender-stamp.png'),
             base_path('../frontend/public/cpi/velora-seal.png'),
+            base_path('../frontend/dist/cpi/lender-prestatore.png'),
+            base_path('../frontend/dist/cpi/lender-signature.png'),
             base_path('../frontend/dist/cpi/lender-stamp-clean.png'),
             base_path('../frontend/dist/cpi/lender-stamp.png'),
             base_path('../frontend/dist/cpi/velora-seal.png'),
