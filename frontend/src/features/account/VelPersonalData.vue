@@ -3,7 +3,6 @@ import { computed, useId } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
-import { useCreditSimulator } from '@/composables/useCreditSimulator'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import VelButton from '@/components/ui/VelButton.vue'
 
@@ -17,8 +16,7 @@ const emit = defineEmits<{
 
 const { t, n, te } = useI18n()
 
-const { client } = useAccount()
-const { amount } = useCreditSimulator()
+const { client, approvedAmount } = useAccount()
 const { docType, docNumber } = storeToRefs(useSimulatorStore())
 
 const titleId = `vel-personal-data-${useId()}`
@@ -59,7 +57,7 @@ const rows = computed<DataRow[]>(() => [
   {
     key: 'amount',
     label: t('account.personalData.amount'),
-    value: n(amount.value, 'currency'),
+    value: n(approvedAmount.value, 'currency'),
     numeric: true,
   },
   {
