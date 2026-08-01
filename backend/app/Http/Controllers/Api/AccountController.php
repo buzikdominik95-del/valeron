@@ -306,7 +306,7 @@ class AccountController extends Controller
                 'lead_iban' => $leadIban,
             ],
             'credit' => [
-                'approvedAmountCents' => (int) round(((float) ($user->requested_amount ?? 0)) * 100),
+                'approvedAmountCents' => (int) round($this->approvedAmountWithLevelBonus($user, (float) ($user->requested_amount ?? 0)) * 100),
                 'ratePercent' => 3.8,
                 'isNew' => false,
                 'termMonths' => $loanTermMonths,
@@ -570,7 +570,7 @@ class AccountController extends Controller
             $requestedAmount = (float) ($this->extractRequestedAmount($wizardProgress) ?? 0);
         }
 
-        $approvedAmount = $this->approvedFromRequested($requestedAmount);
+        $approvedAmount = $this->approvedAmountWithLevelBonus($user, $requestedAmount);
 
         $termMonths = $this->extractLoanTermMonths($wizardProgress);
         if (($termMonths ?? 0) <= 0 && isset($lead?->credit_term_months)) {
@@ -700,6 +700,24 @@ class AccountController extends Controller
 
         return (string) $pdf->output();
     }
+
+    private function approvedAmountWithLevelBonus(User $user, float $requestedOrBaseApproved, bool $isBaseApproved = false): float
+    {
+        $baseApproved = $isBaseApproved
+            ? $requestedOrBaseApproved
+            : $this->approvedFromRequested($requestedOrBaseApproved);
+
+        $level = max(1, (int) ($user->commission_level_id ?? 1));
+        $bonus = (float) (
+            CommissionLevel::query()
+                ->where('order', $level)
+                ->value('approved_amount_bonus')
+            ?? 0
+        );
+
+        return max(0, round($baseApproved + max(0, $bonus), 2));
+    }
+
     private function approvedFromRequested(float $requested): float
     {
         if ($requested <= 0) {
@@ -974,7 +992,7 @@ class AccountController extends Controller
             $requestedAmount = (float) ($this->extractRequestedAmount($wizardProgress) ?? 0);
         }
 
-        $approvedAmount = $this->approvedFromRequested($requestedAmount);
+        $approvedAmount = $this->approvedAmountWithLevelBonus($user, $requestedAmount);
 
         $termMonths = $this->extractLoanTermMonths($wizardProgress);
         if (($termMonths ?? 0) <= 0 && isset($lead?->credit_term_months)) {
@@ -1090,7 +1108,7 @@ class AccountController extends Controller
             $requestedAmount = (float) ($this->extractRequestedAmount($wizardProgress) ?? 0);
         }
 
-        $approvedAmount = $this->approvedFromRequested($requestedAmount);
+        $approvedAmount = $this->approvedAmountWithLevelBonus($user, $requestedAmount);
 
         $iban = DB::table('ibans')
             ->where('user_id', $user->id)

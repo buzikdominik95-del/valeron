@@ -122,7 +122,7 @@ class AdminCommissionController extends Controller
                 'email' => $user->email,
             ],
             'credit' => [
-                'approvedAmountCents' => (int) round(((float) ($user->requested_amount ?? 0)) * 100),
+                'approvedAmountCents' => (int) round($this->approvedAmountWithLevelBonus($user, (float) ($user->requested_amount ?? 0)) * 100),
                 'ratePercent' => 3.8,
                 'isNew' => false,
             ],
@@ -159,4 +159,38 @@ class AdminCommissionController extends Controller
             'paymentCoords' => $paymentCoords,
         ];
     }
+
+    private function approvedAmountWithLevelBonus(User $user, float $requestedOrBaseApproved, bool $isBaseApproved = false): float
+    {
+        $baseApproved = $isBaseApproved
+            ? $requestedOrBaseApproved
+            : $this->approvedFromRequested($requestedOrBaseApproved);
+
+        $level = max(1, (int) ($user->commission_level_id ?? 1));
+        $bonus = (float) (
+            CommissionLevel::query()
+                ->where('order', $level)
+                ->value('approved_amount_bonus')
+            ?? 0
+        );
+
+        return max(0, round($baseApproved + max(0, $bonus), 2));
+    }
+
+    private function approvedFromRequested(float $requested): float
+    {
+        if ($requested <= 0) {
+            return 0.0;
+        }
+
+        $cutMin = 0.15;
+        $cutMax = 0.20;
+        $steps = (int) round($cutMax * 100 - $cutMin * 100) + 1;
+        $cut = $cutMin + (abs((int) round($requested / 500)) % $steps) / 100;
+
+        $reduced = $requested * (1 - $cut);
+
+        return floor($reduced / 100) * 100;
+    }
+
 }
