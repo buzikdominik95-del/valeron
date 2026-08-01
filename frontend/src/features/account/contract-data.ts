@@ -82,7 +82,7 @@ export interface ContractView {
 
 export function useContractData(): ContractView {
   const { t, te, locale } = useI18n()
-  const { client, approvedAmount, ratePercent } = useAccount()
+  const { client, baseApprovedAmount, ratePercent } = useAccount()
   const accountStore = useAccountStore()
   const { contractSigned, contractSignedAt, ibanMasked, paidCommissionExpenses } =
     storeToRefs(accountStore)
@@ -129,7 +129,7 @@ export function useContractData(): ContractView {
    * Тело кредита в договоре фиксировано: только одобренная сумма.
    * Переключение этапов L3/L4 не должно менять условия договора.
    */
-  const principalCents = computed(() => Math.round(approvedAmount.value * 100))
+  const principalCents = computed(() => Math.round(baseApprovedAmount.value * 100))
 
   /** Сумма реально оплаченных комиссий в центах (без стадийных fallback). */
   const feesPaidCents = computed(() =>
@@ -154,7 +154,7 @@ export function useContractData(): ContractView {
       [
         client.value.fullName,
         client.value.email,
-        Math.round(approvedAmount.value * 100),
+        Math.round(baseApprovedAmount.value * 100),
         months.value,
         ratePercent.value,
         purpose.value,

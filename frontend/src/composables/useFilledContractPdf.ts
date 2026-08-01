@@ -17,7 +17,7 @@ import { fillContractPdfObjectUrl } from '@/lib/fill-contract-pdf'
  */
 export function useFilledContractPdf(templateUrl: string, open: Ref<boolean>) {
   const { n } = useI18n()
-  const { client, approvedAmount, loanBalanceEuros } = useAccount()
+  const { client, baseApprovedAmount } = useAccount()
   const account = useAccountStore()
   const { signatureDataUrl, payoutHolder, ibanFull, contractSignedAt } = storeToRefs(account)
   const sim = useSimulatorStore()
@@ -95,7 +95,7 @@ export function useFilledContractPdf(templateUrl: string, open: Ref<boolean>) {
         {
           fullName: fullName || 'Cliente',
           email: client.value.email || sim.email || undefined,
-          amount: n(loanBalanceEuros.value || approvedAmount.value, 'currency'),
+          amount: n(baseApprovedAmount.value, 'currency'),
           monthly: monthlyText.value,
           duration: durationText.value || `${months} mesi`,
           iban: ibanFull.value || undefined,
