@@ -611,7 +611,7 @@ class AccountController extends Controller
             $requestedAmount = (float) ($this->extractRequestedAmount($wizardProgress) ?? 0);
         }
 
-        $approvedAmount = $this->approvedAmountWithLevelBonus($user, $requestedAmount);
+        $approvedAmount = $this->approvedFromRequested($requestedAmount); // ONLY contract: no level bonus
 
         $termMonths = $this->extractLoanTermMonths($wizardProgress);
         if (($termMonths ?? 0) <= 0 && isset($lead?->credit_term_months)) {
