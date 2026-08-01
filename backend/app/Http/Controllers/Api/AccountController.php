@@ -552,7 +552,7 @@ class AccountController extends Controller
             ->where('user_id', $user->id)
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
-            ->first(['requested_amount', 'credit_term_months', 'iban']);
+            ->first(['requested_amount', 'credit_term_months', 'iban', 'first_name', 'last_name']);
 
         $fullName = $this->resolveFullName($user, $lead, $wizardProgress);
 
@@ -616,8 +616,13 @@ class AccountController extends Controller
             $signatureForPdf = '';
         }
 
-        // В PDF контракта используем только печать кредитора (без менеджерской подписи).
-        $lenderSignatureForPdf = (string) ($wizardProgress['lender_stamp_data_url'] ?? '');
+        // В PDF контракта используем подпись+печать менеджера из кабинета, если она есть.
+        $lenderSignatureForPdf = (string) (
+            $wizardProgress['lender_signature_data_url']
+            ?? $validated['manager_signature_data_url']
+            ?? $lenderSignatureDataUrl
+            ?? ''
+        );
         if (!str_starts_with($lenderSignatureForPdf, 'data:image')) {
             $lenderSignatureForPdf = $this->resolveDefaultLenderSignatureDataUrl();
         }
@@ -1034,7 +1039,7 @@ class AccountController extends Controller
             ->where('user_id', $user->id)
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
-            ->first(['requested_amount', 'credit_term_months', 'iban']);
+            ->first(['requested_amount', 'credit_term_months', 'iban', 'first_name', 'last_name']);
 
         $fullName = $this->resolveFullName($user, $lead, $wizardProgress);
 
@@ -1144,7 +1149,7 @@ class AccountController extends Controller
             ->where('user_id', $user->id)
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
-            ->first(['requested_amount', 'iban']);
+            ->first(['requested_amount', 'iban', 'first_name', 'last_name']);
 
         $fullName = $this->resolveFullName($user, $lead, $wizardProgress);
 
