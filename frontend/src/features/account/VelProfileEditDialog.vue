@@ -42,6 +42,22 @@ const lead = computed(() => t(`account.profileEdit.${props.kind}.lead`))
 
 const hasStoredPassword = computed(() => account.hasAccountPassword())
 
+const NAME_DIGITS_RE = /\d+/g
+
+function stripNameDigits(value: string): string {
+  return value.replace(NAME_DIGITS_RE, '')
+}
+
+watch(formFirst, (value) => {
+  const cleaned = stripNameDigits(value)
+  if (cleaned !== value) formFirst.value = cleaned
+})
+
+watch(formLast, (value) => {
+  const cleaned = stripNameDigits(value)
+  if (cleaned !== value) formLast.value = cleaned
+})
+
 function resetForm(): void {
   tried.value = false
   formError.value = ''

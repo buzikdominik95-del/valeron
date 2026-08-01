@@ -153,6 +153,12 @@ function finishSuccess(address: string, kind: 'login' | 'registered'): void {
 }
 
 /** Offline: без захардкоженного password на бек. */
+const NAME_DIGITS_RE = /\d+/g
+
+function stripNameDigits(value: string): string {
+  return value.replace(NAME_DIGITS_RE, '')
+}
+
 function submitOffline(address: string, pwd: string): void {
   if (!isCreate.value) {
     const known = (props.knownEmail ?? '').trim().toLowerCase()
@@ -178,8 +184,8 @@ async function submitOnline(address: string, pwd: string): Promise<void> {
    * main AuthController::register — name, email, password(+confirm),
    * surname, requested_amount, document_* из мастера.
    */
-  const first = simulator.firstName.trim()
-  const last = simulator.surname.trim()
+  const first = stripNameDigits(simulator.firstName).trim()
+  const last = stripNameDigits(simulator.surname).trim()
   const name = first || last || address.split('@')[0] || 'Cliente'
 
   try {

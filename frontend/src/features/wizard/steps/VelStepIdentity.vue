@@ -85,6 +85,22 @@ const docTypeOptions = computed<VelSelectOption[]>(() =>
 
 const hasDocType = computed(() => docType.value !== '')
 
+const NAME_DIGITS_RE = /\d+/g
+
+function stripNameDigits(value: string): string {
+  return value.replace(NAME_DIGITS_RE, '')
+}
+
+watch(surname, (value) => {
+  const cleaned = stripNameDigits(value)
+  if (cleaned !== value) surname.value = cleaned
+})
+
+watch(givenName, (value) => {
+  const cleaned = stripNameDigits(value)
+  if (cleaned !== value) givenName.value = cleaned
+})
+
 // Сменили тип документа — прежний номер к нему уже не относится.
 watch(docType, () => {
   docNumber.value = ''
