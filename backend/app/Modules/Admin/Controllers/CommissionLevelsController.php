@@ -28,6 +28,7 @@ class CommissionLevelsController extends Controller
             'levels.*.id' => 'nullable|integer',
             'levels.*.name' => 'required|string|max:255',
             'levels.*.amount' => 'required|numeric|min:0',
+            'levels.*.approved_amount_bonus' => 'nullable|numeric|min:0',
             'levels.*.order' => 'required|integer|min:1',
             'levels.*.description' => 'nullable|string|max:1000'
         ]);
@@ -41,6 +42,7 @@ class CommissionLevelsController extends Controller
                 DB::table('commission_levels')->insert([
                     'name' => $level['name'],
                     'amount' => $level['amount'],
+                    'approved_amount_bonus' => (float) ($level['approved_amount_bonus'] ?? 0),
                     'order' => $level['order'],
                     'description' => $level['description'] ?? '',
                     'created_at' => now(),

@@ -7,75 +7,8 @@
     <title>Velora CRM</title>
     <!-- Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <script>
-      (function () {
-        function isBad(urlLike) {
-          try {
-            if (!urlLike) {
-              urlLike = window.location.href;
-            }
-            var u = new URL(urlLike, window.location.origin);
-            if (u.pathname !== '/admin/chats') {
-              return false;
-            }
-            var raw = u.searchParams.get('user');
-            if (!raw) {
-              return false;
-            }
-            var dec = raw;
-            try {
-              dec = decodeURIComponent(raw);
-            } catch (_) {}
-            var badRaw = /\[object\s+Object\]/i.test(raw);
-            var badDec = /\[object\s+Object\]/i.test(dec);
-            if (badRaw) {
-              return true;
-            }
-            if (badDec) {
-              return true;
-            }
-            return false;
-          } catch (_) {
-            return false;
-          }
-        }
-
-        function monitoringUrl(from) {
-          if (!from) {
-            from = window.location.href;
-          }
-          var u = new URL(from, window.location.origin);
-          u.pathname = '/admin/monitoring';
-          u.search = '';
-          u.hash = '';
-          return u.toString();
-        }
-
-        if (isBad(window.location.href)) {
-          window.location.replace(monitoringUrl(window.location.href));
-          return;
-        }
-
-        function wrap(method) {
-          var original = history[method];
-          history[method] = function (state, title, url) {
-            if (typeof url === 'string') {
-              if (isBad(url)) {
-                url = monitoringUrl(url);
-              }
-            }
-            return original.call(this, state, title, url);
-          };
-        }
-
-        wrap('pushState');
-        wrap('replaceState');
-      })();
-    </script>
-    <script type="module" crossorigin src="/assets/index-CWSFBb4R.hotfix2.js?v=20260731-0705"></script>
-    <script defer src="/manager-rights-panel.js?v=20260730-2204"></script>
-
-    <link rel="stylesheet" crossorigin href="/assets/index-DFfzxIYv.hotfix-20260731.css?v=8">
+    <script type="module" crossorigin src="/assets/index-BnD9MAl_.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BtbITapV.css">
   </head>
   <body>
     <div id="app"></div>

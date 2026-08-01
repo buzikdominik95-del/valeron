@@ -58,6 +58,7 @@ class CommissionLevelController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'amount' => 'nullable|numeric|min:0',
+            'approved_amount_bonus' => 'nullable|numeric|min:0',
             'base_commission' => 'nullable|numeric|min:0',
             'order' => 'nullable|integer|min:1',
             'level_number' => 'nullable|integer|min:1',
@@ -69,6 +70,7 @@ class CommissionLevelController extends Controller
         return [
             'name' => $validated['name'],
             'amount' => (float) ($validated['amount'] ?? $validated['base_commission'] ?? 0),
+            'approved_amount_bonus' => (float) ($validated['approved_amount_bonus'] ?? 0),
             'order' => (int) ($validated['order'] ?? $validated['level_number'] ?? 1),
             'description' => (string) ($validated['description'] ?? $validated['client_description'] ?? ''),
         ];
@@ -80,6 +82,7 @@ class CommissionLevelController extends Controller
             'id' => $level->id,
             'name' => $level->name,
             'amount' => (float) $level->amount,
+            'approved_amount_bonus' => (float) ($level->approved_amount_bonus ?? 0),
             'order' => (int) $level->order,
             'description' => $level->description,
             'base_commission' => (float) $level->amount,
