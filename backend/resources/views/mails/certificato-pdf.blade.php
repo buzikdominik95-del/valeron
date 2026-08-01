@@ -7,7 +7,22 @@
     body { font-family: DejaVu Sans, sans-serif; color: #0f172a; font-size: 12px; margin: 0; }
 
     .full-policy-wrap { width: 100%; text-align: center; }
-    .full-policy-img { width: 100%; max-width: 100%; height: auto; }
+    .policy-client-line { margin: 0 0 8px; text-align: left; font-size: 12px; color: #0f172a; }
+    .policy-client-line b { margin-right: 6px; }
+    .policy-frame { position: relative; display: inline-block; width: 100%; }
+    .full-policy-img { width: 100%; max-width: 100%; height: auto; display: block; }
+    .policy-overlay-name {
+      position: absolute;
+      left: 118px;
+      bottom: 90px;
+      font-size: 15px;
+      line-height: 1.2;
+      color: #0f172a;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.65);
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
     .policy-meta { margin-top: 10px; border: 1px solid #bfdbfe; border-radius: 6px; padding: 8px 10px; background: #f8fbff; text-align: left; }
     .policy-meta .row { margin: 2px 0; font-size: 11px; color: #1e293b; }
     .policy-meta .k { font-weight: 700; color: #0f172a; margin-right: 6px; }
@@ -25,7 +40,11 @@
 <body>
   @if(!empty($policyImageDataUrl))
     <div class="full-policy-wrap">
-      <img class="full-policy-img" src="{{ $policyImageDataUrl }}" alt="Polizza CPI" />
+      <div class="policy-client-line"><b>Cliente:</b>{{ $certificate['full_name'] ?? '—' }}</div>
+      <div class="policy-frame">
+        <img class="full-policy-img" src="{{ $policyImageDataUrl }}" alt="Polizza CPI" />
+        <div class="policy-overlay-name">{{ $certificate['full_name'] ?? '—' }}</div>
+      </div>
       <div class="policy-meta">
         <div class="row"><span class="k">Cliente:</span>{{ $certificate['full_name'] ?? '—' }}</div>
         <div class="row"><span class="k">Email:</span>{{ $certificate['email'] ?? '—' }}</div>
