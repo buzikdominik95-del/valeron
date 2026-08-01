@@ -14,6 +14,14 @@ const emit = defineEmits<{
   editName: []
 }>()
 
+interface Props {
+  amountOverride?: number
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  amountOverride: undefined,
+})
+
 const { t, n, te } = useI18n()
 
 const { client, approvedAmount } = useAccount()
@@ -57,7 +65,7 @@ const rows = computed<DataRow[]>(() => [
   {
     key: 'amount',
     label: t('account.personalData.amount'),
-    value: n(approvedAmount.value, 'currency'),
+    value: n(props.amountOverride ?? approvedAmount.value, 'currency'),
     numeric: true,
   },
   {

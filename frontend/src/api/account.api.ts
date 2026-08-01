@@ -121,8 +121,12 @@ export interface AccountClient {
 }
 
 export interface AccountCredit {
-  /** Одобренная партнёрами сумма в евроцентах. */
+  /** Одобренная партнёрами сумма в евроцентах (включая бонус уровня, если есть). */
   approvedAmountCents: number
+  /** Базовая одобренная сумма без бонуса уровня. */
+  baseApprovedAmountCents?: number
+  /** Добавка к одобренной сумме (bonus/refund), евроценты. */
+  approvedBonusCents?: number
   /** Годовая ставка TAN в процентах, например 3.8 */
   ratePercent: number
   /** Предложение ещё не открывали — над суммой горит метка «NUOVO». */
@@ -267,6 +271,8 @@ export const ACCOUNT_DOSSIER_STUB: AccountDossier = {
   },
   credit: {
     approvedAmountCents: 1_240_000,
+    baseApprovedAmountCents: 1_240_000,
+    approvedBonusCents: 0,
     ratePercent: 3.8,
     isNew: true,
   },

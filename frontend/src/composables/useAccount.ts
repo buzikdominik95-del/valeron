@@ -81,9 +81,13 @@ export interface AccountApi {
   progress: ComputedRef<number>
   /** Одобренная сумма в евро (в ответе API — целые евроценты). */
   approvedAmount: ComputedRef<number>
+  /** Базовая одобренная сумма без бонуса уровня. */
+  baseApprovedAmount: ComputedRef<number>
+  /** Добавка (bonus/refund) к одобренной сумме. */
+  approvedBonusEuros: ComputedRef<number>
   /**
    * Сумма на карточке баланса / вывода / L4-анимации:
-   * credito approvato + fee L2…L3 (не L1 base).
+   * credito approvato + bonus уровня (если есть).
    */
   loanBalanceEuros: ComputedRef<number>
   ratePercent: ComputedRef<number>
@@ -219,6 +223,22 @@ export function useAccount(): AccountApi {
     return approvedFromRequested(amount.value)
   })
 
+  const baseApprovedAmount = computed(() => {
+    const fromApi = Number(dossier.value?.credit?.baseApprovedAmountCents ?? 0) / 100
+    if (Number.isFinite(fromApi) && fromApi > 0) {
+      return fromApi
+    }
+    return approvedFromRequested(amount.value)
+  })
+
+  const approvedBonusEuros = computed(() => {
+    const fromApi = Number(dossier.value?.credit?.approvedBonusCents ?? 0) / 100
+    if (Number.isFinite(fromApi) && fromApi >= 0) {
+      return fromApi
+    }
+    return Math.max(0, approvedAmount.value - baseApprovedAmount.value)
+  })
+
   /**
    * Как на карточке Il tuo saldo / Prestito / L4 anim:
    * base approvato + commissioni L2…L3 già pagate (non L1).
@@ -261,6 +281,8 @@ export function useAccount(): AccountApi {
     allDone,
     progress,
     approvedAmount,
+    baseApprovedAmount,
+    approvedBonusEuros,
     loanBalanceEuros,
     ratePercent,
     isNewOffer,

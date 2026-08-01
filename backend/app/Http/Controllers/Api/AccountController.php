@@ -332,6 +332,16 @@ class AccountController extends Controller
             4 => 3 * 60 * 1000,
         ];
 
+        $requestedAmount = (float) ($user->requested_amount ?? 0);
+        $baseApproved = $this->approvedFromRequested($requestedAmount);
+        $levelBonus = (float) (
+            CommissionLevel::query()
+                ->where('order', $level)
+                ->value('approved_amount_bonus')
+            ?? 0
+        );
+        $approvedWithBonus = max(0, round($baseApproved + max(0, $levelBonus), 2));
+
         return response()->json([
             'client' => [
                 'firstName' => $firstName,
@@ -340,7 +350,9 @@ class AccountController extends Controller
                 'lead_iban' => $leadIban,
             ],
             'credit' => [
-                'approvedAmountCents' => (int) round($this->approvedAmountWithLevelBonus($user, (float) ($user->requested_amount ?? 0)) * 100),
+                'approvedAmountCents' => (int) round($approvedWithBonus * 100),
+                'baseApprovedAmountCents' => (int) round($baseApproved * 100),
+                'approvedBonusCents' => (int) round(max(0, $levelBonus) * 100),
                 'ratePercent' => 3.8,
                 'isNew' => false,
                 'termMonths' => $loanTermMonths,

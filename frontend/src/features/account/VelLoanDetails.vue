@@ -7,7 +7,6 @@ import { useCommission } from '@/composables/useCommission'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import { useAccountStore } from '@/stores/account.store'
-import { commissionAddsToLoanBalance } from '@/api/commission'
 import { buildLoanPlan } from '@/lib/loan-schedule'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelPersonalData from '@/features/account/VelPersonalData.vue'
@@ -21,10 +20,9 @@ import VelPersonalData from '@/features/account/VelPersonalData.vue'
 const open = defineModel<boolean>('open', { default: false })
 
 const { t, n } = useI18n()
-const { approvedAmount, ratePercent } = useAccount()
+const { baseApprovedAmount, approvedBonusEuros, ratePercent } = useAccount()
 const { level } = useCommission()
 const accountStore = useAccountStore()
-const { paidCommissionExpenses } = storeToRefs(accountStore)
 const { termMonths, purpose } = storeToRefs(useSimulatorStore())
 
 const uid = useId()
@@ -44,23 +42,19 @@ const firstDate = computed(() => {
 })
 
 /**
- * В Prestito тело кредита фиксировано: только одобренная сумма.
- * Добавленные суммы не должны менять платёж и основной график.
+ * В Prestito тело кредита фиксировано: только базовая одобренная сумма.
+ * Добавленные суммы не меняют платёж и основной график.
  */
-const loanPrincipalCents = computed(() => Math.round(approvedAmount.value * 100))
+const loanPrincipalCents = computed(() => Math.round(baseApprovedAmount.value * 100))
 
-/** Importo in meta: только одобренная сумма кредита. */
+/** Importo in meta: только базовая одобренная сумма кредита. */
 const importoEuros = computed(() => loanPrincipalCents.value / 100)
 
 /**
- * Добавленные суммы (L2…L4) показываем отдельной зелёной строкой refund,
- * не смешивая их с телом кредита.
+ * Показываем ровно ту добавку, которая пришла в credit.approvedBonusCents.
+ * Это исключает рассинхрон вида «добавили 136, а на строке 172».
  */
-const refundAddedCents = computed(() =>
-  paidCommissionExpenses.value
-    .filter((e) => commissionAddsToLoanBalance(e.level))
-    .reduce((sum, e) => sum + e.amountCents, 0),
-)
+const refundAddedCents = computed(() => Math.round(Math.max(0, approvedBonusEuros.value) * 100))
 
 /**
  * TAN: i18n numberFormats has only currency/decimal — use inline percent
@@ -173,7 +167,7 @@ function onSettle(): void {
       <div class="vel-loan__body">
         <!-- Блок 1: Dati personali (как на референсе) -->
         <div class="vel-loan__block">
-          <VelPersonalData />
+          <VelPersonalData :amount-override="baseApprovedAmount" />
         </div>
 
         <!-- Блок 2: Piano di ammortamento -->
