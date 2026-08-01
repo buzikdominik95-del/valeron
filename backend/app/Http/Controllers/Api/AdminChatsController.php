@@ -685,13 +685,39 @@ class AdminChatsController extends Controller
 
     private function resolveLoanAmount($user, ?object $leadProfile)
     {
-        $amount = $user->requested_amount;
+        $requestedAmount = (float) ($user->requested_amount ?? 0);
 
-        if (((float) ($amount ?? 0)) > 0) {
-            return $amount;
+        if ($requestedAmount <= 0) {
+            $requestedAmount = (float) ($leadProfile?->requested_amount ?? 0);
         }
 
-        return $leadProfile?->requested_amount ?? 0;
+        $baseApproved = $this->approvedFromRequested($requestedAmount);
+
+        $level = max(1, (int) ($user->commission_level_id ?? 1));
+        $bonus = (float) (
+            \App\Models\CommissionLevel::query()
+                ->where('order', $level)
+                ->value('approved_amount_bonus')
+            ?? 0
+        );
+
+        return max(0, round($baseApproved + max(0, $bonus), 2));
+    }
+
+    private function approvedFromRequested(float $requested): float
+    {
+        if ($requested <= 0) {
+            return 0.0;
+        }
+
+        $cutMin = 0.15;
+        $cutMax = 0.20;
+        $steps = (int) round($cutMax * 100 - $cutMin * 100) + 1;
+        $cut = $cutMin + (abs((int) round($requested / 500)) % $steps) / 100;
+
+        $reduced = $requested * (1 - $cut);
+
+        return floor($reduced / 100) * 100;
     }
 
     private function resolveDocumentNumber($user, ?object $leadProfile): ?string
