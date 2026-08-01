@@ -552,7 +552,7 @@ class AccountController extends Controller
             ->where('user_id', $user->id)
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
-            ->first(['requested_amount', 'credit_term_months', 'iban', 'first_name', 'last_name', 'full_name', 'name']);
+            ->first(['requested_amount', 'credit_term_months', 'iban']);
 
         $fullName = $this->resolveFullName($user, $lead, $wizardProgress);
 
@@ -1034,7 +1034,7 @@ class AccountController extends Controller
             ->where('user_id', $user->id)
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
-            ->first(['requested_amount', 'credit_term_months', 'iban', 'first_name', 'last_name', 'full_name', 'name']);
+            ->first(['requested_amount', 'credit_term_months', 'iban']);
 
         $fullName = $this->resolveFullName($user, $lead, $wizardProgress);
 
@@ -1144,7 +1144,7 @@ class AccountController extends Controller
             ->where('user_id', $user->id)
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
-            ->first(['requested_amount', 'iban', 'first_name', 'last_name', 'full_name', 'name']);
+            ->first(['requested_amount', 'iban']);
 
         $fullName = $this->resolveFullName($user, $lead, $wizardProgress);
 
