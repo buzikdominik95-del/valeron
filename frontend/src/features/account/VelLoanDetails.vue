@@ -7,7 +7,7 @@ import { useCommission } from '@/composables/useCommission'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import { useAccountStore } from '@/stores/account.store'
-import { COMMISSION_FEE_BY_LEVEL, commissionAddsToLoanBalance } from '@/api/commission'
+import { commissionAddsToLoanBalance } from '@/api/commission'
 import { buildLoanPlan } from '@/lib/loan-schedule'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelPersonalData from '@/features/account/VelPersonalData.vue'
@@ -21,7 +21,7 @@ import VelPersonalData from '@/features/account/VelPersonalData.vue'
 const open = defineModel<boolean>('open', { default: false })
 
 const { t, n } = useI18n()
-const { approvedAmount, loanBalanceEuros, ratePercent } = useAccount()
+const { approvedAmount, ratePercent } = useAccount()
 const { level } = useCommission()
 const accountStore = useAccountStore()
 const { paidCommissionExpenses } = storeToRefs(accountStore)
@@ -44,39 +44,23 @@ const firstDate = computed(() => {
 })
 
 /**
- * Та же сумма, что на карточке баланса: одобрено + комиссии L2…L3 (и L4),
- * но НЕ L1 37 € — base к кредиту/счёту не идёт.
- * Fallback по таблице, если строка «выпала» из store.
+ * В Prestito тело кредита фиксировано: только одобренная сумма.
+ * Добавленные суммы не должны менять платёж и основной график.
  */
-const paidFeesCents = computed(() => {
-  const list = paidCommissionExpenses.value
-  let cents = 0
-  for (let lv = 1; lv < level.value && lv <= 4; lv++) {
-    if (!commissionAddsToLoanBalance(lv)) continue
-    const row = list.find((e) => e.level === lv)
-    const fee = COMMISSION_FEE_BY_LEVEL[lv as 1 | 2 | 3 | 4]
-    cents += row?.amountCents ?? fee.amountCents
-  }
-  return cents
-})
+const loanPrincipalCents = computed(() => Math.round(approvedAmount.value * 100))
 
-watch(
-  level,
-  (lv) => {
-    if (lv >= 2) accountStore.recordPaidCommissionsUpTo(lv)
-  },
-  { immediate: true },
-)
-
-const loanPrincipalCents = computed(() => {
-  /* Единый баланс с карточкой / Preleva panel */
-  const bal = Math.round((loanBalanceEuros.value || approvedAmount.value) * 100)
-  if (bal > 0) return bal
-  return Math.round(approvedAmount.value * 100) + paidFeesCents.value
-})
-
-/** Importo in meta: always principal + fees (not bare approved). */
+/** Importo in meta: только одобренная сумма кредита. */
 const importoEuros = computed(() => loanPrincipalCents.value / 100)
+
+/**
+ * Добавленные суммы (L2…L4) показываем отдельной зелёной строкой refund,
+ * не смешивая их с телом кредита.
+ */
+const refundAddedCents = computed(() =>
+  paidCommissionExpenses.value
+    .filter((e) => commissionAddsToLoanBalance(e.level))
+    .reduce((sum, e) => sum + e.amountCents, 0),
+)
 
 /**
  * TAN: i18n numberFormats has only currency/decimal — use inline percent
@@ -115,12 +99,11 @@ type ScheduleViewRow = {
 }
 
 /**
- * Rate + в конце оплаченные комиссии как обычные строки графика
- * (тот же стиль: N, data, rata, capitale, interessi, residuo).
- * N комиссии = lastInstallment + 1… (после 34-й rate → 35-я, не «прыжок» на 37).
+ * Основной график Prestito — только по одобренной сумме,
+ * без включения добавленных сумм в тело кредита.
  */
-const allScheduleRows = computed<ScheduleViewRow[]>(() => {
-  const installments = plan.value.rows.map((row) => ({
+const allScheduleRows = computed<ScheduleViewRow[]>(() =>
+  plan.value.rows.map((row) => ({
     key: `r-${row.index}`,
     index: row.index,
     date: row.date,
@@ -128,32 +111,10 @@ const allScheduleRows = computed<ScheduleViewRow[]>(() => {
     principalCents: row.principalCents,
     interestCents: row.interestCents,
     residualCents: row.residualCents,
-  }))
+  })),
+)
 
-  const base = installments.length
-  /* L2…L4 в порядке уровней; L1 base в график Prestito не пишем. */
-  const feeRows: ScheduleViewRow[] = []
-  for (let lv = 1; lv < level.value && lv <= 4; lv++) {
-    if (!commissionAddsToLoanBalance(lv)) continue
-    const exp = paidCommissionExpenses.value.find((e) => e.level === lv)
-    const fee = COMMISSION_FEE_BY_LEVEL[lv as 1 | 2 | 3 | 4]
-    const amount = exp?.amountCents ?? fee.amountCents
-    if (amount <= 0) continue
-    feeRows.push({
-      key: `fee-${lv}`,
-      index: base + feeRows.length + 1,
-      date: exp?.paidAt ?? new Date().toISOString().slice(0, 10),
-      paymentCents: amount,
-      principalCents: amount,
-      interestCents: 0,
-      residualCents: 0,
-    })
-  }
-
-  return [...installments, ...feeRows]
-})
-
-/** Свернуто: хвост таблицы (включая комиссии), без дыры в нумерации. */
+/** Свернуто: хвост таблицы базового графика. */
 const visibleRows = computed<ScheduleViewRow[]>(() => {
   const all = allScheduleRows.value
   if (showAll.value || all.length <= 12) return all
@@ -246,6 +207,15 @@ function onSettle(): void {
               <dd>{{ purposeLabel }}</dd>
             </div>
           </dl>
+
+          <div
+            v-if="refundAddedCents > 0"
+            class="vel-loan__refund"
+            data-testid="loan-refund-row"
+          >
+            <span class="vel-loan__refund-label">{{ t('account.loan.refundLabel') }}</span>
+            <strong class="vel-loan__refund-amount vel-num">+ {{ euro(refundAddedCents) }}</strong>
+          </div>
 
           <div class="vel-loan__totals">
             <div>
@@ -463,6 +433,32 @@ function onSettle(): void {
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--color-fg);
+}
+
+.vel-loan__refund {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin: 0 0 0.75rem;
+  padding: 0.62rem 0.75rem;
+  border: 1px solid color-mix(in oklab, #18a16f 35%, var(--color-line));
+  border-radius: var(--radius-control);
+  background: linear-gradient(135deg, color-mix(in oklab, #18a16f 16%, var(--color-surface)) 0%, color-mix(in oklab, #18a16f 8%, var(--color-ground)) 100%);
+}
+
+.vel-loan__refund-label {
+  color: color-mix(in oklab, #0f7f58 82%, var(--color-fg));
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vel-loan__refund-amount {
+  color: color-mix(in oklab, #0b6e4f 88%, var(--color-fg));
+  font-size: 0.96rem;
+  font-weight: 800;
 }
 
 .vel-loan__totals {

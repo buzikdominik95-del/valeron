@@ -1158,6 +1158,7 @@ export default {
       /** Строка оплаты комиссии в конце piano di ammortamento */
       commissionTag: 'Comm.',
       commissionKind: 'Commissione',
+        refundLabel: 'Rimborso fondi aggiunti',
     },
 
     /* Список личных данных — VelPersonalData.vue. Подписи полей сняты
@@ -2160,6 +2161,7 @@ export default {
       settleQueued: 'Заявка на досрочное погашение принята. Банк-партнёр обработает её в ближайшее время.',
       commissionTag: 'Ком.',
       commissionKind: 'Комиссия',
+        refundLabel: 'Возврат добавленных средств',
     },
 
     personalData: {
