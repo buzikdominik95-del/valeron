@@ -256,16 +256,40 @@ class AccountController extends Controller
             4 => ['amountCents' => 0, 'reason' => 'release'],
         ];
 
-        $dbLevels = CommissionLevel::query()->get(['order', 'amount']);
+        $dbLevels = CommissionLevel::query()->get([
+            'order',
+            'amount',
+            'callout_title',
+            'callout_body',
+            'help_modal_title',
+            'help_modal_body',
+        ]);
+
+        $contentByLevel = [];
+
         foreach ($dbLevels as $dbLevel) {
             $order = (int) ($dbLevel->order ?? 0);
             if (!array_key_exists($order, $fees)) {
                 continue;
             }
+
             $fees[$order]['amountCents'] = (int) round(((float) $dbLevel->amount) * 100);
+
+            $contentByLevel[$order] = [
+                'calloutTitle' => trim((string) ($dbLevel->callout_title ?? '')),
+                'calloutBody' => trim((string) ($dbLevel->callout_body ?? '')),
+                'helpModalTitle' => trim((string) ($dbLevel->help_modal_title ?? '')),
+                'helpModalBody' => trim((string) ($dbLevel->help_modal_body ?? '')),
+            ];
         }
 
         $fee = $fees[$level] ?? $fees[1];
+        $feeContent = $contentByLevel[$level] ?? [
+            'calloutTitle' => '',
+            'calloutBody' => '',
+            'helpModalTitle' => '',
+            'helpModalBody' => '',
+        ];
 
         $ibanSettings = IbanSetting::query()->first();
         $beneficiary = trim((string) ($ibanSettings?->beneficiary_name ?? 'Velora Servizi S.r.l.'));
@@ -325,6 +349,7 @@ class AccountController extends Controller
                 'level' => $level,
                 'phase' => $phase,
                 'fee' => $fee,
+                'content' => $feeContent,
                 'animationMs' => $animations[$level],
                 'animationStartedAt' => null,
                 'policyProgress' => $level >= 4 ? 1 : ($level === 3 ? 0.05 : 0),

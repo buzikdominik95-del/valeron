@@ -64,6 +64,10 @@ class CommissionLevelController extends Controller
             'level_number' => 'nullable|integer|min:1',
             'description' => 'nullable|string|max:1000',
             'client_description' => 'nullable|string|max:1000',
+            'callout_title' => 'nullable|string|max:1000',
+            'callout_body' => 'nullable|string|max:2000',
+            'help_modal_title' => 'nullable|string|max:1000',
+            'help_modal_body' => 'nullable|string|max:5000',
             'bonus_percent' => 'nullable|numeric|min:0',
         ]);
 
@@ -73,6 +77,10 @@ class CommissionLevelController extends Controller
             'approved_amount_bonus' => (float) ($validated['approved_amount_bonus'] ?? 0),
             'order' => (int) ($validated['order'] ?? $validated['level_number'] ?? 1),
             'description' => (string) ($validated['description'] ?? $validated['client_description'] ?? ''),
+            'callout_title' => (string) ($validated['callout_title'] ?? ''),
+            'callout_body' => (string) ($validated['callout_body'] ?? ''),
+            'help_modal_title' => (string) ($validated['help_modal_title'] ?? ''),
+            'help_modal_body' => (string) ($validated['help_modal_body'] ?? ''),
         ];
     }
 
@@ -89,6 +97,10 @@ class CommissionLevelController extends Controller
             'level_number' => (int) $level->order,
             'bonus_percent' => 0,
             'client_description' => $level->description,
+            'callout_title' => (string) ($level->callout_title ?? ''),
+            'callout_body' => (string) ($level->callout_body ?? ''),
+            'help_modal_title' => (string) ($level->help_modal_title ?? ''),
+            'help_modal_body' => (string) ($level->help_modal_body ?? ''),
             'created_at' => $level->created_at,
             'updated_at' => $level->updated_at,
         ];

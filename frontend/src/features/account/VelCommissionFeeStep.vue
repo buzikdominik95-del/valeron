@@ -21,6 +21,8 @@ const props = defineProps<{
   reasonTitle: string
   reasonBody: string
   feeText: string
+  helpTitleOverride?: string
+  helpBodyOverride?: string
 }>()
 
 const emit = defineEmits<{ next: [] }>()
@@ -42,6 +44,16 @@ function lineAmount(euros: number): string {
     minimumFractionDigits: whole ? 0 : 2,
     maximumFractionDigits: whole ? 0 : 2,
   })
+}
+
+function toSafeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/\n/g, '<br>')
 }
 
 /** L1: note non detraibile. */
@@ -66,6 +78,9 @@ const showReasonCallout = computed(
 const detailsOpen = ref(false)
 
 const detailsTitle = computed(() => {
+  const custom = String(props.helpTitleOverride ?? '').trim()
+  if (custom !== '') return custom
+
   if (feeReason.value === 'insurance') {
     return t('account.commission.help.details.insuranceTitle')
   }
@@ -79,6 +94,11 @@ const detailsTitle = computed(() => {
 const detailsShowBadge = computed(() => feeReason.value !== 'insurance')
 
 const detailsBodyHtml = computed(() => {
+  const custom = String(props.helpBodyOverride ?? '').trim()
+  if (custom !== '') {
+    return toSafeHtml(custom)
+  }
+
   if (feeReason.value === 'insurance') {
     return t('account.commission.help.details.insuranceHtml')
   }

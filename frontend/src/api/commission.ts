@@ -57,10 +57,18 @@ export interface CommissionFee {
   reason: CommissionFeeReason
 }
 
+export interface CommissionContent {
+  calloutTitle?: string
+  calloutBody?: string
+  helpModalTitle?: string
+  helpModalBody?: string
+}
+
 export interface AccountCommission {
   level: CommissionLevel
   phase: CommissionPhase
   fee: CommissionFee
+  content?: CommissionContent
   animationMs: number
   animationStartedAt: string | null
   policyProgress: number

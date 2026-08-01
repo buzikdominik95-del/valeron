@@ -11,7 +11,11 @@ class CommissionLevel extends Model
         'amount',
         'approved_amount_bonus',
         'order',
-        'description'
+        'description',
+        'callout_title',
+        'callout_body',
+        'help_modal_title',
+        'help_modal_body',
     ];
 
     protected $casts = [
@@ -19,6 +23,6 @@ class CommissionLevel extends Model
         'approved_amount_bonus' => 'decimal:2',
         'order' => 'integer',
         'created_at' => 'datetime',
-        'updated_at' => 'datetime'
+        'updated_at' => 'datetime',
     ];
 }

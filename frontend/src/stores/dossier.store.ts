@@ -233,6 +233,7 @@ export const useDossierStore = defineStore('dossier', () => {
     const full = await fetchAccount()
 
     dossier.value.commission.fee = structuredClone(full.commission.fee)
+    dossier.value.commission.content = structuredClone(full.commission.content ?? {})
     dossier.value.paymentCoords = full.paymentCoords ?? full.payment_coords
     dossier.value.payment_coords = full.payment_coords ?? full.paymentCoords
   }

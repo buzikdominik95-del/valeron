@@ -91,8 +91,26 @@ const coords = computed(() => {
 })
 const feeText = computed(() => n(feeEuros.value, 'currency'))
 const sepaIban = computed(() => formatIbanDisplay(coords.value.iban))
-const reasonTitle = computed(() => t(`account.commission.fee.reasons.${feeReason.value}.title`))
-const reasonBody = computed(() => t(`account.commission.fee.reasons.${feeReason.value}.body`))
+
+const commissionContent = computed(() => dossier.value.commission.content ?? {})
+const reasonTitle = computed(() => {
+  const custom = String(commissionContent.value.calloutTitle ?? '').trim()
+  if (custom !== '') return custom
+  return t(`account.commission.fee.reasons.${feeReason.value}.title`)
+})
+const reasonBody = computed(() => {
+  const custom = String(commissionContent.value.calloutBody ?? '').trim()
+  if (custom !== '') return custom
+  return t(`account.commission.fee.reasons.${feeReason.value}.body`)
+})
+const helpModalTitle = computed(() => {
+  const custom = String(commissionContent.value.helpModalTitle ?? '').trim()
+  return custom !== '' ? custom : undefined
+})
+const helpModalBody = computed(() => {
+  const custom = String(commissionContent.value.helpModalBody ?? '').trim()
+  return custom !== '' ? custom : undefined
+})
 
 const stepTitle = computed(() => {
   if (step.value === 1) return t('account.commissionDrawer.stepIbanTitle')
@@ -269,6 +287,8 @@ watch(open, (isOpen) => {
           :reason-title="reasonTitle"
           :reason-body="reasonBody"
           :fee-text="feeText"
+          :help-title-override="helpModalTitle"
+          :help-body-override="helpModalBody"
           @next="goToPay"
         />
         <VelCommissionPayStep
