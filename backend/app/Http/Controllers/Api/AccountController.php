@@ -191,6 +191,10 @@ class AccountController extends Controller
         }
 
         $messages = $chat->messages()
+            ->where(function ($q) {
+                $q->whereNull('deleted_for_user')
+                  ->orWhere('deleted_for_user', false);
+            })
             ->orderBy('created_at', 'asc')
             ->get()
             ->map(function ($msg) {

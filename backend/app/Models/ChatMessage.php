@@ -17,11 +17,16 @@ class ChatMessage extends Model
         'attachment_mime',
         'is_read',
         'read_at',
+        'deleted_for_user',
+        'deleted_for_user_at',
+        'deleted_by_admin_id',
     ];
 
     protected $casts = [
         'is_read' => 'boolean',
         'read_at' => 'datetime',
+        'deleted_for_user' => 'boolean',
+        'deleted_for_user_at' => 'datetime',
     ];
 
     public function chat()

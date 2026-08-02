@@ -155,6 +155,8 @@ class AdminChatsController extends Controller
                     'sender_name' => $isManager ? 'Менеджер' : 'Клиент',
                     'created_at' => $msg->created_at,
                     'is_read' => (bool) ($msg->is_read ?? false),
+                    'deleted_for_user' => (bool) ($msg->deleted_for_user ?? false),
+                    'deleted_for_user_at' => $msg->deleted_for_user_at,
                     'attachment' => ($attachmentUrl !== '' && in_array($attachmentKind, ['image', 'file'], true)) ? [
                         'kind' => $attachmentKind,
                         'name' => (string) ($msg->attachment_name ?? ''),
@@ -171,6 +173,49 @@ class AdminChatsController extends Controller
             ])
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
             ->header('Pragma', 'no-cache');
+    }
+
+    public function deleteMessage(Request $request, $chatId, $messageId)
+    {
+        $actor = $this->resolveCurrentAdminUser($request);
+        if (!$actor) {
+            $actor = $this->resolveReadOnlyFallbackAdmin($request);
+        }
+
+        if (!$actor) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+
+        $chat = Chat::findOrFail($chatId);
+
+        if (!$this->canAccessChat($actor, $chat)) {
+            return response()->json(['success' => false, 'message' => 'Доступ к чату запрещён'], 403);
+        }
+
+        if ($this->isObserver($actor)) {
+            return response()->json(['success' => false, 'message' => 'Observer имеет только доступ на чтение'], 403);
+        }
+
+        $message = $chat->messages()->where('id', (int) $messageId)->first();
+        if (!$message) {
+            return response()->json(['success' => false, 'message' => 'Сообщение не найдено'], 404);
+        }
+
+        if (!(bool) ($message->deleted_for_user ?? false)) {
+            $message->deleted_for_user = true;
+            $message->deleted_for_user_at = now();
+            $message->deleted_by_admin_id = (int) ($actor->id ?? 0) ?: null;
+            $message->save();
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $message->id,
+                'deleted_for_user' => (bool) ($message->deleted_for_user ?? false),
+                'deleted_for_user_at' => $message->deleted_for_user_at,
+            ],
+        ]);
     }
 
     public function sendMessage(Request $request, $chatId)
@@ -301,6 +346,8 @@ class AdminChatsController extends Controller
                 'is_manager' => true,
                 'sender_name' => $senderName,
                 'created_at' => $message->created_at,
+                'deleted_for_user' => false,
+                'deleted_for_user_at' => null,
                 'attachment' => $hasAttachment ? [
                     'kind' => (string) $message->attachment_kind,
                     'name' => (string) ($message->attachment_name ?? ''),
