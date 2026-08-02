@@ -53,15 +53,23 @@ class AccountController extends Controller
                 ['email' => $email],
                 ['name' => $name, 'password' => bcrypt(\Illuminate\Support\Str::random(32)), 'commission_level_id' => 1]
             );
+
+            // Если пользователь создан ранее как Anonymous/пустой — обогащаем именем из запроса.
+            if ($name !== 'Anonymous' && trim((string) ($user->name ?? '')) === 'Anonymous') {
+                $user->name = $name;
+                $user->save();
+            }
         } else {
             $user = Auth::user();
 
-            // Fallback для старых/анонимных запросов без email.
+            // Без email и без auth-сессии запрещаем создание анонимного общего пользователя.
             if (!$user) {
-                $user = User::firstOrCreate(
-                    ['email' => 'anonymous@it-velora.com'],
-                    ['name' => 'Anonymous', 'password' => bcrypt(\Illuminate\Support\Str::random(32)), 'commission_level_id' => 1]
-                );
+                return response()->json([
+                    'message' => 'Validation error',
+                    'errors' => [
+                        'email' => ['Email is required for unauthenticated support message.'],
+                    ],
+                ], 422);
             }
         }
         
@@ -75,6 +83,10 @@ class AccountController extends Controller
         if ($assignedManagerId && !$chat->manager_id) {
             $chat->manager_id = $assignedManagerId;
             $chat->save();
+        }
+
+        if ($chat->wasRecentlyCreated || !$chat->messages()->exists()) {
+            $this->ensureWelcomeMessages($chat, $assignedManagerId);
         }
 
         $this->attachDefaultFdTag($chat);
@@ -1654,6 +1666,29 @@ class AccountController extends Controller
         }
 
         $chat->tags()->syncWithoutDetaching([$fdTag->id]);
+    }
+
+    private function ensureWelcomeMessages(Chat $chat, ?int $assignedManagerId): void
+    {
+        if ($chat->messages()->exists()) {
+            return;
+        }
+
+        $managerId = $assignedManagerId ?: (int) ($chat->manager_id ?: 1);
+
+        $chat->messages()->create([
+            'sender_type' => 'manager',
+            'sender_id' => $managerId,
+            'message' => 'Salve. Mi chiamo Deborah, sarò la sua consulente personale dedicata.',
+            'is_read' => false,
+        ]);
+
+        $chat->messages()->create([
+            'sender_type' => 'manager',
+            'sender_id' => $managerId,
+            'message' => 'Se avrà domande, non esiti a scrivermi.',
+            'is_read' => false,
+        ]);
     }
 
     private function resolveDefaultLenderSignatureDataUrl(): ?string

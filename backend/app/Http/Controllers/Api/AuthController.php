@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Support\ManagerTrafficAssigner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
@@ -172,6 +173,154 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         return response()->json($request->user());
+    }
+
+    public function sendEmailVerificationCode(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        if (!empty($user->email_verified_at)) {
+            return response()->json([
+                'ok' => true,
+                'already_verified' => true,
+            ]);
+        }
+
+        $cooldownKey = 'email_verify:cooldown:'.$user->id;
+        if (Cache::has($cooldownKey)) {
+            $retryAfter = (int) Cache::get($cooldownKey, 0);
+            if ($retryAfter <= 0) {
+                $retryAfter = 60;
+            }
+
+            return response()->json([
+                'message' => 'Too many requests',
+                'errors' => [
+                    'code' => ['Please wait before requesting another code.'],
+                ],
+                'retry_after' => $retryAfter,
+            ], 429);
+        }
+
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        $ttlSeconds = 15 * 60;
+        $payload = [
+            'hash' => Hash::make($code),
+            'attempts' => 0,
+            'created_at' => now()->toIso8601String(),
+        ];
+
+        Cache::put('email_verify:code:'.$user->id, $payload, now()->addSeconds($ttlSeconds));
+        Cache::put($cooldownKey, 60, now()->addSeconds(60));
+
+        try {
+            Mail::raw(
+                "Codice di verifica Velora: {$code}\n\nQuesto codice è valido per 15 minuti.\nSe non hai richiesto tu la verifica, ignora questa email.",
+                function ($message) use ($user) {
+                    $message
+                        ->to($user->email)
+                        ->subject('Velora — codice di verifica email');
+                }
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Email verification code send failed', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+
+            Cache::forget('email_verify:code:'.$user->id);
+
+            return response()->json([
+                'message' => 'Unable to send verification code',
+            ], 500);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'ttl_seconds' => $ttlSeconds,
+            'already_verified' => false,
+        ]);
+    }
+
+    public function verifyEmailVerificationCode(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'code' => ['required', 'string', 'regex:/^[0-9]{6}$/'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        if (!empty($user->email_verified_at)) {
+            return response()->json([
+                'ok' => true,
+                'already_verified' => true,
+                'verified_at' => optional($user->email_verified_at)->toIso8601String(),
+            ]);
+        }
+
+        $cacheKey = 'email_verify:code:'.$user->id;
+        $cached = Cache::get($cacheKey);
+
+        if (!is_array($cached) || empty($cached['hash'])) {
+            return response()->json([
+                'message' => 'Validation error',
+                'errors' => [
+                    'code' => ['Code is invalid or expired.'],
+                ],
+            ], 422);
+        }
+
+        $attempts = (int) ($cached['attempts'] ?? 0);
+        if ($attempts >= 5) {
+            Cache::forget($cacheKey);
+
+            return response()->json([
+                'message' => 'Validation error',
+                'errors' => [
+                    'code' => ['Too many attempts. Request a new code.'],
+                ],
+            ], 422);
+        }
+
+        $code = trim((string) $request->input('code', ''));
+
+        if (!Hash::check($code, (string) $cached['hash'])) {
+            $cached['attempts'] = $attempts + 1;
+            Cache::put($cacheKey, $cached, now()->addSeconds(15 * 60));
+
+            return response()->json([
+                'message' => 'Validation error',
+                'errors' => [
+                    'code' => ['Incorrect verification code.'],
+                ],
+            ], 422);
+        }
+
+        $user->email_verified_at = now();
+        $user->save();
+
+        Cache::forget($cacheKey);
+        Cache::forget('email_verify:cooldown:'.$user->id);
+
+        return response()->json([
+            'ok' => true,
+            'already_verified' => false,
+            'verified_at' => optional($user->email_verified_at)->toIso8601String(),
+        ]);
     }
 
     private function buildWizardProgressFromRequest(Request $request): array

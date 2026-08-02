@@ -190,7 +190,7 @@ async function submitOnline(address: string, pwd: string): Promise<void> {
 
   try {
     if (isCreate.value) {
-      await apiRegister({
+      const session = await apiRegister({
         email: address,
         password: pwd,
         passwordConfirmation: confirm.value,
@@ -201,13 +201,17 @@ async function submitOnline(address: string, pwd: string): Promise<void> {
         documentType: simulator.docType.trim() || undefined,
         documentNumber: simulator.docNumber.trim() || undefined,
       })
+      if (session.user.email_verified_at) account.markEmailVerified()
+      else account.clearEmailVerified()
       simulator.email = address
       if (first) simulator.firstName = first
       if (last) simulator.surname = last
       finishSuccess(address, 'registered')
       return
     }
-    await apiLogin({ email: address, password: pwd })
+    const session = await apiLogin({ email: address, password: pwd })
+    if (session.user.email_verified_at) account.markEmailVerified()
+    else account.clearEmailVerified()
     simulator.email = address
     finishSuccess(address, 'login')
   } catch (e: unknown) {

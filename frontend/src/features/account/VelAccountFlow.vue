@@ -9,6 +9,7 @@ import { useAccountStore } from '@/stores/account.store'
 import { useDossierStore } from '@/stores/dossier.store'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import { isApiEnabled, saveLoanTermMonthsToProfile, sendSignedContractEmail } from '@/api/account.api'
+import { fetchMe } from '@/api/auth.api'
 
 import VelAccount from '@/features/account/VelAccount.vue'
 import VelPayoutCard from '@/features/account/VelPayoutCard.vue'
@@ -83,6 +84,18 @@ const apiError = ref<string | null>(null)
 const contractEmailSending = ref(false)
 let accountSyncTimer: number | null = null
 const ACCOUNT_SYNC_INTERVAL_MS = 12_000
+
+async function syncEmailVerifiedFromBackend(): Promise<void> {
+  if (!isApiEnabled()) return
+
+  try {
+    const me = await fetchMe()
+    if (me.email_verified_at) account.markEmailVerified()
+    else account.clearEmailVerified()
+  } catch {
+    /* ignore auth/network hiccups here */
+  }
+}
 
 function syncProfileTermToBackend(): void {
   if (!isApiEnabled()) return
@@ -170,6 +183,7 @@ onMounted(() => {
   }
 
   if (!isApiEnabled()) return
+  void syncEmailVerifiedFromBackend()
   void syncAccountNow().then(() => ensureWelcomeMessages())
   syncProfileTermToBackend()
   startAccountSync()

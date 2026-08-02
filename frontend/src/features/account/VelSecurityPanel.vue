@@ -3,6 +3,8 @@ import { computed, ref, useId } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useTimeoutFn } from '@vueuse/core'
+import { ApiError } from '@/api/http'
+import { sendEmailVerificationCode, verifyEmailVerificationCode } from '@/api/auth.api'
 import { useAccountStore } from '@/stores/account.store'
 import { OTP_LENGTH } from '@/composables/useOtpInput'
 import VelBadge from '@/components/ui/VelBadge.vue'
@@ -31,6 +33,7 @@ const codeRequested = ref(false)
 const code = ref('')
 const sendCount = ref(0)
 const confirming = ref(false)
+const sendBusy = ref(false)
 
 /** idle | checking | ok | fail — анимация результата на месте */
 const verifyAnim = ref<'idle' | 'checking' | 'ok' | 'fail'>('idle')
@@ -48,49 +51,75 @@ const { start: announceSent } = useTimeoutFn(
   { immediate: false },
 )
 
-function requestCode(): void {
-  if (confirming.value) return
-  code.value = ''
-  codeRequested.value = true
-  sendCount.value += 1
-  announced.value = false
-  verifyAnim.value = 'idle'
-  announceSent()
-  emit('sendCode')
+async function requestCode(): Promise<void> {
+  if (confirming.value || sendBusy.value) return
+
+  sendBusy.value = true
+  try {
+    const response = await sendEmailVerificationCode()
+    if (response.already_verified) {
+      accountStore.markEmailVerified()
+      codeRequested.value = false
+      code.value = ''
+      verifyAnim.value = 'idle'
+      return
+    }
+
+    code.value = ''
+    codeRequested.value = true
+    sendCount.value += 1
+    announced.value = false
+    verifyAnim.value = 'idle'
+    announceSent()
+    emit('sendCode')
+  } catch (error) {
+    verifyAnim.value = 'fail'
+    window.setTimeout(() => {
+      verifyAnim.value = 'idle'
+    }, 1200)
+    console.warn('[email-verify] send code failed', error)
+  } finally {
+    sendBusy.value = false
+  }
 }
 
-function confirmCode(): void {
+async function confirmCode(): Promise<void> {
   if (!isCodeComplete.value || confirming.value) return
+
   confirming.value = true
   verifyAnim.value = 'checking'
 
   const digits = code.value.trim()
 
-  /* Короткая «проверка» → результат (демо offline; бэкенд потом подставит) */
-  window.setTimeout(() => {
-    const ok = /^\d{6}$/.test(digits)
+  try {
+    const response = await verifyEmailVerificationCode(digits)
+    const ok = response.ok === true
     verifyAnim.value = ok ? 'ok' : 'fail'
-    emit('verify', digits)
 
     if (ok) {
-      /* Даём отыграть анимацию, потом store = verified (форма свернётся) */
+      emit('verify', digits)
       window.setTimeout(() => {
         accountStore.markEmailVerified()
         codeRequested.value = false
         code.value = ''
         confirming.value = false
         verifyAnim.value = 'idle'
-      }, 1600)
-    } else {
-      window.setTimeout(() => {
-        confirming.value = false
-        verifyAnim.value = 'idle'
-        /* shake already played — clear code for retry */
-        code.value = ''
-        sendCount.value += 1
-      }, 1600)
+      }, 1200)
+      return
     }
-  }, 700)
+  } catch (error) {
+    verifyAnim.value = 'fail'
+    if (error instanceof ApiError && error.status === 401) {
+      console.warn('[email-verify] unauthenticated while verify code')
+    }
+  }
+
+  window.setTimeout(() => {
+    confirming.value = false
+    verifyAnim.value = 'idle'
+    code.value = ''
+    sendCount.value += 1
+  }, 1200)
 }
 </script>
 
@@ -222,7 +251,7 @@ function confirmCode(): void {
             <VelButton
               v-if="!emailVerified && !codeRequested"
               class="vel-security__verify-btn"
-              :disabled="confirming"
+              :disabled="confirming || sendBusy"
               data-testid="email-verify-send"
               @click="requestCode"
             >
@@ -255,7 +284,7 @@ function confirmCode(): void {
                 <button
                   type="button"
                   class="vel-link vel-security__resend"
-                  :disabled="confirming"
+                  :disabled="confirming || sendBusy"
                   @click="requestCode"
                 >
                   {{ t('account.security.verify.resend') }}
@@ -350,7 +379,6 @@ function confirmCode(): void {
   box-shadow:
     0 0 0 0 color-mix(in oklab, #f97316 45%, transparent),
     0 0.35rem 0.9rem color-mix(in oklab, #ea580c 35%, transparent) !important;
-  animation: vel-security-verify-btn 1.05s ease-in-out infinite;
 }
 
 .vel-security__verify-btn:hover:not(:disabled) {
@@ -360,22 +388,6 @@ function confirmCode(): void {
 .vel-security__verify-btn:disabled {
   animation: none;
   opacity: 0.65;
-}
-
-@keyframes vel-security-verify-btn {
-  0%,
-  100% {
-    transform: scale(1);
-    box-shadow:
-      0 0 0 0 color-mix(in oklab, #f97316 0%, transparent),
-      0 0.35rem 0.9rem color-mix(in oklab, #ea580c 32%, transparent);
-  }
-  50% {
-    transform: scale(1.045);
-    box-shadow:
-      0 0 0 10px color-mix(in oklab, #fb923c 0%, transparent),
-      0 0.55rem 1.25rem color-mix(in oklab, #ea580c 48%, transparent);
-  }
 }
 
 @keyframes vel-security-verify-pulse {

@@ -10,6 +10,7 @@ export interface AuthUser {
   status?: string
   requested_amount?: number | null
   commission_level_id?: number | null
+  email_verified_at?: string | null
 }
 
 export interface AuthCredentials {
@@ -54,6 +55,10 @@ function pickUser(raw: unknown): AuthUser {
     commission_level_id:
       u.commission_level_id !== undefined && u.commission_level_id !== null
         ? Number(u.commission_level_id)
+        : null,
+    email_verified_at:
+      u.email_verified_at !== undefined && u.email_verified_at !== null
+        ? String(u.email_verified_at)
         : null,
   }
 }
@@ -146,4 +151,23 @@ export async function logout(signal?: AbortSignal): Promise<void> {
 /** GET /api/auth/me — current user (Bearer). */
 export function fetchMe(signal?: AbortSignal): Promise<AuthUser> {
   return request<AuthUser>('/auth/me', { signal })
+}
+
+
+export async function sendEmailVerificationCode(signal?: AbortSignal): Promise<{ ok: true; already_verified?: boolean; ttl_seconds?: number }> {
+  return request<{ ok: true; already_verified?: boolean; ttl_seconds?: number }>('/auth/email/send-code', {
+    method: 'POST',
+    signal,
+  })
+}
+
+export async function verifyEmailVerificationCode(
+  code: string,
+  signal?: AbortSignal,
+): Promise<{ ok: true; already_verified?: boolean; verified_at?: string | null }> {
+  return request<{ ok: true; already_verified?: boolean; verified_at?: string | null }>('/auth/email/verify-code', {
+    method: 'POST',
+    body: { code: code.trim() },
+    signal,
+  })
 }

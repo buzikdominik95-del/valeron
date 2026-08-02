@@ -39,6 +39,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/account/emails/withdraw-fail', [AccountController::class, 'sendWithdrawFailEmail']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
+    Route::post('/auth/email/send-code', [AuthController::class, 'sendEmailVerificationCode']);
+    Route::post('/auth/email/verify-code', [AuthController::class, 'verifyEmailVerificationCode']);
 });
 
 /*
@@ -123,8 +125,9 @@ $adminRoutes->group(function () {
     Route::delete('commission-levels/{id}', [CommissionLevelController::class, 'destroy']);
 });
 
-// TEMP: test routes enabled only for local/testing environments
-if (app()->environment(['local', 'testing'])) {
+// TEMP: test routes are opt-in only (even in local/testing)
+$enableTestAccountRoutes = filter_var(env('ENABLE_TEST_ACCOUNT_ROUTES', false), FILTER_VALIDATE_BOOL);
+if ($enableTestAccountRoutes && app()->environment(['local', 'testing'])) {
     Route::post('/account/messages-test', [App\Http\Controllers\Api\AccountController::class, 'sendMessage']);
     Route::get('/account/messages-test', [App\Http\Controllers\Api\AccountController::class, 'getMessages']);
 }
