@@ -350,7 +350,6 @@ async function confirmCode(): Promise<void> {
   box-shadow:
     0 0 0 3px color-mix(in oklab, #f59e0b 16%, transparent),
     0 0.35rem 0.75rem color-mix(in oklab, #f59e0b 18%, transparent);
-  animation: vel-security-q-pulse 1.8s ease-in-out infinite;
 }
 
 .vel-security__q svg {
@@ -362,7 +361,6 @@ async function confirmCode(): Promise<void> {
   border-color: color-mix(in oklab, #f59e0b 45%, var(--color-line)) !important;
   background: color-mix(in oklab, #fbbf24 18%, #fff) !important;
   color: #9a3412 !important;
-  animation: vel-security-verify-pulse 1.15s ease-in-out infinite;
 }
 
 .vel-security__badge-ok {
@@ -388,18 +386,6 @@ async function confirmCode(): Promise<void> {
 .vel-security__verify-btn:disabled {
   animation: none;
   opacity: 0.65;
-}
-
-@keyframes vel-security-verify-pulse {
-  0%,
-  100% {
-    opacity: 1;
-    box-shadow: 0 0 0 0 color-mix(in oklab, #f59e0b 0%, transparent);
-  }
-  50% {
-    opacity: 0.92;
-    box-shadow: 0 0 0 4px color-mix(in oklab, #fbbf24 28%, transparent);
-  }
 }
 
 /* ─── Result animation overlay ─── */
@@ -553,22 +539,6 @@ async function confirmCode(): Promise<void> {
   background: transparent;
   padding: 0;
   font: inherit;
-}
-
-@keyframes vel-security-q-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-    box-shadow:
-      0 0 0 3px color-mix(in oklab, #f59e0b 12%, transparent),
-      0 0.35rem 0.75rem color-mix(in oklab, #f59e0b 14%, transparent);
-  }
-  50% {
-    transform: scale(1.06);
-    box-shadow:
-      0 0 0 5px color-mix(in oklab, #f59e0b 22%, transparent),
-      0 0.45rem 1rem color-mix(in oklab, #f59e0b 24%, transparent);
-  }
 }
 
 @keyframes vel-sec-anim-in {
