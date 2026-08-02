@@ -4,14 +4,20 @@ namespace App\Http\Controllers\Api;
 
 use Carbon\Carbon;
 
+use App\Models\AdminUser;
 use App\Models\User;
 use Illuminate\Routing\Controller;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class AdminUsersMonitoringController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $actor = $request->user('sanctum') ?? $request->user();
+        if ($actor instanceof AdminUser && (string) ($actor->role ?? '') === 'observer') {
+            return response()->json(['message' => 'Недостаточно прав'], 403);
+        }
         $users = User::orderBy('created_at', 'desc')->get();
 
         if ($users->isEmpty()) {

@@ -16,7 +16,7 @@ class UserController extends Controller
     public function index(): JsonResponse
     {
         $users = AdminUser::query()
-            ->whereIn('role', ['manager', 'team_lead'])
+            ->whereIn('role', ['manager', 'team_lead', 'observer'])
             ->select(['id', 'name', 'role', 'created_at'])
             ->orderByDesc('created_at')
             ->get()
@@ -28,6 +28,7 @@ class UserController extends Controller
                 'handled_levels' => AdminManagerLevelStore::getFor((int) $user->id),
                 'hidden_elements' => AdminUiPermissionStore::getFor((int) $user->id),
                 'created_at' => $user->created_at,
+                'login_path' => '/'.$this->toRouteSlug($user->name).'/',
             ]);
 
         return response()->json([
@@ -41,7 +42,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'username' => 'required|string|max:255|unique:admin_users,name',
             'password' => 'required|string|min:6',
-            'role' => 'required|in:manager,team_lead',
+            'role' => 'required|in:manager,team_lead,observer',
             'hidden_elements' => 'nullable|array',
             'hidden_elements.*' => 'string|max:80',
             'uses_level_system' => 'nullable|boolean',
@@ -54,9 +55,13 @@ class UserController extends Controller
             $email = strtolower(preg_replace('/\s+/', '.', trim($validated['username']))) . '.' . time() . '@admin.it-velora.com';
         }
 
-        $usesLevelSystem = array_key_exists('uses_level_system', $validated)
-            ? (bool) $validated['uses_level_system']
-            : true;
+        $isObserverRole = ($validated['role'] ?? '') === 'observer';
+
+        $usesLevelSystem = $isObserverRole
+            ? false
+            : (array_key_exists('uses_level_system', $validated)
+                ? (bool) $validated['uses_level_system']
+                : true);
 
         $user = AdminUser::create([
             'name' => $validated['username'],
@@ -68,9 +73,29 @@ class UserController extends Controller
         ]);
 
         $hidden = $validated['hidden_elements'] ?? [];
+        if ($isObserverRole) {
+            $observerHidden = [
+                'nav_monitoring',
+                'nav_settings',
+                'nav_tags',
+                'tab_iban',
+                'tab_users',
+                'tab_managers',
+                'tab_commissions',
+                'tab_leads',
+                'tab_tags',
+                'action_delete',
+                'action_toggle_manager',
+                'action_edit_commission',
+            ];
+            $hidden = array_values(array_unique(array_merge($hidden, $observerHidden)));
+        }
         AdminUiPermissionStore::setFor((int) $user->id, $hidden);
 
-        $levels = is_array($validated['handled_levels'] ?? null) ? $validated['handled_levels'] : [];
+        $levels = $isObserverRole
+            ? []
+            : (is_array($validated['handled_levels'] ?? null) ? $validated['handled_levels'] : []);
+
         if ($usesLevelSystem) {
             AdminManagerLevelStore::setFor((int) $user->id, $levels);
         } else {
@@ -86,13 +111,14 @@ class UserController extends Controller
                 'role' => $user->role,
                 'hidden_elements' => AdminUiPermissionStore::getFor((int) $user->id),
                 'created_at' => $user->created_at,
+                'login_path' => '/'.$this->toRouteSlug($user->name).'/',
             ],
         ], 201);
     }
 
     public function updatePermissions(Request $request, int $id): JsonResponse
     {
-        $user = AdminUser::query()->whereIn('role', ['manager', 'team_lead'])->findOrFail($id);
+        $user = AdminUser::query()->whereIn('role', ['manager', 'team_lead', 'observer'])->findOrFail($id);
 
         $validated = $request->validate([
             'hidden_elements' => 'required|array',
@@ -104,14 +130,20 @@ class UserController extends Controller
 
         AdminUiPermissionStore::setFor((int) $user->id, $validated['hidden_elements']);
 
-        if (array_key_exists('uses_level_system', $validated)) {
-            $user->uses_level_system = (bool) $validated['uses_level_system'];
+        if ($user->role === 'observer') {
+            $user->uses_level_system = false;
             $user->save();
-        }
+            AdminManagerLevelStore::removeFor((int) $user->id);
+        } else {
+            if (array_key_exists('uses_level_system', $validated)) {
+                $user->uses_level_system = (bool) $validated['uses_level_system'];
+                $user->save();
+            }
 
-        if (array_key_exists('handled_levels', $validated)) {
-            $levels = is_array($validated['handled_levels']) ? $validated['handled_levels'] : [];
-            AdminManagerLevelStore::setFor((int) $user->id, $levels);
+            if (array_key_exists('handled_levels', $validated)) {
+                $levels = is_array($validated['handled_levels']) ? $validated['handled_levels'] : [];
+                AdminManagerLevelStore::setFor((int) $user->id, $levels);
+            }
         }
 
         return response()->json([
@@ -128,7 +160,7 @@ class UserController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        $user = AdminUser::query()->whereIn('role', ['manager', 'team_lead'])->findOrFail($id);
+        $user = AdminUser::query()->whereIn('role', ['manager', 'team_lead', 'observer'])->findOrFail($id);
 
         try {
             \DB::transaction(function () use ($user, $id) {
@@ -151,5 +183,17 @@ class UserController extends Controller
             'success' => true,
             'message' => 'Пользователь удалён',
         ]);
+    }
+
+    private function toRouteSlug(string $value): string
+    {
+        $slug = mb_strtolower(trim($value));
+        $slug = preg_replace('/\s+/', '_', $slug) ?? '';
+        $slug = preg_replace('/[^a-z0-9_-]/', '', $slug) ?? '';
+        $slug = preg_replace('/_+/', '_', $slug) ?? '';
+        $slug = preg_replace('/-+/', '-', $slug) ?? '';
+        $slug = trim($slug, '_-');
+
+        return $slug !== '' ? $slug : 'manager';
     }
 }

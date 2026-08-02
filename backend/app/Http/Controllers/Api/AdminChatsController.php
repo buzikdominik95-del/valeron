@@ -33,6 +33,7 @@ class AdminChatsController extends Controller
                 DB::raw('(SELECT iban FROM ibans WHERE user_id = chats.user_id ORDER BY is_default DESC, updated_at DESC, id DESC LIMIT 1) as lead_iban'),
                 DB::raw('(SELECT COUNT(*) FROM documents WHERE user_id = chats.user_id) as documents_count'),
                 DB::raw("(SELECT COUNT(*) FROM chat_messages WHERE chat_id = chats.id AND sender_type != 'manager' AND (is_read IS NULL OR is_read = false)) as unread_count"),
+                DB::raw('(SELECT name FROM admin_users WHERE id = chats.manager_id LIMIT 1) as manager_name'),
             ]);
 
         if ($actor && in_array($actor->role, ['manager', 'team_lead'], true)) {
@@ -198,6 +199,10 @@ class AdminChatsController extends Controller
             return response()->json(['success' => false, 'message' => 'Доступ к чату запрещён'], 403);
         }
 
+        if ($this->isObserver($actor)) {
+            return response()->json(['success' => false, 'message' => 'Observer имеет только доступ на чтение'], 403);
+        }
+
         if (in_array((string) $chat->status, ['closed', 'completed'], true) && $actor && in_array($actor->role, ['manager', 'team_lead'], true)) {
             return response()->json(['success' => false, 'message' => 'Чат завершён для этого менеджера'], 409);
         }
@@ -321,6 +326,10 @@ class AdminChatsController extends Controller
 
         if (!$this->canAccessChat($actor, $chat)) {
             return response()->json(['success' => false, 'message' => 'Доступ к чату запрещён'], 403);
+        }
+
+        if ($this->isObserver($actor)) {
+            return response()->json(['success' => false, 'message' => 'Observer имеет только доступ на чтение'], 403);
         }
 
         $validated = $request->validate([
@@ -474,6 +483,7 @@ class AdminChatsController extends Controller
             'stage_name' => null,
             'tags' => $chat->tags->pluck('id')->values(),
             'commission_level' => (int) ($user->commission_level_id ?? 1),
+            'manager_name' => $chat->manager_name ?: null,
             'updated_at' => $chat->last_msg_time ?? $chat->updated_at,
         ];
     }
@@ -881,6 +891,11 @@ class AdminChatsController extends Controller
         }
 
         return true;
+    }
+
+    private function isObserver(?AdminUser $actor): bool
+    {
+        return $actor && (string) ($actor->role ?? '') === 'observer';
     }
 
     private function pickNextLevelManager(int $level, int $excludeManagerId = 0): ?AdminUser
