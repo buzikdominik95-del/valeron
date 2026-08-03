@@ -14,6 +14,7 @@ class AdminUser extends Authenticatable
         'name',
         'email',
         'password',
+        'password_plain_encrypted',
         'role',
         'is_active',
         'uses_level_system',
@@ -21,6 +22,7 @@ class AdminUser extends Authenticatable
 
     protected $hidden = [
         'password',
+        'password_plain_encrypted',
         'remember_token',
     ];
 

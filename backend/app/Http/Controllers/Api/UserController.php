@@ -9,6 +9,7 @@ use App\Support\AdminUiPermissionStore;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
@@ -17,7 +18,7 @@ class UserController extends Controller
     {
         $users = AdminUser::query()
             ->whereIn('role', ['manager', 'team_lead', 'observer'])
-            ->select(['id', 'name', 'role', 'created_at'])
+            ->select(['id', 'name', 'role', 'created_at', 'password_plain_encrypted'])
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (AdminUser $user) => [
@@ -28,6 +29,9 @@ class UserController extends Controller
                 'handled_levels' => AdminManagerLevelStore::getFor((int) $user->id),
                 'hidden_elements' => AdminUiPermissionStore::getFor((int) $user->id),
                 'created_at' => $user->created_at,
+                'work_time_seconds' => $user->created_at ? $user->created_at->diffInSeconds(now()) : 0,
+                'password_known' => !empty($user->password_plain_encrypted),
+                'password_mask' => !empty($user->password_plain_encrypted) ? '••••••••' : 'не задан',
                 'login_path' => '/'.$this->toRouteSlug($user->name).'/',
             ]);
 
@@ -63,10 +67,13 @@ class UserController extends Controller
                 ? (bool) $validated['uses_level_system']
                 : true);
 
+        $plainPassword = (string) $validated['password'];
+
         $user = AdminUser::create([
             'name' => $validated['username'],
             'email' => $email,
-            'password' => Hash::make($validated['password']),
+            'password' => Hash::make($plainPassword),
+            'password_plain_encrypted' => Crypt::encryptString($plainPassword),
             'role' => $validated['role'],
             'is_active' => true,
             'uses_level_system' => $usesLevelSystem,
@@ -89,6 +96,8 @@ class UserController extends Controller
                 'action_edit_commission',
             ];
             $hidden = array_values(array_unique(array_merge($hidden, $observerHidden)));
+        } elseif (($validated['role'] ?? '') === 'manager') {
+            $hidden = array_values(array_unique(array_merge($hidden, $this->defaultManagerHiddenElements())));
         }
         AdminUiPermissionStore::setFor((int) $user->id, $hidden);
 
@@ -111,9 +120,75 @@ class UserController extends Controller
                 'role' => $user->role,
                 'hidden_elements' => AdminUiPermissionStore::getFor((int) $user->id),
                 'created_at' => $user->created_at,
+                'password_known' => true,
+                'password_mask' => '••••••••',
                 'login_path' => '/'.$this->toRouteSlug($user->name).'/',
             ],
         ], 201);
+    }
+
+    public function showCredentials(int $id): JsonResponse
+    {
+        $user = AdminUser::query()->whereIn('role', ['manager', 'team_lead', 'observer'])->findOrFail($id);
+
+        if (empty($user->password_plain_encrypted)) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $user->id,
+                    'username' => $user->name,
+                    'password' => null,
+                    'password_known' => false,
+                    'created_at' => $user->created_at,
+                ],
+            ]);
+        }
+
+        try {
+            $plain = Crypt::decryptString((string) $user->password_plain_encrypted);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Не удалось расшифровать пароль. Установите новый.',
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $user->id,
+                'username' => $user->name,
+                'password' => $plain,
+                'password_known' => true,
+                'created_at' => $user->created_at,
+            ],
+        ]);
+    }
+
+    public function updatePassword(Request $request, int $id): JsonResponse
+    {
+        $user = AdminUser::query()->whereIn('role', ['manager', 'team_lead', 'observer'])->findOrFail($id);
+
+        $validated = $request->validate([
+            'password' => 'required|string|min:6|max:255',
+        ]);
+
+        $plainPassword = (string) $validated['password'];
+        $user->password = Hash::make($plainPassword);
+        $user->password_plain_encrypted = Crypt::encryptString($plainPassword);
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Пароль обновлен',
+            'data' => [
+                'id' => $user->id,
+                'username' => $user->name,
+                'password' => $plainPassword,
+                'password_mask' => '••••••••',
+                'password_known' => true,
+            ],
+        ]);
     }
 
     public function updatePermissions(Request $request, int $id): JsonResponse
@@ -195,5 +270,17 @@ class UserController extends Controller
         $slug = trim($slug, '_-');
 
         return $slug !== '' ? $slug : 'manager';
+    }
+
+    private function defaultManagerHiddenElements(): array
+    {
+        return [
+            'nav_monitoring',
+            'tab_iban',
+            'tab_users',
+            'tab_managers',
+            'tab_commissions',
+            'tab_leads',
+        ];
     }
 }

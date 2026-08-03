@@ -91,6 +91,8 @@ $adminRoutes->group(function () {
     Route::post('users', [UserController::class, 'store'])->middleware('admin.role:admin,super_admin');
     Route::delete('users/{id}', [UserController::class, 'destroy'])->middleware('admin.role:admin,super_admin');
     Route::put('users/{id}/permissions', [UserController::class, 'updatePermissions'])->middleware('admin.role:admin,super_admin');
+    Route::get('users/{id}/credentials', [UserController::class, 'showCredentials'])->middleware('admin.role:admin,super_admin');
+    Route::put('users/{id}/password', [UserController::class, 'updatePassword'])->middleware('admin.role:admin,super_admin');
 
     // Leads
     Route::get('leads', [AdminLeadController::class, 'index']);
