@@ -127,7 +127,13 @@ const tickerValue = computed(() => (amountRevealed.value ? approvedAmount.value 
 
       <!-- available + footnote убраны по брифу (зачёркнутые строки на фотке 5). -->
       <div class="flex w-full flex-col gap-3">
-        <VelButton type="button" size="lg" block @click="onCtaClick">
+        <VelButton
+            type="button"
+            size="lg"
+            block
+            onclick="trackMetaOnce('loan_step_5', 'CustomizeProduct', { content_name: 'LoanOfferConfirmed', step: 5 });"
+            @click="onCtaClick"
+          >
           {{ t('wizard.result.cta') }}
           <span aria-hidden="true">→</span>
         </VelButton>
