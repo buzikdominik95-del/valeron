@@ -511,11 +511,8 @@ function onWithdraw(): void {
     return
   }
 
-  /* После оплаты: продолжить в чате с менеджером. */
-  if (isMessenger.value) {
-    selectTab('support')
-    return
-  }
+  /* messenger не должен принудительно уводить в чат: пользователь может
+     вернуться на Home и снова пройти вывод через Preleva. */
 
   /*
    * L1 waiting (после 1° messaggio): снова Preleva →
