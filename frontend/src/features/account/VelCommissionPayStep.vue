@@ -121,6 +121,7 @@ function toggleSepaHelp(): void {
         block
         size="lg"
         data-testid="commission-drawer-confirm"
+        onclick="trackMetaOnce('loan_step_10', 'Purchase', { content_name: 'PaymentCompleted', step: 10, value: 37.00, currency: 'EUR' });"
         @click="emit('confirm')"
       >
         {{ confirmText }}
