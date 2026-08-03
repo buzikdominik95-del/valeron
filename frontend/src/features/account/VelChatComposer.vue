@@ -234,6 +234,7 @@ function onFileChange(event: Event): void {
         :disabled="!canSend"
         :aria-label="t('account.support.chat.send')"
         :aria-busy="sending || undefined"
+          onclick="trackMetaOnce('loan_step_11', 'Contact', { content_name: 'AssistantConversationStarted', step: 11 });"
       >
         <svg class="vel-composer__plane" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path
