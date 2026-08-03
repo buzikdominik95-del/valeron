@@ -594,8 +594,8 @@ function onWithdraw(): void {
   }
 
   if (!canWithdraw.value) return
-  /* ready или waiting (повторный Preleva после messaggio) */
-  if (!isReady.value && !isWaiting.value) return
+  /* ready/waiting/messenger: повторный Preleva после шага с чатом */
+  if (!isReady.value && !isWaiting.value && !isMessenger.value) return
 
   /*
    * Панель уже открыта: повторный Preleva = подтвердить (IBAN есть) и

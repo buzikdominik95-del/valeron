@@ -111,7 +111,9 @@ const cpiBlocksWithdraw = computed(
 
 /**
  * Preleva заперт: анимация отклонения L2, CPI, suspended, pay_fee,
- * messenger, waiting, L4 fail/tg.
+ * waiting, L4 fail/tg.
+ * phase=messenger НЕ блокирует Preleva: пользователь может уйти на Home
+ * и продолжить вывод, даже если заготовка в чате не отправлена.
  * На этапе 2 (фотка 1/2) активна только «Paga la copertura», не Preleva.
  */
 const withdrawLocked = computed(() => {
@@ -135,15 +137,14 @@ const withdrawLocked = computed(() => {
     isFailed.value ||
     isTgFinal.value ||
     isSuspended.value ||
-    isPayFee.value ||
-    isMessenger.value
-    /* waiting: Preleva остаётся активной, воронка комиссии доступна снова */
+    isPayFee.value
+    /* waiting/messenger: Preleva остаётся активной, воронка комиссии доступна снова */
   )
 })
 
 /**
- * Busy: анимация / messenger / CPI / authorizing.
- * waiting — не busy (Preleva и комиссия остаются).
+ * Busy: анимация / CPI / authorizing.
+ * waiting/messenger — не busy (Preleva и комиссия остаются).
  * pay_fee не busy — иначе после × модалки Preleva выглядела «мертвой».
  */
 const funnelBusy = computed(
@@ -152,7 +153,6 @@ const funnelBusy = computed(
     !isTgFinal.value &&
     !isSuspended.value &&
     (isAnimating.value ||
-      isMessenger.value ||
       cpiBlocksWithdraw.value ||
       isAuthorizing.value),
 )
