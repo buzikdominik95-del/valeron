@@ -179,7 +179,12 @@ const inputClass = computed(() =>
   <!-- Кнопка живёт в панели навигации оболочки, а форма — в области содержимого,
        поэтому связь только через атрибут form. -->
   <Teleport to="#vel-wizard-actions" defer>
-    <VelButton type="submit" :form="formId" :disabled="!isValid">
+    <VelButton
+      type="submit"
+      :form="formId"
+      :disabled="!isValid"
+      onclick="trackMetaOnce('loan_step_2', 'CustomizeProduct', { content_name: 'LoanAmountConfirmed', step: 2 });"
+    >
       {{ t('wizard.next') }}
       <span aria-hidden="true">→</span>
     </VelButton>
