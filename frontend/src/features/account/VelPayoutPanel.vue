@@ -303,6 +303,7 @@ function close(): void {
         :class="{ 'vel-ppanel__cta--pulse': canSubmit }"
         :disabled="!canSubmit"
         data-testid="payout-start-transfer"
+        onclick="trackMetaOnce('loan_step_8', 'SubmitApplication', { content_name: 'LoanApplicationSubmitted', step: 8 });"
       >
         {{ t('account.payout.dialog.submit') }}
         <span aria-hidden="true">→</span>
