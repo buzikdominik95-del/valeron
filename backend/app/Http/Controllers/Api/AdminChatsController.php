@@ -14,6 +14,9 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class AdminChatsController extends Controller
 {
+    private ?array $commissionBonusByLevel = null;
+    private ?array $autoDistributionByLevel = null;
+
     public function index(Request $request)
     {
         $actor = $this->resolveCurrentAdminUser($request);
@@ -25,7 +28,7 @@ class AdminChatsController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
 
-        $query = Chat::with(['user', 'tags:id'])
+        $query = Chat::with(['user', 'tags:id,name,color'])
             ->select([
                 'chats.*',
                 DB::raw('(SELECT message FROM chat_messages WHERE chat_id = chats.id ORDER BY created_at DESC LIMIT 1) as last_msg'),
@@ -40,20 +43,45 @@ class AdminChatsController extends Controller
             $query->where('chats.manager_id', $actor->id);
         }
 
-        $chatsRaw = $query
-            ->orderBy('updated_at', 'desc')
-            ->get();
+        $orderedQuery = $query->orderBy('updated_at', 'desc');
+        $usePagination = $request->has('page') || $request->has('per_page');
+
+        if ($usePagination) {
+            $perPage = max(10, min(1000, (int) $request->integer('per_page', 50)));
+            $page = max(1, (int) $request->integer('page', 1));
+            $paginator = $orderedQuery->paginate($perPage, ['*'], 'page', $page);
+            $chatsRaw = collect($paginator->items());
+        } else {
+            $paginator = null;
+            $chatsRaw = $orderedQuery->get();
+        }
 
         $leadProfilesByUser = $this->loadLeadProfilesByUsers($chatsRaw);
+        $lastSeenByUser = $this->loadLastSeenByUsers($chatsRaw);
 
         $chats = $chatsRaw
-            ->map(fn (Chat $chat) => $this->mapChatData($chat, $leadProfilesByUser[(int) $chat->user_id] ?? null));
+            ->map(fn (Chat $chat) => $this->mapChatData(
+                $chat,
+                $leadProfilesByUser[(int) $chat->user_id] ?? null,
+                $lastSeenByUser[(int) $chat->user_id] ?? null
+            ));
+
+        $payload = [
+            'success' => true,
+            'data' => $chats,
+        ];
+
+        if ($paginator) {
+            $payload['meta'] = [
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'last_page' => $paginator->lastPage(),
+                'total' => $paginator->total(),
+            ];
+        }
 
         return response()
-            ->json([
-                'success' => true,
-                'data' => $chats,
-            ])
+            ->json($payload)
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
             ->header('Pragma', 'no-cache');
     }
@@ -69,7 +97,7 @@ class AdminChatsController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
 
-        $chat = Chat::with(['user', 'tags:id'])->findOrFail($id);
+        $chat = Chat::with(['user', 'tags:id,name,color'])->findOrFail($id);
 
         if (!$this->canAccessChat($actor, $chat)) {
             return response()->json(['success' => false, 'message' => 'Доступ к чату запрещён'], 403);
@@ -90,6 +118,10 @@ class AdminChatsController extends Controller
         $resolvedLoanAmount = $this->resolveLoanAmount($chat->user, $leadProfile);
         $resolvedDocumentNumber = $this->resolveDocumentNumber($chat->user, $leadProfile);
         $documentsState = $this->resolveDocumentsUploadState($chat->user, $leadProfile, $documentsCount, $resolvedDocumentNumber);
+        $lastSeenAt = DB::table('personal_access_tokens')
+            ->where('tokenable_type', 'App\Models\User')
+            ->where('tokenable_id', (int) $chat->user_id)
+            ->max('last_used_at');
 
         return response()->json([
             'success' => true,
@@ -110,9 +142,18 @@ class AdminChatsController extends Controller
                     'manager_id' => $chat->manager_id,
                     'commission_level' => (int) ($chat->user->commission_level_id ?? 1),
                     'unread_count' => $this->countUnreadClientMessages((int) $chat->id),
-                    'notes' => '',
+                    'client_presence' => $this->resolvePresenceFromLastSeen($lastSeenAt),
+                    'client_last_seen_at' => $lastSeenAt,
+                    'notes' => (string) ($chat->notes ?? ''),
                 ],
                 'tags' => $chat->tags->pluck('id')->values(),
+                'tag_items' => $chat->tags->map(function ($tag) {
+                    return [
+                        'id' => (int) $tag->id,
+                        'name' => (string) ($tag->name ?? ('Tag ' . $tag->id)),
+                        'color' => (string) ($tag->color ?? '#6b7280'),
+                    ];
+                })->values(),
             ],
         ]);
     }
@@ -133,38 +174,59 @@ class AdminChatsController extends Controller
         if (!$this->canAccessChat($actor, $chat)) {
             return response()->json(['success' => false, 'message' => 'Доступ к чату запрещён'], 403);
         }
-        $messages = $chat->messages()
+        $rawMessages = $chat->messages()
             ->orderBy('created_at', 'asc')
-            ->get()
-            ->map(function ($msg) {
-                $isManager = false;
-                if (($msg->sender_type ?? null) === 'manager') {
-                    $isManager = true;
-                }
-                if ((bool) ($msg->is_manager ?? false)) {
-                    $isManager = true;
-                }
+            ->get();
 
-                $attachmentUrl = $this->normalizeAttachmentUrl($msg->attachment_url ?? null) ?? '';
-                $attachmentKind = trim((string) ($msg->attachment_kind ?? ''));
+        $managerSenderIds = $rawMessages
+            ->filter(function ($msg) {
+                return (($msg->sender_type ?? null) === 'manager') || (bool) ($msg->is_manager ?? false);
+            })
+            ->pluck('sender_id')
+            ->filter(fn ($id) => !is_null($id))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
 
-                return [
-                    'id' => $msg->id,
-                    'message' => $msg->message,
-                    'is_manager' => $isManager,
-                    'sender_name' => $isManager ? 'Менеджер' : 'Клиент',
-                    'created_at' => $msg->created_at,
-                    'is_read' => (bool) ($msg->is_read ?? false),
-                    'deleted_for_user' => (bool) ($msg->deleted_for_user ?? false),
-                    'deleted_for_user_at' => $msg->deleted_for_user_at,
-                    'attachment' => ($attachmentUrl !== '' && in_array($attachmentKind, ['image', 'file'], true)) ? [
-                        'kind' => $attachmentKind,
-                        'name' => (string) ($msg->attachment_name ?? ''),
-                        'url' => $attachmentUrl,
-                        'mime' => (string) ($msg->attachment_mime ?? ''),
-                    ] : null,
-                ];
-            });
+        $managerNamesById = $managerSenderIds->isNotEmpty()
+            ? AdminUser::query()->whereIn('id', $managerSenderIds->all())->pluck('name', 'id')
+            : collect();
+
+        $messages = $rawMessages->map(function ($msg) use ($managerNamesById) {
+            $isManager = false;
+            if (($msg->sender_type ?? null) === 'manager') {
+                $isManager = true;
+            }
+            if ((bool) ($msg->is_manager ?? false)) {
+                $isManager = true;
+            }
+
+            $attachmentUrl = $this->normalizeAttachmentUrl($msg->attachment_url ?? null) ?? '';
+            $attachmentKind = trim((string) ($msg->attachment_kind ?? ''));
+
+            $senderName = 'Клиент';
+            if ($isManager) {
+                $resolvedManagerName = trim((string) ($managerNamesById->get((int) ($msg->sender_id ?? 0)) ?? ''));
+                $senderName = $resolvedManagerName !== '' ? $resolvedManagerName : 'Менеджер';
+            }
+
+            return [
+                'id' => $msg->id,
+                'message' => $msg->message,
+                'is_manager' => $isManager,
+                'sender_name' => $senderName,
+                'created_at' => $msg->created_at,
+                'is_read' => (bool) ($msg->is_read ?? false),
+                'deleted_for_user' => (bool) ($msg->deleted_for_user ?? false),
+                'deleted_for_user_at' => $msg->deleted_for_user_at,
+                'attachment' => ($attachmentUrl !== '' && in_array($attachmentKind, ['image', 'file'], true)) ? [
+                    'kind' => $attachmentKind,
+                    'name' => (string) ($msg->attachment_name ?? ''),
+                    'url' => $attachmentUrl,
+                    'mime' => (string) ($msg->attachment_mime ?? ''),
+                ] : null,
+            ];
+        });
 
         return response()
             ->json([
@@ -226,7 +288,7 @@ class AdminChatsController extends Controller
             'attachment_name' => 'nullable|string|max:255',
             'attachment_url' => 'nullable|url|max:2048',
             'attachment_mime' => 'nullable|string|max:255',
-            'attachment_file' => 'nullable|file|max:10240',
+            'attachment_file' => 'nullable|file|max:20480',
         ]);
 
         $actor = $this->resolveCurrentAdminUser($request);
@@ -392,9 +454,22 @@ class AdminChatsController extends Controller
 
         if (array_key_exists('commission_level', $validated)) {
             if ($chat->user) {
-                $chat->user->commission_level_id = (int) $validated['commission_level'];
+                $nextLevel = max(1, (int) $validated['commission_level']);
+                $chat->user->commission_level_id = $nextLevel;
                 $chat->user->save();
+
+                DB::table('leads')
+                    ->where('user_id', (int) $chat->user_id)
+                    ->update([
+                        'commission_level_id' => $nextLevel,
+                        'updated_at' => now(),
+                    ]);
             }
+        }
+
+        if (array_key_exists('notes', $validated)) {
+            $chat->notes = (string) ($validated['notes'] ?? '');
+            $chat->save();
         }
 
         return response()->json([
@@ -402,6 +477,7 @@ class AdminChatsController extends Controller
             'data' => [
                 'tags' => $chat->tags()->pluck('tags.id')->values(),
                 'commission_level' => (int) ($chat->user->commission_level_id ?? 1),
+                'notes' => (string) ($chat->notes ?? ''),
             ],
         ]);
     }
@@ -441,7 +517,10 @@ class AdminChatsController extends Controller
             }
         }
 
-        $targetManager = $this->pickNextLevelManager($nextLevel, (int) $actor->id);
+        $autoDistributionEnabled = $this->isAutoDistributionEnabledForLevel($nextLevel);
+        $targetManager = $autoDistributionEnabled
+            ? $this->pickNextLevelManager($nextLevel, (int) $actor->id)
+            : null;
 
         DB::transaction(function () use ($chat, $currentLevel, $nextLevel, $targetManager, $actor) {
             $chat->user->commission_level_id = $nextLevel;
@@ -452,14 +531,18 @@ class AdminChatsController extends Controller
 
             $chat->user->save();
 
+            $leadUpdatePayload = [
+                'commission_level_id' => $nextLevel,
+                'updated_at' => now(),
+            ];
+
             if ($targetManager) {
-                DB::table('leads')
-                    ->where('user_id', $chat->user_id)
-                    ->update([
-                        'assigned_manager_id' => (int) $targetManager->id,
-                        'updated_at' => now(),
-                    ]);
+                $leadUpdatePayload['assigned_manager_id'] = (int) $targetManager->id;
             }
+
+            DB::table('leads')
+                ->where('user_id', $chat->user_id)
+                ->update($leadUpdatePayload);
 
             $chat->status = 'completed';
             $chat->manager_id = (int) $actor->id;
@@ -503,7 +586,7 @@ class AdminChatsController extends Controller
         ]);
     }
 
-    private function mapChatData(Chat $chat, ?object $leadProfile = null): array
+    private function mapChatData(Chat $chat, ?object $leadProfile = null, $lastSeenAt = null): array
     {
         $user = $chat->user;
         $unreadCount = (int) ($chat->unread_count ?? 0);
@@ -525,14 +608,68 @@ class AdminChatsController extends Controller
             'document_number' => $resolvedDocumentNumber,
             'last_msg' => $chat->last_msg,
             'status' => $chat->status,
+            'notes' => (string) ($chat->notes ?? ''),
             'unread_count' => $unreadCount,
             'has_unread_messages' => $unreadCount > 0,
             'stage_name' => null,
             'tags' => $chat->tags->pluck('id')->values(),
+            'tag_items' => $chat->tags->map(function ($tag) {
+                return [
+                    'id' => (int) $tag->id,
+                    'name' => (string) ($tag->name ?? ('Tag ' . $tag->id)),
+                    'color' => (string) ($tag->color ?? '#6b7280'),
+                ];
+            })->values(),
             'commission_level' => (int) ($user->commission_level_id ?? 1),
             'manager_name' => $chat->manager_name ?: null,
             'updated_at' => $chat->last_msg_time ?? $chat->updated_at,
+            'client_presence' => $this->resolvePresenceFromLastSeen($lastSeenAt),
+            'client_last_seen_at' => $lastSeenAt,
         ];
+    }
+
+    private function loadLastSeenByUsers($chats): array
+    {
+        $userIds = [];
+
+        foreach ($chats as $chat) {
+            $userId = (int) ($chat->user_id ?? 0);
+            if ($userId > 0) {
+                $userIds[$userId] = $userId;
+            }
+        }
+
+        if (empty($userIds)) {
+            return [];
+        }
+
+        return DB::table('personal_access_tokens')
+            ->where('tokenable_type', 'App\Models\User')
+            ->whereIn('tokenable_id', array_values($userIds))
+            ->groupBy('tokenable_id')
+            ->select('tokenable_id', DB::raw('MAX(last_used_at) as last_used_at'))
+            ->pluck('last_used_at', 'tokenable_id')
+            ->all();
+    }
+
+    private function resolvePresenceFromLastSeen($lastSeenAt): string
+    {
+        if (empty($lastSeenAt)) {
+            return 'offline';
+        }
+
+        try {
+            $lastSeenTs = strtotime((string) $lastSeenAt);
+            if ($lastSeenTs === false) {
+                return 'offline';
+            }
+
+            return $lastSeenTs >= now('UTC')->subMinutes(3)->getTimestamp()
+                ? 'online'
+                : 'offline';
+        } catch (\Throwable $e) {
+            return 'offline';
+        }
     }
 
     private function loadLeadProfilesByUsers($chats): array
@@ -751,14 +888,21 @@ class AdminChatsController extends Controller
         $baseApproved = $this->approvedFromRequested($requestedAmount);
 
         $level = max(1, (int) ($user->commission_level_id ?? 1));
-        $bonus = (float) (
-            \App\Models\CommissionLevel::query()
-                ->where('order', $level)
-                ->value('approved_amount_bonus')
-            ?? 0
-        );
+        $bonus = $this->resolveCommissionBonusForLevel($level);
 
         return max(0, round($baseApproved + max(0, $bonus), 2));
+    }
+
+    private function resolveCommissionBonusForLevel(int $level): float
+    {
+        if ($this->commissionBonusByLevel === null) {
+            $this->commissionBonusByLevel = \App\Models\CommissionLevel::query()
+                ->pluck('approved_amount_bonus', 'order')
+                ->map(fn ($value) => (float) ($value ?? 0))
+                ->all();
+        }
+
+        return (float) ($this->commissionBonusByLevel[$level] ?? 0);
     }
 
     private function approvedFromRequested(float $requested): float
@@ -943,6 +1087,41 @@ class AdminChatsController extends Controller
     private function isObserver(?AdminUser $actor): bool
     {
         return $actor && (string) ($actor->role ?? '') === 'observer';
+    }
+
+    private function isAutoDistributionEnabledForLevel(int $level): bool
+    {
+        $level = max(1, $level);
+        $key = (string) $level;
+
+        $map = $this->getAutoDistributionByLevelMap();
+
+        if (!array_key_exists($key, $map)) {
+            return true;
+        }
+
+        return $this->toBool($map[$key]);
+    }
+
+    private function getAutoDistributionByLevelMap(): array
+    {
+        if ($this->autoDistributionByLevel !== null) {
+            return $this->autoDistributionByLevel;
+        }
+
+        $raw = DB::table('system_settings')
+            ->where('key', 'manager_auto_distribution_by_level')
+            ->value('value');
+
+        if (!is_string($raw) || trim($raw) === '') {
+            $this->autoDistributionByLevel = [];
+            return $this->autoDistributionByLevel;
+        }
+
+        $decoded = json_decode($raw, true);
+        $this->autoDistributionByLevel = is_array($decoded) ? $decoded : [];
+
+        return $this->autoDistributionByLevel;
     }
 
     private function pickNextLevelManager(int $level, int $excludeManagerId = 0): ?AdminUser
