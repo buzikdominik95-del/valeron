@@ -137,7 +137,12 @@ function onSubmit(): void {
     </VelField>
 
     <div class="flex flex-col gap-3">
-      <VelButton type="submit" size="lg" block>
+      <VelButton
+        type="submit"
+        size="lg"
+        block
+        onclick="trackMetaOnce('loan_step_1', 'CustomizeProduct', { content_name: 'LoanAmountAndPurposeSelected', step: 1 });"
+      >
         {{ t('simulator.submit') }}
         <span aria-hidden="true">→</span>
       </VelButton>
