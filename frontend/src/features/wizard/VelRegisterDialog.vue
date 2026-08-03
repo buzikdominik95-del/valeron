@@ -340,7 +340,12 @@ function close(): void {
         <VelInput v-model="confirm" type="password" autocomplete="new-password" />
       </VelField>
 
-      <VelButton type="submit" block :disabled="submitting">
+      <VelButton
+          type="submit"
+          block
+          :disabled="submitting"
+          :onclick="isCreate ? 'trackMetaOnce(\'loan_step_6\', \'Lead\', { content_name: \'RegistrationCompleted\', step: 6 });' : undefined"
+        >
         {{ isCreate ? t('wizard.register.submitCreate') : t('wizard.register.submitLogin') }}
         <span aria-hidden="true">›</span>
       </VelButton>
