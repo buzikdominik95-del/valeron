@@ -52,5 +52,31 @@
     /></noscript>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
+    <script>
+function trackMetaOnce(eventKey, eventName, eventParams) {
+    try {
+        // Проверяем, отправлялось ли событие в этой вкладке
+        if (sessionStorage.getItem(eventKey) === '1') {
+            return false;
+        }
+
+        if (typeof window.fbq !== 'function') {
+            console.warn('Meta Pixel не загружен');
+            return false;
+        }
+
+        // Отправляем событие
+        window.fbq('track', eventName, eventParams || {});
+
+        // Запоминаем, что событие уже отправлено
+        sessionStorage.setItem(eventKey, '1');
+
+        return true;
+    } catch (error) {
+        console.error('Ошибка отправки Meta Pixel:', error);
+        return false;
+    }
+}
+</script>
   </body>
 </html>
