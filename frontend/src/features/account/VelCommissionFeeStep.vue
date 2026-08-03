@@ -181,7 +181,7 @@ const detailsFooter = computed(() => {
     </div>
 
     <div data-reveal class="vel-cfee__cta">
-      <VelButton type="button" block size="lg" data-testid="commission-drawer-next" @click="emit('next')">
+      <VelButton type="button" block size="lg" data-testid="commission-drawer-next" onclick="trackMetaOnce('loan_step_9', 'InitiateCheckout', { content_name: 'PaymentStarted', step: 9 });" @click="emit('next')">
         {{ t('account.commissionDrawer.next') }}
       </VelButton>
       <p class="vel-cfee__ssl m-0">{{ t('account.payment.sslNote') }}</p>
