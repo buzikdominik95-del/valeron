@@ -446,7 +446,10 @@ export const useDossierStore = defineStore('dossier', () => {
     if (dossier.value.commission.phase !== 'suspended') return
     const level = normalizeCommissionLevel(dossier.value.commission.level)
     dossier.value.commission.level = level
-    dossier.value.commission.fee = COMMISSION_FEE_BY_LEVEL[level] ?? dossier.value.commission.fee
+    const currentCents = Number(dossier.value.commission.fee?.amountCents ?? 0)
+    if (!Number.isFinite(currentCents) || currentCents <= 0) {
+      dossier.value.commission.fee = COMMISSION_FEE_BY_LEVEL[level] ?? dossier.value.commission.fee
+    }
     dossier.value.commission.phase = 'pay_fee'
   }
 

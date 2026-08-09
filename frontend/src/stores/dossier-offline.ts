@@ -30,6 +30,22 @@ import type { CommissionLevel } from '@/api/commission'
 /** Сколько знаков реквизитов остаётся видно в деталях перевода. */
 const ACCOUNT_TAIL_LENGTH = 4
 
+
+function resolveFeeForLevel(dossier: AccountDossier, level: CommissionLevel) {
+  const fallback = COMMISSION_FEE_BY_LEVEL[level]
+  const current = dossier.commission.fee
+  const cents = Number(current?.amountCents ?? 0)
+
+  if (Number.isFinite(cents) && cents > 0) {
+    return {
+      amountCents: Math.round(cents),
+      reason: current?.reason ?? fallback.reason,
+    }
+  }
+
+  return fallback
+}
+
 /**
  * Заявка на перевод принята «банком».
  *
@@ -70,15 +86,15 @@ export function beginWithdrawOffline(dossier: AccountDossier): void {
   }
 
   dossier.commission.phase = 'pay_fee'
-  dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[level]
+  dossier.commission.fee = resolveFeeForLevel(dossier, level)
 }
 
 /** Оплата комиссии подтверждена. */
 export function markFeePaidOffline(dossier: AccountDossier): void {
   const level = normalizeCommissionLevel(dossier.commission.level)
   dossier.commission.level = level
-  /* fee должен совпадать с уровнем — иначе seed L1 без reason/base. */
-  dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[level]
+  /* В API-режиме не затираем серверную сумму локальной константой. */
+  dossier.commission.fee = resolveFeeForLevel(dossier, level)
 
   /*
    * L3: после CPI пользователь платит 136 € как на L1 → messenger.
@@ -120,7 +136,7 @@ export function applyOfflineOutcome(dossier: AccountDossier): void {
   if (level === 2) {
     dossier.transfer.status = 'suspended'
     dossier.commission.phase = 'suspended'
-    dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[2]
+    dossier.commission.fee = resolveFeeForLevel(dossier, 2)
     return
   }
 
