@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\QueryException;
 
 class ManagerTrafficAssigner
 {
@@ -154,9 +155,40 @@ class ManagerTrafficAssigner
             $payload['credit_term_months'] = (int) $existingLead->credit_term_months;
         }
 
-        DB::table('leads')->updateOrInsert(
-            ['user_id' => (int) $user->id],
-            $payload
+        try {
+            DB::table('leads')->updateOrInsert(
+                ['user_id' => (int) $user->id],
+                $payload
+            );
+        } catch (QueryException $e) {
+            $state = (string) ($e->errorInfo[0] ?? '');
+            $constraint = (string) ($e->errorInfo[2] ?? '');
+
+            if ($state === '23505' && str_contains($constraint, 'leads_pkey')) {
+                self::syncLeadIdSequence();
+
+                DB::table('leads')->updateOrInsert(
+                    ['user_id' => (int) $user->id],
+                    $payload
+                );
+
+                return;
+            }
+
+            throw $e;
+        }
+    }
+
+    private static function syncLeadIdSequence(): void
+    {
+        $sequence = DB::scalar("SELECT pg_get_serial_sequence('leads', 'id')");
+        if (!is_string($sequence) || trim($sequence) === '') {
+            return;
+        }
+
+        DB::statement(
+            "SELECT setval(?, COALESCE((SELECT MAX(id) FROM leads), 1), true)",
+            [$sequence]
         );
     }
 
