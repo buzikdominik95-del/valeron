@@ -543,7 +543,13 @@ function onWithdraw(): void {
   ) {
     return
   }
-  if (isRejectAnim.value || isSuspended.value || isPayFee.value) {
+  if (isPayFee.value) {
+    if (Number(level.value) === 2) return
+    openCommissionPayment()
+    return
+  }
+
+  if (isRejectAnim.value || isSuspended.value) {
     return
   }
 

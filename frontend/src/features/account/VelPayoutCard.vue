@@ -321,10 +321,7 @@ const balanceStatus = computed(() => {
     return { kind: 'loading' as const, text: t('account.payout.balanceStatus.loading') }
   }
   /* 5) Нужно действие: messenger. pay_fee на L3 без drawer — не «плашка». */
-  if (isMessenger.value) {
-    return { kind: 'hold' as const, text: t('account.payout.balanceStatus.hold') }
-  }
-  if (isPayFee.value && Number(level.value) === 2) {
+  if (isMessenger.value || isPayFee.value) {
     return { kind: 'hold' as const, text: t('account.payout.balanceStatus.hold') }
   }
   /* 6) Можно выводить */
