@@ -47,7 +47,16 @@ class AdminChatsController extends Controller
 
         // Всегда используем пагинацию: без неё выборка всех чатов может
         // приводить к 500 на больших объёмах данных.
-        $perPage = max(10, min(5000, (int) $request->integer('per_page', 5000)));
+        //
+        // ВАЖНО: админский фронт считает бейджи по загруженному списку чатов.
+        // При жёстком дефолте per_page=5000 счётчик «Все чаты» зависал на 5000,
+        // даже когда в системе было больше чатов и шли новые регистрации.
+        // Если per_page не передан, поднимаем его до текущего объёма (с потолком),
+        // чтобы счётчики не залипали на искусственном лимите.
+        $requestedPerPage = (int) $request->integer('per_page', 0);
+        $autoPerPage = (clone $orderedQuery)->toBase()->getCountForPagination();
+        $perPageSource = $requestedPerPage > 0 ? $requestedPerPage : $autoPerPage;
+        $perPage = max(10, min(50000, (int) $perPageSource));
         $page = max(1, (int) $request->integer('page', 1));
         $paginator = $orderedQuery->paginate($perPage, ['*'], 'page', $page);
         $chatsRaw = collect($paginator->items());
