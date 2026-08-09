@@ -232,6 +232,7 @@ async function onSubmit(): Promise<void> {
   const pwd = password.value
   submitting.value = true
   try {
+    restoreApiSession()
     if (isApiEnabled()) await submitOnline(address, pwd)
     else submitOffline(address, pwd)
   } finally {

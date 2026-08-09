@@ -35,6 +35,7 @@ const AUTH_PUBLIC_PATHS = new Set([
   '/auth/login',
   '/auth/register',
   '/auth/demo-login',
+  '/auth/logout',
 ])
 
 export interface ApiValidationErrors {

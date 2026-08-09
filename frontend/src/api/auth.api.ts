@@ -1,5 +1,5 @@
 import { request } from '@/api/http'
-import { clearAuthToken, setAuthToken } from '@/api/session'
+import { clearAuthToken, restoreApiSession, setAuthToken } from '@/api/session'
 
 export interface AuthUser {
   id: number
@@ -145,6 +145,7 @@ export async function logout(signal?: AbortSignal): Promise<void> {
     })
   } finally {
     clearAuthToken()
+    restoreApiSession()
   }
 }
 
