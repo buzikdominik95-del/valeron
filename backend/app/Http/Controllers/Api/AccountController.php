@@ -1651,11 +1651,21 @@ class AccountController extends Controller
         if (preg_match('/^https?:\/\//i', $clean) === 1) {
             $path = parse_url($clean, PHP_URL_PATH);
             if (is_string($path)) {
-                $path = trim($path);
-                if (str_starts_with($path, '/storage/')) {
-                    return $path;
-                }
+                $clean = trim($path);
             }
+        }
+
+        if (str_starts_with($clean, '/storage/')) {
+            $relativePath = ltrim(substr($clean, 9), '/');
+            if ($relativePath === '') {
+                return null;
+            }
+
+            if (!Storage::disk('public')->exists($relativePath)) {
+                return null;
+            }
+
+            return '/storage/'.$relativePath;
         }
 
         return $clean;

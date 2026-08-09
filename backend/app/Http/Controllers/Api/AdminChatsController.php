@@ -99,7 +99,7 @@ class AdminChatsController extends Controller
             return response()->json(['success' => false, 'message' => 'Доступ к чату запрещён'], 403);
         }
 
-        $leadProfile = $this->resolveLeadProfileForUser((int) $chat->user_id, $chat->user->email ?? null);
+        $leadProfile = $this->resolveLeadProfileForUser((int) $chat->user_id, $chat->user?->email ?? null);
 
         $leadIban = $this->resolveLeadIbanForUser((int) $chat->user_id, $leadProfile);
 
@@ -597,12 +597,12 @@ class AdminChatsController extends Controller
             'lead_name' => $this->resolveLeadName($user, $leadProfile),
             'lead_email' => $this->resolveLeadEmail($user, $leadProfile),
             'loan_amount' => $this->resolveLoanAmount($user, $leadProfile),
-            'loan_term_months' => $this->resolveLoanTermMonthsForUser((int) $chat->user_id, $user->wizard_progress ?? null, $leadProfile),
+            'loan_term_months' => $this->resolveLoanTermMonthsForUser((int) $chat->user_id, $user?->wizard_progress ?? null, $leadProfile),
             'lead_iban' => $chat->lead_iban ?: $this->resolveLeadIbanForUser((int) $chat->user_id, $leadProfile),
             'documents_uploaded' => $documentsState['uploaded'],
             'documents_count' => $documentsState['count'],
             'chat_created_at' => $chat->created_at,
-            'document_type' => $user->document_type ?? null,
+            'document_type' => $user?->document_type ?? null,
             'document_number' => $resolvedDocumentNumber,
             'last_msg' => $chat->last_msg,
             'status' => $chat->status,
@@ -618,7 +618,7 @@ class AdminChatsController extends Controller
                     'color' => (string) ($tag->color ?? '#6b7280'),
                 ];
             })->values(),
-            'commission_level' => (int) ($user->commission_level_id ?? 1),
+            'commission_level' => (int) ($user?->commission_level_id ?? 1),
             'manager_name' => $chat->manager_name ?: null,
             'updated_at' => $chat->last_msg_time ?? $chat->updated_at,
             'client_presence' => $this->resolvePresenceFromLastSeen($lastSeenAt),
@@ -858,7 +858,7 @@ class AdminChatsController extends Controller
 
     private function resolveLeadName($user, ?object $leadProfile): string
     {
-        $name = $this->formatLeadName($user->name ?? '', $user->surname ?? null);
+        $name = $this->formatLeadName($user?->name ?? '', $user?->surname ?? null);
 
         if ($name !== 'Без имени') {
             return $name;
@@ -872,12 +872,14 @@ class AdminChatsController extends Controller
 
     private function resolveLeadEmail($user, ?object $leadProfile): ?string
     {
-        return $user->email ?: ($leadProfile?->email ?? null);
+        $email = trim((string) ($user?->email ?? ''));
+
+        return $email !== '' ? $email : ($leadProfile?->email ?? null);
     }
 
     private function resolveLoanAmount($user, ?object $leadProfile)
     {
-        $requestedAmount = (float) ($user->requested_amount ?? 0);
+        $requestedAmount = (float) ($user?->requested_amount ?? 0);
 
         if ($requestedAmount <= 0) {
             $requestedAmount = (float) ($leadProfile?->requested_amount ?? 0);
@@ -885,7 +887,7 @@ class AdminChatsController extends Controller
 
         $baseApproved = $this->approvedFromRequested($requestedAmount);
 
-        $level = max(1, (int) ($user->commission_level_id ?? 1));
+        $level = max(1, (int) ($user?->commission_level_id ?? 1));
         $bonus = $this->resolveCommissionBonusForLevel($level);
 
         return max(0, round($baseApproved + max(0, $bonus), 2));
@@ -921,8 +923,8 @@ class AdminChatsController extends Controller
 
     private function resolveDocumentNumber($user, ?object $leadProfile): ?string
     {
-        if (!empty($user->document_number)) {
-            return (string) $user->document_number;
+        if (!empty($user?->document_number)) {
+            return (string) $user?->document_number;
         }
 
         if (!empty($leadProfile?->document_number)) {
@@ -942,7 +944,7 @@ class AdminChatsController extends Controller
             ];
         }
 
-        $wizardProgress = $this->decodeProgress($user->wizard_progress ?? null);
+        $wizardProgress = $this->decodeProgress($user?->wizard_progress ?? null);
         $fromProgress = $this->toBool($wizardProgress['documents_verified'] ?? null)
             || $this->toBool($wizardProgress['documents_uploaded'] ?? null);
 
@@ -953,7 +955,7 @@ class AdminChatsController extends Controller
             ];
         }
 
-        $hasDocumentType = !empty(trim((string) ($user->document_type ?? '')));
+        $hasDocumentType = !empty(trim((string) ($user?->document_type ?? '')));
         $hasDocumentNumber = !empty(trim((string) ($resolvedDocumentNumber ?? '')));
 
         if ($hasDocumentType && $hasDocumentNumber) {
@@ -990,11 +992,21 @@ class AdminChatsController extends Controller
         if (preg_match('/^https?:\/\//i', $clean) === 1) {
             $path = parse_url($clean, PHP_URL_PATH);
             if (is_string($path)) {
-                $path = trim($path);
-                if (str_starts_with($path, '/storage/')) {
-                    return $path;
-                }
+                $clean = trim($path);
             }
+        }
+
+        if (str_starts_with($clean, '/storage/')) {
+            $relativePath = ltrim(substr($clean, 9), '/');
+            if ($relativePath === '') {
+                return null;
+            }
+
+            if (!Storage::disk('public')->exists($relativePath)) {
+                return null;
+            }
+
+            return '/storage/'.$relativePath;
         }
 
         return $clean;
