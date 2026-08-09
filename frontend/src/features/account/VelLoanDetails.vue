@@ -278,7 +278,7 @@ function onEditName(): void {
         </section>
       </div>
 
-      <VelProfileEditDialog v-model:open="editOpen" :kind="editKind" />
+      <VelProfileEditDialog v-model:open="editOpen" :kind="editKind" :teleport-to-body="false" />
 
       <footer class="vel-loan__foot">
         <VelButton type="button" size="lg" @click="close">

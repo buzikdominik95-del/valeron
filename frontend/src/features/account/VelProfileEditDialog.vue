@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { Teleport, computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSimulatorStore } from '@/stores/simulator.store'
@@ -15,7 +15,9 @@ import VelInput from '@/components/ui/VelInput.vue'
 export type ProfileEditKind = 'name' | 'email' | 'password'
 
 const open = defineModel<boolean>('open', { default: false })
-const props = defineProps<{ kind: ProfileEditKind }>()
+const props = withDefaults(defineProps<{ kind: ProfileEditKind; teleportToBody?: boolean }>(), {
+  teleportToBody: true,
+})
 
 const { t } = useI18n()
 const simulator = useSimulatorStore()
@@ -176,7 +178,7 @@ function onSubmit(): void {
 </script>
 
 <template>
-  <Teleport to="body">
+  <component :is="props.teleportToBody ? Teleport : 'div'" v-bind="props.teleportToBody ? { to: 'body' } : {}">
     <div
       v-if="open"
       class="vel-pedit"
@@ -313,7 +315,7 @@ function onSubmit(): void {
         </form>
       </div>
     </div>
-  </Teleport>
+  </component>
 </template>
 
 <style scoped>
