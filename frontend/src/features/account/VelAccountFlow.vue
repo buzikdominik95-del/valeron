@@ -115,7 +115,18 @@ async function syncAccountNow(): Promise<void> {
    * lead_iban → setIbanFromRaw(silent) внутри hydrate.
    */
   await dossier.pullAccount()
-  /* После hydrate: не дать серверному «docs completed» скипать загрузку. */
+
+  /*
+   * Кросс-девайс: если сервер уже на L3/L4, синхронизируем local user-action
+   * флаги docs/signature, иначе чистый localStorage нового устройства
+   * откатывал UI на Documenti/Firma.
+   */
+  const serverLevel = Number(dossier.dossier.commission.level ?? 1)
+  const serverSteps = Array.isArray(dossier.dossier.steps)
+    ? dossier.dossier.steps.map((s) => ({ id: s.id, completed: Boolean(s.completed) }))
+    : []
+  account.applyServerProgress(serverLevel, serverSteps)
+
   account.reconcileUserSteps()
   apiError.value = null
 }

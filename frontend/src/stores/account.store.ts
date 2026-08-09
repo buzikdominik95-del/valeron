@@ -51,6 +51,12 @@ export interface AccountStepView {
   status: AccountStepStatus
 }
 
+
+export interface ServerStepState {
+  id: AccountStep
+  completed: boolean
+}
+
 /**
  * Виды документов, которые кабинет просит загрузить. Как и шаги — только ключи:
  * подписи живут в локали (account.document.kinds.*).
@@ -375,6 +381,37 @@ export const useAccountStore = defineStore('account', () => {
     coachSeen.value = true
   }
 
+
+  /**
+   * Синхронизация локальных user-action флагов с сервером для кросс-девайс входа.
+   *
+   * Исторически docs/signature закрывались только локально, чтобы не скипать шаги,
+   * когда сервер отдаёт шаблонные completed=true. Но на другом устройстве localStorage
+   * пустой, и пользователь с реальным L4 снова падал на загрузку документов.
+   *
+   * Правило: если серверный уровень >= 4, считаем документы и подпись завершёнными.
+   * Если уровень >= 3 — как минимум документы завершены.
+   */
+  function applyServerProgress(level: number, steps: ServerStepState[] = []): void {
+    const normLevel = Math.floor(Number(level) || 1)
+
+    const docsDoneBySteps = steps.some((s) => s.id === 'documents' && s.completed)
+    const signDoneBySteps = steps.some((s) => s.id === 'signature' && s.completed)
+
+    const documentsDone = normLevel >= 3 || docsDoneBySteps
+    const signatureDone = normLevel >= 4 || signDoneBySteps
+
+    if (documentsDone) {
+      documentsUploaded.value = true
+      if (!completed.value.includes('documents')) completed.value = [...completed.value, 'documents']
+    }
+
+    if (signatureDone) {
+      contractSigned.value = true
+      if (!completed.value.includes('signature')) completed.value = [...completed.value, 'signature']
+    }
+  }
+
   /**
    * Сохраняет полный IBAN + маску для договора.
    * raw — то, что человек набрал (с пробелами или без).
@@ -529,6 +566,7 @@ export const useAccountStore = defineStore('account', () => {
     accountPassword,
     markDone,
     markCoachSeen,
+    applyServerProgress,
     advanceTo,
     reconcileUserSteps,
     markEmailVerified,
