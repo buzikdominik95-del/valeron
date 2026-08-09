@@ -96,7 +96,7 @@ export async function login(
   const data = await request<unknown>('/auth/login', {
     method: 'POST',
     body: {
-      email: payload.email.trim(),
+      email: payload.email.trim().toLowerCase(),
       password: payload.password,
     },
     signal,
@@ -113,7 +113,7 @@ export async function register(
     method: 'POST',
     body: {
       name: payload.name.trim(),
-      email: payload.email.trim(),
+      email: payload.email.trim().toLowerCase(),
       password: payload.password,
       password_confirmation: payload.passwordConfirmation,
       ...(payload.surname?.trim() ? { surname: payload.surname.trim() } : {}),

@@ -19,6 +19,9 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
+        $normalizedEmail = mb_strtolower(trim((string) $request->input('email')));
+        $request->merge(['email' => $normalizedEmail]);
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
@@ -47,7 +50,7 @@ class AuthController extends Controller
 
         $user = User::create([
             'name' => $request->name,
-            'email' => $request->email,
+            'email' => $normalizedEmail,
             'surname' => $request->surname,
             'phone' => $request->phone,
             'requested_amount' => $request->requested_amount,
@@ -119,6 +122,9 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        $normalizedEmail = mb_strtolower(trim((string) $request->input('email')));
+        $request->merge(['email' => $normalizedEmail]);
+
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'password' => 'required',
@@ -128,7 +134,7 @@ class AuthController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::whereRaw('LOWER(email) = ?', [$normalizedEmail])->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
