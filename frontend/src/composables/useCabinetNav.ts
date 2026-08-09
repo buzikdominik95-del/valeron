@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import { CABINET_TABS, useCabinetTab } from '@/composables/useCabinetTab'
 import type { CabinetTab } from '@/composables/useCabinetTab'
 import { useAccountStore } from '@/stores/account.store'
+import { useDocumentsUploadModal } from '@/composables/useDocumentsUploadModal'
 
 /**
  * Готовые пункты меню кабинета и переход по ним.
@@ -45,7 +46,9 @@ export interface CabinetNavApi {
 export function useCabinetNav(): CabinetNavApi {
   const { t } = useI18n()
   const { tab, select, hrefFor } = useCabinetTab()
-  const { supportUnreadCount } = storeToRefs(useAccountStore())
+  const account = useAccountStore()
+  const { supportUnreadCount } = storeToRefs(account)
+  const docsUploadModal = useDocumentsUploadModal()
 
   const items = computed<CabinetNavItem[]>(() =>
     CABINET_TABS.map((id) => ({
@@ -67,6 +70,12 @@ export function useCabinetNav(): CabinetNavApi {
     if (event.button !== 0) return
 
     event.preventDefault()
+
+    if (id === 'documents' && account.documentsUploaded !== true) {
+      docsUploadModal.show()
+      return
+    }
+
     select(id)
   }
 
