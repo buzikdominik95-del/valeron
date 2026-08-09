@@ -180,7 +180,19 @@ class AdminUsersMonitoringController extends Controller
                 $resolvedName = trim((string) ($leadProfile?->first_name ?? '') . ' ' . (string) ($leadProfile?->last_name ?? ''));
             }
 
-            $resolvedEmail = $user->email ?: ($leadProfile?->email ?? null);
+            $userEmail = trim((string) ($user->email ?? ''));
+            $leadEmail = trim((string) ($leadProfile?->email ?? ''));
+            $isPlaceholderUserEmail = $userEmail !== '' && (bool) preg_match('/@example\.com$/i', $userEmail);
+
+            if ($isPlaceholderUserEmail && $leadEmail !== '') {
+                $resolvedEmail = $leadEmail;
+            } elseif ($userEmail !== '') {
+                $resolvedEmail = $userEmail;
+            } elseif ($leadEmail !== '') {
+                $resolvedEmail = $leadEmail;
+            } else {
+                $resolvedEmail = null;
+            }
 
             $resolvedRequestedAmount = $user->requested_amount;
             if (((float) ($resolvedRequestedAmount ?? 0)) <= 0 and isset($leadProfile?->requested_amount)) {
@@ -258,7 +270,7 @@ class AdminUsersMonitoringController extends Controller
         return response()->json([
             'users' => $usersData,
             'stats' => $stats,
-        ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+        ], 200, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)->header('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
 
     private function extractLoanTermMonths($wizardProgress): ?int

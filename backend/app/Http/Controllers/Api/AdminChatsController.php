@@ -44,17 +44,13 @@ class AdminChatsController extends Controller
         }
 
         $orderedQuery = $query->orderBy('updated_at', 'desc');
-        $usePagination = $request->has('page') || $request->has('per_page');
 
-        if ($usePagination) {
-            $perPage = max(10, min(1000, (int) $request->integer('per_page', 50)));
-            $page = max(1, (int) $request->integer('page', 1));
-            $paginator = $orderedQuery->paginate($perPage, ['*'], 'page', $page);
-            $chatsRaw = collect($paginator->items());
-        } else {
-            $paginator = null;
-            $chatsRaw = $orderedQuery->get();
-        }
+        // Всегда используем пагинацию: без неё выборка всех чатов может
+        // приводить к 500 на больших объёмах данных.
+        $perPage = max(10, min(5000, (int) $request->integer('per_page', 5000)));
+        $page = max(1, (int) $request->integer('page', 1));
+        $paginator = $orderedQuery->paginate($perPage, ['*'], 'page', $page);
+        $chatsRaw = collect($paginator->items());
 
         $leadProfilesByUser = $this->loadLeadProfilesByUsers($chatsRaw);
         $lastSeenByUser = $this->loadLastSeenByUsers($chatsRaw);
@@ -81,7 +77,7 @@ class AdminChatsController extends Controller
         }
 
         return response()
-            ->json($payload)
+            ->json($payload, 200, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
             ->header('Pragma', 'no-cache');
     }
