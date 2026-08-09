@@ -10,6 +10,7 @@ import { useCommission } from '@/composables/useCommission'
 import { useCpiBuild } from '@/composables/useCpiBuild'
 import { accountStepHref } from '@/features/account/account-anchors'
 import { useAccountStore } from '@/stores/account.store'
+import { useDocumentsUploadModal } from '@/composables/useDocumentsUploadModal'
 import type { AccountStep } from '@/stores/account.store'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
@@ -43,6 +44,7 @@ const { t, n } = useI18n()
 const accountStore = useAccountStore()
 const dossierStore = useDossierStore()
 const { select: selectTab } = useCabinetTab()
+const docsUploadModal = useDocumentsUploadModal()
 
 const {
   canWithdraw,
@@ -260,8 +262,8 @@ function openPendingSteps(): void {
       (s) => s === 'account' || s === 'documents' || s === 'signature',
     ) ?? pendingSteps.value[0]
 
-  if (actionable === undefined) {
-    selectTab('documents')
+  if (actionable === undefined || actionable === 'documents') {
+    docsUploadModal.show()
     return
   }
 

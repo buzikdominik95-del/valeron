@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
 import { useCpiBuild } from '@/composables/useCpiBuild'
-import { accountStepHref } from '@/features/account/account-anchors'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
 import VelPdfDialog from '@/features/account/VelPdfDialog.vue'
@@ -33,7 +32,8 @@ const etaText = computed(() =>
   t('account.policy.pending.eta', { minutes: policyEtaMinutes.value }),
 )
 
-const documentsHref = computed(() => accountStepHref('documents'))
+import { useDocumentsUploadModal } from '@/composables/useDocumentsUploadModal'
+const docsUploadModal = useDocumentsUploadModal()
 
 const holderName = computed(
   () =>
@@ -101,7 +101,7 @@ function onConfirmViewed(): void {
       {{ t('account.policy.issued.cta') }}
     </VelButton>
 
-    <VelButton v-else variant="outline" block :href="documentsHref">
+    <VelButton v-else variant="outline" block @click="docsUploadModal.show()">
       {{ t('account.policy.pending.cta') }}
     </VelButton>
 

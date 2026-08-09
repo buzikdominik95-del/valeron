@@ -7,6 +7,7 @@ import { useCabinetTab } from '@/composables/useCabinetTab'
 import type { CabinetTab } from '@/composables/useCabinetTab'
 import { accountStepHref } from '@/features/account/account-anchors'
 import { useAccountStore } from '@/stores/account.store'
+import { useDocumentsUploadModal } from '@/composables/useDocumentsUploadModal'
 import type { AccountStep } from '@/stores/account.store'
 import VelStepRow from '@/features/account/VelStepRow.vue'
 import VelStepMeter from '@/features/account/VelStepMeter.vue'
@@ -26,6 +27,7 @@ const { t } = useI18n()
 const { steps, total, doneCount, allDone } = useAccount()
 const { level, isWaiting } = useCommission()
 const { tab, select } = useCabinetTab()
+const docsUploadModal = useDocumentsUploadModal()
 
 const open = ref(true)
 
@@ -105,6 +107,10 @@ function tabForStep(stepId: AccountStep): CabinetTab {
 
 function openStep(stepId: AccountStep, href: string | undefined): void {
   const target = tabForStep(stepId)
+  if (stepId === 'documents' && target === 'documents') {
+    docsUploadModal.show()
+    return
+  }
   if (tab.value !== target) select(target)
 
   if (href === undefined) {

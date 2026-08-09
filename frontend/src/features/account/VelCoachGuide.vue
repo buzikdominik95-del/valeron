@@ -6,6 +6,7 @@ import { useAccount } from '@/composables/useAccount'
 import { useAccountStore } from '@/stores/account.store'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { accountStepHref } from '@/features/account/account-anchors'
+import { useDocumentsUploadModal } from '@/composables/useDocumentsUploadModal'
 
 /**
  * Подсказки по кабинету: только ПОСЛЕ появления ЛК (splash скрыт, nav в DOM).
@@ -16,6 +17,7 @@ const { t } = useI18n()
 const { steps, allDone } = useAccount()
 const account = useAccountStore()
 const { tab, select: selectTab } = useCabinetTab()
+const docsUploadModal = useDocumentsUploadModal()
 const isDesktop = useMediaQuery('(min-width: 64rem)')
 
 const visible = ref(false)
@@ -247,19 +249,14 @@ function tryShowCoach(): void {
 function go(): void {
   const p = phase.value
   /* Не markCoachSeen — подсказки продолжаются на следующих шагах. */
-  if (p === 'documents-tab' || p === 'signature-tab') {
-    selectTab('documents')
+  if (p === 'documents-tab' || p === 'documents-upload') {
+    docsUploadModal.show()
     void nextTick(() => updateLayout())
     return
   }
-  if (p === 'documents-upload') {
+  if (p === 'signature-tab') {
     selectTab('documents')
-    requestAnimationFrame(() => {
-      document
-        .querySelector('[data-coach-docs]')
-        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      updateLayout()
-    })
+    void nextTick(() => updateLayout())
     return
   }
   if (p === 'signature-iban' || p === 'signature-sign') {
