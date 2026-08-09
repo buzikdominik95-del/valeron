@@ -167,7 +167,7 @@ const showBack = computed(() => step.value > 1 || !hasIban.value)
  * L2/L3: «?» на green callout внутри VelCommissionFeeStep.
  */
 const feeHelpOpen = ref(false)
-const showFeeHelp = computed(() => step.value === 2 && feeReason.value === 'base')
+const showFeeHelp = computed(() => step.value === 2 && feeReason.value === 'base' && Number(level.value) !== 1)
 const feeHelpPopoverHtml = computed(() => t('account.commission.help.serviceTipHtml'))
 
 function toggleFeeHelp(): void {
