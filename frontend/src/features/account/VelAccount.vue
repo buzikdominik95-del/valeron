@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
 import { useAccountStore } from '@/stores/account.store'
@@ -147,6 +147,46 @@ const splashOpen = ref(false)
  */
 const rootEl = useTemplateRef<HTMLElement>('rootEl')
 const headComp = useTemplateRef<{ $el: HTMLElement }>('headEl')
+
+/*
+ * Mobile edge-swipe guard: в некоторых браузерах горизонтальный свайп
+ * от края экрана уводит назад/вперёд в истории и «выбрасывает» из кабинета.
+ * Разрешаем обычный вертикальный скролл, блокируем только edge horizontal.
+ */
+const EDGE_GESTURE_PX = 28
+const HORIZONTAL_LOCK_PX = 10
+const VERTICAL_TOLERANCE_PX = 12
+
+let touchStartX = 0
+let touchStartY = 0
+let edgeGesture = false
+
+function onCabinetTouchStart(event: TouchEvent): void {
+  if (event.touches.length !== 1) return
+  const touch = event.touches[0]
+  touchStartX = touch.clientX
+  touchStartY = touch.clientY
+  edgeGesture =
+    touch.clientX <= EDGE_GESTURE_PX ||
+    touch.clientX >= window.innerWidth - EDGE_GESTURE_PX
+}
+
+function onCabinetTouchMove(event: TouchEvent): void {
+  if (!edgeGesture || event.touches.length !== 1) return
+  const touch = event.touches[0]
+  const dx = touch.clientX - touchStartX
+  const dy = touch.clientY - touchStartY
+
+  const horizontal = Math.abs(dx) > HORIZONTAL_LOCK_PX
+  const mostlyHorizontal = Math.abs(dx) > Math.abs(dy) + VERTICAL_TOLERANCE_PX
+  if (horizontal && mostlyHorizontal) {
+    event.preventDefault()
+  }
+}
+
+function onCabinetTouchEnd(): void {
+  edgeGesture = false
+}
 const headEl = computed<HTMLElement | null>(() => headComp.value?.$el ?? null)
 
 /*
@@ -168,6 +208,24 @@ useShellHeadHeight(headEl, rootEl, () => condensed.value)
  *
  * Открытие Assistenza гасит бейдж непрочитанных: человек уже «прочитал».
  */
+onMounted(() => {
+  const root = rootEl.value
+  if (!root) return
+  root.addEventListener('touchstart', onCabinetTouchStart, { passive: true })
+  root.addEventListener('touchmove', onCabinetTouchMove, { passive: false })
+  root.addEventListener('touchend', onCabinetTouchEnd, { passive: true })
+  root.addEventListener('touchcancel', onCabinetTouchEnd, { passive: true })
+})
+
+onBeforeUnmount(() => {
+  const root = rootEl.value
+  if (!root) return
+  root.removeEventListener('touchstart', onCabinetTouchStart)
+  root.removeEventListener('touchmove', onCabinetTouchMove)
+  root.removeEventListener('touchend', onCabinetTouchEnd)
+  root.removeEventListener('touchcancel', onCabinetTouchEnd)
+})
+
 watch(tab, async (next) => {
   if (next === 'support') {
     /*
@@ -302,6 +360,9 @@ watch(tab, async (next) => {
 */
 .vel-cabinet {
   --vel-header-h: 3.5rem;
+  /* Блокируем горизонтальную edge-навигацию, оставляя вертикальный скролл. */
+  touch-action: pan-y pinch-zoom;
+  overscroll-behavior-x: none;
   /* Высота полосы трекера: sticky-колонка Home и body-отступы считают от неё.
      Замерено на 320px после перехода трекера на ряд кружков с подписями:
      97px = 6.06rem. Держим с небольшим запасом — если число окажется меньше
