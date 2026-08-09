@@ -10,6 +10,8 @@ import { useAccountStore } from '@/stores/account.store'
 import { buildLoanPlan } from '@/lib/loan-schedule'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelPersonalData from '@/features/account/VelPersonalData.vue'
+import VelProfileEditDialog from '@/features/account/VelProfileEditDialog.vue'
+import type { ProfileEditKind } from '@/features/account/VelProfileEditDialog.vue'
 
 /**
  * Prestito (кнопка на карточке баланса):
@@ -31,6 +33,8 @@ const dialog = useTemplateRef<HTMLDialogElement>('dialog')
 useNativeDialog(dialog, open)
 
 const showAll = ref(false)
+const editOpen = ref(false)
+const editKind = ref<ProfileEditKind>('name')
 
 const months = computed(() => (termMonths.value > 0 ? termMonths.value : 36))
 
@@ -139,6 +143,11 @@ const settleNote = ref('')
 function onSettle(): void {
   settleNote.value = t('account.loan.settleQueued')
 }
+
+function onEditName(): void {
+  editKind.value = 'name'
+  editOpen.value = true
+}
 </script>
 
 <template>
@@ -167,7 +176,7 @@ function onSettle(): void {
       <div class="vel-loan__body">
         <!-- Блок 1: Dati personali (как на референсе) -->
         <div class="vel-loan__block">
-          <VelPersonalData :amount-override="baseApprovedAmount" />
+          <VelPersonalData :amount-override="baseApprovedAmount" @edit-name="onEditName" />
         </div>
 
         <!-- Блок 2: Piano di ammortamento -->
@@ -268,6 +277,8 @@ function onSettle(): void {
           <p v-if="settleNote" class="m-0 mt-2 text-xs text-muted">{{ settleNote }}</p>
         </section>
       </div>
+
+      <VelProfileEditDialog v-model:open="editOpen" :kind="editKind" />
 
       <footer class="vel-loan__foot">
         <VelButton type="button" size="lg" @click="close">
