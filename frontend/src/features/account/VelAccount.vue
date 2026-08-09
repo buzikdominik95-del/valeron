@@ -163,7 +163,8 @@ let edgeGesture = false
 
 function onCabinetTouchStart(event: TouchEvent): void {
   if (event.touches.length !== 1) return
-  const touch = event.touches[0]
+  const touch = event.touches.item(0)
+  if (!touch) return
   touchStartX = touch.clientX
   touchStartY = touch.clientY
   edgeGesture =
@@ -173,7 +174,8 @@ function onCabinetTouchStart(event: TouchEvent): void {
 
 function onCabinetTouchMove(event: TouchEvent): void {
   if (!edgeGesture || event.touches.length !== 1) return
-  const touch = event.touches[0]
+  const touch = event.touches.item(0)
+  if (!touch) return
   const dx = touch.clientX - touchStartX
   const dy = touch.clientY - touchStartY
 
