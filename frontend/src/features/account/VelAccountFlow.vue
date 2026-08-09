@@ -245,7 +245,16 @@ const contractPdfUrl = contractPdfTemplate
 const bankNoticeOpen = ref(false)
 /** Сумма вывода (ползунок) → затем drawer комиссии. */
 const amountOpen = ref(false)
-const withdrawAmount = ref(0)
+const withdrawAmount = useSessionStorage<number>('velora:cabinet:withdraw-amount', 0)
+watch(withdrawAmount, (value) => {
+  const num = Number(value)
+  if (!Number.isFinite(num) || num < 0) {
+    withdrawAmount.value = 0
+    return
+  }
+  const rounded = Math.round(num)
+  if (rounded !== num) withdrawAmount.value = rounded
+})
 const commissionOpen = ref(false)
 /** Прогрузка с логотипом Velora при смене этапа (L1→L2…). */
 const levelTransitionOpen = ref(false)
