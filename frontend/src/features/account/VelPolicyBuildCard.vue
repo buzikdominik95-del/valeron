@@ -6,6 +6,7 @@ import { storeToRefs } from 'pinia'
 import { useAccount } from '@/composables/useAccount'
 import { useCpiBuild } from '@/composables/useCpiBuild'
 import { useCabinetTab } from '@/composables/useCabinetTab'
+import { useDocumentsUploadModal } from '@/composables/useDocumentsUploadModal'
 import { usePanelMotion } from '@/composables/usePanelMotion'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import VelButton from '@/components/ui/VelButton.vue'
@@ -29,6 +30,7 @@ const { t } = useI18n()
 const { client } = useAccount()
 const { gender } = storeToRefs(useSimulatorStore())
 const { select: selectTab } = useCabinetTab()
+const docsUploadModal = useDocumentsUploadModal()
 const {
   step,
   loadProgress,
@@ -62,7 +64,7 @@ const isViewed = computed(() => step.value === 'viewed')
 const showCertReady = computed(() => isFirstReady.value || isViewed.value)
 
 function goDocuments(): void {
-  selectTab('documents')
+  docsUploadModal.show()
 }
 
 function openCertificate(): void {

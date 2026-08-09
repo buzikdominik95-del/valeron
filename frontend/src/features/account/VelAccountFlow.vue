@@ -19,7 +19,6 @@ import VelBankNoticeDialog from '@/features/account/VelBankNoticeDialog.vue'
 import VelWithdrawAmountDialog from '@/features/account/VelWithdrawAmountDialog.vue'
 import VelCommissionDrawer from '@/features/account/VelCommissionDrawer.vue'
 import VelBankAuthorizing from '@/features/account/VelBankAuthorizing.vue'
-import VelDocumentUpload from '@/features/account/VelDocumentUpload.vue'
 import VelContractCard from '@/features/account/VelContractCard.vue'
 import VelContractSheet from '@/features/account/VelContractSheet.vue'
 import VelContractIban from '@/features/account/VelContractIban.vue'
@@ -35,6 +34,7 @@ import VelAccountFreezeIntro from '@/features/account/VelAccountFreezeIntro.vue'
 import VelRejectFlash from '@/features/account/VelRejectFlash.vue'
 import VelStageSwitch from '@/features/account/VelStageSwitch.vue'
 import VelLoanDetails from '@/features/account/VelLoanDetails.vue'
+import VelDocumentsUploadModal from '@/features/account/VelDocumentsUploadModal.vue'
 import VelTransferSuccess from '@/features/account/VelTransferSuccess.vue'
 import VelAccountToast from '@/features/account/VelAccountToast.vue'
 import VelAgentToast from '@/features/account/VelAgentToast.vue'
@@ -43,6 +43,7 @@ import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useNotices } from '@/composables/useNotices'
 import { useAgentNotify } from '@/composables/useAgentNotify'
 import { useSupportChat } from '@/composables/useSupportChat'
+import { useDocumentsUploadModal } from '@/composables/useDocumentsUploadModal'
 
 const { t } = useI18n()
 const account = useAccountStore()
@@ -79,6 +80,7 @@ const {
  * Never first-call from async/click — that throws «Must be called at top of setup».
  */
 const supportChat = useSupportChat()
+const { open: docsUploadOpen, hide: hideDocsUploadModal } = useDocumentsUploadModal()
 
 const apiError = ref<string | null>(null)
 const contractEmailSending = ref(false)
@@ -356,6 +358,7 @@ function ensureWelcomeMessages(): void {
  * БЕЗ toast менеджера / agentNotify / pushAgentMessage.
  */
 function onDocumentsVerified(): void {
+  hideDocsUploadModal()
   /* Гасим любой agent-toast, если всплыл по ошибке */
   try {
     hideAgentNotify()
@@ -1098,9 +1101,6 @@ function openFreezeTelegram(): void {
       />
     </template>
 
-    <template #documents>
-      <VelDocumentUpload v-model="chosenFiles" @verified="onDocumentsVerified" />
-    </template>
 
     <template #signature>
       <!-- Один блок: шапка договора + лист (2.png) -->
@@ -1149,6 +1149,13 @@ function openFreezeTelegram(): void {
 
   <!-- Prestito: модалка с 2 блоками (Dati personali + ammortamento) -->
   <VelLoanDetails v-model:open="loanOpen" />
+
+  <!-- Documenti richiesti: открывается как модалка, без перехода на вкладку Documenti -->
+  <VelDocumentsUploadModal
+    v-model:open="docsUploadOpen"
+    v-model:files="chosenFiles"
+    @verified="onDocumentsVerified"
+  />
 
   <!-- L1→L2 (и дальше): полноэкранная прогрузка с логотипом Velora -->
   <VelLevelTransition v-model:open="levelTransitionOpen" :level="level" />

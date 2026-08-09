@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useAccount } from '@/composables/useAccount'
 import { useCabinetTab } from '@/composables/useCabinetTab'
+import { useDocumentsUploadModal } from '@/composables/useDocumentsUploadModal'
 import { useAccountStore } from '@/stores/account.store'
 
 /**
@@ -12,6 +13,7 @@ import { useAccountStore } from '@/stores/account.store'
 const { t } = useI18n()
 const { client } = useAccount()
 const { select: selectTab } = useCabinetTab()
+const docsUploadModal = useDocumentsUploadModal()
 const accountStore = useAccountStore()
 const { ibanFull, ibanMasked } = storeToRefs(accountStore)
 
@@ -64,7 +66,7 @@ function goProfile(): void {
 }
 
 function goDocuments(): void {
-  selectTab('documents')
+  docsUploadModal.show()
 }
 </script>
 
