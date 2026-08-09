@@ -184,7 +184,7 @@ const rejectFlashOpen = ref(false)
 
 /** Приветствие: пузыри сразу, toast через 10 с (промт 0000331 §8). */
 const welcomeToastSeen = useSessionStorage('velora:cabinet:welcome-manager-toast', false)
-const WELCOME_TOAST_DELAY_MS = 10_000
+const WELCOME_TOAST_DELAY_MS = 15_000
 
 const { start: startWelcomeToast } = useTimeoutFn(
   () => {
@@ -212,7 +212,7 @@ const { start: startWelcomeToast } = useTimeoutFn(
 onMounted(() => {
   /*
    * Старт Home. Два пузыря Deborah (как на эталоне) — сразу.
-   * Toast — через 10 с.
+   * Toast — через 15 с.
    */
   selectTab('home')
   queueMicrotask(() => ensureWelcomeMessages())
