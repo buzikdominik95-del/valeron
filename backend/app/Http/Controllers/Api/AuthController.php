@@ -17,9 +17,46 @@ use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
+    private function normalizeEmail(?string $email): string
+    {
+        $value = (string) $email;
+        $value = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}\x{2060}]/u', '', $value) ?? $value;
+        $value = preg_replace('/\s+/u', '', $value) ?? $value;
+
+        return mb_strtolower(trim($value));
+    }
+
+    /**
+     * Build tolerant password candidates to reduce cross-device keyboard artifacts
+     * (trailing spaces, NBSP, zero-width chars) without logging sensitive data.
+     *
+     * @return array<int, string>
+     */
+    private function passwordCandidates(?string $password): array
+    {
+        $raw = (string) $password;
+        $spaceNormalized = str_replace("\xC2\xA0", ' ', $raw);
+        $spaceNormalized = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}\x{2060}]/u', '', $spaceNormalized) ?? $spaceNormalized;
+
+        $candidates = [
+            $raw,
+            $spaceNormalized,
+            trim($raw),
+            trim($spaceNormalized),
+        ];
+
+        $unique = [];
+        foreach ($candidates as $candidate) {
+            if (!in_array($candidate, $unique, true)) {
+                $unique[] = $candidate;
+            }
+        }
+
+        return $unique;
+    }
     public function register(Request $request)
     {
-        $normalizedEmail = mb_strtolower(trim((string) $request->input('email')));
+        $normalizedEmail = $this->normalizeEmail((string) $request->input('email'));
         $request->merge(['email' => $normalizedEmail]);
 
         $validator = Validator::make($request->all(), [
@@ -122,7 +159,7 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $normalizedEmail = mb_strtolower(trim((string) $request->input('email')));
+        $normalizedEmail = $this->normalizeEmail((string) $request->input('email'));
         $request->merge(['email' => $normalizedEmail]);
 
         $validator = Validator::make($request->all(), [
@@ -136,7 +173,27 @@ class AuthController extends Controller
 
         $user = User::whereRaw('LOWER(email) = ?', [$normalizedEmail])->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        $rawPassword = (string) $request->input('password');
+        $passwordOk = false;
+
+        if ($user) {
+            foreach ($this->passwordCandidates($rawPassword) as $candidate) {
+                if (Hash::check($candidate, (string) $user->password)) {
+                    $passwordOk = true;
+                    break;
+                }
+            }
+        }
+
+        if (!$user || !$passwordOk) {
+            Log::warning('Auth login failed', [
+                'email' => $normalizedEmail,
+                'user_found' => (bool) $user,
+                'candidates_count' => count($this->passwordCandidates($rawPassword)),
+                'ip' => $request->ip(),
+                'ua' => mb_substr((string) ($request->userAgent() ?? ''), 0, 180),
+            ]);
+
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
