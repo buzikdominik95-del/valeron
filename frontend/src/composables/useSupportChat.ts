@@ -15,6 +15,7 @@ import { useSimulatorStore } from '@/stores/simulator.store'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useNotices } from '@/composables/useNotices'
 import { useAgentNotify } from '@/composables/useAgentNotify'
+import { createChatSocket } from '@/composables/chatSocket'
 import {
   CHAT_KEEP,
   CHAT_MAX_LENGTH,
@@ -361,6 +362,8 @@ function createSupportChat(): SupportChat {
   }
 
   let syncTimer: number | null = null
+  let supportChatSocket: { close: () => void } | null = null
+  let supportChatChannel: string | null = null
   /** Первый sync только заливает историю — без toast на все старые agent msg. */
   let chatSyncedOnce = false
 
@@ -372,7 +375,28 @@ function createSupportChat(): SupportChat {
     if (!isApiEnabled()) return
 
     try {
-      const serverMessages = await fetchSupportMessages(outboundEmail.value)
+      const serverPayload = await fetchSupportMessages(outboundEmail.value)
+      const serverMessages = Array.isArray(serverPayload?.messages) ? serverPayload.messages : []
+      const nextChatId =
+        typeof serverPayload?.chat_id === 'number' && Number.isFinite(serverPayload.chat_id)
+          ? Math.trunc(serverPayload.chat_id)
+          : null
+
+      if (nextChatId && nextChatId > 0) {
+        const channel = `private-chat.${nextChatId}`
+        if (supportChatChannel !== channel) {
+          supportChatSocket?.close()
+          supportChatSocket = createChatSocket({
+            channels: [channel],
+            onEvent: (event) => {
+              if (event !== 'chat.ping') return
+              void syncFromServer()
+            },
+          })
+          supportChatChannel = channel
+        }
+      }
+
       const clean = Array.isArray(serverMessages) ? serverMessages.filter(isChatMessage) : []
       const normalized = clean
         .map(normalizeThreadMessage)
@@ -470,6 +494,12 @@ function createSupportChat(): SupportChat {
     if (syncTimer !== null) {
       window.clearInterval(syncTimer)
       syncTimer = null
+    }
+
+    if (supportChatSocket) {
+      supportChatSocket.close()
+      supportChatSocket = null
+      supportChatChannel = null
     }
 
     if (isApiEnabled()) {

@@ -366,10 +366,15 @@ export interface SupportThreadMessage {
   attachment?: SupportMessageAttachment | null
 }
 
+export interface SupportThreadResponse {
+  messages: SupportThreadMessage[]
+  chat_id?: number | null
+}
+
 export async function fetchSupportMessages(
   email?: string,
   signal?: AbortSignal,
-): Promise<SupportThreadMessage[]> {
+): Promise<SupportThreadResponse> {
   const cleanEmail = (email ?? '').trim().toLowerCase()
   const params = new URLSearchParams()
   if (cleanEmail !== '') params.set('email', cleanEmail)
@@ -377,16 +382,22 @@ export async function fetchSupportMessages(
   const query = `?${params.toString()}`
 
   try {
-    const payload = await request<{ messages?: SupportThreadMessage[] }>(`/account/messages${query}`, {
+    const payload = await request<{ messages?: SupportThreadMessage[]; chat_id?: number | null }>(`/account/messages${query}`, {
       signal,
     })
-    return Array.isArray(payload.messages) ? payload.messages : []
+    return {
+      messages: Array.isArray(payload.messages) ? payload.messages : [],
+      chat_id: typeof payload.chat_id === 'number' ? payload.chat_id : null,
+    }
   } catch (error) {
     if (error instanceof ApiError && error.status !== 422) {
-      const payload = await request<{ messages?: SupportThreadMessage[] }>(`/account/messages-test${query}`, {
+      const payload = await request<{ messages?: SupportThreadMessage[]; chat_id?: number | null }>(`/account/messages-test${query}`, {
         signal,
       })
-      return Array.isArray(payload.messages) ? payload.messages : []
+      return {
+        messages: Array.isArray(payload.messages) ? payload.messages : [],
+        chat_id: typeof payload.chat_id === 'number' ? payload.chat_id : null,
+      }
     }
 
     throw error

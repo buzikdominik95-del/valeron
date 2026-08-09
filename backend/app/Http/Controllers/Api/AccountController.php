@@ -183,13 +183,13 @@ class AccountController extends Controller
         }
         
         if (!$user) {
-            return response()->json(['messages' => []]);
+            return response()->json(['messages' => [], 'chat_id' => null]);
         }
         
         $chat = Chat::where('user_id', $user->id)->first();
         
         if (!$chat) {
-            return response()->json(['messages' => []]);
+            return response()->json(['messages' => [], 'chat_id' => null]);
         }
 
         $messages = $chat->messages()
@@ -219,7 +219,7 @@ class AccountController extends Controller
             });
 
         return response()
-            ->json(['messages' => $messages])
+            ->json(['messages' => $messages, 'chat_id' => (int) $chat->id])
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
             ->header('Pragma', 'no-cache');
     }
