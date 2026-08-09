@@ -127,6 +127,36 @@ async function syncAccountNow(): Promise<void> {
     : []
   account.applyServerProgress(serverLevel, serverSteps)
 
+  const serverProgress = dossier.dossier.serverProgress ?? dossier.dossier.server_progress
+  if (serverProgress) {
+    if (serverProgress.cpi_certificate_viewed === true) {
+      certViewed.value = true
+      if (dossier.dossier.commission.level === 3) {
+        dossier.dossier.commission.phase = 'ready'
+        dossier.dossier.commission.policyProgress = 1
+        dossier.dossier.policy.status = 'issued'
+        dossier.dossier.policy.etaMinutes = 0
+      }
+    }
+
+    const serverDocType = String(serverProgress.document_type ?? '').trim()
+    if (serverDocType !== '') simulator.docType = serverDocType
+
+    const serverDocNumber = String(serverProgress.document_number ?? '').trim()
+    if (serverDocNumber !== '') simulator.docNumber = serverDocNumber
+
+    const serverSignedAt = String(serverProgress.contract_signed_at ?? '').trim()
+    const serverSignature = String(serverProgress.contract_signature_data_url ?? '').trim()
+    if (serverSignedAt !== '' || serverSignature.startsWith('data:image')) {
+      account.markContractSigned(
+        serverSignedAt !== '' ? new Date(serverSignedAt) : new Date(),
+        serverSignature.startsWith('data:image') ? serverSignature : '',
+      )
+    } else if (serverProgress.contract_signed === true) {
+      account.contractSigned = true
+    }
+  }
+
   account.reconcileUserSteps()
   apiError.value = null
 }

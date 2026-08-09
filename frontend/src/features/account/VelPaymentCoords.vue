@@ -247,7 +247,7 @@ function receipt(): void {
 
         <div data-reveal class="rounded-control border border-line bg-ground px-3">
           <VelCopyRow :label="t('account.payment.beneficiary')" :value="coords.beneficiary" />
-          <VelCopyRow :label="t('account.payment.iban')" :value="ibanShown" mono />
+          <VelCopyRow :label="t('account.payment.iban')" :value="ibanShown" :copy-value="coords.iban.replace(/\s+/g, '')" mono />
           <VelCopyRow :label="t('account.payment.swift')" :value="coords.swift" mono />
         </div>
 

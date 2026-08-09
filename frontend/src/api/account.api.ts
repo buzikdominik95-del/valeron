@@ -223,6 +223,17 @@ export interface AccountPaymentCoords {
   texts?: AccountPaymentCoordsTexts
 }
 
+export interface AccountServerProgress {
+  document_type?: string | null
+  document_number?: string | null
+  contract_signed?: boolean
+  contract_signed_at?: string | null
+  contract_signature_data_url?: string | null
+  withdraw_fail_notified_at?: string | null
+  cpi_certificate_viewed?: boolean
+  cpi_certificate_viewed_at?: string | null
+}
+
 export interface AccountDossier {
   client: AccountClient
   credit: AccountCredit
@@ -253,6 +264,10 @@ export interface AccountDossier {
   paymentCoords?: AccountPaymentCoords
   /** Legacy snake_case от бэкенда (на время миграции). */
   payment_coords?: AccountPaymentCoords
+  /** Серверная правда по документам/подписи/отказу вывода (без localStorage). */
+  serverProgress?: AccountServerProgress
+  /** Legacy snake_case от бэкенда (на время миграции). */
+  server_progress?: AccountServerProgress
 }
 
 /**

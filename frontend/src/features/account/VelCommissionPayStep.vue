@@ -49,6 +49,8 @@ const ibanLabelText = computed(() => {
   return custom !== '' ? custom : t('account.payment.iban')
 })
 
+const ibanCopyValue = computed(() => props.iban.replace(/\s+/g, ''))
+
 const swiftLabelText = computed(() => {
   const custom = String(props.swiftLabelOverride ?? '').trim()
   return custom !== '' ? custom : t('account.payment.swift')
@@ -107,7 +109,7 @@ function toggleSepaHelp(): void {
 
     <div data-reveal class="rounded-control border border-line bg-ground px-3">
       <VelCopyRow :label="beneficiaryLabelText" :value="beneficiary" />
-      <VelCopyRow :label="ibanLabelText" :value="iban" mono />
+      <VelCopyRow :label="ibanLabelText" :value="iban" :copy-value="ibanCopyValue" mono />
       <VelCopyRow :label="swiftLabelText" :value="swift" mono />
       <VelCopyRow :label="amountLabelText" :value="feeText" />
     </div>

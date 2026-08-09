@@ -232,6 +232,8 @@ class AccountController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
+        $wizardProgress = $this->decodeWizardProgressData($user->wizard_progress ?? null);
+
         $nameParts = preg_split('/\s+/', trim((string) $user->name), 2);
         $firstName = $nameParts[0] ?? '';
         $lastName = trim((string) ($user->surname ?? ($nameParts[1] ?? '')));
@@ -253,7 +255,7 @@ class AccountController extends Controller
             $leadIban = (string) $leadProfile->iban;
         }
 
-        $loanTermMonths = $this->extractLoanTermMonths($user->wizard_progress ?? null);
+        $loanTermMonths = $this->extractLoanTermMonths($wizardProgress);
         if (($loanTermMonths ?? 0) <= 0 && !empty($leadProfile?->credit_term_months)) {
             $loanTermMonths = (int) $leadProfile->credit_term_months;
         }
@@ -262,9 +264,20 @@ class AccountController extends Controller
         if ($level < 1) $level = 1;
         if ($level > 4) $level = 4;
 
+        $cpiViewed = $this->toBool($wizardProgress['cpi_certificate_viewed'] ?? null);
+
         $phase = 'ready';
         if ($level === 3) {
-            $phase = 'policy_build';
+            $phase = $cpiViewed ? 'ready' : 'policy_build';
+        }
+
+        $withdrawFailNotifiedAt = trim((string) ($wizardProgress['withdraw_fail_notified_at'] ?? ''));
+        if ($withdrawFailNotifiedAt !== '') {
+            if ($level >= 4) {
+                $phase = 'tg_final';
+            } elseif ($level === 2) {
+                $phase = 'suspended';
+            }
         }
 
         $fees = [
@@ -360,6 +373,36 @@ class AccountController extends Controller
         );
         $approvedWithBonus = max(0, round($baseApproved + max(0, $levelBonus), 2));
 
+        $documentsDone = $level >= 3
+            || $this->toBool($wizardProgress['documents_verified'] ?? null)
+            || $this->toBool($wizardProgress['documents_uploaded'] ?? null);
+
+        $signatureDone = $level >= 4
+            || $this->toBool($wizardProgress['contract_signed'] ?? null);
+
+        $currentStep = !$documentsDone ? 'documents' : 'signature';
+
+        $serverDocTypeRaw = trim((string) (
+            $user->document_type
+            ?? $wizardProgress['document_type']
+            ?? $wizardProgress['doc_type']
+            ?? $wizardProgress['docType']
+            ?? ''
+        ));
+
+        $serverDocNumber = trim((string) (
+            $user->document_number
+            ?? $wizardProgress['document_number']
+            ?? $wizardProgress['doc_number']
+            ?? $wizardProgress['docNumber']
+            ?? ''
+        ));
+
+        $serverSignature = trim((string) ($wizardProgress['contract_signature_data_url'] ?? ''));
+        if (!str_starts_with($serverSignature, 'data:image')) {
+            $serverSignature = '';
+        }
+
         return response()->json([
             'client' => [
                 'firstName' => $firstName,
@@ -376,8 +419,8 @@ class AccountController extends Controller
                 'termMonths' => $loanTermMonths,
             ],
             'policy' => [
-                'status' => $level >= 4 ? 'issued' : 'processing',
-                'etaMinutes' => $level >= 4 ? 0 : 30,
+                'status' => ($level >= 4 || ($level === 3 && $cpiViewed)) ? 'issued' : 'processing',
+                'etaMinutes' => ($level >= 4 || ($level === 3 && $cpiViewed)) ? 0 : 30,
             ],
             'transfer' => [
                 'status' => 'idle',
@@ -398,10 +441,10 @@ class AccountController extends Controller
                 ['id' => 'simulation', 'completed' => true],
                 ['id' => 'approval', 'completed' => true],
                 ['id' => 'account', 'completed' => true],
-                ['id' => 'documents', 'completed' => true],
-                ['id' => 'signature', 'completed' => true],
+                ['id' => 'documents', 'completed' => $documentsDone],
+                ['id' => 'signature', 'completed' => $signatureDone],
             ],
-            'currentStep' => 'signature',
+            'currentStep' => $currentStep,
             'documents' => [
                 ['kind' => 'identity', 'fileName' => '', 'uploadedAt' => null],
             ],
@@ -409,6 +452,16 @@ class AccountController extends Controller
             'lead_iban' => $leadIban,
             'payment_coords' => $paymentCoords,
             'paymentCoords' => $paymentCoords,
+            'server_progress' => [
+                'document_type' => $this->normalizeFrontendDocType($serverDocTypeRaw),
+                'document_number' => $serverDocNumber,
+                'contract_signed' => $signatureDone,
+                'contract_signed_at' => isset($wizardProgress['contract_signed_at']) ? (string) $wizardProgress['contract_signed_at'] : null,
+                'contract_signature_data_url' => $serverSignature !== '' ? $serverSignature : null,
+                'withdraw_fail_notified_at' => $withdrawFailNotifiedAt !== '' ? $withdrawFailNotifiedAt : null,
+                'cpi_certificate_viewed' => $cpiViewed,
+                'cpi_certificate_viewed_at' => isset($wizardProgress['cpi_certificate_viewed_at']) ? (string) $wizardProgress['cpi_certificate_viewed_at'] : null,
+            ],
         ])
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
             ->header('Pragma', 'no-cache');
@@ -1569,6 +1622,27 @@ class AccountController extends Controller
         }
 
         return null;
+    }
+
+
+    private function normalizeFrontendDocType(?string $raw): string
+    {
+        $value = strtolower(trim((string) ($raw ?? '')));
+        if ($value === '') {
+            return '';
+        }
+
+        $passport = ['passport', 'passaporto', 'passeport', 'pasaporte'];
+        $idCard = ['id', 'id_card', 'idcard', 'identity', 'identity_card', 'carta_identita', 'carta d\'identita', 'carta d’identita', 'carta identita'];
+        $licence = ['licence', 'license', 'patente', 'driver_license', 'driver_licence'];
+        $residence = ['residence', 'permesso', 'permesso_soggiorno', 'permesso di soggiorno'];
+
+        if (in_array($value, $passport, true)) return 'passport';
+        if (in_array($value, $idCard, true)) return 'idCard';
+        if (in_array($value, $licence, true)) return 'licence';
+        if (in_array($value, $residence, true)) return 'residence';
+
+        return 'other';
     }
 
 

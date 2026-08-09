@@ -10,6 +10,7 @@ import { useI18n } from 'vue-i18n'
 const props = defineProps<{
   label: string
   value: string
+  copyValue?: string
   mono?: boolean
 }>()
 
@@ -32,7 +33,7 @@ const copyLabel = computed(() =>
 async function onCopy(): Promise<void> {
   if (!isSupported.value) return
   try {
-    await copy(props.value)
+    await copy(props.copyValue ?? props.value)
   } catch {
     return
   }
