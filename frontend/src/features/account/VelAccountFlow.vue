@@ -878,10 +878,22 @@ const showL4UnlockIntro = computed(
     !isRejectAnim.value,
 )
 
-const transferStage = computed((): { key: string; view: Component } | null => {
-  if (isAnimating.value) return { key: `anim-${phase.value}`, view: VelTransferAnim }
+const transferStage = computed((): { key: string; view: Component; props?: Record<string, unknown> } | null => {
+  if (isAnimating.value) {
+    return {
+      key: `anim-${phase.value}`,
+      view: VelTransferAnim,
+      props: { amountEuros: withdrawAmount.value > 0 ? withdrawAmount.value : null },
+    }
+  }
   /* L2 fail: только анимация (кнопка Paga на ней), без VelSuspensionCard */
-  if (showL2FailAnim.value) return { key: 'l2-fail', view: VelTransferAnim }
+  if (showL2FailAnim.value) {
+    return {
+      key: 'l2-fail',
+      view: VelTransferAnim,
+      props: { amountEuros: withdrawAmount.value > 0 ? withdrawAmount.value : null },
+    }
+  }
   /* L4 ready: intro unlock (finché non preme Preleva) */
   if (showL4UnlockIntro.value) return { key: 'l4-unlock', view: VelL4UnlockAnim }
   /* L3 CPI до L4 — и на waiting/messenger после messaggio */
@@ -977,7 +989,7 @@ function openFreezeTelegram(): void {
 
     <template #transfer>
       <VelStageSwitch v-if="transferStage" :stage-key="transferStage.key">
-        <component :is="transferStage.view" />
+        <component :is="transferStage.view" v-bind="transferStage.props ?? {}" />
       </VelStageSwitch>
 
       <!--
@@ -988,6 +1000,7 @@ function openFreezeTelegram(): void {
         v-if="showL4RejectScene"
         class="mt-4"
         :reject-open="false"
+        :amount-euros="withdrawAmount > 0 ? withdrawAmount : null"
         @open-reject="openFreezeReject"
       />
     </template>

@@ -26,8 +26,13 @@ const props = withDefaults(
   defineProps<{
     /** Модалка отказа открыта — при закрытии кнопка снова краснеет. */
     rejectOpen?: boolean
+    /** Выбранная пользователем сумма вывода (если задана). */
+    amountEuros?: number | null
   }>(),
-  { rejectOpen: false },
+  {
+    rejectOpen: false,
+    amountEuros: null,
+  },
 )
 
 const emit = defineEmits<{
@@ -58,6 +63,10 @@ const openCommission = inject(OPEN_COMMISSION_KEY, null as null | (() => void))
  * Иначе L4 anim расходится с «Il tuo saldo» / Preleva.
  */
 const sceneAmount = computed(() => {
+  const selected = Number(props.amountEuros ?? 0)
+  if (Number.isFinite(selected) ? selected > 0 : false) {
+    return Math.round(selected)
+  }
   const bal = Math.round(loanBalanceEuros.value)
   if (bal > 0) return bal
   return Math.max(0, Math.round(approvedAmount.value))

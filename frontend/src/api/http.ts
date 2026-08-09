@@ -12,6 +12,7 @@
 import {
   disableApiForSession,
   getAuthToken,
+  restoreApiSession,
 } from '@/api/session'
 
 /** Пустая строка — валидное значение переменной окружения, а ?? её не отловит. */
@@ -77,6 +78,12 @@ function fetchCsrfCookie(): Promise<void> {
     headers: { Accept: 'application/json' },
   })
     .then((response) => {
+      /*
+       * Self-heal: если сессия была временно переведена в offline после 401,
+       * любой успешный API-ответ возвращает её в online без hard refresh.
+       */
+      restoreApiSession()
+
       if (!response.ok) {
         /* Token API works without CSRF — soft-fail. */
         return
@@ -205,6 +212,12 @@ export async function request<TResponse>(
       const { message, errors } = formatErrorMessage(payload, response.status)
       throw new ApiError(response.status, message, errors)
     }
+
+    /*
+     * Self-heal: после любого успешного API-ответа возвращаем online-режим
+     * (если раньше был временный disable после 401).
+     */
+    restoreApiSession()
 
     return payload as TResponse
   } catch (error) {
