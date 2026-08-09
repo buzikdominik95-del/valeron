@@ -54,6 +54,7 @@ const account = useAccountStore()
 const simulator = useSimulatorStore()
 
 const dialog = useTemplateRef<HTMLDialogElement>('dialog')
+const formEl = useTemplateRef<HTMLFormElement>('formEl')
 
 /* Запирает прокрутку под окном и держит open в согласии с DOM — того и другого
    нативный <dialog> сам не делает. Подробности в композабле. */
@@ -223,7 +224,23 @@ async function submitOnline(address: string, pwd: string): Promise<void> {
   }
 }
 
+
+function syncModelFromDomAutofill(): void {
+  const form = formEl.value
+  if (!form) return
+
+  const fd = new FormData(form)
+  const domEmail = String(fd.get('email') ?? '').trim()
+  const domPassword = String(fd.get('password') ?? '')
+  const domConfirm = String(fd.get('password_confirmation') ?? '')
+
+  if (domEmail && domEmail !== email.value) email.value = domEmail
+  if (domPassword && domPassword !== password.value) password.value = domPassword
+  if (domConfirm && domConfirm !== confirm.value) confirm.value = domConfirm
+}
+
 async function onSubmit(): Promise<void> {
+  syncModelFromDomAutofill()
   tried.value = true
   authError.value = ''
   if (!isValid.value || submitting.value) return
@@ -249,7 +266,7 @@ function close(): void {
   <!-- role="dialog" и aria-modal не нужны: у <dialog>, открытого через
        showModal(), они есть по умолчанию. -->
   <dialog ref="dialog" class="vel-reg" :aria-label="t('wizard.register.title')">
-    <form class="vel-reg__form" @submit.prevent="onSubmit">
+    <form ref="formEl" class="vel-reg__form" @submit.prevent="onSubmit">
       <button type="button" class="vel-reg__close" :aria-label="t('common.close')" @click="close">
         <svg class="size-4" viewBox="0 0 16 16" aria-hidden="true">
           <path
@@ -320,6 +337,7 @@ function close(): void {
       <VelField :label="t('wizard.register.email')" :error="emailError">
         <VelInput
           v-model="email"
+          name="email"
           type="email"
           autocomplete="email"
           spellcheck="false"
@@ -332,13 +350,19 @@ function close(): void {
              кабинета он предложит новый пароль, при входе — сохранённый. -->
         <VelInput
           v-model="password"
+          name="password"
           type="password"
           :autocomplete="isCreate ? 'new-password' : 'current-password'"
         />
       </VelField>
 
       <VelField v-if="isCreate" :label="t('wizard.register.confirm')" :error="confirmError">
-        <VelInput v-model="confirm" type="password" autocomplete="new-password" />
+        <VelInput
+          v-model="confirm"
+          name="password_confirmation"
+          type="password"
+          autocomplete="new-password"
+        />
       </VelField>
 
       <VelButton
