@@ -82,6 +82,8 @@ const supportChat = useSupportChat()
 
 const apiError = ref<string | null>(null)
 const contractEmailSending = ref(false)
+/** Не показываем локальный fallback-стейт, пока не подтянули server truth на новом устройстве. */
+const bootSyncPending = ref(isApiEnabled())
 let accountSyncTimer: number | null = null
 const ACCOUNT_SYNC_INTERVAL_MS = 12_000
 
@@ -131,6 +133,7 @@ async function syncAccountNow(): Promise<void> {
   if (serverProgress) {
     if (serverProgress.cpi_certificate_viewed === true) {
       certViewed.value = true
+      if (cpiStep.value !== 'viewed') cpiStep.value = 'viewed'
       if (dossier.dossier.commission.level === 3) {
         dossier.dossier.commission.phase = 'ready'
         dossier.dossier.commission.policyProgress = 1
@@ -223,9 +226,17 @@ onMounted(() => {
     startWelcomeToast()
   }
 
-  if (!isApiEnabled()) return
+  if (!isApiEnabled()) {
+    bootSyncPending.value = false
+    return
+  }
   void syncEmailVerifiedFromBackend()
-  void syncAccountNow().then(() => ensureWelcomeMessages())
+  void syncAccountNow()
+    .then(() => ensureWelcomeMessages())
+    .catch(() => undefined)
+    .finally(() => {
+      bootSyncPending.value = false
+    })
   syncProfileTermToBackend()
   startAccountSync()
   document.addEventListener('visibilitychange', onCabinetVisible)
@@ -791,6 +802,26 @@ watch(level, (lv, prev) => {
     payoutPanelOpen.value = false
     commissionOpen.value = false
   }
+
+  /*
+   * L3 -> L4: сначала должен идти обычный сценарий вывода
+   * (Preleva -> выбор суммы -> анимация), а не мгновенный tg_final.
+   * Если с прошлого уровня прилип серверный маркер отказа, локально
+   * перезапускаем этап в ready.
+   */
+  if (n === 4 && Number(prev) !== 4) {
+    try {
+      dossier.setCommissionPhase('ready')
+    } catch {
+      /* */
+    }
+    freezeIntroOpen.value = false
+    freezeOpen.value = false
+    rejectFlashOpen.value = false
+    payoutPanelOpen.value = false
+    commissionOpen.value = false
+    successOpen.value = false
+  }
 })
 
 /** После оплаты → Assistenza + заготовка (L1…L4). */
@@ -1025,7 +1056,13 @@ function openFreezeTelegram(): void {
 </script>
 
 <template>
-  <VelAccount>
+  <div v-if="bootSyncPending" class="vel-account-boot" role="status" aria-live="polite">
+    <span class="vel-account-boot__dot" aria-hidden="true"></span>
+    <p class="vel-account-boot__text">Sincronizzazione del profilo…</p>
+  </div>
+
+  <template v-else>
+    <VelAccount>
     <!-- Баланс на первом плане; loan details — только когда открыт, ниже воронки. -->
     <template #summary>
       <VelPayoutCard
@@ -1141,9 +1178,40 @@ function openFreezeTelegram(): void {
     :persistent="isTgFinal"
     @pay="onFreezePay"
   />
+  </template>
 </template>
 
 <style scoped>
+.vel-account-boot {
+  min-height: 42vh;
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+}
+
+.vel-account-boot__dot {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  border: 3px solid color-mix(in oklab, var(--color-accent) 24%, transparent);
+  border-top-color: var(--color-accent);
+  animation: vel-account-boot-spin 900ms linear infinite;
+}
+
+.vel-account-boot__text {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+@keyframes vel-account-boot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Единый блок договора: убираем вторую рамку у карточки внутри */
 .vel-contract-block {
   min-inline-size: 0;
