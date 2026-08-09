@@ -80,7 +80,7 @@ const {
  * Never first-call from async/click — that throws «Must be called at top of setup».
  */
 const supportChat = useSupportChat()
-const { open: docsUploadOpen, hide: hideDocsUploadModal } = useDocumentsUploadModal()
+const { open: docsUploadOpen, show: showDocsUploadModal, hide: hideDocsUploadModal } = useDocumentsUploadModal()
 
 const apiError = ref<string | null>(null)
 const contractEmailSending = ref(false)
@@ -259,6 +259,19 @@ const bankNoticeOpen = ref(false)
 /** Сумма вывода (ползунок) → затем drawer комиссии. */
 const amountOpen = ref(false)
 const withdrawAmount = useSessionStorage<number>('velora:cabinet:withdraw-amount', 0)
+
+watch(
+  tab,
+  (next) => {
+    if (next !== 'documents') return
+    if (account.documentsUploaded === true) return
+
+    showDocsUploadModal()
+    selectTab('home')
+  },
+  { immediate: true },
+)
+
 watch(withdrawAmount, (value) => {
   const num = Number(value)
   if (!Number.isFinite(num) || num < 0) {
