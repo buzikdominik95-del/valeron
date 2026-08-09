@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\Api\IbanSettingController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\CommissionLevelController;
@@ -16,6 +17,9 @@ use App\Http\Controllers\Api\ManagerController;
 use App\Http\Controllers\Api\AdminCommissionController;
 
 $adminAuthRequire = filter_var(env('ADMIN_API_REQUIRE_AUTH', false), FILTER_VALIDATE_BOOL);
+
+// Reverb: авторизация приватных каналов (POST /api/broadcasting/auth)
+Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
 // Test Sentry endpoint
 Route::get("/test-sentry", function() {

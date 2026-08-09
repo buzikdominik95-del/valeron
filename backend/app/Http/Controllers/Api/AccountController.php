@@ -147,6 +147,8 @@ class AccountController extends Controller
 
         $chat->touch();
 
+        \App\Events\ChatPing::safeDispatch((int) $chat->id);
+
         $responseAttachmentUrl = $this->normalizeAttachmentUrl($message->attachment_url ?? null);
 
         $hasAttachment = !empty($responseAttachmentUrl) ? in_array((string) $message->attachment_kind, ['image', 'file'], true) : false;

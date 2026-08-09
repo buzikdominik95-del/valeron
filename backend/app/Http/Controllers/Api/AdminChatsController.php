@@ -393,6 +393,8 @@ class AdminChatsController extends Controller
             'updated_at' => now(),
         ]);
 
+        \App\Events\ChatPing::safeDispatch((int) $chat->id);
+
         $responseAttachmentUrl = $this->normalizeAttachmentUrl($message->attachment_url ?? null);
         $hasAttachment = !empty($responseAttachmentUrl) && in_array((string) $message->attachment_kind, ['image', 'file'], true);
 
