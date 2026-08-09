@@ -17,6 +17,10 @@ class SmokeMail extends Mailable implements ShouldQueue
     {
         return new Envelope(
             subject: 'Velora SMTP/Resend smoke test',
+            tags: ['smoke-test'],
+            metadata: [
+                'flow' => 'smoke_test',
+            ],
         );
     }
 

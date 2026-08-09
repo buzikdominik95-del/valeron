@@ -20,6 +20,8 @@ return [
 
     'resend' => [
         'key' => env('RESEND_API_KEY'),
+        'webhook_secret' => env('RESEND_WEBHOOK_SECRET'),
+        'webhook_bearer' => env('RESEND_WEBHOOK_BEARER'),
     ],
 
     'ses' => [

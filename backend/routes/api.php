@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\AdminChatsController;
 use App\Http\Controllers\Api\AdminUsersMonitoringController;
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\ApprovalEmailController;
+use App\Http\Controllers\Api\ResendWebhookController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\AdminLeadController;
 use App\Http\Controllers\Api\ManagerController;
@@ -52,6 +53,9 @@ Route::middleware('auth:sanctum')->group(function () {
  * Pubblico per demo/dev (barra fasi); in prod andrebbe dietro auth/admin.
  */
 Route::post('account/emails/credit-approval', [ApprovalEmailController::class, 'sendCreditApproval']);
+
+// Delivery tracking webhook (Resend)
+Route::post('/webhooks/resend', [ResendWebhookController::class, 'handle']);
 
 // Admin Auth routes
 Route::post('/admin/auth/login', [AdminAuthController::class, 'login']);

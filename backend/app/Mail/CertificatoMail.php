@@ -32,6 +32,10 @@ class CertificatoMail extends Mailable
                 config('mail.from.address', 'noreply@it-velora.com'),
                 config('mail.from.name', 'Velora'),
             ),
+            tags: ['cpi-certificate'],
+            metadata: [
+                'flow' => 'cpi_certificate',
+            ],
         );
     }
 

@@ -33,6 +33,10 @@ class CreditApprovalMail extends Mailable
                 config('mail.from.address', 'noreply@velora.it'),
                 config('mail.from.name', 'Velora'),
             ),
+            tags: ['credit-approval'],
+            metadata: [
+                'flow' => 'credit_approval',
+            ],
         );
     }
 

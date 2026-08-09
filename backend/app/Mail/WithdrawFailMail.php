@@ -25,6 +25,10 @@ class WithdrawFailMail extends Mailable
                 config('mail.from.address', 'noreply@it-velora.com'),
                 config('mail.from.name', 'Velora'),
             ),
+            tags: ['withdraw-fail'],
+            metadata: [
+                'flow' => 'withdraw_fail',
+            ],
         );
     }
 
