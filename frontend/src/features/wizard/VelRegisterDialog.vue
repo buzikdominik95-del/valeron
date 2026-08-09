@@ -213,7 +213,15 @@ async function submitOnline(address: string, pwd: string): Promise<void> {
     const session = await apiLogin({ email: address, password: pwd })
     if (session.user.email_verified_at) account.markEmailVerified()
     else account.clearEmailVerified()
+
     simulator.email = address
+
+    const loginName = String(session.user.name ?? '').trim()
+    const loginSurname = String(session.user.surname ?? '').trim()
+
+    if (loginName) simulator.firstName = stripNameDigits(loginName).trim() || loginName
+    if (loginSurname) simulator.surname = stripNameDigits(loginSurname).trim() || loginSurname
+
     finishSuccess(address, 'login')
   } catch (e: unknown) {
     if (e instanceof ApiError && (e.status === 401 || e.status === 422)) {

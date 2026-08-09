@@ -3,6 +3,7 @@ import type { Ref } from 'vue'
 import { createSharedComposable } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useSimulatorStore } from '@/stores/simulator.store'
+import { hasAuthToken } from '@/api/session'
 
 /**
  * Диалог «Accedi» с лендинга: не пускаем в кабинет с заглушкой Marco.
@@ -22,6 +23,10 @@ function createLandingLogin(): LandingLoginApi {
   const { email, firstName, surname } = storeToRefs(simulator)
 
   function hasCabinetAccess(): boolean {
+    // Если пользователь уже успешно авторизован и токен сохранён,
+    // доступ в кабинет разрешён даже без локально сохранённых полей мастера.
+    if (hasAuthToken()) return true
+
     const hasEmail = email.value.trim() !== ''
     const hasName = firstName.value.trim() !== '' || surname.value.trim() !== ''
     return hasEmail && hasName
