@@ -10,7 +10,6 @@ import VelNumberTicker from '@/components/magic/VelNumberTicker.vue'
 import {
   ANNUAL_RATE_PERCENT,
   MONTHLY_FORMAT,
-  TERM_MONTHS,
   annuityPayment,
   approvedFromRequested,
 } from '@/features/wizard/offer-terms'
@@ -22,7 +21,7 @@ import {
  * ответа, а разметка и формулы останутся прежними.
  */
 const { t, n } = useI18n()
-const { amount } = useCreditSimulator()
+const { amount, termMonths } = useCreditSimulator()
 
 /** Единственное действие экрана: куда вести дальше — решает родитель. */
 const emit = defineEmits<{ cta: [] }>()
@@ -51,7 +50,7 @@ function onCtaClick(): void {
 const approvedAmount = computed(() => approvedFromRequested(amount.value))
 
 const monthlyPayment = computed(() =>
-  annuityPayment(approvedAmount.value, ANNUAL_RATE_PERCENT, TERM_MONTHS),
+  annuityPayment(approvedAmount.value, ANNUAL_RATE_PERCENT, termMonths.value),
 )
 
 const approvedAmountText = computed(() => n(approvedAmount.value, 'currency'))
@@ -59,7 +58,7 @@ const approvedAmountText = computed(() => n(approvedAmount.value, 'currency'))
 const termsText = computed(() =>
   t('wizard.result.terms', {
     monthly: n(monthlyPayment.value, MONTHLY_FORMAT),
-    months: TERM_MONTHS,
+    months: termMonths.value,
   }),
 )
 
