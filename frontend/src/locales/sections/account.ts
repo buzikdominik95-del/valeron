@@ -297,7 +297,7 @@ export default {
       chooseFor: 'Scegli la foto: {label}',
       replaceFor: 'Sostituisci la foto: {label}',
       submit: 'Carica il documento',
-      limits: 'Immagini o PDF · massimo {size} MB per file',
+      limits: 'Solo immagini .png/.jpeg · massimo {size} MB per file',
       /* Прямо говорим, что файл никуда не ушёл: бэкенда нет, и писать
          «загружено» фронт не вправе. */
       notSent: 'I file restano nel tuo browser: partono insieme alla richiesta.',
@@ -311,7 +311,7 @@ export default {
       },
       toastReady: 'Documenti pronti: puoi firmare il contratto',
       errors: {
-        type: '{name}: formato non accettato. Servono immagini o PDF.',
+        type: '{name}: formato non accettato. Servono solo immagini .png o .jpeg.',
         size: '{name}: supera {size} MB.',
       },
     },
@@ -1452,7 +1452,7 @@ export default {
       chooseFor: 'Выбрать фото: {label}',
       replaceFor: 'Заменить фото: {label}',
       submit: 'Загрузить документ',
-      limits: 'Изображения или PDF · не больше {size} МБ на файл',
+      limits: 'Только изображения .png/.jpeg · не больше {size} МБ на файл',
       notSent: 'Файлы остаются в браузере: они уйдут вместе с заявкой.',
       checkingHint: 'Проверяем снимки документа: это занимает несколько секунд.',
       lockedAfterVerify: 'Документы проверены и приняты. Повторная загрузка недоступна.',
@@ -1463,7 +1463,7 @@ export default {
       },
       toastReady: 'Документы готовы: можно подписать договор',
       errors: {
-        type: '{name}: формат не подходит. Нужны изображения или PDF.',
+        type: '{name}: формат не подходит. Нужны только изображения .png или .jpeg.',
         size: '{name}: больше {size} МБ.',
       },
     },

@@ -84,25 +84,24 @@ export function docShotsKey(kind: DocKind): 'shotsOne' | 'shotsTwo' {
  * PDF — скан с МФУ.
  */
 export const DOC_ACCEPT =
-  'image/*,image/jpeg,image/png,image/heic,image/heif,image/webp,application/pdf'
+  'image/jpeg,image/png,.jpeg,.jpg,.png'
 
 /** Предел размера. Число подставляется и в подпись под кнопкой, и в текст ошибки. */
-export const DOC_MAX_FILE_MB = 10
+export const DOC_MAX_FILE_MB = 20
 
 const BYTES_IN_MB = 1024 * 1024
 
 export const DOC_MAX_FILE_BYTES = DOC_MAX_FILE_MB * BYTES_IN_MB
 
-const IMAGE_EXT = /\.(jpe?g|png|gif|webp|heic|heif|bmp|tif?f)$/i
-const PDF_EXT = /\.pdf$/i
+const IMAGE_EXT = /\.(jpe?g|png)$/i
 
 /** Снимок/скан: MIME или расширение (мобильные камеры часто type=''). */
 export function isSupportedDocFile(file: File): boolean {
   const type = (file.type || '').toLowerCase()
-  if (type.startsWith('image/') || type === 'application/pdf') return true
+  if (type === 'image/jpeg' || type === 'image/png') return true
   if (type === '' || type === 'application/octet-stream') {
     const name = file.name || ''
-    return IMAGE_EXT.test(name) || PDF_EXT.test(name)
+    return IMAGE_EXT.test(name)
   }
   return false
 }
