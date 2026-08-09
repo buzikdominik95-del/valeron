@@ -54,7 +54,7 @@ export function useCabinetNav(): CabinetNavApi {
     CABINET_TABS.map((id) => ({
       id,
       label: t(`account.nav.${id}`),
-      href: hrefFor(id),
+      href: id === 'documents' ? hrefFor(tab.value) : hrefFor(id),
       active: tab.value === id,
       badge: id === 'support' ? supportUnreadCount.value : 0,
     })),
@@ -71,7 +71,7 @@ export function useCabinetNav(): CabinetNavApi {
 
     event.preventDefault()
 
-    if (id === 'documents' && account.documentsUploaded !== true) {
+    if (id === 'documents') {
       docsUploadModal.show()
       return
     }
