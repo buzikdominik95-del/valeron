@@ -428,15 +428,18 @@ function createSupportChat(): SupportChat {
         const seenText = new Set(
           messages.value.filter((m) => m.author === 'agent').map((m) => m.text.trim()),
         )
-        const newAgent = next.filter(
-          (m) =>
+        const newAgent = next.filter((m) => {
+          const body = m.text.trim()
+          const hasAttachment = Boolean(m.attachment?.url)
+          return (
             m.author === 'agent' &&
-            m.text.trim() !== '' &&
-            !seenText.has(m.text.trim()) &&
+            (body !== '' ? true : hasAttachment) &&
+            (body === '' ? true : !seenText.has(body)) &&
             !messages.value.some((x) => chatFingerprint(x) === chatFingerprint(m)) &&
             !OLD_GREETING_RE.test(m.text) &&
-            !EN_RECEIPT_RE.test(m.text),
-        )
+            !EN_RECEIPT_RE.test(m.text)
+          )
+        })
         if (newAgent.length > 0 && tab.value !== 'support') {
           account.bumpSupportUnread(newAgent.length)
           try {
