@@ -270,7 +270,7 @@ function close(): void {
         {{ blockedReason }}
       </p>
 
-      <VelButton type="submit" size="lg" block :disabled="!canSubmit" onclick="trackMetaOnce('loan_step_8', 'SubmitApplication', { content_name: 'LoanApplicationSubmitted', step: 8 });">
+      <VelButton type="submit" size="lg" block :disabled="!canSubmit">
         {{ t('account.payout.dialog.submit') }}
         <span aria-hidden="true">→</span>
       </VelButton>

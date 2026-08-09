@@ -130,7 +130,7 @@ const tickerValue = computed(() => (amountRevealed.value ? approvedAmount.value 
             type="button"
             size="lg"
             block
-            onclick="trackMetaOnce('loan_step_5', 'CustomizeProduct', { content_name: 'LoanOfferConfirmed', step: 5 });"
+            onclick="trackMetaOnce('loan_step_5', 'CompleteRegistration', { content_name: 'LoanOfferConfirmed', step: 5 });"
             @click="onCtaClick"
           >
           {{ t('wizard.result.cta') }}

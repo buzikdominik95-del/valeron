@@ -75,7 +75,7 @@ const termText = computed(() => t('wizard.duration.months', { count: termMonths.
   <Teleport to="#vel-wizard-actions" defer>
     <VelButton
       type="button"
-      onclick="trackMetaOnce('loan_step_3', 'CustomizeProduct', { content_name: 'LoanTermConfirmed', step: 3 });"
+      onclick="trackMetaOnce('loan_step_3', 'InitiateCheckout', { content_name: 'LoanTermConfirmed', step: 3 });"
       @click="next"
     >
       {{ t('wizard.next') }}

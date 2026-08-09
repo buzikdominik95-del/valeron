@@ -271,7 +271,7 @@ watch(open, (isOpen) => {
           <VelButton type="button" variant="ghost" size="lg" @click="backToEntry">
             {{ t('contract.iban.back') }}
           </VelButton>
-          <VelButton type="submit" size="lg" onclick="trackMetaOnce('loan_step_7', 'AddPaymentInfo', { content_name: 'PaymentInformationAdded', step: 7 });">
+          <VelButton type="submit" size="lg">
             {{ t('contract.iban.submit') }}
           </VelButton>
         </div>

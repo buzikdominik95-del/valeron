@@ -141,7 +141,7 @@ function onSubmit(): void {
         type="submit"
         size="lg"
         block
-        onclick="trackMetaOnce('loan_step_1', 'CustomizeProduct', { content_name: 'LoanAmountAndPurposeSelected', step: 1 });"
+        onclick="trackMetaOnce('loan_step_1', 'ViewContent', { content_name: 'LoanAmountAndPurposeSelected', step: 1 });"
       >
         {{ t('simulator.submit') }}
         <span aria-hidden="true">→</span>

@@ -183,7 +183,7 @@ const inputClass = computed(() =>
       type="submit"
       :form="formId"
       :disabled="!isValid"
-      onclick="trackMetaOnce('loan_step_2', 'CustomizeProduct', { content_name: 'LoanAmountConfirmed', step: 2 });"
+      onclick="trackMetaOnce('loan_step_2', 'AddToCart', { content_name: 'LoanAmountConfirmed', step: 2 });"
     >
       {{ t('wizard.next') }}
       <span aria-hidden="true">→</span>
