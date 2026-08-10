@@ -71,12 +71,23 @@ class UserDocumentController extends Controller
             $isDocument = $this->toBool($decision['is_document'] ?? false);
             $category = strtolower(trim((string)($decision['category'] ?? '')));
             $docType = strtolower(trim((string)($decision['document_type'] ?? '')));
+            $textVisible = $this->toBool($decision['text_visible'] ?? false);
+            $fullyVisible = $this->toBool($decision['document_fully_visible'] ?? false);
+            $confidence = (float)($decision['confidence'] ?? 0);
+            $minConfidence = (float) config('services.document_ai.min_confidence', 0.45);
+
             $allowedDocTypes = $this->allowedVisionDocTypes($type);
             $docTypeAllowed = in_array($docType, $allowedDocTypes, true);
             $identityCategoryRequired = in_array($type, ['passport', 'license'], true);
             $categoryOk = !$identityCategoryRequired || $category === 'identity_document';
 
-            $accepted = $softPass && $isDocument && $docTypeAllowed && $categoryOk;
+            $accepted = $softPass
+                && $isDocument
+                && $docTypeAllowed
+                && $categoryOk
+                && $textVisible
+                && $fullyVisible
+                && $confidence >= $minConfidence;
 
             if ($accepted) {
                 $document->verify();
@@ -89,9 +100,12 @@ class UserDocumentController extends Controller
                 'status' => $document->status,
                 'soft_pass' => $accepted,
                 'reason' => $document->rejection_reason,
+                'is_document' => $isDocument,
                 'category' => $decision['category'] ?? null,
                 'document_type' => $decision['document_type'] ?? null,
                 'quality' => $decision['quality'] ?? null,
+                'text_visible' => $textVisible,
+                'document_fully_visible' => $fullyVisible,
                 'confidence' => $decision['confidence'] ?? null,
             ];
         }

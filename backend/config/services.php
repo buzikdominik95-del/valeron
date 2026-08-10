@@ -42,6 +42,7 @@ return [
         'verify_url' => env('DOCUMENT_AI_VERIFY_URL', 'http://ai_orchestrator:8000/v1/documents/verify-image'),
         'api_key' => env('DOCUMENT_AI_API_KEY', ''),
         'timeout_sec' => env('DOCUMENT_AI_TIMEOUT_SEC', 35),
+        'min_confidence' => env('DOCUMENT_AI_MIN_CONFIDENCE', 0.45),
     ],
 
 ];
