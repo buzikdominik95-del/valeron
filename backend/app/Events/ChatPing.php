@@ -40,6 +40,12 @@ class ChatPing implements ShouldBroadcastNow
     public static function safeDispatch(int $chatId): void
     {
         try {
+            \Illuminate\Support\Facades\Cache::increment('admin_chats_index_ver');
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        try {
             broadcast(new self($chatId));
         } catch (\Throwable $e) {
             Log::warning('ChatPing broadcast failed', [

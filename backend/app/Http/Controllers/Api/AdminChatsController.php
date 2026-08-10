@@ -7,6 +7,7 @@ use App\Models\AdminUser;
 use App\Support\AdminManagerLevelStore;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -28,7 +29,25 @@ class AdminChatsController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
 
-        $query = Chat::with(['user', 'tags:id,name,color'])
+        // Кэш готового payload: версия сбрасывается при новых сообщениях (ChatPing)
+        // и коротким TTL страхуемся от прочих мутаций. Ключ учитывает права актёра.
+        $cacheVersion = (int) Cache::get('admin_chats_index_ver', 0);
+        $scope = in_array($actor->role, ['manager', 'team_lead'], true) ? ('m' . $actor->id) : 'all';
+        $cacheKey = 'admin_chats_index:' . $cacheVersion . ':' . $scope . ':' .
+            (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0);
+
+        $cachedPayload = Cache::get($cacheKey);
+        if (is_array($cachedPayload)) {
+            return response()
+                ->json($cachedPayload, 200, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
+                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                ->header('Pragma', 'no-cache');
+        }
+
+        $query = Chat::with([
+                'user:id,name,surname,email,requested_amount,document_type,document_number,commission_level_id,wizard_progress',
+                'tags:id,name,color',
+            ])
             ->select([
                 'chats.*',
                 DB::raw('(SELECT message FROM chat_messages WHERE chat_id = chats.id ORDER BY created_at DESC LIMIT 1) as last_msg'),
@@ -54,8 +73,9 @@ class AdminChatsController extends Controller
         // Если per_page не передан, поднимаем его до текущего объёма (с потолком),
         // чтобы счётчики не залипали на искусственном лимите.
         $requestedPerPage = (int) $request->integer('per_page', 0);
-        $autoPerPage = (clone $orderedQuery)->toBase()->getCountForPagination();
-        $perPageSource = $requestedPerPage > 0 ? $requestedPerPage : $autoPerPage;
+        $perPageSource = $requestedPerPage > 0
+            ? $requestedPerPage
+            : (clone $orderedQuery)->toBase()->getCountForPagination();
         $perPage = max(10, min(50000, (int) $perPageSource));
         $page = max(1, (int) $request->integer('page', 1));
         $paginator = $orderedQuery->paginate($perPage, ['*'], 'page', $page);
@@ -68,7 +88,8 @@ class AdminChatsController extends Controller
             ->map(fn (Chat $chat) => $this->mapChatData(
                 $chat,
                 $leadProfilesByUser[(int) $chat->user_id] ?? null,
-                $lastSeenByUser[(int) $chat->user_id] ?? null
+                $lastSeenByUser[(int) $chat->user_id] ?? null,
+                false
             ));
 
         $payload = [
@@ -84,6 +105,8 @@ class AdminChatsController extends Controller
                 'total' => $paginator->total(),
             ];
         }
+
+        Cache::put($cacheKey, $payload, now()->addSeconds(8));
 
         return response()
             ->json($payload, 200, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
@@ -230,6 +253,8 @@ class AdminChatsController extends Controller
                     'url' => $attachmentUrl,
                     'mime' => (string) ($msg->attachment_mime ?? ''),
                 ] : null,
+                'attachment_lost' => ($attachmentUrl === '' && trim((string) ($msg->attachment_url ?? '')) !== ''),
+                'attachment_lost_name' => (string) ($msg->attachment_name ?? ''),
             ];
         });
 
@@ -593,7 +618,7 @@ class AdminChatsController extends Controller
         ]);
     }
 
-    private function mapChatData(Chat $chat, ?object $leadProfile = null, $lastSeenAt = null): array
+    private function mapChatData(Chat $chat, ?object $leadProfile = null, $lastSeenAt = null, bool $allowDbFallback = true): array
     {
         $user = $chat->user;
         $unreadCount = (int) ($chat->unread_count ?? 0);
@@ -606,8 +631,8 @@ class AdminChatsController extends Controller
             'lead_name' => $this->resolveLeadName($user, $leadProfile),
             'lead_email' => $this->resolveLeadEmail($user, $leadProfile),
             'loan_amount' => $this->resolveLoanAmount($user, $leadProfile),
-            'loan_term_months' => $this->resolveLoanTermMonthsForUser((int) $chat->user_id, $user?->wizard_progress ?? null, $leadProfile),
-            'lead_iban' => $chat->lead_iban ?: $this->resolveLeadIbanForUser((int) $chat->user_id, $leadProfile),
+            'loan_term_months' => $this->resolveLoanTermMonthsForUser((int) $chat->user_id, $user?->wizard_progress ?? null, $leadProfile, $allowDbFallback),
+            'lead_iban' => $chat->lead_iban ?: ($allowDbFallback ? $this->resolveLeadIbanForUser((int) $chat->user_id, $leadProfile) : ($leadProfile?->iban ?: null)),
             'documents_uploaded' => $documentsState['uploaded'],
             'documents_count' => $documentsState['count'],
             'chat_created_at' => $chat->created_at,
@@ -829,7 +854,7 @@ class AdminChatsController extends Controller
         return !empty($leadProfileIban) ? (string) $leadProfileIban : null;
     }
 
-    private function resolveLoanTermMonthsForUser(int $userId, $wizardProgress, ?object $leadProfile = null): ?int
+    private function resolveLoanTermMonthsForUser(int $userId, $wizardProgress, ?object $leadProfile = null, bool $allowDbFallback = true): ?int
     {
         $termMonths = $this->extractLoanTermMonths($wizardProgress);
         if (($termMonths ?? 0) > 0) {
@@ -837,7 +862,7 @@ class AdminChatsController extends Controller
         }
 
         $leadTerm = $leadProfile?->credit_term_months;
-        if ((int) ($leadTerm ?? 0) <= 0) {
+        if ((int) ($leadTerm ?? 0) <= 0 && $allowDbFallback) {
             $leadTerm = DB::table('leads')
                 ->where('user_id', $userId)
                 ->orderByDesc('updated_at')
