@@ -195,8 +195,12 @@ function createCommission(): CommissionApi {
       if (p === 'failed' || p === 'suspended' || p === 'tg_final' || p === 'pay_fee') {
         pinRejectProgress()
       }
-      /* L2: письмо об отказе отправляем автоматически после завершения прогресс-бара. */
-      if (p === 'suspended' && prev === 'animating') {
+      /*
+       * L2 (suspended) и L4 (tg_final): после завершения прогресс-бара шлём
+       * withdraw-fail — сервер запишет withdraw_fail_notified_at, и итог
+       * переживёт logout/login (иначе L4-блокировка сбрасывалась).
+       */
+      if ((p === 'suspended' || p === 'tg_final') && prev === 'animating') {
         triggerWithdrawFailEmail()
       }
     },
