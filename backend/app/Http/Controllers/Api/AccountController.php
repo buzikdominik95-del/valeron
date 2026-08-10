@@ -1716,20 +1716,25 @@ class AccountController extends Controller
             return;
         }
 
+        /*
+         * Источник истины по документам — только /users/documents/upload + AI verify.
+         * Нельзя насильно переводить последнюю запись documents в verified по флагу
+         * wizard_progress: это перетирает реальный rejected и даёт ложный accept.
+         *
+         * Legacy-поддержку «виртуальной verified-строки» оставляем отключённой по умолчанию
+         * (включается только явным env-флагом).
+         */
+        $allowVirtual = filter_var((string) env('ALLOW_VIRTUAL_DOCUMENT_VERIFY_ROW', false), FILTER_VALIDATE_BOOL);
+        if (!$allowVirtual) {
+            return;
+        }
+
         $existing = DB::table('documents')
             ->where('user_id', $user->id)
             ->orderByDesc('id')
             ->first();
 
         if ($existing) {
-            DB::table('documents')
-                ->where('id', $existing->id)
-                ->update([
-                    'status' => 'verified',
-                    'verified_at' => $existing->verified_at ?: now(),
-                    'updated_at' => now(),
-                ]);
-
             return;
         }
 
@@ -1754,6 +1759,7 @@ class AccountController extends Controller
             'updated_at' => now(),
         ]);
     }
+
 
     private function toBool($value): bool
     {
