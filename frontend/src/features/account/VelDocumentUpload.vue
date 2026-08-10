@@ -31,7 +31,7 @@ const props = withDefaults(
   },
 )
 
-const emit = defineEmits<{ verified: [] }>()
+const emit = defineEmits<{ verified: []; rejected: [] }>()
 
 const { t } = useI18n()
 const account = useAccountStore()
@@ -91,6 +91,10 @@ const rejectionText = computed(() => {
   const item = rejection.value
   if (item === null) return null
   return t(`account.docs.errors.${item.reason}`, { name: item.name, size: DOC_MAX_FILE_MB })
+})
+
+watch(serverError, (err) => {
+  if (err !== null) emit('rejected')
 })
 
 const serverErrorText = computed(() => {

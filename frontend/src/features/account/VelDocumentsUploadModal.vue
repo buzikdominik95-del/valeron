@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useId, useTemplateRef } from 'vue'
+import { ref, useId, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import VelDocumentUpload from '@/features/account/VelDocumentUpload.vue'
@@ -32,11 +32,33 @@ function close(): void {
 function onVerified(): void {
   emit('verified')
 }
+
+/* Отказ ИИ: встряска модалки + красная вспышка по краям. Класс снимается
+   по таймеру, чтобы повторный отказ перезапускал CSS-анимацию. */
+const shaking = ref(false)
+let shakeTimer: ReturnType<typeof setTimeout> | null = null
+
+function onRejected(): void {
+  shaking.value = false
+  requestAnimationFrame(() => {
+    shaking.value = true
+    if (shakeTimer) clearTimeout(shakeTimer)
+    shakeTimer = setTimeout(() => {
+      shaking.value = false
+      shakeTimer = null
+    }, 1000)
+  })
+}
 </script>
 
 <template>
   <Teleport to="body">
-    <dialog ref="dialog" class="vel-docs-modal" :aria-labelledby="titleId">
+    <dialog
+      ref="dialog"
+      class="vel-docs-modal"
+      :class="{ 'vel-docs-modal--rejected': shaking }"
+      :aria-labelledby="titleId"
+    >
       <div class="vel-docs-modal__panel">
         <header class="vel-docs-modal__head">
           <h2 :id="titleId" class="vel-docs-modal__title">{{ t('account.docs.cardTitle') }}</h2>
@@ -56,6 +78,7 @@ function onVerified(): void {
             :external-error="props.externalError"
             :verify="props.verify"
             @verified="onVerified"
+            @rejected="onRejected"
           />
         </div>
       </div>
@@ -76,6 +99,55 @@ function onVerified(): void {
   background: var(--color-surface);
   color: var(--color-fg);
   box-shadow: 0 1.25rem 2.5rem color-mix(in oklab, var(--color-fg) 22%, transparent);
+}
+
+.vel-docs-modal--rejected {
+  animation:
+    vel-docs-shake 0.55s cubic-bezier(0.36, 0.07, 0.19, 0.97),
+    vel-docs-flash 0.9s ease-out;
+}
+
+@keyframes vel-docs-shake {
+  10%,
+  90% {
+    transform: translateX(-0.2rem);
+  }
+
+  20%,
+  80% {
+    transform: translateX(0.35rem);
+  }
+
+  30%,
+  50%,
+  70% {
+    transform: translateX(-0.5rem);
+  }
+
+  40%,
+  60% {
+    transform: translateX(0.5rem);
+  }
+}
+
+@keyframes vel-docs-flash {
+  0% {
+    box-shadow:
+      0 0 0 3px color-mix(in oklab, var(--color-danger, #d33) 85%, transparent),
+      0 0 2.5rem 0.5rem color-mix(in oklab, var(--color-danger, #d33) 55%, transparent);
+  }
+
+  100% {
+    box-shadow:
+      0 0 0 3px transparent,
+      0 1.25rem 2.5rem color-mix(in oklab, var(--color-fg) 22%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-docs-modal--rejected {
+    animation: vel-docs-flash 0.9s ease-out;
+  }
 }
 
 .vel-docs-modal::backdrop {
