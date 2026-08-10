@@ -372,15 +372,25 @@ function onDocumentsVerified(): void {
     /* */
   }
 
-  /* Локальный fallback без API: оставляем прежнее поведение. */
+  /* Без API загрузка документов не может считаться проверенной. */
   if (!isApiEnabled()) {
-    account.docsParkedInProfile = true
-    unlockFirmaAfterDocs()
+    const reason = t('account.docs.errors.apiRequired')
+    docsServerError.value = reason
+    account.documentsUploaded = false
+    account.docsParkedInProfile = false
+    account.completed = account.completed.filter((id) => id !== 'documents' && id !== 'signature')
+    if (account.currentStep === 'signature') account.currentStep = 'documents'
+
     try {
-      notices.push('documentVerified')
+      localStorage.removeItem('velora:docs:verified')
     } catch {
       /* storage */
     }
+
+    chosenFiles.value = []
+    docsUploadRenderKey.value += 1
+    showToast(reason)
+    showDocsUploadModal()
     return
   }
 

@@ -319,6 +319,8 @@ export default {
           'La verifica automatica non è terminata. Riprova tra poco con una foto più chiara del documento.',
         uploadFailed:
           'Caricamento non riuscito. Controlla la connessione e riprova.',
+        apiRequired:
+          'Verifica documenti non disponibile: riconnettersi e riprovare.',
       },
     },
 
@@ -1483,6 +1485,8 @@ export default {
           'Автопроверка ещё не завершена. Повторите попытку через минуту с более чётким фото документа.',
         uploadFailed:
           'Не удалось загрузить файл. Проверьте интернет и попробуйте снова.',
+        apiRequired:
+          'Проверка документов недоступна: восстановите соединение и повторите попытку.',
       },
     },
 
