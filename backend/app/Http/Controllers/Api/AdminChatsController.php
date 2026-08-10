@@ -576,8 +576,20 @@ class AdminChatsController extends Controller
                 ->where('user_id', $chat->user_id)
                 ->update($leadUpdatePayload);
 
-            $chat->status = 'completed';
-            $chat->manager_id = (int) $actor->id;
+            /*
+             * FIX «чаты пропадают»: раньше chat.manager_id оставался у старого
+             * менеджера, а статус становился completed — новый менеджер чат не
+             * видел (index фильтрует по manager_id), старый писать не мог.
+             * Теперь при передаче чат переходит к целевому менеджеру и снова
+             * активен; без целевого — остаётся completed у текущего.
+             */
+            if ($targetManager) {
+                $chat->manager_id = (int) $targetManager->id;
+                $chat->status = 'active';
+            } else {
+                $chat->manager_id = (int) $actor->id;
+                $chat->status = 'completed';
+            }
             $chat->updated_at = now();
             $chat->save();
 

@@ -80,8 +80,12 @@ class AccountController extends Controller
             ['status' => 'active', 'manager_id' => $assignedManagerId]
         );
 
-        if ($assignedManagerId && !$chat->manager_id) {
+        if ($assignedManagerId && (int) $chat->manager_id !== (int) $assignedManagerId) {
+            /* Чат следует за назначенным менеджером (в т.ч. после передачи уровня). */
             $chat->manager_id = $assignedManagerId;
+            if ((string) $chat->status === 'completed') {
+                $chat->status = 'active';
+            }
             $chat->save();
         }
 
