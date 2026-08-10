@@ -147,10 +147,12 @@ export function applyOfflineOutcome(dossier: AccountDossier): void {
 
   if (level === 5) {
     /*
-     * L5: полностью новый уровень — исход L4 (tg_final/failed) не наследует.
-     * Анимация Euroclear доиграла до 100% и сцена остаётся; дальнейшая
-     * логика L5 будет добавлена отдельно.
+     * L5: исход L4 (tg_final/failed) не наследует.
+     * Анимация Euroclear доиграла до 100% -> сразу оплата комиссии:
+     * phase=pay_fee, watch(isPayFee) в VelAccountFlow откроет drawer.
      */
+    dossier.commission.phase = 'pay_fee'
+    dossier.commission.fee = resolveFeeForLevel(dossier, level)
     return
   }
 

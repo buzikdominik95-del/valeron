@@ -304,11 +304,10 @@ class AccountController extends Controller
                 } elseif ($elapsedMs >= $animDurations[$level]) {
                     if ($level === 5) {
                         /*
-                         * L5: отказа нет. Анимация Euroclear доиграла — держим
-                         * phase=animating на 100% (сцена остаётся спокойной),
-                         * дальнейшая логика L5 строится отдельно.
+                         * L5: отказа нет. Анимация Euroclear доиграла до 100% —
+                         * сразу оплата комиссии (клиент откроет drawer по pay_fee).
                          */
-                        $phase = 'animating';
+                        $phase = 'pay_fee';
                         $animationStartedAt = gmdate('Y-m-d\TH:i:s\Z', $animTs);
                     } else {
                         /*
