@@ -1067,9 +1067,10 @@ const freezeMode = computed<'reject' | 'telegram'>(() => 'telegram')
 const tgContactMode = computed(() => isTgFinal.value)
 
 watch(
-  isTgFinal,
-  (tg) => {
-    if (!tg) {
+  [isTgFinal, level],
+  ([tg]) => {
+    /* Freeze/TG-модалка — ТОЛЬКО L4. На L5 её не показываем вовсе. */
+    if (!tg || Number(level.value) !== 4) {
       freezeIntroOpen.value = false
       freezeOpen.value = false
       return
@@ -1089,7 +1090,7 @@ watch(
 
 function onFreezeIntroDone(): void {
   freezeIntroOpen.value = false
-  if (isTgFinal.value) freezeOpen.value = true
+  if (isTgFinal.value && Number(level.value) === 4) freezeOpen.value = true
 }
 
 function onFreezePay(): void {
@@ -1101,7 +1102,7 @@ function openFreezeReject(): void {
 }
 
 function openFreezeTelegram(): void {
-  if (!isTgFinal.value) return
+  if (!isTgFinal.value || Number(level.value) !== 4) return
   freezeIntroOpen.value = false
   freezeOpen.value = true
 }
