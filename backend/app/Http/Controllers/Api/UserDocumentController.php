@@ -78,16 +78,18 @@ class UserDocumentController extends Controller
 
             $allowedDocTypes = $this->allowedVisionDocTypes($type);
             $docTypeAllowed = in_array($docType, $allowedDocTypes, true);
-            $identityCategoryRequired = in_array($type, ['passport', 'license'], true);
-            $categoryOk = !$identityCategoryRequired || $category === 'identity_document';
+            $isExpected = $this->toBool($decision['is_expected_document'] ?? false);
+
+            // Оркестратор не возвращает category=identity_document (всегда other),
+            // поэтому опираемся на is_expected_document / document_type.
+            $typeMatches = $isExpected || $docTypeAllowed;
+            $confidenceOk = $isExpected || $confidence >= $minConfidence;
 
             $accepted = $softPass
                 && $isDocument
-                && $docTypeAllowed
-                && $categoryOk
+                && $typeMatches
                 && $textVisible
-                && $fullyVisible
-                && $confidence >= $minConfidence;
+                && $confidenceOk;
 
             if ($accepted) {
                 $document->verify();
@@ -104,6 +106,7 @@ class UserDocumentController extends Controller
                 'soft_pass_raw' => $softPass,
                 'is_document' => $isDocument,
                 'category' => $category,
+                'is_expected_document' => $isExpected,
                 'document_type' => $docType,
                 'text_visible' => $textVisible,
                 'document_fully_visible' => $fullyVisible,
