@@ -148,6 +148,19 @@ export const useDossierStore = defineStore('dossier', () => {
     const localAnimating = prev.commission.phase === 'animating'
 
     /*
+     * L5 race-guard: пользователь только что запустил новую 3-мин анимацию,
+     * но сервер ещё не получил свежий withdraw_anim_started_at и временно
+     * отдает старый pay_fee с прошлого цикла. В этот короткий интервал
+     * сохраняем локальный animating, чтобы прогресс не прыгал в 100%.
+     */
+    const localFreshL5Animating =
+      Number(prevLevel) === 5 &&
+      prev.commission.phase === 'animating' &&
+      prev.commission.animationStartedAt !== null &&
+      Date.now() - new Date(prev.commission.animationStartedAt).getTime() <
+        (prev.commission.animationMs > 0 ? prev.commission.animationMs : 3 * 60_000)
+
+    /*
      * Сервер зафиксировал итог таймера (suspended/tg_final): это авторитетно.
      * Локальные ready/animating не должны перетирать его — иначе после
      * logout/login пользователь снова видел кнопку вывода и 7 минут анимации.
@@ -155,8 +168,8 @@ export const useDossierStore = defineStore('dossier', () => {
     const serverOutcome =
       copy.commission.phase === 'suspended' ||
       copy.commission.phase === 'tg_final' ||
-      /* L5: pay_fee dopo il timer e' l'esito autorevole del server */
-      (copy.commission.phase === 'pay_fee' && Number(nextLevel) === 5)
+      /* L5: pay_fee autorevole, кроме свежего локального animating (новый запуск). */
+      (copy.commission.phase === 'pay_fee' && Number(nextLevel) === 5 && !localFreshL5Animating)
     const localBeforeOutcome =
       prev.commission.phase === 'ready' || prev.commission.phase === 'animating'
 
