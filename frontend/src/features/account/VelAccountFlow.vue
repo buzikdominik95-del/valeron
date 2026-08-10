@@ -883,7 +883,8 @@ watch(level, (lv, prev) => {
    * Если с прошлого уровня прилип серверный маркер отказа, локально
    * перезапускаем этап в ready.
    */
-  if (n >= 4 && Number(prev) < 4) {
+  /* Solo L4: L5 non deve resettare pay_fee (bottone Euroclear sticky). */
+  if (n === 4 && Number(prev) < 4) {
     try {
       dossier.setCommissionPhase('ready')
     } catch {

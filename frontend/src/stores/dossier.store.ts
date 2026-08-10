@@ -153,7 +153,10 @@ export const useDossierStore = defineStore('dossier', () => {
      * logout/login пользователь снова видел кнопку вывода и 7 минут анимации.
      */
     const serverOutcome =
-      copy.commission.phase === 'suspended' || copy.commission.phase === 'tg_final'
+      copy.commission.phase === 'suspended' ||
+      copy.commission.phase === 'tg_final' ||
+      /* L5: pay_fee dopo il timer e' l'esito autorevole del server */
+      (copy.commission.phase === 'pay_fee' && Number(nextLevel) === 5)
     const localBeforeOutcome =
       prev.commission.phase === 'ready' || prev.commission.phase === 'animating'
 
