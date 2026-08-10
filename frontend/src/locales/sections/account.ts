@@ -315,6 +315,10 @@ export default {
         size: '{name}: supera {size} MB.',
         aiRejectedGeneric:
           'La foto non è stata riconosciuta come documento. Carica il passaporto, la carta d’identità o la patente in modo chiaro.',
+        aiPendingGeneric:
+          'La verifica automatica non è terminata. Riprova tra poco con una foto più chiara del documento.',
+        uploadFailed:
+          'Caricamento non riuscito. Controlla la connessione e riprova.',
       },
     },
 
@@ -1475,6 +1479,10 @@ export default {
         size: '{name}: больше {size} МБ.',
         aiRejectedGeneric:
           'Фото не распознано как документ. Загрузите чёткое фото паспорта, ID-карты или водительских прав.',
+        aiPendingGeneric:
+          'Автопроверка ещё не завершена. Повторите попытку через минуту с более чётким фото документа.',
+        uploadFailed:
+          'Не удалось загрузить файл. Проверьте интернет и попробуйте снова.',
       },
     },
 

@@ -403,18 +403,22 @@ function onDocumentsVerified(): void {
       try {
         const response = await uploadUserDocument(file, kind)
         const verification = response.data?.verification
-        const status = verification?.status ?? response.data?.status
-        const rejected = status === 'rejected' || verification?.soft_pass === false
-        if (rejected) {
+        const status = verification?.status ?? response.data?.status ?? 'pending'
+        const accepted = status === 'verified' && verification?.soft_pass !== false
+
+        if (!accepted) {
           const reason = String(verification?.reason ?? response.data?.rejection_reason ?? '').trim()
           rejectedReasons.push(
             reason !== ''
               ? reason
-              : t('account.docs.errors.aiRejectedGeneric'),
+              : status === 'pending'
+                ? t('account.docs.errors.aiPendingGeneric')
+                : t('account.docs.errors.aiRejectedGeneric'),
           )
         }
       } catch (e) {
         console.warn('[docs] upload failed', e)
+        rejectedReasons.push(t('account.docs.errors.uploadFailed'))
       }
     }
 

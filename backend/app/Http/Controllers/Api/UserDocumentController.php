@@ -68,15 +68,26 @@ class UserDocumentController extends Controller
             $softPass = (bool)($decision['soft_pass'] ?? false);
             $reason = trim((string)($decision['soft_reject_reason'] ?? $decision['reason'] ?? ''));
 
-            if ($softPass) {
+            $isDocument = $this->toBool($decision['is_document'] ?? false);
+            $category = strtolower(trim((string)($decision['category'] ?? '')));
+            $docType = strtolower(trim((string)($decision['document_type'] ?? '')));
+            $allowedDocTypes = $this->allowedVisionDocTypes($type);
+            $docTypeAllowed = in_array($docType, $allowedDocTypes, true);
+            $identityCategoryRequired = in_array($type, ['passport', 'license'], true);
+            $categoryOk = !$identityCategoryRequired || $category === 'identity_document';
+
+            $accepted = $softPass && $isDocument && $docTypeAllowed && $categoryOk;
+
+            if ($accepted) {
                 $document->verify();
             } else {
-                $document->reject($reason !== '' ? $reason : 'Изображение не похоже на документ. Загрузите фото паспорта, ID-карты или водительских прав.');
+                $fallbackReason = 'Изображение не похоже на документ. Загрузите фото паспорта, ID-карты или водительских прав.';
+                $document->reject($reason !== '' ? $reason : $fallbackReason);
             }
 
             $verification = [
                 'status' => $document->status,
-                'soft_pass' => $softPass,
+                'soft_pass' => $accepted,
                 'reason' => $document->rejection_reason,
                 'category' => $decision['category'] ?? null,
                 'document_type' => $decision['document_type'] ?? null,
@@ -169,6 +180,28 @@ class UserDocumentController extends Controller
             ]);
             return null;
         }
+    }
+
+
+    private function allowedVisionDocTypes(string $backendType): array
+    {
+        return match ($backendType) {
+            'passport', 'license' => ['passport', 'national_id', 'driver_license'],
+            'contract' => ['contract'],
+            'proof_of_address' => ['utility_bill', 'bank_statement'],
+            default => ['passport', 'national_id', 'driver_license'],
+        };
+    }
+
+    private function toBool(mixed $value): bool
+    {
+        if (is_bool($value)) return $value;
+        if (is_int($value) || is_float($value)) return (bool) $value;
+        if (is_string($value)) {
+            $v = strtolower(trim($value));
+            return in_array($v, ['1', 'true', 'yes', 'y'], true);
+        }
+        return false;
     }
 
     private function normalizeVisionMime(string $mime): ?string
