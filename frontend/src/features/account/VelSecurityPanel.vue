@@ -25,7 +25,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const accountStore = useAccountStore()
-const { emailVerified } = storeToRefs(accountStore)
+const { emailVerified, emailChangedOnce } = storeToRefs(accountStore)
 
 const titleId = `vel-security-${useId()}`
 
@@ -146,9 +146,14 @@ async function confirmCode(): Promise<void> {
         </template>
       </VelSecurityRow>
 
-      <VelSecurityRow :text="t('account.security.email.text')">
+      <VelSecurityRow :text="emailChangedOnce ? t('account.security.email.changedText') : t('account.security.email.text')">
         <template #action>
-          <VelButton variant="outline" @click="emit('changeEmail')">
+          <VelButton
+            variant="outline"
+            :disabled="emailChangedOnce"
+            :title="emailChangedOnce ? t('account.security.email.changedText') : undefined"
+            @click="emit('changeEmail')"
+          >
             {{ t('account.security.email.action') }}
           </VelButton>
         </template>

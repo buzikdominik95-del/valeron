@@ -1193,10 +1193,15 @@ export default {
       },
       email: {
         title: 'Cambia indirizzo email',
-        lead: 'Dopo il cambio dovrai verificare di nuovo l’indirizzo.',
+        lead: 'Ti invieremo un codice di conferma al nuovo indirizzo. L’email può essere cambiata una sola volta.',
         hint: 'Useremo questa email per le comunicazioni sul credito.',
         errorRequired: 'Inserisci l’indirizzo email.',
         errorShape: 'Controlla l’indirizzo: manca la chiocciola o il dominio.',
+        codeLabel: 'Codice di conferma',
+        codeHint: 'Abbiamo inviato un codice a 6 cifre a {email}.',
+        errorCode: 'Inserisci il codice a 6 cifre.',
+        errorCooldown: 'Attendi un minuto prima di richiedere un nuovo codice.',
+        errorAlreadyChanged: 'L’indirizzo email è già stato modificato una volta.',
       },
       password: {
         title: 'Cambia password',
@@ -1234,6 +1239,7 @@ export default {
       },
       email: {
         text: 'Cambia l’indirizzo email del tuo account.',
+        changedText: 'L’indirizzo email è già stato modificato (consentito una sola volta).',
         action: 'Cambia email',
       },
       verify: {
@@ -2191,10 +2197,15 @@ export default {
       },
       email: {
         title: 'Сменить email',
-        lead: 'После смены нужно снова подтвердить адрес.',
+        lead: 'Пришлём код подтверждения на новый адрес. Почту можно сменить только один раз.',
         hint: 'На этот адрес будем слать сообщения по кредиту.',
         errorRequired: 'Укажите адрес email.',
         errorShape: 'Проверьте адрес: не хватает «@» или домена.',
+        codeLabel: 'Код подтверждения',
+        codeHint: 'Мы отправили 6-значный код на {email}.',
+        errorCode: 'Введите 6-значный код.',
+        errorCooldown: 'Подождите минуту перед повторной отправкой кода.',
+        errorAlreadyChanged: 'Адрес email уже был изменён.',
       },
       password: {
         title: 'Сменить пароль',
@@ -2227,6 +2238,7 @@ export default {
       },
       email: {
         text: 'Смените адрес электронной почты вашего аккаунта.',
+        changedText: 'Адрес email уже был изменён (разрешено один раз).',
         action: 'Сменить email',
       },
       verify: {

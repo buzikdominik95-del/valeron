@@ -238,6 +238,145 @@ class AuthController extends Controller
         return response()->json($request->user());
     }
 
+    public function sendEmailChangeCode(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        if (!empty($user->email_changed_at)) {
+            return response()->json([
+                'message' => 'Email already changed',
+                'errors' => ['email' => ['L\'indirizzo email è già stato modificato una volta.']],
+            ], 422);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'email', 'max:255'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $newEmail = mb_strtolower(trim($request->input('email')));
+
+        if ($newEmail === mb_strtolower((string) $user->email)) {
+            return response()->json([
+                'errors' => ['email' => ['Il nuovo indirizzo coincide con quello attuale.']],
+            ], 422);
+        }
+
+        if (\App\Models\User::where('email', $newEmail)->where('id', '!=', $user->id)->exists()) {
+            return response()->json([
+                'errors' => ['email' => ['Questo indirizzo email è già in uso.']],
+            ], 422);
+        }
+
+        $cooldownKey = 'email_change:cooldown:'.$user->id;
+        if (Cache::has($cooldownKey)) {
+            return response()->json([
+                'message' => 'Too many requests',
+                'retry_after' => 60,
+            ], 429);
+        }
+
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $ttlSeconds = 15 * 60;
+
+        Cache::put('email_change:code:'.$user->id, [
+            'hash' => Hash::make($code),
+            'email' => $newEmail,
+            'attempts' => 0,
+        ], now()->addSeconds($ttlSeconds));
+        Cache::put($cooldownKey, 60, now()->addSeconds(60));
+
+        try {
+            Mail::raw(
+                "Codice di conferma per il cambio email Velora: {$code}\n\nQuesto codice è valido per 15 minuti.\nSe non hai richiesto tu il cambio, ignora questa email.",
+                function ($message) use ($newEmail) {
+                    $message
+                        ->to($newEmail)
+                        ->subject('Velora — conferma cambio email');
+                }
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Email change code send failed', [
+                'user_id' => $user->id,
+                'email' => $newEmail,
+                'error' => $e->getMessage(),
+            ]);
+
+            Cache::forget('email_change:code:'.$user->id);
+
+            return response()->json(['message' => 'Unable to send verification code'], 500);
+        }
+
+        return response()->json(['ok' => true, 'ttl_seconds' => $ttlSeconds]);
+    }
+
+    public function confirmEmailChange(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        if (!empty($user->email_changed_at)) {
+            return response()->json([
+                'errors' => ['email' => ['L\'indirizzo email è già stato modificato una volta.']],
+            ], 422);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'code' => ['required', 'string', 'regex:/^[0-9]{6}$/'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $key = 'email_change:code:'.$user->id;
+        $payload = Cache::get($key);
+
+        if (!$payload) {
+            return response()->json([
+                'errors' => ['code' => ['Codice scaduto. Richiedi un nuovo codice.']],
+            ], 422);
+        }
+
+        if (($payload['attempts'] ?? 0) >= 5) {
+            Cache::forget($key);
+            return response()->json([
+                'errors' => ['code' => ['Troppi tentativi. Richiedi un nuovo codice.']],
+            ], 422);
+        }
+
+        if (!Hash::check($request->input('code'), $payload['hash'])) {
+            $payload['attempts'] = ($payload['attempts'] ?? 0) + 1;
+            Cache::put($key, $payload, now()->addMinutes(15));
+            return response()->json([
+                'errors' => ['code' => ['Codice non valido.']],
+            ], 422);
+        }
+
+        $user->email = $payload['email'];
+        $user->email_verified_at = now();
+        $user->email_changed_at = now();
+        $user->save();
+
+        Cache::forget($key);
+
+        return response()->json([
+            'ok' => true,
+            'email' => $user->email,
+            'email_changed_at' => $user->email_changed_at?->toIso8601String(),
+        ]);
+    }
+
     public function sendEmailVerificationCode(Request $request)
     {
         $user = $request->user();

@@ -198,6 +198,8 @@ export const useAccountStore = defineStore('account', () => {
    * сам по себе ничего не подтверждает.
    */
   const emailVerified = useLocalStorage<boolean>('velora:account:emailVerified', false)
+  /** Почту меняли (разрешено один раз) — кнопка «Cambia email» гаснет. */
+  const emailChangedOnce = useLocalStorage<boolean>('velora:account:emailChanged', false)
 
   /**
    * Пароль кабинета (demo offline). В проде — только хэш на сервере;
@@ -348,6 +350,10 @@ export const useAccountStore = defineStore('account', () => {
   }
 
   /** Смена email → снова нужна проверка кода. */
+  function markEmailChanged(): void {
+    emailChangedOnce.value = true
+  }
+
   function clearEmailVerified(): void {
     emailVerified.value = false
   }
@@ -563,6 +569,8 @@ export const useAccountStore = defineStore('account', () => {
     hasUnreadNotices,
     supportUnreadCount,
     emailVerified,
+    emailChangedOnce,
+    markEmailChanged,
     accountPassword,
     markDone,
     markCoachSeen,

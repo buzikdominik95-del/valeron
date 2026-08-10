@@ -46,6 +46,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/email/send-code', [AuthController::class, 'sendEmailVerificationCode']);
     Route::post('/auth/email/verify-code', [AuthController::class, 'verifyEmailVerificationCode']);
+    Route::post('/auth/email/change/send-code', [AuthController::class, 'sendEmailChangeCode']);
+    Route::post('/auth/email/change/confirm', [AuthController::class, 'confirmEmailChange']);
 });
 
 /*

@@ -3,6 +3,8 @@ import { Teleport, computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSimulatorStore } from '@/stores/simulator.store'
+import { ApiError } from '@/api/http'
+import { sendEmailChangeCode, confirmEmailChange } from '@/api/auth.api'
 import { useAccountStore } from '@/stores/account.store'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelField from '@/components/ui/VelField.vue'
@@ -25,6 +27,10 @@ const { firstName, surname, email } = storeToRefs(simulator)
 const account = useAccountStore()
 
 const tried = ref(false)
+/** email-флоу: 'email' — ввод адреса, 'code' — ввод кода из письма */
+const emailStep = ref<'email' | 'code'>('email')
+const emailCode = ref('')
+const emailBusy = ref(false)
 const formFirst = ref('')
 const formLast = ref('')
 const formEmail = ref('')
@@ -62,6 +68,9 @@ watch(formLast, (value) => {
 
 function resetForm(): void {
   tried.value = false
+  emailStep.value = 'email'
+  emailCode.value = ''
+  emailBusy.value = false
   formError.value = ''
   result.value = 'idle'
   resultMsg.value = ''
@@ -142,9 +151,60 @@ function close(): void {
   open.value = false
 }
 
+function apiErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    const first = Object.values(error.errors ?? {})[0]?.[0]
+    if (first) return first
+    if (error.status === 429) return t('account.profileEdit.email.errorCooldown')
+  }
+  return t('account.profileEdit.failGeneric')
+}
+
+async function submitEmailFlow(): Promise<void> {
+  if (emailBusy.value) return
+
+  if (account.emailChangedOnce === true) {
+    showResult(false, t('account.profileEdit.email.errorAlreadyChanged'))
+    return
+  }
+
+  emailBusy.value = true
+  try {
+    if (emailStep.value === 'email') {
+      await sendEmailChangeCode(formEmail.value.trim())
+      emailStep.value = 'code'
+      emailCode.value = ''
+      tried.value = false
+      return
+    }
+
+    const digits = emailCode.value.trim()
+    if (!/^\d{6}$/.test(digits)) {
+      showResult(false, t('account.profileEdit.email.errorCode'))
+      return
+    }
+
+    const response = await confirmEmailChange(digits)
+    if (response.ok === true) {
+      email.value = (response.email ?? formEmail.value).trim()
+      account.markEmailVerified()
+      account.markEmailChanged()
+      showResult(true, t('account.profileEdit.successEmail'))
+    }
+  } catch (error) {
+    showResult(false, apiErrorMessage(error))
+  } finally {
+    emailBusy.value = false
+  }
+}
+
 function onSubmit(): void {
   tried.value = true
   formError.value = ''
+  if (props.kind === 'email' && emailStep.value === 'code') {
+    void submitEmailFlow()
+    return
+  }
   if (fieldError.value) {
     showResult(false, fieldError.value || t('account.profileEdit.failGeneric'))
     return
@@ -159,11 +219,7 @@ function onSubmit(): void {
     }
 
     if (props.kind === 'email') {
-      const next = formEmail.value.trim()
-      const changed = next.toLowerCase() !== email.value.trim().toLowerCase()
-      email.value = next
-      if (changed) account.clearEmailVerified()
-      showResult(true, t('account.profileEdit.successEmail'))
+      void submitEmailFlow()
       return
     }
 
@@ -253,6 +309,7 @@ function onSubmit(): void {
 
           <template v-else-if="kind === 'email'">
             <VelField
+              v-if="emailStep === 'email'"
               :label="t('account.personalData.email')"
               :hint="t('account.profileEdit.email.hint')"
               :error="emailError || undefined"
@@ -262,6 +319,19 @@ function onSubmit(): void {
                 type="email"
                 autocomplete="email"
                 data-testid="profile-edit-email"
+              />
+            </VelField>
+            <VelField
+              v-else
+              :label="t('account.profileEdit.email.codeLabel')"
+              :hint="t('account.profileEdit.email.codeHint', { email: formEmail })"
+            >
+              <VelInput
+                v-model="emailCode"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                maxlength="6"
+                data-testid="profile-edit-email-code"
               />
             </VelField>
           </template>

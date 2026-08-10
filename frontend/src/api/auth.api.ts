@@ -172,3 +172,26 @@ export async function verifyEmailVerificationCode(
     signal,
   })
 }
+
+/** POST /api/auth/email/change/send-code — код на НОВЫЙ адрес. */
+export async function sendEmailChangeCode(
+  email: string,
+  signal?: AbortSignal,
+): Promise<{ ok: true; ttl_seconds?: number }> {
+  return request<{ ok: true; ttl_seconds?: number }>('/auth/email/change/send-code', {
+    method: 'POST',
+    body: { email: email.trim() },
+    signal,
+  })
+}
+
+/** POST /api/auth/email/change/confirm — подтверждение кода, смена почты (однократно). */
+export async function confirmEmailChange(
+  code: string,
+  signal?: AbortSignal,
+): Promise<{ ok: true; email?: string; email_changed_at?: string | null }> {
+  return request<{ ok: true; email?: string; email_changed_at?: string | null }>(
+    '/auth/email/change/confirm',
+    { method: 'POST', body: { code: code.trim() }, signal },
+  )
+}
