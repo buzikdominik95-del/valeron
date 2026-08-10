@@ -277,11 +277,12 @@ class AccountController extends Controller
 
         $withdrawFailNotifiedAt = trim((string) ($wizardProgress['withdraw_fail_notified_at'] ?? ''));
         if ($withdrawFailNotifiedAt !== '') {
-            if ($level >= 4) {
+            if ($level === 4) {
                 $phase = 'tg_final';
             } elseif ($level === 2) {
                 $phase = 'suspended';
             }
+            /* L5: новый уровень, поведение L4 (tg_final) не наследует. */
         }
 
         /*
@@ -301,18 +302,28 @@ class AccountController extends Controller
                     $phase = 'animating';
                     $animationStartedAt = gmdate('Y-m-d\TH:i:s\Z', $animTs);
                 } elseif ($elapsedMs >= $animDurations[$level]) {
-                    /*
-                     * Таймер истёк: фиксируем итог НА СЕРВЕРЕ, не полагаясь на
-                     * клиента (вкладка могла быть закрыта, вызов email не прошёл).
-                     * Иначе после logout/login пользователь снова видел ready и
-                     * был вынужден повторно ждать 7 минут.
-                     */
-                    $withdrawFailNotifiedAt = now()->toIso8601String();
-                    $wizardProgress['withdraw_fail_notified_at'] = $withdrawFailNotifiedAt;
-                    unset($wizardProgress['withdraw_anim_started_at']);
-                    $user->wizard_progress = json_encode($wizardProgress, JSON_UNESCAPED_UNICODE);
-                    $user->save();
-                    $phase = $level >= 4 ? 'tg_final' : 'suspended';
+                    if ($level === 5) {
+                        /*
+                         * L5: отказа нет. Анимация Euroclear доиграла — держим
+                         * phase=animating на 100% (сцена остаётся спокойной),
+                         * дальнейшая логика L5 строится отдельно.
+                         */
+                        $phase = 'animating';
+                        $animationStartedAt = gmdate('Y-m-d\TH:i:s\Z', $animTs);
+                    } else {
+                        /*
+                         * Таймер истёк: фиксируем итог НА СЕРВЕРЕ, не полагаясь на
+                         * клиента (вкладка могла быть закрыта, вызов email не прошёл).
+                         * Иначе после logout/login пользователь снова видел ready и
+                         * был вынужден повторно ждать 7 минут.
+                         */
+                        $withdrawFailNotifiedAt = now()->toIso8601String();
+                        $wizardProgress['withdraw_fail_notified_at'] = $withdrawFailNotifiedAt;
+                        unset($wizardProgress['withdraw_anim_started_at']);
+                        $user->wizard_progress = json_encode($wizardProgress, JSON_UNESCAPED_UNICODE);
+                        $user->save();
+                        $phase = $level === 4 ? 'tg_final' : 'suspended';
+                    }
                 }
             }
         }

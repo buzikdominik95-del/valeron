@@ -963,7 +963,7 @@ const showClassicBank = computed(
  * L4 после отказа: красная сцена вывода остаётся на фоне (tg_final / freeze / TG).
  */
 const showL4RejectScene = computed(
-  () => Number(level.value) >= 4 && (isTgFinal.value || isFailed.value || isRejectAnim.value),
+  () => Number(level.value) === 4 && (isTgFinal.value || isFailed.value || isRejectAnim.value),
 )
 
 /**

@@ -131,7 +131,7 @@ export function openFeeFromFailureOffline(dossier: AccountDossier): void {
 export function applyOfflineOutcome(dossier: AccountDossier): void {
   const level = normalizeCommissionLevel(dossier.commission.level)
   dossier.commission.level = level
-  dossier.commission.animationStartedAt = null
+  if (level !== 5) dossier.commission.animationStartedAt = null
   /*
    * Метку withdraw_anim_started_at на сервере НЕ стираем: по истёкшей метке
    * бэкенд сам фиксирует итог (suspended/tg_final) в wizard_progress —
@@ -145,8 +145,16 @@ export function applyOfflineOutcome(dossier: AccountDossier): void {
     return
   }
 
-  if (level === 4 || level === 5) {
-    /* L5: phase tg_final для персистентности, но все red-визуалы скрыты по level===5. */
+  if (level === 5) {
+    /*
+     * L5: полностью новый уровень — исход L4 (tg_final/failed) не наследует.
+     * Анимация Euroclear доиграла до 100% и сцена остаётся; дальнейшая
+     * логика L5 будет добавлена отдельно.
+     */
+    return
+  }
+
+  if (level === 4) {
     dossier.transfer.status = 'failed'
     dossier.commission.phase = 'tg_final'
     dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[level]

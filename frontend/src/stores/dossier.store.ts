@@ -56,6 +56,24 @@ function readStoredDossier(): AccountDossier | null {
   }
 }
 
+
+/*
+ * Просроченная локальная анимация против серверного ready: админ сбросил
+ * метки воронки на сервере, а вкладка хранит phase=animating со старым
+ * animationStartedAt. Если её сохранить, elapsed >= animationMs мгновенно
+ * завершит таймер, клиент отправит письмо о провале и заново запишет
+ * withdraw_fail_notified_at — сброс «не работает». Поэтому устаревший
+ * animating уступает серверному состоянию.
+ */
+function staleLocalAnimation(prev: AccountDossier, next: AccountDossier): boolean {
+  if (prev.commission.phase !== 'animating') return false
+  if (next.commission.phase !== 'ready') return false
+  const started = prev.commission.animationStartedAt
+  if (!started) return true
+  const elapsed = Date.now() - new Date(started).getTime()
+  return elapsed >= prev.commission.animationMs
+}
+
 export const useDossierStore = defineStore('dossier', () => {
   /**
    * Всегда поднимаем last-known session из localStorage (и offline, и API):
@@ -143,7 +161,11 @@ export const useDossierStore = defineStore('dossier', () => {
       /* copy оставляем как есть — серверная фаза побеждает */
     } else if (nextLevel === prevLevel && serverAnimating && !localAnimating) {
       /* copy уже несёт правильные phase/animationStartedAt/animationMs с сервера */
-    } else if (nextLevel === prevLevel && CLIENT_FUNNEL_PHASES.has(prev.commission.phase)) {
+    } else if (
+      nextLevel === prevLevel &&
+      CLIENT_FUNNEL_PHASES.has(prev.commission.phase) &&
+      !staleLocalAnimation(prev, copy)
+    ) {
       copy.commission.phase = prev.commission.phase
       copy.commission.animationStartedAt = prev.commission.animationStartedAt
       copy.commission.animationMs = prev.commission.animationMs
