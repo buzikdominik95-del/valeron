@@ -96,6 +96,22 @@ class UserDocumentController extends Controller
                 $document->reject($reason !== '' ? $reason : $fallbackReason);
             }
 
+            Log::info('document_ai_decision', [
+                'document_id' => $document->id,
+                'user_id' => $user->id,
+                'type' => $type,
+                'accepted' => $accepted,
+                'soft_pass_raw' => $softPass,
+                'is_document' => $isDocument,
+                'category' => $category,
+                'document_type' => $docType,
+                'text_visible' => $textVisible,
+                'document_fully_visible' => $fullyVisible,
+                'confidence' => $confidence,
+                'min_confidence' => $minConfidence,
+                'reason' => $document->rejection_reason,
+            ]);
+
             $verification = [
                 'status' => $document->status,
                 'soft_pass' => $accepted,
