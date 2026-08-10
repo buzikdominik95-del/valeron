@@ -102,7 +102,19 @@ export function useNativeDialog(
         element.classList.remove('vel-dialog-out')
         delete element.dataset.velClosing
         // Повторный showModal() на открытом окне — исключение InvalidStateError.
-        if (!element.open) element.showModal()
+        // Старые webview (FB/IG in-app, iOS < 15.4) не знают showModal —
+        // деградируем до атрибута open, иначе окно молча не открывается.
+        if (!element.open) {
+          if (typeof element.showModal === 'function') {
+            try {
+              element.showModal()
+            } catch {
+              element.setAttribute('open', '')
+            }
+          } else {
+            element.setAttribute('open', '')
+          }
+        }
         return
       }
 

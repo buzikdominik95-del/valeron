@@ -469,3 +469,15 @@
     }
   }
 }
+
+/*
+ * Фолбэк для браузеров без dialog.showModal() (старые FB/IG webview, iOS < 15.4):
+ * useNativeDialog ставит атрибут [open] вручную, top-layer нет — фиксируем
+ * позиционирование сами, чтобы окно выглядело как модалка, а не вклинивалось в поток.
+ */
+dialog[open]:not(:modal) {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  z-index: 2147483000;
+}

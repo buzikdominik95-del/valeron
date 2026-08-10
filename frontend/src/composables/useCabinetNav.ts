@@ -71,7 +71,8 @@ export function useCabinetNav(): CabinetNavApi {
    */
   function onSelect(event: MouseEvent, id: CabinetTab): void {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-    if (event.button !== 0) return
+    /* В webview (FB/IG) button бывает undefined — это обычный тап, не middle-click. */
+    if (typeof event.button === 'number' && event.button !== 0) return
 
     event.preventDefault()
 

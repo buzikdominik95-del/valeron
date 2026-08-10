@@ -130,7 +130,7 @@ function openStep(stepId: AccountStep, href: string | undefined): void {
 
 function onActivate(event: MouseEvent, stepId: AccountStep, href: string | undefined): void {
   if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-  if (event.button !== 0) return
+  if (typeof event.button === 'number' && event.button !== 0) return
   event.preventDefault()
   openStep(stepId, href)
 }
