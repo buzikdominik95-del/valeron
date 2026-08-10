@@ -57,19 +57,9 @@ class AdminChatsController extends Controller
         $staleKey = 'admin_chats_last:' . $scope . ':' .
             (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0);
 
-        $staleKey = 'admin_chats_last:' . $scope . ':' .
-            (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0);
-
         $lock = Cache::lock('lock:' . $cacheKey, 15);
         $gotLock = $lock->get();
         if (!$gotLock) {
-            $stale = Cache::get($staleKey);
-            if (is_array($stale)) {
-                return response()
-                    ->json($stale, 200, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
-                    ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-                    ->header('Pragma', 'no-cache');
-            }
             $stale = Cache::get($staleKey);
             if (is_array($stale)) {
                 return response()
@@ -145,7 +135,9 @@ class AdminChatsController extends Controller
 
         $payload = [
             'success' => true,
-            'data' => $chats,
+            // ВАЖНО: только plain array! Collection в Redis-кэше
+            // десериализуется как __PHP_Incomplete_Class и ломает JSON.
+            'data' => $chats->values()->all(),
         ];
 
         if ($paginator) {
@@ -158,7 +150,6 @@ class AdminChatsController extends Controller
         }
 
         Cache::put($cacheKey, $payload, now()->addSeconds(8));
-        Cache::put($staleKey, $payload, now()->addMinutes(10));
         Cache::put($staleKey, $payload, now()->addMinutes(10));
         } finally {
             if ($gotLock) {
