@@ -424,7 +424,8 @@ function onDocumentsVerified(): void {
     /* storage */
   }
 
-  /* Документ принят — сразу к вводу IBAN, без лишнего клика. */
+  /* Документ принят — на вкладку Documenti и сразу к вводу IBAN. */
+  selectTab('documents')
   contractIbanOpen.value = true
 
   /* wizard_progress → backend (строку в documents больше не создаёт) */
@@ -521,9 +522,10 @@ function openContractIban(): void {
   contractIbanOpen.value = true
 }
 
-/* Salva IBAN → сразу окно подписи контракта. */
+/* Salva IBAN → сразу окно подписи контракта (на вкладке Documenti). */
 function onIbanSaved(): void {
   contractIbanOpen.value = false
+  selectTab('documents')
   contractSignOpen.value = true
 }
 
