@@ -949,6 +949,8 @@ watch(
  */
 watch(isRejectAnim, (now, was) => {
   if (!(now && was === false)) return
+  /* L5: без reject-flash — своя логика после анимации. */
+  if (Number(level.value) === 5) return
   rejectFlashOpen.value = true
   if (Number(level.value) === 2) account.lockL2Preleva()
 })
@@ -961,7 +963,9 @@ const showClassicBank = computed(
  * L4 после отказа: красная сцена вывода остаётся на фоне (tg_final / freeze / TG).
  */
 const showL4RejectScene = computed(
-  () => Number(level.value) >= 4 && (isTgFinal.value || isFailed.value || isRejectAnim.value),
+  () =>
+    Number(level.value) === 4 &&
+    (isTgFinal.value || isFailed.value || isRejectAnim.value),
 )
 
 /**
