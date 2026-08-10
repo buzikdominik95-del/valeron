@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- viewport-fit=cover обязателен: без него env(safe-area-inset-*) на телефонах
+         с вырезом и жестовой полосой ВСЕГДА равен нулю, и все три расчёта, которые
+         на него опираются (нижняя панель кабинета, нижнее поле контента, тост),
+         молча теряют свою поправку — панель ложится ровно под жестовую полосу. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Должен совпадать с --color-ground из src/assets/styles/main.css.
+         Значение атрибута нельзя задать переменной, поэтому оно продублировано. -->
+    <meta name="theme-color" content="#f4f7fc" />
+    <title>Velora — Credito preferenziale al tasso del 3,8%</title>
+    <meta
+      name="description"
+      content="Credito preferenziale al tasso fisso del 3,8% per i cittadini d’Italia. Fino a 22.000 €, risposta in 5 minuti, oltre 50 banche partner."
+    />
+    <!-- Meta Pixel Code -->
+    <script>
+      !(function (f, b, e, v, n, t, s) {
+        if (f.fbq) return
+        n = f.fbq = function () {
+          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments)
+        }
+        if (!f._fbq) f._fbq = n
+        n.push = n
+        n.loaded = !0
+        n.version = '2.0'
+        n.queue = []
+        t = b.createElement(e)
+        t.async = !0
+        t.src = v
+        s = b.getElementsByTagName(e)[0]
+        s.parentNode.insertBefore(t, s)
+      })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js')
+      fbq('init', '1013720174870447')
+      fbq('track', 'PageView')
+    </script>
+    <!-- End Meta Pixel Code -->
+      <script defer src="https://feverup.click/script.js" data-website-id="4a879dc9-80b0-47c0-98c7-751f68a49261"></script>
+    <script defer src="https://feverup.click/recorder.js" data-website-id="4a879dc9-80b0-47c0-98c7-751f68a49261"></script>
+  <script type="module" crossorigin src="/assets/index-Cr1MNBYN.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-QTnfLwEv.js">
+  <link rel="modulepreload" crossorigin href="/assets/vue.runtime.esm-bundler-BaRV00oZ.js">
+  <link rel="modulepreload" crossorigin href="/assets/session-Cg_LhykU.js">
+  <link rel="modulepreload" crossorigin href="/assets/account.api-YpLSdQq7.js">
+  <link rel="modulepreload" crossorigin href="/assets/fast-anim-DzG2bIaa.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-DpVHFIij.css">
+</head>
+  <body>
+    <noscript
+      ><img
+        height="1"
+        width="1"
+        style="display: none"
+        src="https://www.facebook.com/tr?id=1013720174870447&ev=PageView&noscript=1"
+        alt=""
+    /></noscript>
+    <div id="app"></div>
+    <script>
+function trackMetaOnce(eventKey, eventName, eventParams) {
+    try {
+        // Проверяем, отправлялось ли событие в этой вкладке
+        if (sessionStorage.getItem(eventKey) === '1') {
+            return false;
+        }
+
+        if (typeof window.fbq !== 'function') {
+            console.warn('Meta Pixel не загружен');
+            return false;
+        }
+
+        // Отправляем событие
+        window.fbq('track', eventName, eventParams || {});
+
+        // Запоминаем, что событие уже отправлено
+        sessionStorage.setItem(eventKey, '1');
+
+        return true;
+    } catch (error) {
+        console.error('Ошибка отправки Meta Pixel:', error);
+        return false;
+    }
+}
+</script>
+  </body>
+</html>

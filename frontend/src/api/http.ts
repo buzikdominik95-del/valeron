@@ -208,7 +208,15 @@ export async function request<TResponse>(
 
     if (!response.ok) {
       if (response.status === 401 && !AUTH_PUBLIC_PATHS.has(path)) {
-        disableApiForSession()
+        /*
+         * Не убиваем всю API-сессию по единичному 401:
+         * в проде есть фоновые/role-запросы, которые могут дать 401/403,
+         * но рабочая сессия и остальные запросы при этом валидны.
+         * В offline переводим только если токена уже нет.
+         */
+        if (!getAuthToken()) {
+          disableApiForSession()
+        }
       }
       const { message, errors } = formatErrorMessage(payload, response.status)
       throw new ApiError(response.status, message, errors)
