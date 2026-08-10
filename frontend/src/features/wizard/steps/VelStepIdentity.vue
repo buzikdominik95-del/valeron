@@ -237,7 +237,7 @@ function onSubmit(): void {
         type="submit"
         :form="formId"
         :disabled="!isValid"
-        onclick="trackMetaOnce('loan_step_4', 'Lead', { content_name: 'PersonalDataCompleted', step: 4 });"
+        onclick="trackMetaOnce('loan_step_4', 'CompleteRegistration', { content_name: 'PersonalDataCompleted', step: 4 });"
       >
       {{ t('wizard.identity.submit') }}
       <span aria-hidden="true">→</span>

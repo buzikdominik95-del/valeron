@@ -98,6 +98,15 @@ class AuthController extends Controller
             'commission_level_id' => 1,
         ]);
 
+        /* Meta CAPI: честная регистрация (аккаунт реально создан в БД). */
+        \App\Support\MetaConversionsApi::sendCompleteRegistration(
+            (string) $user->email,
+            $request->ip(),
+            (string) $request->userAgent(),
+            $request->cookie('_fbp'),
+            $request->cookie('_fbc'),
+        );
+
         $assignedManagerId = ManagerTrafficAssigner::ensureUserAssignment($user);
 
         // Create chat for new user
