@@ -433,7 +433,7 @@ function onDocumentsVerified(): void {
     }
 
     if (rejectedReasons.length > 0) {
-      const reason = rejectedReasons[0]
+      const reason = rejectedReasons[0] ?? t('account.docs.errors.aiRejectedGeneric')
       docsServerError.value = reason
 
       account.documentsUploaded = false
