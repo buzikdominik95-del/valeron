@@ -235,6 +235,10 @@ export function useDocumentUpload(
           } else {
             status.value = 'idle'
             serverError.value = reason
+            /* Отклонено — слоты очищаем: пользователь выбирает файлы заново. */
+            revokeAll()
+            picked.value = {}
+            syncModel()
           }
         }, wait)
       })

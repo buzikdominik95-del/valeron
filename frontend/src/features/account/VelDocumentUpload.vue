@@ -276,8 +276,24 @@ useAutoAnimate(slotList)
 }
 
 .vel-docup__error {
-  color: var(--color-danger);
-  font-size: 0.75rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid color-mix(in oklab, var(--color-danger, #d33) 35%, var(--color-line));
+  border-radius: var(--radius-panel, 0.75rem);
+  background: color-mix(in oklab, var(--color-danger, #d33) 8%, var(--color-surface));
+  color: color-mix(in oklab, var(--color-danger, #d33) 80%, var(--color-fg));
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.vel-docup__error::before {
+  content: '⚠';
+  flex: none;
+  font-size: 1rem;
   line-height: 1.35;
 }
 

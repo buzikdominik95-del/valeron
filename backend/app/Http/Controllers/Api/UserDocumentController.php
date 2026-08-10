@@ -94,8 +94,7 @@ class UserDocumentController extends Controller
             if ($accepted) {
                 $document->verify();
             } else {
-                $fallbackReason = 'Изображение не похоже на документ. Загрузите фото паспорта, ID-карты или водительских прав.';
-                $document->reject($reason !== '' ? $reason : $fallbackReason);
+                $document->reject($this->italianRejectReason($category, $isDocument, $fullyVisible, $textVisible));
             }
 
             Log::info('document_ai_decision', [
@@ -142,6 +141,51 @@ class UserDocumentController extends Controller
                 'verification' => $verification,
             ],
         ], 201);
+    }
+
+
+    /**
+     * Итальянское сообщение об отказе с указанием того, что распознано.
+     * Тексты оркестратора (RU/EN) наружу не отдаём.
+     */
+    private function italianRejectReason(string $category, bool $isDocument, bool $fullyVisible, bool $textVisible): string
+    {
+        $labels = [
+            'selfie' => 'un selfie',
+            'person' => 'una foto di una persona',
+            'people' => 'una foto di persone',
+            'animal' => 'un animale',
+            'cat' => 'un gatto',
+            'dog' => 'un cane',
+            'screenshot' => 'uno screenshot',
+            'vehicle' => 'un veicolo',
+            'car' => 'un\'automobile',
+            'landscape' => 'un paesaggio',
+            'food' => 'del cibo',
+            'logo' => 'un logo o una grafica',
+            'drawing' => 'un disegno o un\'illustrazione',
+            'meme' => 'un meme',
+            'object' => 'un oggetto generico',
+            'text' => 'del testo generico',
+        ];
+
+        if (!$isDocument) {
+            $what = $labels[$category] ?? null;
+            if ($what !== null) {
+                return "L'immagine caricata sembra essere {$what}, non un documento d'identità. Carica una foto del passaporto, della carta d'identità o della patente di guida.";
+            }
+            return "L'immagine caricata non sembra un documento d'identità. Carica una foto del passaporto, della carta d'identità o della patente di guida.";
+        }
+
+        if (!$fullyVisible) {
+            return 'Il documento non è completamente visibile (riflessi, sfocatura o bordi tagliati). Scatta una nuova foto con il documento intero e ben illuminato.';
+        }
+
+        if (!$textVisible) {
+            return 'Il testo del documento non è leggibile. Scatta una nuova foto nitida, senza riflessi e con tutti i dati visibili.';
+        }
+
+        return 'Il documento caricato non corrisponde al tipo richiesto. Carica una foto del passaporto, della carta d\'identità o della patente di guida.';
     }
 
     private function verifyWithAi(string $filePath, string $backendType, int $userId, int $documentId): ?array

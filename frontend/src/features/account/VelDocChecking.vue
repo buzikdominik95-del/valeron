@@ -24,6 +24,9 @@ const { t } = useI18n()
       <span class="vel-docwait__dot"></span>
     </span>
     <p class="vel-docwait__text">{{ t('account.docs.checkingHint') }}</p>
+    <div class="vel-docwait__bar" role="progressbar" aria-label="verifica in corso">
+      <span class="vel-docwait__bar-fill"></span>
+    </div>
   </div>
 </template>
 
@@ -71,6 +74,49 @@ const { t } = useI18n()
   line-height: 1.45;
 }
 
+.vel-docwait__bar {
+  inline-size: min(100%, 20rem);
+  block-size: 0.375rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-accent) 14%, var(--color-raised));
+  overflow: hidden;
+}
+
+.vel-docwait__bar-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    var(--color-accent),
+    color-mix(in oklab, var(--color-accent) 55%, white)
+  );
+  animation: vel-docwait-bar 22s cubic-bezier(0.15, 0.6, 0.3, 1) forwards;
+  transform-origin: left center;
+}
+
+@keyframes vel-docwait-bar {
+  0% {
+    transform: scaleX(0.03);
+  }
+
+  18% {
+    transform: scaleX(0.42);
+  }
+
+  45% {
+    transform: scaleX(0.68);
+  }
+
+  75% {
+    transform: scaleX(0.86);
+  }
+
+  100% {
+    transform: scaleX(0.96);
+  }
+}
+
 @keyframes vel-docwait-pulse {
   0%,
   100% {
@@ -92,6 +138,11 @@ const { t } = useI18n()
     opacity: 1;
     animation: none;
     transform: none;
+  }
+
+  .vel-docwait__bar-fill {
+    animation: none;
+    transform: scaleX(0.6);
   }
 }
 </style>
