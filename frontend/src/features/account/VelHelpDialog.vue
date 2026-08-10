@@ -155,6 +155,7 @@ function close(): void {
 
 .vel-help-dlg__title {
   min-inline-size: 0;
+  text-align: center;
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.02em;
