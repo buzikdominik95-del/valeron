@@ -424,6 +424,9 @@ function onDocumentsVerified(): void {
     /* storage */
   }
 
+  /* Документ принят — сразу к вводу IBAN, без лишнего клика. */
+  contractIbanOpen.value = true
+
   /* wizard_progress → backend (строку в documents больше не создаёт) */
   void import('@/api/account.api')
     .then(({ saveDocumentsVerifiedToProfile }) => saveDocumentsVerifiedToProfile())
@@ -516,6 +519,12 @@ watch(
 
 function openContractIban(): void {
   contractIbanOpen.value = true
+}
+
+/* Salva IBAN → сразу окно подписи контракта. */
+function onIbanSaved(): void {
+  contractIbanOpen.value = false
+  contractSignOpen.value = true
 }
 
 function openContractSign(): void {
@@ -1185,7 +1194,7 @@ function openFreezeTelegram(): void {
     @close="onCommissionDismiss"
   />
   <!-- IBAN отдельно, подпись (только росчерк) отдельно -->
-  <VelContractIban v-model:open="contractIbanOpen" />
+  <VelContractIban v-model:open="contractIbanOpen" @saved="onIbanSaved" />
   <VelSignaturePad v-model:open="contractSignOpen" @confirm="onContractSignConfirm" />
 
   <!-- Apri PDF: полный Contratto di credito al consumo (тот же лист, что на Documenti) -->
