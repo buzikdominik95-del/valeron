@@ -313,6 +313,8 @@ export default {
       errors: {
         type: '{name}: formato non accettato. Servono solo immagini .png o .jpeg.',
         size: '{name}: supera {size} MB.',
+        aiRejectedGeneric:
+          'La foto non è stata riconosciuta come documento. Carica il passaporto, la carta d’identità o la patente in modo chiaro.',
       },
     },
 
@@ -1471,6 +1473,8 @@ export default {
       errors: {
         type: '{name}: формат не подходит. Нужны только изображения .png или .jpeg.',
         size: '{name}: больше {size} МБ.',
+        aiRejectedGeneric:
+          'Фото не распознано как документ. Загрузите чёткое фото паспорта, ID-карты или водительских прав.',
       },
     },
 

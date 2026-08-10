@@ -20,6 +20,10 @@ import VelDocVerified from '@/features/account/VelDocVerified.vue'
  * Анимация «Documento verificato» ВНУТРИ этой карточки, не отдельным блоком снизу.
  */
 const files = defineModel<File[]>({ default: () => [] })
+const props = withDefaults(defineProps<{ externalError?: string | null }>(), {
+  externalError: null,
+})
+
 const emit = defineEmits<{ verified: [] }>()
 
 const { t } = useI18n()
@@ -82,6 +86,8 @@ const rejectionText = computed(() => {
   return t(`account.docs.errors.${item.reason}`, { name: item.name, size: DOC_MAX_FILE_MB })
 })
 
+const errorText = computed(() => rejectionText.value ?? props.externalError ?? null)
+
 /* Смена вида документа меняет ЧИСЛО слотов (один ↔ два). Без плавного
    перехода строка под ними прыгает на всю высоту слота. */
 const slotList = useTemplateRef<HTMLElement>('slotList')
@@ -123,8 +129,8 @@ useAutoAnimate(slotList)
         />
       </ul>
 
-      <p v-if="rejectionText !== null" class="vel-docup__error" role="alert">
-        {{ rejectionText }}
+      <p v-if="errorText !== null" class="vel-docup__error" role="alert">
+        {{ errorText }}
       </p>
 
       <!-- Пульс «Carica il documento» только когда все снимки выбраны (фотка 2). -->

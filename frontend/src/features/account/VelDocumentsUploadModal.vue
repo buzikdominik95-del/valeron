@@ -6,6 +6,9 @@ import VelDocumentUpload from '@/features/account/VelDocumentUpload.vue'
 
 const open = defineModel<boolean>('open', { default: false })
 const files = defineModel<File[]>('files', { default: () => [] })
+const props = withDefaults(defineProps<{ externalError?: string | null }>(), {
+  externalError: null,
+})
 const emit = defineEmits<{ verified: [] }>()
 
 const { t } = useI18n()
@@ -41,7 +44,7 @@ function onVerified(): void {
         </header>
 
         <div class="vel-docs-modal__body">
-          <VelDocumentUpload v-model="files" @verified="onVerified" />
+          <VelDocumentUpload v-model="files" :external-error="props.externalError" @verified="onVerified" />
         </div>
       </div>
     </dialog>

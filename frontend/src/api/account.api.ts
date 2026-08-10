@@ -715,6 +715,17 @@ export interface UploadUserDocumentResponse {
     mime_type?: string
     path?: string
     url?: string | null
+    status?: 'pending' | 'verified' | 'rejected'
+    rejection_reason?: string | null
+    verification?: {
+      status?: 'pending' | 'verified' | 'rejected'
+      soft_pass?: boolean | null
+      reason?: string | null
+      category?: string | null
+      document_type?: string | null
+      quality?: string | null
+      confidence?: number | null
+    }
   }
 }
 

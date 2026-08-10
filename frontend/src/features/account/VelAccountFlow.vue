@@ -81,7 +81,7 @@ const {
  * Never first-call from async/click — that throws «Must be called at top of setup».
  */
 const supportChat = useSupportChat()
-const { open: docsUploadOpen, hide: hideDocsUploadModal } = useDocumentsUploadModal()
+const { open: docsUploadOpen, show: showDocsUploadModal, hide: hideDocsUploadModal } = useDocumentsUploadModal()
 
 const apiError = ref<string | null>(null)
 const contractEmailSending = ref(false)
@@ -286,6 +286,8 @@ function openLoan(): void {
   loanOpen.value = true
 }
 const chosenFiles = ref<File[]>([])
+const docsServerError = ref<string | null>(null)
+const docsUploadRenderKey = ref(0)
 /** Короткий toast «messaggio inviato» / «documenti pronti». */
 const toastText = ref<string | null>(null)
 
@@ -361,23 +363,26 @@ function ensureWelcomeMessages(): void {
  */
 function onDocumentsVerified(): void {
   hideDocsUploadModal()
-  /* Карточка «Documento verificato» после модалки живёт в Profilo. */
-  account.docsParkedInProfile = true
+  docsServerError.value = null
+
   /* Гасим любой agent-toast, если всплыл по ошибке */
   try {
     hideAgentNotify()
   } catch {
     /* */
   }
-  unlockFirmaAfterDocs()
-  /* Только notice «document verified» в колокольчик — НЕ manager toast */
-  try {
-    notices.push('documentVerified')
-  } catch {
-    /* storage */
-  }
 
-  if (!isApiEnabled()) return
+  /* Локальный fallback без API: оставляем прежнее поведение. */
+  if (!isApiEnabled()) {
+    account.docsParkedInProfile = true
+    unlockFirmaAfterDocs()
+    try {
+      notices.push('documentVerified')
+    } catch {
+      /* storage */
+    }
+    return
+  }
 
   void import('@/api/account.api').then(async ({ uploadUserDocument, saveDocumentsVerifiedToProfile }) => {
     const kind = (() => {
@@ -391,14 +396,58 @@ function onDocumentsVerified(): void {
       return 'passport' as const
     })()
 
+    const rejectedReasons: string[] = []
     const files = chosenFiles.value
+
     for (const file of files) {
       try {
-        await uploadUserDocument(file, kind)
+        const response = await uploadUserDocument(file, kind)
+        const verification = response.data?.verification
+        const status = verification?.status ?? response.data?.status
+        const rejected = status === 'rejected' || verification?.soft_pass === false
+        if (rejected) {
+          const reason = String(verification?.reason ?? response.data?.rejection_reason ?? '').trim()
+          rejectedReasons.push(
+            reason !== ''
+              ? reason
+              : t('account.docs.errors.aiRejectedGeneric'),
+          )
+        }
       } catch (e) {
         console.warn('[docs] upload failed', e)
       }
     }
+
+    if (rejectedReasons.length > 0) {
+      const reason = rejectedReasons[0]
+      docsServerError.value = reason
+
+      account.documentsUploaded = false
+      account.docsParkedInProfile = false
+      account.completed = account.completed.filter((id) => id !== 'documents' && id !== 'signature')
+      if (account.currentStep === 'signature') account.currentStep = 'documents'
+
+      try {
+        localStorage.removeItem('velora:docs:verified')
+      } catch {
+        /* storage */
+      }
+
+      chosenFiles.value = []
+      docsUploadRenderKey.value += 1
+      showToast(reason)
+      showDocsUploadModal()
+      return
+    }
+
+    account.docsParkedInProfile = true
+    unlockFirmaAfterDocs()
+    try {
+      notices.push('documentVerified')
+    } catch {
+      /* storage */
+    }
+
     /* wizard_progress → backend syncDocumentsStatusForUser (verified row) */
     try {
       await saveDocumentsVerifiedToProfile()
@@ -407,6 +456,17 @@ function onDocumentsVerified(): void {
     }
   })
 }
+
+
+watch(
+  chosenFiles,
+  (next) => {
+    if (next.length > 0 && docsServerError.value !== null) {
+      docsServerError.value = null
+    }
+  },
+  { deep: true },
+)
 
 function onAgentToastOpen(): void {
   hideAgentNotify()
@@ -1108,7 +1168,12 @@ function openFreezeTelegram(): void {
 
     <!-- Карточка verified в Profilo (под Dati personali) через слот #documents -->
     <template #documents>
-      <VelDocumentUpload v-model="chosenFiles" @verified="onDocumentsVerified" />
+      <VelDocumentUpload
+        :key="`docs-profile-${docsUploadRenderKey}`"
+        v-model="chosenFiles"
+        :external-error="docsServerError"
+        @verified="onDocumentsVerified"
+      />
     </template>
 
     <template #signature>
@@ -1161,8 +1226,10 @@ function openFreezeTelegram(): void {
 
   <!-- Documenti richiesti: открывается как модалка, без перехода на вкладку Documenti -->
   <VelDocumentsUploadModal
+    :key="`docs-modal-${docsUploadRenderKey}`"
     v-model:open="docsUploadOpen"
     v-model:files="chosenFiles"
+    :external-error="docsServerError"
     @verified="onDocumentsVerified"
   />
 
