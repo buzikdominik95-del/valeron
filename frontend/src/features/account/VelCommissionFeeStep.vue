@@ -119,22 +119,6 @@ const detailsFooter = computed(() => {
 <template>
   <div class="vel-cfee flex flex-col gap-3" style="overflow: visible">
     <div data-reveal class="vel-cfee__amount-box">
-      <!-- L1: «?» на углу importo; якорь popover = сам «?», не весь amount-box -->
-      <span
-        v-if="showAmountHelp"
-        class="vel-cfee__amount-help"
-        :data-vel-help-anchor="serviceHelpOpen ? 'open' : '1'"
-      >
-        <VelHelpDot
-          :label="t('account.commission.help.openLabel')"
-          @click="toggleServiceHelp"
-        />
-        <VelHelpPopover
-          v-model:open="serviceHelpOpen"
-          :body-html="t('account.commission.help.serviceTipHtml')"
-        />
-      </span>
-
       <p class="vel-label vel-cfee__amount-label m-0">
         {{ t('account.commission.fee.amountLabel') }}
       </p>
@@ -155,8 +139,22 @@ const detailsFooter = computed(() => {
       </ul>
     </div>
 
-    <!-- L1: note non detraibile -->
+    <!-- L1: note non detraibile; «?» на углу плашки -->
     <div v-if="showServiceNote" data-reveal class="vel-cfee__note" role="note">
+      <span
+        v-if="showAmountHelp"
+        class="vel-cfee__note-help"
+        :data-vel-help-anchor="serviceHelpOpen ? 'open' : '1'"
+      >
+        <VelHelpDot
+          :label="t('account.commission.help.openLabel')"
+          @click="toggleServiceHelp"
+        />
+        <VelHelpPopover
+          v-model:open="serviceHelpOpen"
+          :body-html="t('account.commission.help.serviceTipHtml')"
+        />
+      </span>
       <p class="m-0" v-html="t('account.commission.fee.serviceNoteHtml')" />
     </div>
 
@@ -296,6 +294,8 @@ const detailsFooter = computed(() => {
 }
 
 .vel-cfee__note {
+  position: relative;
+  overflow: visible;
   padding: 0.85rem 1rem;
   border: 1.5px solid color-mix(in oklab, var(--color-success) 45%, var(--color-line));
   border-radius: var(--radius-control);
@@ -347,6 +347,19 @@ const detailsFooter = computed(() => {
   font-size: 0.875rem;
   line-height: 1.5;
   padding-inline-end: 0.35rem;
+}
+
+/* «?» на верхнем-правом углу зелёной note (L1) */
+.vel-cfee__note-help {
+  --help-d: 1.43rem;
+  position: absolute;
+  z-index: 4;
+  top: calc(-0.5 * var(--help-d));
+  right: calc(-0.5 * var(--help-d));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
 }
 
 /* Центр «?» на верхнем-правом угле callout (стиль — общий VelHelpDot) */
