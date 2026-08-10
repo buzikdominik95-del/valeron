@@ -119,7 +119,10 @@ function createCommission(): CommissionApi {
   const terminalReject =
     dossier.value.commission.phase === 'failed' ||
     dossier.value.commission.phase === 'suspended' ||
-    dossier.value.commission.phase === 'tg_final'
+    dossier.value.commission.phase === 'tg_final' ||
+    /* L5: pay_fee dopo animazione Euroclear - progress resta al 100% */
+    (dossier.value.commission.phase === 'pay_fee' &&
+      Number(dossier.value.commission.level) === 5)
   const animationProgress = ref(terminalReject ? 1 : 0)
   /**
    * После timer=0: короткая красная «hold», затем completeAnimation

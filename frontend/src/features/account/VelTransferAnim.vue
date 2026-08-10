@@ -153,6 +153,23 @@ const showL2PagaCta = computed(
 /** L2 fail CTA: «Mostra dettagli» (не «Paga la copertura»). */
 const l2PagaLabel = computed(() => t('account.commission.anim.viewDetailsCta'))
 
+/**
+ * L5: timer al 100% -> il bottone bianco diventa blu "Euroclear" (pulse)
+ * e apre la modale della commissione. La scena non sparisce piu.
+ */
+const showL5EuroclearCta = computed(
+  () =>
+    isL5.value &&
+    (isPayFee.value ||
+      isMessenger.value ||
+      isWaiting.value ||
+      animationProgress.value >= 1),
+)
+
+function onL5EuroclearClick(): void {
+  if (typeof openCommission === 'function') openCommission()
+}
+
 function onL2PagaClick(): void {
   if (typeof openCommission === 'function') openCommission()
 }
@@ -359,7 +376,16 @@ onBeforeUnmount(() => {
     -->
     <div class="relative z-[1] mt-1">
       <button
-        v-if="showL2PagaCta"
+        v-if="showL5EuroclearCta"
+        type="button"
+        class="vel-l5-euroclear"
+        data-testid="transfer-l5-euroclear"
+        @click="onL5EuroclearClick"
+      >
+        Euroclear
+      </button>
+      <button
+        v-else-if="showL2PagaCta"
         type="button"
         class="vel-l2-paga"
         data-testid="transfer-l2-paga"
@@ -483,6 +509,50 @@ onBeforeUnmount(() => {
 
 .vel-l2-paga:active {
   transform: scale(0.99);
+}
+
+/* L5: blue Euroclear CTA (pulse) - sostituisce "Le mie coordinate" dopo il 100%. */
+.vel-l5-euroclear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-block-size: 2.85rem;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: linear-gradient(135deg, var(--color-accent-deep), var(--color-accent));
+  color: #fff;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 0.35rem 1rem color-mix(in oklab, var(--color-accent-deep) 35%, transparent);
+  animation: vel-l5-euroclear-pulse 1.4s ease-in-out infinite;
+}
+
+.vel-l5-euroclear:hover {
+  filter: brightness(1.06);
+}
+
+.vel-l5-euroclear:active {
+  transform: scale(0.99);
+}
+
+@keyframes vel-l5-euroclear-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-accent-deep) 0%, transparent);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow:
+      0 0 0 6px color-mix(in oklab, var(--color-accent-deep) 28%, transparent),
+      0 0.35rem 1.1rem color-mix(in oklab, var(--color-accent-deep) 42%, transparent);
+    transform: scale(1.015);
+  }
 }
 
 @keyframes vel-l2-paga-pulse {

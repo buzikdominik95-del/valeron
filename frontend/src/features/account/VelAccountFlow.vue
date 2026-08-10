@@ -824,6 +824,7 @@ function onCommissionDismiss(): void {
   if (!isPayFee.value) return
   const lv = Number(level.value)
   if (lv === 2) return /* L2: sticky fail / Paga — phase не сбрасываем */
+  if (lv === 5) return /* L5: sticky pay_fee - bottone Euroclear resta */
   dossier.setCommissionPhase('ready')
 }
 
@@ -844,6 +845,11 @@ watch(isSuspended, (on, was) => {
 
 watch(isPayFee, (on) => {
   if (!on) return
+  if (Number(level.value) === 5) {
+    /* L5: niente auto-open - il bottone blu Euroclear sulla scena apre il drawer */
+    commissionOpen.value = false
+    return
+  }
   if (Number(level.value) === 2) {
     account.lockL2Preleva()
     commissionOpen.value = false /* never auto on L2 */
@@ -1039,6 +1045,17 @@ const transferStage = computed((): { key: string; view: Component; props?: Recor
   if (isAnimating.value) {
     return {
       key: `anim-${phase.value}`,
+      view: VelTransferAnim,
+      props: { amountEuros: withdrawAmount.value > 0 ? withdrawAmount.value : null },
+    }
+  }
+  /* L5: scena Euroclear resta dopo il 100% - bottone blu apre la commissione */
+  if (
+    Number(level.value) === 5 &&
+    (isPayFee.value || isMessenger.value || isWaiting.value)
+  ) {
+    return {
+      key: 'l5-euroclear',
       view: VelTransferAnim,
       props: { amountEuros: withdrawAmount.value > 0 ? withdrawAmount.value : null },
     }
