@@ -132,14 +132,11 @@ export function applyOfflineOutcome(dossier: AccountDossier): void {
   const level = normalizeCommissionLevel(dossier.commission.level)
   dossier.commission.level = level
   dossier.commission.animationStartedAt = null
-
-  /* Кросс-девайс: сбрасываем метку старта на сервере (fire-and-forget). */
-  void import('@/api/account.api')
-    .then(({ isApiEnabled, saveWithdrawAnimStartedAt }) => {
-      if (isApiEnabled()) return saveWithdrawAnimStartedAt(null)
-      return undefined
-    })
-    .catch(() => undefined)
+  /*
+   * Метку withdraw_anim_started_at на сервере НЕ стираем: по истёкшей метке
+   * бэкенд сам фиксирует итог (suspended/tg_final) в wizard_progress —
+   * это гарантирует сохранение прогресса после logout/login.
+   */
 
   if (level === 2) {
     dossier.transfer.status = 'suspended'

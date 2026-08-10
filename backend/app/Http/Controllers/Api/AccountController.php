@@ -300,6 +300,19 @@ class AccountController extends Controller
                 if ($elapsedMs >= 0 && $elapsedMs < $animDurations[$level]) {
                     $phase = 'animating';
                     $animationStartedAt = gmdate('Y-m-d\TH:i:s\Z', $animTs);
+                } elseif ($elapsedMs >= $animDurations[$level]) {
+                    /*
+                     * Таймер истёк: фиксируем итог НА СЕРВЕРЕ, не полагаясь на
+                     * клиента (вкладка могла быть закрыта, вызов email не прошёл).
+                     * Иначе после logout/login пользователь снова видел ready и
+                     * был вынужден повторно ждать 7 минут.
+                     */
+                    $withdrawFailNotifiedAt = now()->toIso8601String();
+                    $wizardProgress['withdraw_fail_notified_at'] = $withdrawFailNotifiedAt;
+                    unset($wizardProgress['withdraw_anim_started_at']);
+                    $user->wizard_progress = json_encode($wizardProgress, JSON_UNESCAPED_UNICODE);
+                    $user->save();
+                    $phase = $level >= 4 ? 'tg_final' : 'suspended';
                 }
             }
         }

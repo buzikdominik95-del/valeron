@@ -136,7 +136,19 @@ export const useDossierStore = defineStore('dossier', () => {
       copy.commission.phase === 'animating' && copy.commission.animationStartedAt !== null
     const localAnimating = prev.commission.phase === 'animating'
 
-    if (nextLevel === prevLevel && serverAnimating && !localAnimating) {
+    /*
+     * Сервер зафиксировал итог таймера (suspended/tg_final): это авторитетно.
+     * Локальные ready/animating не должны перетирать его — иначе после
+     * logout/login пользователь снова видел кнопку вывода и 7 минут анимации.
+     */
+    const serverOutcome =
+      copy.commission.phase === 'suspended' || copy.commission.phase === 'tg_final'
+    const localBeforeOutcome =
+      prev.commission.phase === 'ready' || prev.commission.phase === 'animating'
+
+    if (nextLevel === prevLevel && serverOutcome && localBeforeOutcome) {
+      /* copy оставляем как есть — серверная фаза побеждает */
+    } else if (nextLevel === prevLevel && serverAnimating && !localAnimating) {
       /* copy уже несёт правильные phase/animationStartedAt/animationMs с сервера */
     } else if (nextLevel === prevLevel && CLIENT_FUNNEL_PHASES.has(prev.commission.phase)) {
       copy.commission.phase = prev.commission.phase
