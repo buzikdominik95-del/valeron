@@ -35,6 +35,7 @@ import VelRejectFlash from '@/features/account/VelRejectFlash.vue'
 import VelStageSwitch from '@/features/account/VelStageSwitch.vue'
 import VelLoanDetails from '@/features/account/VelLoanDetails.vue'
 import VelDocumentsUploadModal from '@/features/account/VelDocumentsUploadModal.vue'
+import VelDocumentUpload from '@/features/account/VelDocumentUpload.vue'
 import VelTransferSuccess from '@/features/account/VelTransferSuccess.vue'
 import VelAccountToast from '@/features/account/VelAccountToast.vue'
 import VelAgentToast from '@/features/account/VelAgentToast.vue'
@@ -360,6 +361,8 @@ function ensureWelcomeMessages(): void {
  */
 function onDocumentsVerified(): void {
   hideDocsUploadModal()
+  /* Карточка «Documento verificato» после модалки живёт в Profilo. */
+  account.docsParkedInProfile = true
   /* Гасим любой agent-toast, если всплыл по ошибке */
   try {
     hideAgentNotify()
@@ -1102,6 +1105,11 @@ function openFreezeTelegram(): void {
       />
     </template>
 
+
+    <!-- Карточка verified в Profilo (под Dati personali) через слот #documents -->
+    <template #documents>
+      <VelDocumentUpload v-model="chosenFiles" @verified="onDocumentsVerified" />
+    </template>
 
     <template #signature>
       <!-- Один блок: шапка договора + лист (2.png) -->

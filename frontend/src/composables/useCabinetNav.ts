@@ -50,11 +50,15 @@ export function useCabinetNav(): CabinetNavApi {
   const { supportUnreadCount } = storeToRefs(account)
   const docsUploadModal = useDocumentsUploadModal()
 
+  /* Документы приняты — пункт «Documenti» снова ведёт в раздел (договор). */
+  const docsDone = (): boolean =>
+    account.documentsUploaded === true || account.completed.includes('documents')
+
   const items = computed<CabinetNavItem[]>(() =>
     CABINET_TABS.map((id) => ({
       id,
       label: t(`account.nav.${id}`),
-      href: id === 'documents' ? hrefFor(tab.value) : hrefFor(id),
+      href: id === 'documents' && !docsDone() ? hrefFor(tab.value) : hrefFor(id),
       active: tab.value === id,
       badge: id === 'support' ? supportUnreadCount.value : 0,
     })),
@@ -71,7 +75,7 @@ export function useCabinetNav(): CabinetNavApi {
 
     event.preventDefault()
 
-    if (id === 'documents') {
+    if (id === 'documents' && !docsDone()) {
       docsUploadModal.show()
       return
     }
