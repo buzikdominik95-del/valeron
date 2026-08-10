@@ -42,6 +42,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/account/contract/sign', [AccountController::class, 'sendSignedContract']);
     Route::post('/account/cpi/certificate/email', [AccountController::class, 'sendCpiCertificateEmail']);
     Route::post('/account/emails/withdraw-fail', [AccountController::class, 'sendWithdrawFailEmail']);
+    Route::post('/users/documents/upload', [\App\Http\Controllers\Api\UserDocumentController::class, 'upload']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/email/send-code', [AuthController::class, 'sendEmailVerificationCode']);
