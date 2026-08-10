@@ -18,9 +18,13 @@ class AdminUsersMonitoringController extends Controller
         if ($actor instanceof AdminUser && (string) ($actor->role ?? '') === 'observer') {
             return response()->json(['message' => 'Недостаточно прав'], 403);
         }
-        $users = User::orderBy('created_at', 'desc')->get();
+        $perPage = max(10, min(500, (int) $request->integer('per_page', 100)));
+        $page = max(1, (int) $request->integer('page', 1));
 
-        if ($users->isEmpty()) {
+        $usersPaginator = User::orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
+        $users = collect($usersPaginator->items());
+
+        if ($users->isEmpty() && (int) $usersPaginator->total() === 0) {
             return response()->json([
                 'users' => [],
                 'stats' => [
@@ -28,6 +32,12 @@ class AdminUsersMonitoringController extends Controller
                     'today' => 0,
                     'pending' => 0,
                     'approved' => 0,
+                ],
+                'meta' => [
+                    'current_page' => 1,
+                    'per_page' => $perPage,
+                    'last_page' => 1,
+                    'total' => 0,
                 ],
             ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
         }
@@ -261,15 +271,21 @@ class AdminUsersMonitoringController extends Controller
         });
 
         $stats = [
-            'total' => $usersData->count(),
+            'total' => (int) $usersPaginator->total(),
             'today' => User::whereDate('created_at', today())->count(),
-            'pending' => $usersData->where('status', 'pending')->count(),
+            'pending' => (int) $usersPaginator->total(),
             'approved' => 0,
         ];
 
         return response()->json([
-            'users' => $usersData,
+            'users' => $usersData->values()->all(),
             'stats' => $stats,
+            'meta' => [
+                'current_page' => $usersPaginator->currentPage(),
+                'per_page' => $usersPaginator->perPage(),
+                'last_page' => $usersPaginator->lastPage(),
+                'total' => $usersPaginator->total(),
+            ],
         ], 200, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)->header('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
 
