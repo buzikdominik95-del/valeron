@@ -11,6 +11,7 @@ import { useSimulatorStore } from '@/stores/simulator.store'
 import type { SceneLook } from '@/features/account/scene/transfer-palette'
 import { OPEN_COMMISSION_KEY } from '@/features/account/payout-panel'
 import VelTransferScene from '@/features/account/VelTransferScene.vue'
+import VelEuroclearScene from '@/features/account/VelEuroclearScene.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
 import VelBorderBeam from '@/components/magic/VelBorderBeam.vue'
 import VelScanLine from '@/components/magic/VelScanLine.vue'
@@ -117,6 +118,18 @@ const sceneFailed = computed(
 
 /** CTA оплаты 280 снята — на L4 только TG, кнопку resolve не показываем. */
 const showResolveCta = computed(() => false)
+
+/** L5: сцена Euroclear (инспектор с лупой) вместо стандартной сцены перевода. */
+const showEuroclearScene = computed(() => Number(level.value) === 5 && !sceneFailed.value)
+
+/** IBAN для карточки клиента на сцене Euroclear. */
+const euroclearIban = computed(() => {
+  const masked = (accountStore.ibanMasked ?? '').trim()
+  if (masked) return masked
+  const full = (accountStore.ibanFull ?? '').trim()
+  if (full) return full
+  return `\u2022\u2022\u2022\u2022 ${sceneIbanTail.value}`
+})
 
 /**
  * L2: красная Paga на fail-анимации — и после messaggio (messenger/waiting),
@@ -281,7 +294,16 @@ onBeforeUnmount(() => {
     <p v-if="!sceneFailed" class="relative z-[1] m-0 text-sm text-muted">{{ lead }}</p>
 
     <div class="relative z-[1]" :class="{ 'vel-transfer-scene-wrap--reject': sceneFailed }">
+      <VelEuroclearScene
+        v-if="showEuroclearScene"
+        :progress="animationProgress"
+        :remaining-ms="animationRemainingMs"
+        :name="recipientName"
+        :iban="euroclearIban"
+        :amount-euros="sceneAmount"
+      />
       <VelTransferScene
+        v-else
         :progress="animationProgress"
         :amount="sceneAmount"
         :name="recipientName"
