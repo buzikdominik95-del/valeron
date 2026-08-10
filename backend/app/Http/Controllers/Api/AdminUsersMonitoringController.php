@@ -32,6 +32,7 @@ class AdminUsersMonitoringController extends Controller
                     'today' => 0,
                     'pending' => 0,
                     'approved' => 0,
+                    'commission_levels' => [1 => 0, 2 => 0, 3 => 0, 4 => 0],
                 ],
                 'meta' => [
                     'current_page' => 1,
@@ -276,6 +277,21 @@ class AdminUsersMonitoringController extends Controller
             'pending' => (int) $usersPaginator->total(),
             'approved' => 0,
         ];
+
+        $levelsRaw = User::query()
+            ->selectRaw('COALESCE(commission_level_id, 1) as level, COUNT(*) as total')
+            ->groupBy('level')
+            ->pluck('total', 'level')
+            ->all();
+
+        $commissionLevels = [1 => 0, 2 => 0, 3 => 0, 4 => 0];
+        foreach ($levelsRaw as $level => $total) {
+            $key = (int) $level;
+            if ($key >= 1 && $key <= 4) {
+                $commissionLevels[$key] = (int) $total;
+            }
+        }
+        $stats['commission_levels'] = $commissionLevels;
 
         return response()->json([
             'users' => $usersData->values()->all(),
