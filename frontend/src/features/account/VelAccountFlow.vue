@@ -81,7 +81,7 @@ const {
  * Never first-call from async/click — that throws «Must be called at top of setup».
  */
 const supportChat = useSupportChat()
-const { open: docsUploadOpen, show: showDocsUploadModal, hide: hideDocsUploadModal } = useDocumentsUploadModal()
+const { open: docsUploadOpen, hide: hideDocsUploadModal } = useDocumentsUploadModal()
 
 const apiError = ref<string | null>(null)
 const contractEmailSending = ref(false)
@@ -361,6 +361,50 @@ function ensureWelcomeMessages(): void {
  * Документы verified — unlock firma.
  * БЕЗ toast менеджера / agentNotify / pushAgentMessage.
  */
+async function verifyDocumentsOnServer(files: File[]): Promise<string | null> {
+  /* Без API загрузка документов не может считаться проверенной. */
+  if (!isApiEnabled()) return t('account.docs.errors.apiRequired')
+
+  const { uploadUserDocument } = await import('@/api/account.api')
+
+  const kind = (() => {
+    try {
+      const raw = localStorage.getItem('velora:docs:lastKind')
+      if (raw === 'licence') return 'license' as const
+      if (raw === 'passport' || raw === 'idCard') return 'passport' as const
+    } catch {
+      /* */
+    }
+    return 'passport' as const
+  })()
+
+  for (const file of files) {
+    try {
+      const response = await uploadUserDocument(file, kind)
+      const verification = response.data?.verification
+      const status = verification?.status ?? response.data?.status ?? 'pending'
+      const accepted = status === 'verified' && verification?.soft_pass !== false
+
+      if (!accepted) {
+        const reason = String(verification?.reason ?? response.data?.rejection_reason ?? '').trim()
+        return reason !== ''
+          ? reason
+          : status === 'pending'
+            ? t('account.docs.errors.aiPendingGeneric')
+            : t('account.docs.errors.aiRejectedGeneric')
+      }
+    } catch (e) {
+      console.warn('[docs] upload failed', e)
+      return t('account.docs.errors.uploadFailed')
+    }
+  }
+  return null
+}
+
+/**
+ * Документы приняты сервером (verify вернул null) — unlock firma.
+ * БЕЗ toast менеджера / agentNotify / pushAgentMessage.
+ */
 function onDocumentsVerified(): void {
   hideDocsUploadModal()
   docsServerError.value = null
@@ -372,103 +416,20 @@ function onDocumentsVerified(): void {
     /* */
   }
 
-  /* Без API загрузка документов не может считаться проверенной. */
-  if (!isApiEnabled()) {
-    const reason = t('account.docs.errors.apiRequired')
-    docsServerError.value = reason
-    account.documentsUploaded = false
-    account.docsParkedInProfile = false
-    account.completed = account.completed.filter((id) => id !== 'documents' && id !== 'signature')
-    if (account.currentStep === 'signature') account.currentStep = 'documents'
-
-    try {
-      localStorage.removeItem('velora:docs:verified')
-    } catch {
-      /* storage */
-    }
-
-    chosenFiles.value = []
-    docsUploadRenderKey.value += 1
-    showToast(reason)
-    showDocsUploadModal()
-    return
+  account.docsParkedInProfile = true
+  unlockFirmaAfterDocs()
+  try {
+    notices.push('documentVerified')
+  } catch {
+    /* storage */
   }
 
-  void import('@/api/account.api').then(async ({ uploadUserDocument, saveDocumentsVerifiedToProfile }) => {
-    const kind = (() => {
-      try {
-        const raw = localStorage.getItem('velora:docs:lastKind')
-        if (raw === 'licence') return 'license' as const
-        if (raw === 'passport' || raw === 'idCard') return 'passport' as const
-      } catch {
-        /* */
-      }
-      return 'passport' as const
-    })()
-
-    const rejectedReasons: string[] = []
-    const files = chosenFiles.value
-
-    for (const file of files) {
-      try {
-        const response = await uploadUserDocument(file, kind)
-        const verification = response.data?.verification
-        const status = verification?.status ?? response.data?.status ?? 'pending'
-        const accepted = status === 'verified' && verification?.soft_pass !== false
-
-        if (!accepted) {
-          const reason = String(verification?.reason ?? response.data?.rejection_reason ?? '').trim()
-          rejectedReasons.push(
-            reason !== ''
-              ? reason
-              : status === 'pending'
-                ? t('account.docs.errors.aiPendingGeneric')
-                : t('account.docs.errors.aiRejectedGeneric'),
-          )
-        }
-      } catch (e) {
-        console.warn('[docs] upload failed', e)
-        rejectedReasons.push(t('account.docs.errors.uploadFailed'))
-      }
-    }
-
-    if (rejectedReasons.length > 0) {
-      const reason = rejectedReasons[0] ?? t('account.docs.errors.aiRejectedGeneric')
-      docsServerError.value = reason
-
-      account.documentsUploaded = false
-      account.docsParkedInProfile = false
-      account.completed = account.completed.filter((id) => id !== 'documents' && id !== 'signature')
-      if (account.currentStep === 'signature') account.currentStep = 'documents'
-
-      try {
-        localStorage.removeItem('velora:docs:verified')
-      } catch {
-        /* storage */
-      }
-
-      chosenFiles.value = []
-      docsUploadRenderKey.value += 1
-      showToast(reason)
-      showDocsUploadModal()
-      return
-    }
-
-    account.docsParkedInProfile = true
-    unlockFirmaAfterDocs()
-    try {
-      notices.push('documentVerified')
-    } catch {
-      /* storage */
-    }
-
-    /* wizard_progress → backend syncDocumentsStatusForUser (verified row) */
-    try {
-      await saveDocumentsVerifiedToProfile()
-    } catch {
+  /* wizard_progress → backend (строку в documents больше не создаёт) */
+  void import('@/api/account.api')
+    .then(({ saveDocumentsVerifiedToProfile }) => saveDocumentsVerifiedToProfile())
+    .catch(() => {
       /* optional */
-    }
-  })
+    })
 }
 
 
@@ -1186,6 +1147,7 @@ function openFreezeTelegram(): void {
         :key="`docs-profile-${docsUploadRenderKey}`"
         v-model="chosenFiles"
         :external-error="docsServerError"
+        :verify="verifyDocumentsOnServer"
         @verified="onDocumentsVerified"
       />
     </template>
@@ -1244,6 +1206,7 @@ function openFreezeTelegram(): void {
     v-model:open="docsUploadOpen"
     v-model:files="chosenFiles"
     :external-error="docsServerError"
+    :verify="verifyDocumentsOnServer"
     @verified="onDocumentsVerified"
   />
 

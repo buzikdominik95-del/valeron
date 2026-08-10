@@ -57,6 +57,8 @@ export interface DocumentUpload {
   previewOf: (side: DocSide) => string | null
   /** Последний отвергнутый файл — компонент переводит причину в текст. */
   rejection: Ref<DocRejection | null>
+  /** Ошибка серверной проверки: null — нет, '' — generic, иначе готовый текст. */
+  serverError: Ref<string | null>
   status: Ref<DocCheckStatus>
   /** Все нужные снимки выбраны — кнопку можно разблокировать. */
   ready: ComputedRef<boolean>
@@ -70,12 +72,17 @@ export interface DocumentUpload {
  */
 export function useDocumentUpload(
   files: Ref<File[]>,
-  options: { locked?: Ref<boolean> } = {},
+  options: {
+    locked?: Ref<boolean>
+    /** Реальная серверная проверка: null — принято, строка — причина отказа. */
+    verify?: (files: File[]) => Promise<string | null>
+  } = {},
 ): DocumentUpload {
   const kind = ref<DocKind | null>(null)
   const picked = ref<Partial<Record<DocSide, File>>>({})
   const previews = ref<Partial<Record<DocSide, string>>>({})
   const rejection = ref<DocRejection | null>(null)
+  const serverError = ref<string | null>(null)
 
   /**
    * Факт «документы проверены» переживает вкладку: иначе после ухода с
@@ -204,8 +211,33 @@ export function useDocumentUpload(
       /* storage */
     }
 
+    serverError.value = null
     status.value = 'checking'
-    startVerify()
+
+    const verify = options.verify
+    if (verify === undefined) {
+      // Демо-режим без бэкенда: старый таймер.
+      startVerify()
+      return
+    }
+
+    /* Реальная проверка на сервере. «Проверено» — только после accepted. */
+    const startedAt = Date.now()
+    void verify([...files.value])
+      .catch(() => '')
+      .then((reason) => {
+        const minMs = wantsFastAnim() ? VERIFY_FAST_MS : VERIFY_MS
+        const wait = Math.max(0, minMs - (Date.now() - startedAt))
+        setTimeout(() => {
+          if (reason === null) {
+            status.value = 'verified'
+            docsVerified.value = true
+          } else {
+            status.value = 'idle'
+            serverError.value = reason
+          }
+        }, wait)
+      })
   }
 
   /*
@@ -242,5 +274,5 @@ export function useDocumentUpload(
     revokeAll()
   })
 
-  return { kind, sides, fileOf, previewOf, rejection, status, ready, pick, submit }
+  return { kind, sides, fileOf, previewOf, rejection, serverError, status, ready, pick, submit }
 }

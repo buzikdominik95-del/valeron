@@ -20,9 +20,16 @@ import VelDocVerified from '@/features/account/VelDocVerified.vue'
  * Анимация «Documento verificato» ВНУТРИ этой карточки, не отдельным блоком снизу.
  */
 const files = defineModel<File[]>({ default: () => [] })
-const props = withDefaults(defineProps<{ externalError?: string | null }>(), {
-  externalError: null,
-})
+const props = withDefaults(
+  defineProps<{
+    externalError?: string | null
+    verify?: (files: File[]) => Promise<string | null>
+  }>(),
+  {
+    externalError: null,
+    verify: undefined,
+  },
+)
 
 const emit = defineEmits<{ verified: [] }>()
 
@@ -32,8 +39,8 @@ const { documentsUploaded } = storeToRefs(account)
 
 const docsLocked = computed(() => documentsUploaded.value === true)
 
-const { kind, sides, fileOf, previewOf, rejection, status, ready, pick, submit } =
-  useDocumentUpload(files, { locked: docsLocked })
+const { kind, sides, fileOf, previewOf, rejection, serverError, status, ready, pick, submit } =
+  useDocumentUpload(files, { locked: docsLocked, verify: props.verify })
 
 /*
  * verified → сначала анимация VelDocVerified (~1 с), и только потом unlock
@@ -86,7 +93,15 @@ const rejectionText = computed(() => {
   return t(`account.docs.errors.${item.reason}`, { name: item.name, size: DOC_MAX_FILE_MB })
 })
 
-const errorText = computed(() => rejectionText.value ?? props.externalError ?? null)
+const serverErrorText = computed(() => {
+  const err = serverError.value
+  if (err === null) return null
+  return err !== '' ? err : t('account.docs.errors.uploadFailed')
+})
+
+const errorText = computed(
+  () => rejectionText.value ?? serverErrorText.value ?? props.externalError ?? null,
+)
 
 /* Смена вида документа меняет ЧИСЛО слотов (один ↔ два). Без плавного
    перехода строка под ними прыгает на всю высоту слота. */
