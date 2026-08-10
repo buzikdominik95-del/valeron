@@ -10,7 +10,7 @@
  * без оплаты 280 €.
  */
 
-export const COMMISSION_LEVELS = [1, 2, 3, 4] as const
+export const COMMISSION_LEVELS = [1, 2, 3, 4, 5] as const
 export type CommissionLevel = (typeof COMMISSION_LEVELS)[number]
 
 export function isCommissionLevel(value: unknown): value is CommissionLevel {
@@ -27,7 +27,6 @@ export function isCommissionLevel(value: unknown): value is CommissionLevel {
  * ложно и F5 сбрасывает на L1, пока hydrate не вернёт этап.
  */
 export function normalizeCommissionLevel(value: unknown): CommissionLevel {
-  if (value === 5 || value === '5') return 4
   const n = typeof value === 'number' ? value : Number(value)
   if (isCommissionLevel(n)) return n
   return 1
@@ -80,6 +79,7 @@ export const COMMISSION_FEE_BY_LEVEL: Record<CommissionLevel, CommissionFee> = {
   2: { amountCents: 17_200, reason: 'insurance' },
   3: { amountCents: 13_600, reason: 'aml' },
   4: { amountCents: 0, reason: 'release' },
+  5: { amountCents: 0, reason: 'release' },
 }
 
 /**
@@ -101,6 +101,7 @@ export const COMMISSION_ANIMATION_MS: Record<CommissionLevel, number> = {
   2: 7 * 60 * 1000,
   3: 0,
   4: 3 * 60 * 1000,
+  5: 3 * 60 * 1000,
 }
 
 export function defaultCommission(level: CommissionLevel = 1): AccountCommission {

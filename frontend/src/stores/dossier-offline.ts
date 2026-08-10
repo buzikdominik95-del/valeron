@@ -73,7 +73,7 @@ export function beginWithdrawOffline(dossier: AccountDossier): void {
   const level = normalizeCommissionLevel(dossier.commission.level)
   dossier.commission.level = level
 
-  if (level === 2 || level === 4) {
+  if (level === 2 || level === 4 || level === 5) {
     dossier.commission.phase = 'animating'
     /* Всегда табличное значение — битый animationMs:0 из storage залипал на 0%. */
     dossier.commission.animationMs =
@@ -145,10 +145,10 @@ export function applyOfflineOutcome(dossier: AccountDossier): void {
     return
   }
 
-  if (level === 4) {
+  if (level === 4 || level === 5) {
     dossier.transfer.status = 'failed'
     dossier.commission.phase = 'tg_final'
-    dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[4]
+    dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[level]
   }
 }
 

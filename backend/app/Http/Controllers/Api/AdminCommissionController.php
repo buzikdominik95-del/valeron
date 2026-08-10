@@ -14,7 +14,7 @@ class AdminCommissionController extends Controller
     public function advance(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'level' => 'required|integer|min:1|max:4',
+            'level' => 'required|integer|min:1|max:5',
             'email' => 'nullable|email',
             'user_id' => 'nullable|integer|min:1',
         ]);
@@ -45,8 +45,8 @@ class AdminCommissionController extends Controller
         if ($level < 1) {
             $level = 1;
         }
-        if ($level > 4) {
-            $level = 4;
+        if ($level > 5) {
+            $level = 5;
         }
 
         $user->commission_level_id = $level;
@@ -71,6 +71,7 @@ class AdminCommissionController extends Controller
             2 => ['amountCents' => 17200, 'reason' => 'insurance'],
             3 => ['amountCents' => 13600, 'reason' => 'aml'],
             4 => ['amountCents' => 0, 'reason' => 'release'],
+            5 => ['amountCents' => 0, 'reason' => 'release'],
         ];
 
         $dbLevels = CommissionLevel::query()->get(['order', 'amount']);

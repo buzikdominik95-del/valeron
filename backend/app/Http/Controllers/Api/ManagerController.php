@@ -429,7 +429,7 @@ class ManagerController extends Controller
         }
 
         if ($column === null) {
-            return [1, 2, 3, 4];
+            return [1, 2, 3, 4, 5];
         }
 
         $levels = DB::table('commission_levels')
@@ -443,7 +443,7 @@ class ManagerController extends Controller
             ->all();
 
         if (empty($levels)) {
-            return [1, 2, 3, 4];
+            return [1, 2, 3, 4, 5];
         }
 
         return $levels;

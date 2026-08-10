@@ -49,13 +49,7 @@ function readStoredDossier(): AccountDossier | null {
     if (!raw) return null
     const parsed = JSON.parse(raw) as AccountDossier
     if (!parsed?.commission || !parsed?.credit) return null
-    /* Legacy L5 → L4 + tg_final (уровень 5 снят). */
-    const rawLevel = parsed.commission.level as number | string
-    const wasL5 = rawLevel === 5 || rawLevel === '5'
-    parsed.commission.level = normalizeCommissionLevel(rawLevel)
-    if (wasL5 || parsed.commission.phase === 'tg_final') {
-      if (wasL5) parsed.commission.phase = 'tg_final'
-    }
+    parsed.commission.level = normalizeCommissionLevel(parsed.commission.level)
     return parsed
   } catch {
     return null
@@ -117,13 +111,7 @@ export const useDossierStore = defineStore('dossier', () => {
     if (copy.client.emailChangedAt) {
       useAccountStore().markEmailChanged()
     }
-    const rawLevel = copy.commission.level as number
-    if (rawLevel === 5) {
-      copy.commission.level = 4
-      copy.commission.phase = 'tg_final'
-    } else {
-      copy.commission.level = normalizeCommissionLevel(rawLevel)
-    }
+    copy.commission.level = normalizeCommissionLevel(copy.commission.level)
 
     const prevLevel = normalizeCommissionLevel(prev.commission.level)
     const nextLevel = normalizeCommissionLevel(copy.commission.level)
@@ -294,7 +282,7 @@ export const useDossierStore = defineStore('dossier', () => {
     let phase = dossier.value.commission.phase
     const level = normalizeCommissionLevel(dossier.value.commission.level)
     dossier.value.commission.level = level
-    const needsAnim = level === 2 || level === 4
+    const needsAnim = level === 2 || level === 4 || level === 5
 
     /*
      * На L2/L4 после phase-bar / F5 phase иногда не ready — всё равно
@@ -407,7 +395,7 @@ export const useDossierStore = defineStore('dossier', () => {
      * L2/L4 исход анимации — только offline (suspended / tg_final).
      * Не ждём completeAnimationApi: иначе сцена «зависает» без ответа бэка.
      */
-    if (level === 2 || level === 4 || !isApiEnabled()) {
+    if (level === 2 || level === 4 || level === 5 || !isApiEnabled()) {
       applyOfflineOutcome(dossier.value)
       return
     }

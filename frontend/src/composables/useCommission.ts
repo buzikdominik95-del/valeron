@@ -103,8 +103,8 @@ function createCommission(): CommissionApi {
    */
   const animationMs = computed(() => {
     const lv = level.value
-    if (lv === 2 || lv === 4) {
-      if (wantsFastAnim()) return lv === 4 ? FAST_L4_MS : FAST_L2_MS
+    if (lv === 2 || lv === 4 || lv === 5) {
+      if (wantsFastAnim()) return lv >= 4 ? FAST_L4_MS : FAST_L2_MS
       return COMMISSION_ANIMATION_MS[lv]
     }
     const base = dossier.value.commission.animationMs

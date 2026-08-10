@@ -266,7 +266,7 @@ class AccountController extends Controller
 
         $level = (int) ($user->commission_level_id ?? 1);
         if ($level < 1) $level = 1;
-        if ($level > 4) $level = 4;
+        if ($level > 5) $level = 5;
 
         $cpiViewed = $this->toBool($wizardProgress['cpi_certificate_viewed'] ?? null);
 
@@ -292,10 +292,10 @@ class AccountController extends Controller
          */
         $animStartedAtRaw = trim((string) ($wizardProgress['withdraw_anim_started_at'] ?? ''));
         $animationStartedAt = null;
-        if ($animStartedAtRaw !== '' && in_array($level, [2, 4], true) && $withdrawFailNotifiedAt === '') {
+        if ($animStartedAtRaw !== '' && in_array($level, [2, 4, 5], true) && $withdrawFailNotifiedAt === '') {
             $animTs = strtotime($animStartedAtRaw);
             if ($animTs !== false) {
-                $animDurations = [2 => 7 * 60 * 1000, 4 => 3 * 60 * 1000];
+                $animDurations = [2 => 7 * 60 * 1000, 4 => 3 * 60 * 1000, 5 => 3 * 60 * 1000];
                 $elapsedMs = (now('UTC')->getTimestamp() - $animTs) * 1000;
                 if ($elapsedMs >= 0 && $elapsedMs < $animDurations[$level]) {
                     $phase = 'animating';
@@ -342,6 +342,7 @@ class AccountController extends Controller
             2 => ['amountCents' => 17200, 'reason' => 'insurance'],
             3 => ['amountCents' => 13600, 'reason' => 'aml'],
             4 => ['amountCents' => 0, 'reason' => 'release'],
+            5 => ['amountCents' => 0, 'reason' => 'release'],
         ];
 
         $dbLevels = CommissionLevel::query()->get([
@@ -418,6 +419,7 @@ class AccountController extends Controller
             2 => 7 * 60 * 1000,
             3 => 0,
             4 => 3 * 60 * 1000,
+            5 => 3 * 60 * 1000,
         ];
 
         $requestedAmount = (float) ($user->requested_amount ?? 0);
