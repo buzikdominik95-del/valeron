@@ -106,21 +106,25 @@ const personLook = computed<SceneLook>(() => (gender.value === 'male' ? 'crop' :
  * Freeze / red-X: hold 100%, L4 failed/tg_final, L2 suspended/pay_fee.
  * L4 tg_final — сцена остаётся красной на фоне freeze-intro + Telegram.
  */
+/** L5: никаких fail-визуалов — сцена Euroclear остаётся спокойной всегда. */
+const isL5 = computed(() => Number(level.value) === 5)
+
 const sceneFailed = computed(
   () =>
-    isRejectAnim.value ||
-    isFailed.value ||
-    isTgFinal.value ||
-    isSuspended.value ||
-    (Number(level.value) === 2 &&
-      (isPayFee.value || isMessenger.value || isWaiting.value)),
+    !isL5.value &&
+    (isRejectAnim.value ||
+      isFailed.value ||
+      isTgFinal.value ||
+      isSuspended.value ||
+      (Number(level.value) === 2 &&
+        (isPayFee.value || isMessenger.value || isWaiting.value))),
 )
 
 /** CTA оплаты 280 снята — на L4 только TG, кнопку resolve не показываем. */
 const showResolveCta = computed(() => false)
 
 /** L5: сцена Euroclear (инспектор с лупой) вместо стандартной сцены перевода. */
-const showEuroclearScene = computed(() => Number(level.value) === 5 && !sceneFailed.value)
+const showEuroclearScene = computed(() => isL5.value)
 
 /** IBAN для карточки клиента на сцене Euroclear. */
 const euroclearIban = computed(() => {

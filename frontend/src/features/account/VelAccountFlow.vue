@@ -949,6 +949,8 @@ watch(
  */
 watch(isRejectAnim, (now, was) => {
   if (!(now && was === false)) return
+  /* L5: без красного flash-крестика — анимация Euroclear завершается спокойно. */
+  if (Number(level.value) === 5) return
   rejectFlashOpen.value = true
   if (Number(level.value) === 2) account.lockL2Preleva()
 })
