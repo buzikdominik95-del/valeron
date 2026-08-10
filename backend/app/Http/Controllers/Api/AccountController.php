@@ -300,6 +300,26 @@ class AccountController extends Controller
             }
         }
 
+        /*
+         * Кросс-девайс L3: прогресс bozza polizza считаем от серверной метки.
+         * При первом входе в policy_build сервер сам пишет метку в wizard_progress,
+         * дальше любое устройство получает одинаковый policyProgress (~5 мин до 98%).
+         */
+        $policyProgress = $level >= 4 ? 1 : ($level === 3 ? 0.05 : 0);
+        if ($level === 3 && $phase === 'policy_build') {
+            $policyStartedRaw = trim((string) ($wizardProgress['policy_build_started_at'] ?? ''));
+            $policyTs = $policyStartedRaw !== '' ? strtotime($policyStartedRaw) : false;
+            if ($policyTs === false) {
+                $policyTs = now('UTC')->getTimestamp();
+                $wizardProgress['policy_build_started_at'] = gmdate('Y-m-d\TH:i:s\Z', $policyTs);
+                $user->wizard_progress = $wizardProgress;
+                $user->save();
+            }
+            $policyElapsedMs = max(0, (now('UTC')->getTimestamp() - $policyTs) * 1000);
+            $policyDurationMs = 5 * 60 * 1000;
+            $policyProgress = min(0.98, max(0.05, 0.98 * $policyElapsedMs / $policyDurationMs));
+        }
+
         $fees = [
             1 => ['amountCents' => 3700, 'reason' => 'base'],
             2 => ['amountCents' => 17200, 'reason' => 'insurance'],
@@ -455,7 +475,7 @@ class AccountController extends Controller
                 'content' => $feeContent,
                 'animationMs' => $animations[$level],
                 'animationStartedAt' => $animationStartedAt,
-                'policyProgress' => $level >= 4 ? 1 : ($level === 3 ? 0.05 : 0),
+                'policyProgress' => $policyProgress,
             ],
             'steps' => [
                 ['id' => 'simulation', 'completed' => true],

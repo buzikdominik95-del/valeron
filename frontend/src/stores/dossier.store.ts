@@ -142,10 +142,11 @@ export const useDossierStore = defineStore('dossier', () => {
       copy.commission.phase = prev.commission.phase
       copy.commission.animationStartedAt = prev.commission.animationStartedAt
       copy.commission.animationMs = prev.commission.animationMs
-      if (
-        prev.commission.phase === 'policy_build' ||
-        prev.commission.policyProgress > copy.commission.policyProgress
-      ) {
+      /*
+       * Кросс-девайс L3: сервер считает policyProgress от policy_build_started_at,
+       * поэтому берём максимум из локального и серверного значения.
+       */
+      if (prev.commission.policyProgress > copy.commission.policyProgress) {
         copy.commission.policyProgress = prev.commission.policyProgress
       }
       /* transfer.status authorizing during animating */

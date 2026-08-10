@@ -209,10 +209,11 @@ function createCommission(): CommissionApi {
 
   /*
    * L3: прогресс bozza polizza (Documenti + Home).
-   * ~5 мин до ~98% без fastAnim; с ?fastAnim=1 — быстрее для стенда.
+   * 5 мин до 98% (синхронно с серверным расчётом от policy_build_started_at);
+   * с ?fastAnim=1 — быстрее для стенда.
    */
   const { pause: pausePolicy, resume: resumePolicy } = useIntervalFn(
-    () => dossierStore.tickPolicyProgress(wantsFastAnim() ? 0.045 : 0.004),
+    () => dossierStore.tickPolicyProgress(wantsFastAnim() ? 0.045 : 0.001634),
     wantsFastAnim() ? 250 : 500,
     { immediate: false },
   )
