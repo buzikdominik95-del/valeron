@@ -44,6 +44,32 @@ class AdminChatsController extends Controller
                 ->header('Pragma', 'no-cache');
         }
 
+        /*
+         * Анти-stampede: при промахе кэша параллельные одинаковые запросы
+         * (WS-пинги у нескольких менеджеров) не должны строить тяжёлый payload
+         * одновременно. Первый берёт lock и строит, остальные ждут и читают кэш.
+         */
+        $lock = Cache::lock('lock:' . $cacheKey, 15);
+        $gotLock = $lock->get();
+        if (!$gotLock) {
+            try {
+                $lock->block(12);
+                $gotLock = true;
+            } catch (\Throwable $e) {
+                $gotLock = false;
+            }
+            $cachedPayload = Cache::get($cacheKey);
+            if (is_array($cachedPayload)) {
+                if ($gotLock) $lock->release();
+                return response()
+                    ->json($cachedPayload, 200, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
+                    ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                    ->header('Pragma', 'no-cache');
+            }
+        }
+
+        try {
+
         $query = Chat::with([
                 'user:id,name,surname,email,requested_amount,document_type,document_number,commission_level_id,wizard_progress',
                 'tags:id,name,color',
@@ -107,6 +133,11 @@ class AdminChatsController extends Controller
         }
 
         Cache::put($cacheKey, $payload, now()->addSeconds(8));
+        } finally {
+            if ($gotLock) {
+                try { $lock->release(); } catch (\Throwable $e) {}
+            }
+        }
 
         return response()
             ->json($payload, 200, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
