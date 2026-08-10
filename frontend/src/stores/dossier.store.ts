@@ -112,6 +112,11 @@ export const useDossierStore = defineStore('dossier', () => {
   function hydrate(next: AccountDossier): void {
     const prev = dossier.value
     const copy = structuredClone(next)
+
+    // Кросс-девайс: сервер знает, менялась ли почта — гасим «Cambia email» везде.
+    if (copy.client.emailChangedAt) {
+      useAccountStore().markEmailChanged()
+    }
     const rawLevel = copy.commission.level as number
     if (rawLevel === 5) {
       copy.commission.level = 4

@@ -49,6 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/email/verify-code', [AuthController::class, 'verifyEmailVerificationCode']);
     Route::post('/auth/email/change/send-code', [AuthController::class, 'sendEmailChangeCode']);
     Route::post('/auth/email/change/confirm', [AuthController::class, 'confirmEmailChange']);
+    Route::post('/auth/password/change', [AuthController::class, 'changePassword']);
 });
 
 /*

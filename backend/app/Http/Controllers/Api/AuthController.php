@@ -326,6 +326,48 @@ class AuthController extends Controller
         return response()->json(['ok' => true, 'ttl_seconds' => $ttlSeconds]);
     }
 
+    /**
+     * Смена пароля залогиненным клиентом.
+     * Раньше «Cambia password» жила только в localStorage фронта —
+     * сервер не знал о новом пароле и вход по нему был невозможен.
+     */
+    public function changePassword(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $currentOk = false;
+        foreach ($this->passwordCandidates((string) $request->input('current_password')) as $candidate) {
+            if (Hash::check($candidate, (string) $user->password)) {
+                $currentOk = true;
+                break;
+            }
+        }
+
+        if (!$currentOk) {
+            return response()->json([
+                'errors' => ['current_password' => ['La password attuale non è corretta.']],
+            ], 422);
+        }
+
+        $user->password = Hash::make((string) $request->input('password'));
+        $user->save();
+
+        return response()->json(['ok' => true]);
+    }
+
     public function confirmEmailChange(Request $request)
     {
         $user = $request->user();

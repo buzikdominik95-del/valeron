@@ -466,6 +466,8 @@ class AccountController extends Controller
                 'lastName' => $lastName,
                 'email' => $user->email,
                 'lead_iban' => $leadIban,
+                // Кросс-девайс: кнопка «Cambia email» гаснет на всех устройствах.
+                'emailChangedAt' => $user->email_changed_at?->toIso8601String(),
             ],
             'credit' => [
                 'approvedAmountCents' => (int) round($approvedWithBonus * 100),

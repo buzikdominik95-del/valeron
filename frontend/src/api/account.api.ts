@@ -118,6 +118,8 @@ export interface AccountClient {
   lastName: string
   /** Почта показывается как есть: проверять её формой кабинета нечем. */
   email: string
+  /** ISO-метка однократной смены почты (сервер). Гасит «Cambia email» кросс-девайсно. */
+  emailChangedAt?: string | null
 }
 
 export interface AccountCredit {

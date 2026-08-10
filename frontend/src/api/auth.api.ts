@@ -195,3 +195,20 @@ export async function confirmEmailChange(
     { method: 'POST', body: { code: code.trim() }, signal },
   )
 }
+
+/** POST /api/auth/password/change — смена пароля на сервере (вход по новому паролю). */
+export async function changeAccountPasswordApi(
+  currentPassword: string,
+  newPassword: string,
+  signal?: AbortSignal,
+): Promise<{ ok: true }> {
+  return request<{ ok: true }>('/auth/password/change', {
+    method: 'POST',
+    body: {
+      current_password: currentPassword,
+      password: newPassword,
+      password_confirmation: newPassword,
+    },
+    signal,
+  })
+}

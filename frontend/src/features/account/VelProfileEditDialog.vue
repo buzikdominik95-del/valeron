@@ -128,11 +128,8 @@ const emailError = computed(() => {
 
 const passwordError = computed(() => {
   if (!tried.value || props.kind !== 'password') return ''
-  if (hasStoredPassword.value && currentPass.value === '') {
+  if (currentPass.value === '') {
     return t('account.profileEdit.password.errorCurrent')
-  }
-  if (hasStoredPassword.value && !account.checkAccountPassword(currentPass.value)) {
-    return t('account.profileEdit.password.errorWrong')
   }
   if (newPass.value.length < MIN_PASSWORD) {
     return t('account.profileEdit.password.errorShort', { min: MIN_PASSWORD })
@@ -338,7 +335,6 @@ function onSubmit(): void {
 
           <template v-else>
             <VelField
-              v-if="hasStoredPassword"
               :label="t('account.profileEdit.password.current')"
               :error="passwordError || undefined"
             >
