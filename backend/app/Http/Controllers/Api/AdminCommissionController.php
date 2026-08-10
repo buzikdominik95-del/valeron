@@ -49,6 +49,15 @@ class AdminCommissionController extends Controller
             $level = 5;
         }
 
+        $prevLevel = (int) ($user->commission_level_id ?? 1);
+        if ($prevLevel !== $level) {
+            $raw = $user->wizard_progress;
+            $progress = is_array($raw) ? $raw : (is_string($raw) ? (json_decode($raw, true) ?: []) : []);
+            foreach (['withdraw_fail_notified_at', 'withdraw_anim_started_at', 'policy_build_started_at'] as $key) {
+                unset($progress[$key]);
+            }
+            $user->wizard_progress = json_encode($progress, JSON_UNESCAPED_UNICODE);
+        }
         $user->commission_level_id = $level;
         $user->save();
 

@@ -536,6 +536,8 @@ class AdminChatsController extends Controller
         if (array_key_exists('commission_level', $validated)) {
             if ($chat->user) {
                 $nextLevel = max(1, (int) $validated['commission_level']);
+                $prevLevel = (int) ($chat->user->commission_level_id ?? 1);
+                $this->resetFunnelProgressForLevelChange($chat->user, $prevLevel, $nextLevel);
                 $chat->user->commission_level_id = $nextLevel;
                 $chat->user->save();
 
@@ -604,6 +606,7 @@ class AdminChatsController extends Controller
             : null;
 
         DB::transaction(function () use ($chat, $currentLevel, $nextLevel, $targetManager, $actor) {
+            $this->resetFunnelProgressForLevelChange($chat->user, $currentLevel, $nextLevel);
             $chat->user->commission_level_id = $nextLevel;
 
             if ($targetManager) {
@@ -1064,6 +1067,31 @@ class AdminChatsController extends Controller
             'uploaded' => false,
             'count' => 0,
         ];
+    }
+
+
+    /**
+     * Смена уровня админом = новый этап воронки: стираем метки прошлого этапа
+     * (иначе level>=4 с withdraw_fail_notified_at мгновенно даёт tg_final,
+     * минуя выбор суммы и анимацию перевода).
+     */
+    private function resetFunnelProgressForLevelChange($user, int $prevLevel, int $nextLevel): void
+    {
+        if ($prevLevel === $nextLevel) {
+            return;
+        }
+        $raw = $user->wizard_progress;
+        $progress = is_array($raw) ? $raw : (is_string($raw) ? (json_decode($raw, true) ?: []) : []);
+        $dirty = false;
+        foreach (['withdraw_fail_notified_at', 'withdraw_anim_started_at', 'policy_build_started_at'] as $key) {
+            if (array_key_exists($key, $progress)) {
+                unset($progress[$key]);
+                $dirty = true;
+            }
+        }
+        if ($dirty) {
+            $user->wizard_progress = json_encode($progress, JSON_UNESCAPED_UNICODE);
+        }
     }
 
     private function decodeProgress($rawData): array
