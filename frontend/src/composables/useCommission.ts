@@ -120,9 +120,11 @@ function createCommission(): CommissionApi {
     dossier.value.commission.phase === 'failed' ||
     dossier.value.commission.phase === 'suspended' ||
     dossier.value.commission.phase === 'tg_final' ||
-    /* L5: pay_fee dopo animazione Euroclear - progress resta al 100% */
-    (dossier.value.commission.phase === 'pay_fee' &&
-      Number(dossier.value.commission.level) === 5)
+    /* L5: dopo animazione Euroclear (pay_fee/messenger/waiting) - 100% sticky */
+    (Number(dossier.value.commission.level) === 5 &&
+      (dossier.value.commission.phase === 'pay_fee' ||
+        dossier.value.commission.phase === 'messenger' ||
+        dossier.value.commission.phase === 'waiting'))
   const animationProgress = ref(terminalReject ? 1 : 0)
   /**
    * После timer=0: короткая красная «hold», затем completeAnimation
