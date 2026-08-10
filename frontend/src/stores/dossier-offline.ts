@@ -146,6 +146,7 @@ export function applyOfflineOutcome(dossier: AccountDossier): void {
   }
 
   if (level === 4 || level === 5) {
+    /* L5: phase tg_final для персистентности, но все red-визуалы скрыты по level===5. */
     dossier.transfer.status = 'failed'
     dossier.commission.phase = 'tg_final'
     dossier.commission.fee = COMMISSION_FEE_BY_LEVEL[level]

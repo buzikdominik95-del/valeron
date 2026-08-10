@@ -1066,7 +1066,7 @@ const freezeMode = computed<'reject' | 'telegram'>(() => 'telegram')
  * Финал L4: красная «Contatta il manager»;
  * CTA на карточке мигает, клик снова поднимает TG-модалку.
  */
-const tgContactMode = computed(() => isTgFinal.value)
+const tgContactMode = computed(() => isTgFinal.value && Number(level.value) !== 5)
 
 watch(
   [isTgFinal, level],

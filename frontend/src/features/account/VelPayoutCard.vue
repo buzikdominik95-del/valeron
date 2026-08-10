@@ -171,7 +171,9 @@ const withdrawReady = computed(() => !disabled.value && !props.panelOpen)
  * L5: всегда красная «Contatta il manager» (не зелёный Preleva),
  * и при открытой, и при закрытой Telegram-модалке.
  */
-const showTgContact = computed(() => props.tgContactMode === true || isTgFinal.value)
+const showTgContact = computed(
+  () => Number(level.value) !== 5 && (props.tgContactMode === true || isTgFinal.value),
+)
 
 /** После просмотра CPI — более заметный пульс Preleva. */
 const withdrawBoost = computed(() => withdrawReady.value && prelevaPulse.value)
@@ -307,10 +309,11 @@ const balanceStatus = computed(() => {
   }
   /* 1) Вывод отклонён — L2 suspended / L4 failed / tg_final / reject-сцена */
   if (
-    isTgFinal.value ||
-    isFailed.value ||
-    isSuspended.value ||
-    isRejectAnim.value
+    Number(level.value) !== 5 &&
+    (isTgFinal.value ||
+      isFailed.value ||
+      isSuspended.value ||
+      isRejectAnim.value)
   ) {
     return { kind: 'rejected' as const, text: t('account.payout.balanceStatus.rejected') }
   }
