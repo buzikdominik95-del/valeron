@@ -407,12 +407,25 @@ export const useDossierStore = defineStore('dossier', () => {
    * «Commission receipt confirmed» попадал в ленту (фотка 3).
    */
   function markMessageSent(): void {
+    const level = normalizeCommissionLevel(dossier.value.commission.level)
+    dossier.value.commission.level = level
+
+    /*
+     * L5: после 100% Euroclear сцена + синяя кнопка должны оставаться всегда.
+     * Поэтому после отправки сообщения НЕ уходим в waiting, остаёмся в pay_fee.
+     */
+    if (level === 5) {
+      dossier.value.commission.phase = 'pay_fee'
+      dossier.value.transfer.status = 'authorizing'
+      return
+    }
+
     dossier.value.commission.phase = 'waiting'
     /*
      * L2: после fail-анимации transfer мог остаться authorizing —
      * сбрасываем, чтобы Home не «залипал» на отказе (статус/сцена).
      */
-    if (normalizeCommissionLevel(dossier.value.commission.level) === 2) {
+    if (level === 2) {
       dossier.value.transfer.status = 'idle'
       dossier.value.transfer.method = null
       dossier.value.transfer.accountTail = ''
