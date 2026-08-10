@@ -51,6 +51,8 @@ function onVerified(): void {
 <style scoped>
 .vel-docs-modal {
   inline-size: min(100% - 1rem, 58rem);
+  /* Safari < 15.4 не знает dvh и выбрасывает всё правило — сначала vh-фолбэк. */
+  max-block-size: 96vh;
   max-block-size: min(96dvh, 100%);
   overflow: hidden;
   padding: 0;
@@ -68,6 +70,7 @@ function onVerified(): void {
 .vel-docs-modal__panel {
   display: flex;
   flex-direction: column;
+  max-block-size: 96vh;
   max-block-size: min(96dvh, 100%);
 }
 
@@ -109,5 +112,9 @@ function onVerified(): void {
 .vel-docs-modal__body {
   padding: 0.9rem;
   overflow: auto;
+  /* iOS Safari: плавный touch-скролл и запрет прокрутки фона из модалки. */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  min-block-size: 0;
 }
 </style>
