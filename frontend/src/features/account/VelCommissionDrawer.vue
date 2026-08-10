@@ -290,6 +290,8 @@ watch(open, (isOpen) => {
           :fee-text="feeText"
           :help-title-override="helpModalTitle"
           :help-body-override="helpModalBody"
+          :note-title-override="commissionContent.calloutTitle"
+          :note-body-override="commissionContent.calloutBody"
           @next="goToPay"
         />
         <VelCommissionPayStep

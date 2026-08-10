@@ -138,9 +138,9 @@ const withdrawLocked = computed(() => {
     cpiBlocksWithdraw.value ||
     isFailed.value ||
     isTgFinal.value ||
-    isSuspended.value ||
-    isPayFee.value
-    /* waiting/messenger: Preleva остаётся активной, воронка комиссии доступна снова */
+    isSuspended.value
+    /* pay_fee НЕ блокирует Preleva: шаги выполнены, клик снова открывает
+       воронку комиссии. waiting/messenger — тоже активна. */
   )
 })
 

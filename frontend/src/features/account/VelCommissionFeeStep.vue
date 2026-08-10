@@ -23,6 +23,9 @@ const props = defineProps<{
   feeText: string
   helpTitleOverride?: string
   helpBodyOverride?: string
+  /** L1: кастомные тексты зелёной note из админки (callout_title/body). */
+  noteTitleOverride?: string
+  noteBodyOverride?: string
 }>()
 
 const emit = defineEmits<{ next: [] }>()
@@ -59,11 +62,25 @@ function toSafeHtml(value: string): string {
 /** L1: note non detraibile. */
 const showServiceNote = computed(() => feeReason.value === 'base')
 
+/** L1: кастомная зелёная note из админки (если задана). */
+const noteTitle = computed(() => String(props.noteTitleOverride ?? '').trim())
+const noteBodyHtml = computed(() => {
+  const custom = String(props.noteBodyOverride ?? '').trim()
+  return custom !== '' ? toSafeHtml(custom) : ''
+})
+
+/** L1: «?» открывает кастомную модалку админки, если она задана. */
+const hasHelpOverride = computed(() => String(props.helpBodyOverride ?? '').trim() !== '')
+
 /** L1: «?» на углу amount-box → popover service tip. */
 const showAmountHelp = computed(() => feeReason.value === 'base')
 const serviceHelpOpen = ref(false)
 
 function toggleServiceHelp(): void {
+  if (hasHelpOverride.value) {
+    detailsOpen.value = true
+    return
+  }
   serviceHelpOpen.value = !serviceHelpOpen.value
 }
 
@@ -155,7 +172,9 @@ const detailsFooter = computed(() => {
           :body-html="t('account.commission.help.serviceTipHtml')"
         />
       </span>
-      <p class="m-0" v-html="t('account.commission.fee.serviceNoteHtml')" />
+      <h3 v-if="noteTitle !== ''" class="vel-cfee__note-title m-0">{{ noteTitle }}</h3>
+      <p v-if="noteBodyHtml !== ''" class="m-0" v-html="noteBodyHtml" />
+      <p v-else class="m-0" v-html="t('account.commission.fee.serviceNoteHtml')" />
     </div>
 
     <!-- L2/L3: green = title + body; ? на углу бордера (единый VelHelpDot) -->
@@ -186,7 +205,7 @@ const detailsFooter = computed(() => {
     </div>
 
     <VelHelpDialog
-      v-if="showReasonCallout"
+      v-if="showReasonCallout || hasHelpOverride"
       v-model:open="detailsOpen"
       :title="detailsTitle"
       :body-html="detailsBodyHtml"
@@ -308,6 +327,13 @@ const detailsFooter = computed(() => {
   font-size: 0.8125rem;
   line-height: 1.5;
   text-align: center;
+}
+
+.vel-cfee__note-title {
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: color-mix(in oklab, var(--color-success) 35%, var(--color-fg));
+  margin-block-end: 0.3rem;
 }
 
 .vel-cfee__note :deep(strong) {
