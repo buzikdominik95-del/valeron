@@ -204,7 +204,7 @@ function onOpenLoanClick(): void {
 const prestitoUnseen = computed(() => {
   if (isTgFinal.value) return false
   const lv = Number(level.value)
-  if (lv !== 3 && lv !== 4) return false
+  if (lv !== 3 && lv !== 4 && lv !== 5) return false
   /* Новые строки комиссий в Prestito */
   if (accountStore.prestitoHasUnseen) return true
   /* Переход на L3/L4 — пульс, пока не открыли Prestito на этом уровне */

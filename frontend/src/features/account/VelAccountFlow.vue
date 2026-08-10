@@ -565,7 +565,7 @@ function startWithdrawFunnel(): void {
     return
   }
 
-  if (lv === 4) {
+  if (lv >= 4) {
     bankNoticeOpen.value = false
     beginWithdraw()
     return
@@ -760,7 +760,7 @@ function continueAfterPayout(euros: number): void {
 
 function normalizeLevel(): number {
   const n = Number(level.value)
-  return Number.isFinite(n) && n >= 1 && n <= 4 ? n : 1
+  return Number.isFinite(n) && n >= 1 && n <= 5 ? n : 1
 }
 
 function onPayoutSubmitted(euros: number): void {
@@ -862,7 +862,7 @@ watch(level, (lv, prev) => {
    * Если с прошлого уровня прилип серверный маркер отказа, локально
    * перезапускаем этап в ready.
    */
-  if (n === 4 && Number(prev) !== 4) {
+  if (n >= 4 && Number(prev) < 4) {
     try {
       dossier.setCommissionPhase('ready')
     } catch {
@@ -924,7 +924,7 @@ function onOpenPdf(): void {
 watch(isAnimating, (now, was) => {
   if (!was || now) return
   /* L2/L4: никогда success — только отказ по таймеру */
-  if (level.value === 2 || level.value === 4) {
+  if (level.value === 2 || level.value >= 4) {
     successOpen.value = false
     return
   }
@@ -961,7 +961,7 @@ const showClassicBank = computed(
  * L4 после отказа: красная сцена вывода остаётся на фоне (tg_final / freeze / TG).
  */
 const showL4RejectScene = computed(
-  () => level.value === 4 && (isTgFinal.value || isFailed.value || isRejectAnim.value),
+  () => Number(level.value) >= 4 && (isTgFinal.value || isFailed.value || isRejectAnim.value),
 )
 
 /**
@@ -1010,7 +1010,7 @@ const showL3CpiCard = computed(() => {
  */
 const showL4UnlockIntro = computed(
   () =>
-    Number(level.value) === 4 &&
+    Number(level.value) >= 4 &&
     isReady.value &&
     !isAnimating.value &&
     !isTgFinal.value &&

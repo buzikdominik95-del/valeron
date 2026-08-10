@@ -84,7 +84,7 @@ const showTransferBand = computed(
     showL3CpiBand.value ||
     payoutPanelOpen.value ||
     /* L4: intro unlock + animazione / rifiuto / freeze */
-    (level.value === 4 &&
+    (Number(level.value) >= 4 &&
       (isReady.value ||
         isAnimating.value ||
         isTgFinal.value ||
