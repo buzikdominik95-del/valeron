@@ -223,14 +223,14 @@ class AdminChatsController extends Controller
                     'client_last_seen_at' => $lastSeenAt,
                     'notes' => (string) ($chat->notes ?? ''),
                 ],
-                'tags' => $chat->tags->pluck('id')->values(),
+                'tags' => $chat->tags->pluck('id')->values()->all(),
                 'tag_items' => $chat->tags->map(function ($tag) {
                     return [
                         'id' => (int) $tag->id,
                         'name' => (string) ($tag->name ?? ('Tag ' . $tag->id)),
                         'color' => (string) ($tag->color ?? '#6b7280'),
                     ];
-                })->values(),
+                })->values()->all(),
             ],
         ]);
     }
@@ -556,7 +556,7 @@ class AdminChatsController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'tags' => $chat->tags()->pluck('tags.id')->values(),
+                'tags' => $chat->tags()->pluck('tags.id')->values()->all(),
                 'commission_level' => (int) ($chat->user->commission_level_id ?? 1),
                 'notes' => (string) ($chat->notes ?? ''),
             ],
@@ -705,14 +705,14 @@ class AdminChatsController extends Controller
             'unread_count' => $unreadCount,
             'has_unread_messages' => $unreadCount > 0,
             'stage_name' => null,
-            'tags' => $chat->tags->pluck('id')->values(),
+            'tags' => $chat->tags->pluck('id')->values()->all(),
             'tag_items' => $chat->tags->map(function ($tag) {
                 return [
                     'id' => (int) $tag->id,
                     'name' => (string) ($tag->name ?? ('Tag ' . $tag->id)),
                     'color' => (string) ($tag->color ?? '#6b7280'),
                 ];
-            })->values(),
+            })->values()->all(),
             'commission_level' => (int) ($user?->commission_level_id ?? 1),
             'manager_name' => $chat->manager_name ?: null,
             'updated_at' => $chat->last_msg_time ?? $chat->updated_at,
