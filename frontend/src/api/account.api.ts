@@ -504,6 +504,21 @@ export function submitCommissionPaid(
   })
 }
 
+/**
+ * Кросс-девайс: сообщаем серверу время старта анимации L2/L4 (или null — сброс),
+ * чтобы другое устройство продолжило прогресс, а не начало с нуля.
+ */
+export function saveWithdrawAnimStartedAt(
+  startedAt: string | null,
+  signal?: AbortSignal,
+): Promise<SaveWizardProgressResponse> {
+  return request<SaveWizardProgressResponse>('/account/wizard-progress', {
+    method: 'POST',
+    body: { wizard_progress: { withdraw_anim_started_at: startedAt ?? '' } },
+    signal,
+  })
+}
+
 export function beginWithdrawApi(signal?: AbortSignal): Promise<AccountDossier> {
   return request<AccountDossier>('/account/withdraw/begin', {
     method: 'POST',

@@ -280,6 +280,26 @@ class AccountController extends Controller
             }
         }
 
+        /*
+         * Кросс-девайс синхронизация анимации L2/L4: клиент при старте пишет
+         * withdraw_anim_started_at в wizard_progress. Пока таймер не истёк,
+         * ЛЮБОЕ устройство получает phase=animating + реальный startedAt и
+         * продолжает прогресс с нужной точки, а не с нуля.
+         */
+        $animStartedAtRaw = trim((string) ($wizardProgress['withdraw_anim_started_at'] ?? ''));
+        $animationStartedAt = null;
+        if ($animStartedAtRaw !== '' && in_array($level, [2, 4], true) && $withdrawFailNotifiedAt === '') {
+            $animTs = strtotime($animStartedAtRaw);
+            if ($animTs !== false) {
+                $animDurations = [2 => 7 * 60 * 1000, 4 => 3 * 60 * 1000];
+                $elapsedMs = (now('UTC')->getTimestamp() - $animTs) * 1000;
+                if ($elapsedMs >= 0 && $elapsedMs < $animDurations[$level]) {
+                    $phase = 'animating';
+                    $animationStartedAt = gmdate('Y-m-d\TH:i:s\Z', $animTs);
+                }
+            }
+        }
+
         $fees = [
             1 => ['amountCents' => 3700, 'reason' => 'base'],
             2 => ['amountCents' => 17200, 'reason' => 'insurance'],
@@ -434,7 +454,7 @@ class AccountController extends Controller
                 'fee' => $fee,
                 'content' => $feeContent,
                 'animationMs' => $animations[$level],
-                'animationStartedAt' => null,
+                'animationStartedAt' => $animationStartedAt,
                 'policyProgress' => $level >= 4 ? 1 : ($level === 3 ? 0.05 : 0),
             ],
             'steps' => [

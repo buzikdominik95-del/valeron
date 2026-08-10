@@ -133,6 +133,14 @@ export function applyOfflineOutcome(dossier: AccountDossier): void {
   dossier.commission.level = level
   dossier.commission.animationStartedAt = null
 
+  /* Кросс-девайс: сбрасываем метку старта на сервере (fire-and-forget). */
+  void import('@/api/account.api')
+    .then(({ isApiEnabled, saveWithdrawAnimStartedAt }) => {
+      if (isApiEnabled()) return saveWithdrawAnimStartedAt(null)
+      return undefined
+    })
+    .catch(() => undefined)
+
   if (level === 2) {
     dossier.transfer.status = 'suspended'
     dossier.commission.phase = 'suspended'

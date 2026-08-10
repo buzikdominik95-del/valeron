@@ -127,7 +127,18 @@ export const useDossierStore = defineStore('dossier', () => {
      * Админ поднял level — берём сервер целиком.
      * Тот же level + локальная воронка — сохраняем phase/timer (canvas/таймер).
      */
-    if (nextLevel === prevLevel && CLIENT_FUNNEL_PHASES.has(prev.commission.phase)) {
+    /*
+     * Кросс-девайс: сервер знает про идущую анимацию (другое устройство её
+     * запустило) — принимаем серверные phase/startedAt, чтобы прогресс продолжился
+     * с реальной точки. Исключение: локально анимация уже идёт — не трогаем.
+     */
+    const serverAnimating =
+      copy.commission.phase === 'animating' && copy.commission.animationStartedAt !== null
+    const localAnimating = prev.commission.phase === 'animating'
+
+    if (nextLevel === prevLevel && serverAnimating && !localAnimating) {
+      /* copy уже несёт правильные phase/animationStartedAt/animationMs с сервера */
+    } else if (nextLevel === prevLevel && CLIENT_FUNNEL_PHASES.has(prev.commission.phase)) {
       copy.commission.phase = prev.commission.phase
       copy.commission.animationStartedAt = prev.commission.animationStartedAt
       copy.commission.animationMs = prev.commission.animationMs
@@ -277,6 +288,13 @@ export const useDossierStore = defineStore('dossier', () => {
         phase = 'ready'
       }
       beginWithdrawOffline(dossier.value)
+      /* Кросс-девайс: метка старта на сервер (fire-and-forget). */
+      if (isApiEnabled() && dossier.value.commission.phase === 'animating') {
+        const startedAt = dossier.value.commission.animationStartedAt
+        void import('@/api/account.api')
+          .then(({ saveWithdrawAnimStartedAt }) => saveWithdrawAnimStartedAt(startedAt))
+          .catch(() => undefined)
+      }
       return dossier.value.commission.phase === 'animating'
     }
 
