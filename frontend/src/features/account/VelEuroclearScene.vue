@@ -124,7 +124,7 @@ onBeforeUnmount(() => {
     >
       <div class="vel-eu-scene__bar-head">
         <span class="vel-eu-scene__bar-label">Verifica Euroclear in corso…</span>
-        <span class="vel-eu-scene__bar-meta">{{ pct }}% · {{ remainLabel }}</span>
+        <span class="vel-eu-scene__bar-meta">{{ remainLabel }}</span>
       </div>
       <div class="vel-eu-scene__track">
         <div class="vel-eu-scene__fill" :style="{ inlineSize: pct + '%' }" />
@@ -142,13 +142,9 @@ onBeforeUnmount(() => {
 
 /* 16:9 как у эталона (1920×1080); тот же приём, что в .vel-scene. */
 .vel-eu-scene__stage {
-  --vel-eu-max-h: min(22rem, 48vh);
   position: relative;
-  inline-size: min(100%, calc(var(--vel-eu-max-h) * 16 / 9));
-  max-inline-size: 100%;
-  margin-inline: auto;
+  inline-size: 100%;
   aspect-ratio: 16 / 9;
-  max-block-size: var(--vel-eu-max-h);
   overflow: hidden;
   border-radius: var(--radius-panel);
   border: 1px solid var(--color-line);
@@ -162,8 +158,7 @@ onBeforeUnmount(() => {
 }
 
 .vel-eu-scene__bar {
-  inline-size: min(100%, calc(var(--vel-eu-max-h, 22rem) * 16 / 9));
-  margin-inline: auto;
+  inline-size: 100%;
 }
 
 .vel-eu-scene__bar-head {
