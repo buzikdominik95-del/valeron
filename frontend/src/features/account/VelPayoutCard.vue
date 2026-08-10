@@ -112,6 +112,16 @@ const cpiBlocksWithdraw = computed(
 )
 
 /**
+ * L5: когда сцена Euroclear должна оставаться на экране,
+ * верхняя кнопка Preleva fondi заблокирована.
+ */
+const l5EuroclearSticky = computed(
+  () =>
+    Number(level.value) === 5 &&
+    (isAnimating.value || isPayFee.value || isMessenger.value || isWaiting.value),
+)
+
+/**
  * Preleva заперт: анимация отклонения L2, CPI, suspended, pay_fee,
  * waiting, L4 fail/tg.
  * phase=messenger НЕ блокирует Preleva: пользователь может уйти на Home
@@ -131,6 +141,7 @@ const withdrawLocked = computed(() => {
     (isSuspended.value || isPayFee.value || isRejectAnim.value || l2Sticky)
 
   return (
+    l5EuroclearSticky.value ||
     l2Lock ||
     l2Sticky ||
     isAnimating.value ||
