@@ -49,9 +49,34 @@ class AdminChatsController extends Controller
          * (WS-пинги у нескольких менеджеров) не должны строить тяжёлый payload
          * одновременно. Первый берёт lock и строит, остальные ждут и читают кэш.
          */
+        /*
+         * Stale-while-revalidate: если версия кэша сброшена (новое сообщение),
+         * не заставляем менеджера ждать холодную сборку 4с+ — мгновенно отдаём
+         * последний известный payload, а свежий построит тот, кто взял lock.
+         */
+        $staleKey = 'admin_chats_last:' . $scope . ':' .
+            (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0);
+
+        $staleKey = 'admin_chats_last:' . $scope . ':' .
+            (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0);
+
         $lock = Cache::lock('lock:' . $cacheKey, 15);
         $gotLock = $lock->get();
         if (!$gotLock) {
+            $stale = Cache::get($staleKey);
+            if (is_array($stale)) {
+                return response()
+                    ->json($stale, 200, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
+                    ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                    ->header('Pragma', 'no-cache');
+            }
+            $stale = Cache::get($staleKey);
+            if (is_array($stale)) {
+                return response()
+                    ->json($stale, 200, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
+                    ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                    ->header('Pragma', 'no-cache');
+            }
             try {
                 $lock->block(12);
                 $gotLock = true;
@@ -133,6 +158,8 @@ class AdminChatsController extends Controller
         }
 
         Cache::put($cacheKey, $payload, now()->addSeconds(8));
+        Cache::put($staleKey, $payload, now()->addMinutes(10));
+        Cache::put($staleKey, $payload, now()->addMinutes(10));
         } finally {
             if ($gotLock) {
                 try { $lock->release(); } catch (\Throwable $e) {}
