@@ -90,9 +90,24 @@ function createCpiBuild(): CpiBuildApi {
   const phase = computed(() => dossier.value.commission.phase)
 
   function ensureLoadStart(): void {
-    if (!loadStartedAt.value || loadStartedAt.value <= 0) {
-      loadStartedAt.value = Date.now()
+    if (loadStartedAt.value && loadStartedAt.value > 0) return
+    /*
+     * Кросс-сессия: localStorage пуст (relogin / новое устройство), но сервер
+     * уже знает прогресс генерации (policy_build_started_at → policyProgress).
+     * Восстанавливаем виртуальный старт, чтобы не крутить 5 минут заново.
+     */
+    const serverProgress = Number(dossier.value.commission.policyProgress ?? 0)
+    if (serverProgress >= 0.98) {
+      /* Генерация уже завершилась на сервере — сразу «сертификат готов». */
+      loadStartedAt.value = Date.now() - loadMs.value
+      return
     }
+    if (serverProgress > 0.05) {
+      const elapsed = Math.round((serverProgress / 0.98) * loadMs.value)
+      loadStartedAt.value = Date.now() - Math.min(elapsed, loadMs.value)
+      return
+    }
+    loadStartedAt.value = Date.now()
   }
 
   function tickLoad(): void {
