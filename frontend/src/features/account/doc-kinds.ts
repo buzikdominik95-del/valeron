@@ -58,8 +58,8 @@ export type DocSide = (typeof DOC_SIDES)[number]
  */
 export const DOC_KIND_SIDES: Record<DocKind, readonly DocSide[]> = {
   passport: ['front'],
-  idCard: ['front', 'back'],
-  licence: ['front', 'back'],
+  idCard: ['front'],
+  licence: ['front'],
 }
 
 /**
@@ -83,8 +83,7 @@ export function docShotsKey(kind: DocKind): 'shotsOne' | 'shotsTwo' {
  * iOS/Android: image/* + heic; пустой type у части камер — по расширению.
  * PDF — скан с МФУ.
  */
-export const DOC_ACCEPT =
-  'image/*,image/jpeg,image/png,image/heic,image/heif,image/webp,application/pdf,.jpeg,.jpg,.png,.heic,.heif,.webp,.pdf'
+export const DOC_ACCEPT = 'image/jpeg,image/png,image/webp,.jpeg,.jpg,.png,.webp'
 
 /** Предел размера. Число подставляется и в подпись под кнопкой, и в текст ошибки. */
 export const DOC_MAX_FILE_MB = 20
@@ -93,16 +92,16 @@ const BYTES_IN_MB = 1024 * 1024
 
 export const DOC_MAX_FILE_BYTES = DOC_MAX_FILE_MB * BYTES_IN_MB
 
-const IMAGE_EXT = /\.(jpe?g|png|heic|heif|webp|gif|bmp|pdf)$/i
+const IMAGE_EXT = /\.(jpe?g|png|webp)$/i
 
-/** Снимок/скан: MIME или расширение (мобильные камеры часто type=''). */
+const SUPPORTED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+/** Снимок: только форматы, которые реально проверяет il server (JPEG/PNG/WEBP). */
 export function isSupportedDocFile(file: File): boolean {
   const type = (file.type || '').toLowerCase()
-  if (type.startsWith('image/')) return true
-  if (type === 'application/pdf') return true
+  if (SUPPORTED_MIME.has(type)) return true
   if (type === '' || type === 'application/octet-stream') {
-    const name = file.name || ''
-    return IMAGE_EXT.test(name)
+    return IMAGE_EXT.test(file.name || '')
   }
   return false
 }

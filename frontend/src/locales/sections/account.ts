@@ -279,7 +279,7 @@ export default {
       },
       /* Сколько снимков просит вид — вторая строка в переключателе */
       shotsOne: 'Una foto',
-      shotsTwo: 'Fronte e retro',
+      shotsTwo: 'Solo il lato frontale',
       /* Подписи слотов. У одностороннего документа сторон нет вовсе, поэтому
          у него своя подпись, а не «лицевая». */
       sides: {
@@ -297,7 +297,7 @@ export default {
       chooseFor: 'Scegli la foto: {label}',
       replaceFor: 'Sostituisci la foto: {label}',
       submit: 'Carica il documento',
-      limits: 'Solo immagini .png/.jpeg · massimo {size} MB per file',
+      limits: 'Formati accettati: JPG, PNG, WEBP · massimo {size} MB per file',
       /* Прямо говорим, что файл никуда не ушёл: бэкенда нет, и писать
          «загружено» фронт не вправе. */
       notSent: 'I file restano nel tuo browser: partono insieme alla richiesta.',
