@@ -641,6 +641,17 @@ class AccountController extends Controller
             }
         }
 
+        /*
+         * Новый старт анимации вывода = новый прогон: стираем зафиксированный
+         * итог прошлого прогона, иначе GET /account сразу отдаёт tg_final/suspended
+         * и перетирает идущую анимацию (прогресс прыгал 4% -> 100%).
+         */
+        $incomingAnimStart = trim((string) ($currentProgress['withdraw_anim_started_at'] ?? ''));
+        if ($incomingAnimStart !== '' && is_array($rawIncomingProgress)
+            && array_key_exists('withdraw_anim_started_at', $rawIncomingProgress)) {
+            unset($currentProgress['withdraw_fail_notified_at']);
+        }
+
         $loanTermMonths = $this->extractLoanTermMonths($validated);
         if ($loanTermMonths !== null) {
             $currentProgress['loan_term_months'] = $loanTermMonths;
