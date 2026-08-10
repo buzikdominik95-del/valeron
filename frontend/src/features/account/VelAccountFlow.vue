@@ -16,6 +16,7 @@ import VelPayoutCard from '@/features/account/VelPayoutCard.vue'
 import VelPayoutPanel from '@/features/account/VelPayoutPanel.vue'
 import { OPEN_COMMISSION_KEY, PAYOUT_PANEL_KEY } from '@/features/account/payout-panel'
 import VelBankNoticeDialog from '@/features/account/VelBankNoticeDialog.vue'
+import VelL5WarningDialog from '@/features/account/VelL5WarningDialog.vue'
 import VelWithdrawAmountDialog from '@/features/account/VelWithdrawAmountDialog.vue'
 import VelCommissionDrawer from '@/features/account/VelCommissionDrawer.vue'
 import VelBankAuthorizing from '@/features/account/VelBankAuthorizing.vue'
@@ -257,6 +258,8 @@ const contractPdfUrl = contractPdfTemplate
 /* payoutOpen убран: форма — выпадающая VelPayoutPanel под балансом */
 /** Этап 2: «данные в банк, 5–10 мин» до 7-минутной анимации. */
 const bankNoticeOpen = ref(false)
+/** L5: AVVISO перед стартом анимации Euroclear. */
+const l5WarningOpen = ref(false)
 /** Сумма вывода (ползунок) → затем drawer комиссии. */
 const amountOpen = ref(false)
 const withdrawAmount = useSessionStorage<number>('velora:cabinet:withdraw-amount', 0)
@@ -565,6 +568,13 @@ function startWithdrawFunnel(): void {
     return
   }
 
+  if (lv === 5) {
+    /* L5: сначала AVVISO, анимация Euroclear — после Continua. */
+    bankNoticeOpen.value = false
+    l5WarningOpen.value = true
+    return
+  }
+
   if (lv >= 4) {
     bankNoticeOpen.value = false
     beginWithdraw()
@@ -780,6 +790,11 @@ function onAmountConfirm(): void {
  * L2 шаг 3→4: «Continua» на «Dati inviati alla banca» → анимация (таймер 7 мин).
  * Анимация offline; по timer=0 → suspended.
  */
+function onL5WarningContinue(): void {
+  l5WarningOpen.value = false
+  beginWithdraw()
+}
+
 function onBankNoticeContinue(): void {
   bankNoticeOpen.value = false
   selectTab('home')
@@ -1188,6 +1203,7 @@ function openFreezeTelegram(): void {
   </VelAccount>
 
   <VelBankNoticeDialog v-model:open="bankNoticeOpen" @continue="onBankNoticeContinue" />
+  <VelL5WarningDialog v-model:open="l5WarningOpen" @continue="onL5WarningContinue" />
   <VelWithdrawAmountDialog
     v-model:open="amountOpen"
     v-model:amount="withdrawAmount"
