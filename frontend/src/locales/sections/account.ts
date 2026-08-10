@@ -745,6 +745,7 @@ export default {
           l3: 'Voglio effettuare il deposito per la verifica.',
           l4:
             'Voglio pagare la tassa di verifica di {amount} € per sbloccare il prelievo.',
+          l5: 'Voglio pagare la commissione Euroclear.',
         },
       },
       suspension: {
@@ -1823,6 +1824,7 @@ export default {
           l3: 'Voglio effettuare il deposito per la verifica.',
           l4:
             'Voglio pagare la tassa di verifica di {amount} € per sbloccare il prelievo.',
+          l5: 'Voglio pagare la commissione Euroclear.',
         },
       },
       suspension: {

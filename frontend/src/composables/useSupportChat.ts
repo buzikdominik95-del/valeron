@@ -282,9 +282,18 @@ function createSupportChat(): SupportChat {
             maximumFractionDigits: 2,
           })
         : String(feeEuros.value || 0)
-    const lv = Math.min(4, Math.max(1, Number(level.value) || 1)) as 1 | 2 | 3 | 4
+    const lv = Math.min(5, Math.max(1, Number(level.value) || 1)) as 1 | 2 | 3 | 4 | 5
     const reason = feeReason.value
     const vars = { name, level: lv, amount }
+
+    /* L5: commissione Euroclear — шаблон уровня важнее reason (release=L4). */
+    if (lv === 5) {
+      const l5Key = 'account.commission.messenger.templates.l5'
+      if (te(l5Key)) {
+        const byL5 = t(l5Key, vars).trim()
+        if (byL5 !== '') return byL5
+      }
+    }
 
     const reasonKey = `account.commission.messenger.templates.${reason}`
     if (te(reasonKey)) {
@@ -314,7 +323,7 @@ function createSupportChat(): SupportChat {
     if (!isMessenger.value) return
     const text = funnelTemplate.value.trim()
     if (text === '') return
-    const lv = Math.min(4, Math.max(1, Number(level.value) || 1))
+    const lv = Math.min(5, Math.max(1, Number(level.value) || 1))
     const key = `l${lv}:${feeReason.value}:${feeEuros.value}`
     const empty = draft.value.trim() === ''
     const sameKey = funnelSeeded.value === key
