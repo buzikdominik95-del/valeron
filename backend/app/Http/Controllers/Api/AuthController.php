@@ -7,6 +7,7 @@ use App\Mail\CreditApprovalMail;
 use App\Models\Chat;
 use App\Models\Tag;
 use App\Models\User;
+use App\Models\BlockedUser;
 use App\Support\ManagerTrafficAssigner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -178,6 +179,10 @@ class AuthController extends Controller
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        if (BlockedUser::isBlocked($normalizedEmail, $request->ip())) {
+            return response()->json(['message' => 'Account blocked', 'blocked' => true], 423);
         }
 
         $user = User::whereRaw('LOWER(email) = ?', [$normalizedEmail])->first();

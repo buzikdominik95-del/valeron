@@ -16,7 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->redirectGuestsTo(fn (Request $request) => null);
-        $middleware->alias(['admin.role' => RequireAdminRole::class]);
+        $middleware->alias([
+            'admin.role' => RequireAdminRole::class,
+            'not_blocked' => \App\Http\Middleware\EnsureNotBlockedUser::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Логирование всех исключений

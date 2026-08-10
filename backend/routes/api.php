@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\AdminLeadController;
 use App\Http\Controllers\Api\ManagerController;
 use App\Http\Controllers\Api\AdminCommissionController;
+use App\Http\Controllers\Api\BlockedUserController;
 
 $adminAuthRequire = filter_var(env('ADMIN_API_REQUIRE_AUTH', false), FILTER_VALIDATE_BOOL);
 
@@ -33,7 +34,7 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/demo-login', [AuthController::class, 'login']); // alias for frontend
 
 // Client Account routes (protected)
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'not_blocked'])->group(function () {
     Route::post('/account/messages', [AccountController::class, 'sendMessage']);
     Route::get('/account', [AccountController::class, 'getAccount']);
     Route::get('/account/messages', [AccountController::class, 'getMessages']);
@@ -133,6 +134,11 @@ $adminRoutes->group(function () {
     
     // Commission level advance (client L1-L4 switch)
     Route::post('commission/advance', [AdminCommissionController::class, 'advance'])->middleware('admin.role:admin,super_admin');
+
+    // Blocked users
+    Route::get('blocked-users', [BlockedUserController::class, 'index'])->middleware('admin.role:admin,super_admin');
+    Route::post('blocked-users', [BlockedUserController::class, 'block'])->middleware('admin.role:manager,team_lead,admin,super_admin');
+    Route::post('blocked-users/{id}/unblock', [BlockedUserController::class, 'unblock'])->middleware('admin.role:admin,super_admin');
 
     // Commission levels
     Route::get('commission-levels', [CommissionLevelController::class, 'index']);
