@@ -197,15 +197,14 @@ function onRejected(): void {
 }
 
 .vel-docs-modal__body {
+  flex: 1 1 auto;
+  min-block-size: 0;
   padding: 0.9rem;
   overflow: auto;
   /* iOS Safari: плавный touch-скролл и запрет прокрутки фона из модалки. */
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  min-block-size: 0;
 }
-</style>
-
 
 @media (max-width: 640px) {
   .vel-docs-modal {
@@ -218,3 +217,6 @@ function onRejected(): void {
     max-block-size: calc(100dvh - 0.75rem);
   }
 }
+
+</style>
+
