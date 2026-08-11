@@ -22,3 +22,8 @@ frontend/dist/
 *.bak-*
 HTTPS
 progress/window_backups/
+
+# Uptime Kuma runtime DB
+uptime-kuma/kuma.db
+uptime-kuma/kuma.db-shm
+uptime-kuma/kuma.db-wal
