@@ -90,8 +90,8 @@ function onRejected(): void {
 .vel-docs-modal {
   inline-size: min(100% - 1rem, 58rem);
   /* Safari < 15.4 не знает dvh и выбрасывает всё правило — сначала vh-фолбэк. */
-  max-block-size: 96vh;
-  max-block-size: min(96dvh, 100%);
+  max-block-size: 92vh;
+  max-block-size: min(92dvh, 100%);
   overflow: hidden;
   padding: 0;
   border: 1px solid var(--color-line);
@@ -157,8 +157,8 @@ function onRejected(): void {
 .vel-docs-modal__panel {
   display: flex;
   flex-direction: column;
-  max-block-size: 96vh;
-  max-block-size: min(96dvh, 100%);
+  max-block-size: 92vh;
+  max-block-size: min(92dvh, 100%);
 }
 
 .vel-docs-modal__head {
@@ -205,3 +205,16 @@ function onRejected(): void {
   min-block-size: 0;
 }
 </style>
+
+
+@media (max-width: 640px) {
+  .vel-docs-modal {
+    inline-size: calc(100% - 0.75rem);
+    max-block-size: calc(100dvh - 0.75rem);
+    margin: 0.375rem auto;
+  }
+
+  .vel-docs-modal__panel {
+    max-block-size: calc(100dvh - 0.75rem);
+  }
+}

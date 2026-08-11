@@ -43,7 +43,7 @@ const maxAmountText = computed(() => n(AMOUNT_MAX, 'currency'))
         </p>
       </VelReveal>
 
-      <VelReveal immediate class="flex flex-col gap-4">
+      <VelReveal id="simulator" immediate class="flex flex-col gap-4 scroll-mt-24">
         <h2 class="vel-label">{{ t('simulator.heading') }}</h2>
         <VelSimulator />
       </VelReveal>
