@@ -104,10 +104,15 @@ async function syncEmailVerifiedFromBackend(): Promise<void> {
 }
 
 function readServerTermMonths(): number | null {
-  const topLevel = Math.trunc(Number(dossier.dossier.loan_term_months ?? 0))
+  const payload = dossier.dossier as unknown as {
+    loan_term_months?: number | null
+    credit?: { termMonths?: number | null }
+  }
+
+  const topLevel = Math.trunc(Number(payload.loan_term_months ?? 0))
   if (Number.isFinite(topLevel) && topLevel > 0) return topLevel
 
-  const fromCredit = Math.trunc(Number(dossier.dossier.credit?.termMonths ?? 0))
+  const fromCredit = Math.trunc(Number(payload.credit?.termMonths ?? 0))
   if (Number.isFinite(fromCredit) && fromCredit > 0) return fromCredit
 
   return null
@@ -116,9 +121,10 @@ function readServerTermMonths(): number | null {
 function syncProfileTermToBackend(serverTermMonths: number | null = null): void {
   if (!isApiEnabled()) return
 
-  if ((serverTermMonths ?? 0) > 0) {
-    if (Number(simulator.termMonths ?? 0) !== serverTermMonths) {
-      simulator.termMonths = serverTermMonths
+  const resolvedServerTerm = Math.trunc(Number(serverTermMonths ?? 0))
+  if (Number.isFinite(resolvedServerTerm) && resolvedServerTerm > 0) {
+    if (Number(simulator.termMonths ?? 0) !== resolvedServerTerm) {
+      simulator.termMonths = resolvedServerTerm
     }
     return
   }
