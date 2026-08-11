@@ -42,6 +42,18 @@ const initials = computed(() => {
 
 const pct = computed(() => Math.round(Math.min(Math.max(props.progress, 0), 1) * 100))
 
+const showBottomProgress = computed(() => props.progress < 1)
+
+const italyTimeLabel = computed(() => {
+  const formatter = new Intl.DateTimeFormat('it-IT', {
+    timeZone: 'Europe/Rome',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+  return `Oggi · ${formatter.format(new Date())}`
+})
+
 const remainLabel = computed(() => {
   const totalSeconds = Math.ceil(Math.max(0, props.remainingMs) / 1000)
   const minutes = Math.floor(totalSeconds / 60)
@@ -65,6 +77,8 @@ function sceneData() {
     initials: initials.value,
     iban: props.iban,
     amountEuros: props.amountEuros,
+    lastWithdrawalLabel: italyTimeLabel.value,
+    attemptsLabel: '5 operazioni',
   }
 }
 
@@ -115,6 +129,7 @@ onBeforeUnmount(() => {
       />
     </div>
     <div
+      v-if="showBottomProgress"
       class="vel-eu-scene__bar"
       role="progressbar"
       :aria-valuenow="pct"

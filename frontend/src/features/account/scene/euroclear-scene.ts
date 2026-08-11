@@ -13,6 +13,10 @@ export interface EuroclearSceneData {
   iban: string
   /** Запрошенная сумма вывода, € (целое). */
   amountEuros: number
+  /** Последний вывод в формате итальянского времени (например: Oggi · 14:22). */
+  lastWithdrawalLabel: string
+  /** Строка количества попыток (например: 5 operazioni). */
+  attemptsLabel: string
 }
 
 export const EU_SCENE_W = 1920
@@ -444,8 +448,8 @@ function drawAccountCard(f: number, gx: number, gy: number, data: EuroclearScene
   ctx.restore()
   const amountLabel = `€ ${new Intl.NumberFormat('it-IT').format(Math.max(0, Math.round(data.amountEuros)))}`
   const rows = [
-    { k: 'Ultimo prelievo', v: 'Oggi · 14:22', hot: true },
-    { k: 'Tentativi (7 giorni)', v: '6 operazioni', hot: true },
+    { k: 'Ultimo prelievo', v: data.lastWithdrawalLabel, hot: true },
+    { k: 'Tentativi', v: data.attemptsLabel, hot: true },
     { k: 'Importo richiesto', v: amountLabel, hot: false },
     { k: 'Metodo', v: 'Bonifico SEPA Instant', hot: false },
     { k: 'Esito rischio', v: f > 250 ? 'In revisione' : 'Analisi…', hot: true },
