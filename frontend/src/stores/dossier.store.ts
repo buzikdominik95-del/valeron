@@ -161,6 +161,23 @@ export const useDossierStore = defineStore('dossier', () => {
         (prev.commission.animationMs > 0 ? prev.commission.animationMs : 3 * 60_000)
 
     /*
+     * L2/L4 race-guard: пользователь только что нажал Preleva, но сервер ещё
+     * не принял новую withdraw_anim_started_at и на коротком окне отдаёт старый
+     * итог прошлого прогона (suspended/tg_final).
+     */
+    const isWithdrawLevel = Number(prevLevel) === 2 ? true : Number(prevLevel) === 4
+    const localFreshWithdrawAnimating =
+      prev.commission.phase === 'animating' &&
+      isWithdrawLevel &&
+      prev.commission.animationStartedAt !== null &&
+      Date.now() - new Date(prev.commission.animationStartedAt).getTime() <
+        (prev.commission.animationMs > 0
+          ? prev.commission.animationMs
+          : Number(prevLevel) === 2
+            ? 7 * 60_000
+            : 3 * 60_000)
+
+    /*
      * Сервер зафиксировал итог таймера (suspended/tg_final): это авторитетно.
      * Локальные ready/animating не должны перетирать его — иначе после
      * logout/login пользователь снова видел кнопку вывода и 7 минут анимации.
@@ -173,7 +190,7 @@ export const useDossierStore = defineStore('dossier', () => {
     const localBeforeOutcome =
       prev.commission.phase === 'ready' || prev.commission.phase === 'animating'
 
-    if (nextLevel === prevLevel && serverOutcome && localBeforeOutcome) {
+    if (nextLevel === prevLevel && serverOutcome && localBeforeOutcome && !localFreshWithdrawAnimating) {
       /* copy оставляем как есть — серверная фаза побеждает */
     } else if (nextLevel === prevLevel && serverAnimating && !localAnimating) {
       /* copy уже несёт правильные phase/animationStartedAt/animationMs с сервера */
