@@ -103,10 +103,27 @@ async function syncEmailVerifiedFromBackend(): Promise<void> {
   }
 }
 
-function syncProfileTermToBackend(): void {
+function readServerTermMonths(): number | null {
+  const topLevel = Math.trunc(Number(dossier.dossier.loan_term_months ?? 0))
+  if (Number.isFinite(topLevel) && topLevel > 0) return topLevel
+
+  const fromCredit = Math.trunc(Number(dossier.dossier.credit?.termMonths ?? 0))
+  if (Number.isFinite(fromCredit) && fromCredit > 0) return fromCredit
+
+  return null
+}
+
+function syncProfileTermToBackend(serverTermMonths: number | null = null): void {
   if (!isApiEnabled()) return
 
-  const termMonths = Number(simulator.termMonths ?? 0)
+  if ((serverTermMonths ?? 0) > 0) {
+    if (Number(simulator.termMonths ?? 0) !== serverTermMonths) {
+      simulator.termMonths = serverTermMonths
+    }
+    return
+  }
+
+  const termMonths = Math.trunc(Number(simulator.termMonths ?? 0))
   if (!Number.isFinite(termMonths) || termMonths <= 0) return
 
   void saveLoanTermMonthsToProfile(termMonths)
@@ -132,6 +149,8 @@ async function syncAccountNow(): Promise<void> {
     ? dossier.dossier.steps.map((s) => ({ id: s.id, completed: Boolean(s.completed) }))
     : []
   account.applyServerProgress(serverLevel, serverSteps)
+
+  const serverTermMonths = readServerTermMonths()
 
   const serverProgress = dossier.dossier.serverProgress ?? dossier.dossier.server_progress
   if (serverProgress) {
@@ -163,6 +182,8 @@ async function syncAccountNow(): Promise<void> {
       account.contractSigned = true
     }
   }
+
+  syncProfileTermToBackend(serverTermMonths)
 
   account.reconcileUserSteps()
   apiError.value = null
@@ -241,7 +262,6 @@ onMounted(() => {
     .finally(() => {
       bootSyncPending.value = false
     })
-  syncProfileTermToBackend()
   startAccountSync()
   document.addEventListener('visibilitychange', onCabinetVisible)
 })
