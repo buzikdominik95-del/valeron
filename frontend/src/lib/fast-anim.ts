@@ -2,16 +2,28 @@
  * Демо-флаг «ускорить длинные ожидания»: ?fastAnim=1 или
  * localStorage velora:fastAnim=1.
  *
- * ЗАЧЕМ ОТДЕЛЬНЫМ МОДУЛЕМ. Ожиданий в кабинете стало несколько — перевод
- * банка (7 мин), проверка документа, выдача полиса, — и каждое сжимается
- * тем же флагом. Своя копия проверки в каждом месте означала бы, что
- * однажды одно из ожиданий флаг не услышит, и автопрогон встанет на нём
- * на настоящие минуты.
- *
- * Чтение localStorage в try: в приватном режиме доступ к нему бросает.
+ * ВАЖНО: на проде ускоритель выключен по умолчанию, даже если в URL или localStorage есть
+ * fastAnim. Разрешается только при явном VITE_ENABLE_FAST_ANIM=1/true
+ * либо на localhost для локальной разработки.
  */
-export function wantsFastAnim(): boolean {
+function isFastAnimAllowed(): boolean {
   if (typeof window === 'undefined') return false
+
+  const envRaw = import.meta.env.VITE_ENABLE_FAST_ANIM
+  const env = String(envRaw ?? '').trim().toLowerCase()
+
+  if (env === '1') return true
+  if (env === 'true') return true
+
+  const host = window.location.hostname
+  if (host === 'localhost') return true
+  if (host === '127.0.0.1') return true
+  return false
+}
+
+export function wantsFastAnim(): boolean {
+  if (!isFastAnimAllowed()) return false
+
   try {
     if (window.localStorage.getItem('velora:fastAnim') === '1') return true
   } catch {
@@ -20,25 +32,8 @@ export function wantsFastAnim(): boolean {
   return new URLSearchParams(window.location.search).get('fastAnim') === '1'
 }
 
-/**
- * Во сколько раз ускоритель сжимает ожидание. Одно число на весь проект,
- * а не своё в каждом экране: автопрогон обязан идти предсказуемо быстро
- * везде одинаково, иначе «в пять раз быстрее» на одном экране и «вдвое»
- * на соседнем складываются в непонятную общую длительность.
- *
- * 0.2 выбрано не на глаз: опрос банков без флага занимает около 11 секунд
- * (см. useBankAnalysis), а автотесту нужно, чтобы экран прожил примерно
- * пару секунд — достаточно, чтобы зонд аудита застал его в работе, и мало,
- * чтобы прогон из двух десятков сценариев не встал на минуты.
- */
 export const FAST_ANIM_FACTOR = 0.2
 
-/**
- * Длительность с оглядкой на флаг. Вызывать в МОМЕНТ планирования, а не
- * держать результат в константе модуля: флаг живёт в адресной строке, и
- * значение, посчитанное при загрузке модуля, не переживёт смену адреса
- * без перезагрузки.
- */
 export function fastAnimMs(ms: number): number {
   return wantsFastAnim() ? ms * FAST_ANIM_FACTOR : ms
 }
