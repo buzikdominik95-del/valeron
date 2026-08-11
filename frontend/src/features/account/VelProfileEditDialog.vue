@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import { ApiError } from '@/api/http'
-import { sendEmailChangeCode, confirmEmailChange } from '@/api/auth.api'
+import { sendEmailChangeCode, confirmEmailChange, changeAccountPasswordApi } from '@/api/auth.api'
 import { useAccountStore } from '@/stores/account.store'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelField from '@/components/ui/VelField.vue'
@@ -195,7 +195,7 @@ async function submitEmailFlow(): Promise<void> {
   }
 }
 
-function onSubmit(): void {
+async function onSubmit(): Promise<void> {
   tried.value = true
   formError.value = ''
   if (props.kind === 'email' && emailStep.value === 'code') {
@@ -221,8 +221,14 @@ function onSubmit(): void {
     }
 
     if (props.kind === 'password') {
-      account.setAccountPassword(newPass.value)
-      showResult(true, t('account.profileEdit.successPassword'))
+      try {
+        await changeAccountPasswordApi(currentPass.value, newPass.value)
+        account.setAccountPassword(newPass.value)
+        showResult(true, t('account.profileEdit.successPassword'))
+      } catch (error) {
+        showResult(false, apiErrorMessage(error))
+      }
+      return
     }
   } catch {
     showResult(false, t('account.profileEdit.failGeneric'))
