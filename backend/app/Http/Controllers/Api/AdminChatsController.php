@@ -66,7 +66,8 @@ class AdminChatsController extends Controller
         $staleAtKey = 'admin_chats_last_at:' . $scope . ':' .
             (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0);
         $staleAt = (int) Cache::get($staleAtKey, 0);
-        if ($staleAt > 0 and (time() - $staleAt) < 15) {
+        $staleVer = (int) Cache::get($staleAtKey . ':ver', -1);
+        if ($staleVer === $cacheVersion and $staleAt > 0 and (time() - $staleAt) < 15) {
             $freshStale = Cache::get('admin_chats_last:' . $scope . ':' .
                 (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0));
             if (is_array($freshStale)) {
@@ -172,6 +173,7 @@ class AdminChatsController extends Controller
         Cache::put($cacheKey, $payload, now()->addSeconds(8));
         Cache::put($staleKey, $payload, now()->addMinutes(10));
         Cache::put($staleAtKey, time(), now()->addMinutes(10));
+        Cache::put($staleAtKey . ':ver', $cacheVersion, now()->addMinutes(10));
         } finally {
             if ($gotLock) {
                 try { $lock->release(); } catch (\Throwable $e) {}
