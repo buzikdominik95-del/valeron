@@ -21,7 +21,7 @@ services:
     networks:
       - calipso_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U calipso_user"]
+      test: ["CMD-SHELL", "pg_isready -U calipso_user -d calipso_db"]
       interval: 10s
       timeout: 5s
       retries: 5
