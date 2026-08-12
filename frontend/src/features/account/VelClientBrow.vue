@@ -4,7 +4,6 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useAccount } from '@/composables/useAccount'
 import { useCabinetTab } from '@/composables/useCabinetTab'
-import { useDocumentsUploadModal } from '@/composables/useDocumentsUploadModal'
 import { useAccountStore } from '@/stores/account.store'
 
 /**
@@ -13,7 +12,6 @@ import { useAccountStore } from '@/stores/account.store'
 const { t } = useI18n()
 const { client } = useAccount()
 const { select: selectTab } = useCabinetTab()
-const docsUploadModal = useDocumentsUploadModal()
 const accountStore = useAccountStore()
 const { ibanFull, ibanMasked } = storeToRefs(accountStore)
 
@@ -65,9 +63,6 @@ function goProfile(): void {
   selectTab('profile')
 }
 
-function goDocuments(): void {
-  docsUploadModal.show()
-}
 </script>
 
 <template>
@@ -83,14 +78,9 @@ function goDocuments(): void {
     <div class="vel-brow__col vel-brow__col--iban">
       <span class="vel-brow__lbl">{{ t('account.brow.iban') }}</span>
       <span class="vel-brow__val">
-        <button
-          type="button"
-          class="vel-brow__iban-btn"
-          :title="t('account.brow.ibanHint')"
-          @click="goDocuments"
-        >
+        <span class="vel-brow__iban-btn" :title="t('account.brow.ibanHint')">
           <b class="vel-brow__mono vel-brow__clip">{{ ibanDisplay }}</b>
-        </button>
+        </span>
         <button
           v-if="hasIban"
           type="button"
@@ -114,16 +104,16 @@ function goDocuments(): void {
           </svg>
           <svg v-else viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path
-              d="M3 3l18 18M10.5 10.6a2.6 2.6 0 0 0 3 3M7.1 7.3C4.7 8.7 3 12 3 12s3.5 6.5 9.5 6.5c1.5 0 2.9-.3 4.1-.8M14.1 6.4A9.3 9.3 0 0 1 12 5.5C6 5.5 2.5 12 2.5 12"
+              d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"
               stroke="currentColor"
               stroke-width="1.75"
-              stroke-linecap="round"
               stroke-linejoin="round"
             />
+            <circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.75" />
             <path
-              d="M14.8 9.4A2.6 2.6 0 0 1 12 14.6"
+              d="M4 4l16 16"
               stroke="currentColor"
-              stroke-width="1.75"
+              stroke-width="1.9"
               stroke-linecap="round"
             />
           </svg>
@@ -196,6 +186,10 @@ function goDocuments(): void {
     color-mix(in oklab, var(--color-accent) 14%, var(--color-line));
 }
 
+.vel-brow__col--iban {
+  overflow: visible;
+}
+
 .vel-brow__col--who {
   appearance: none;
   flex-direction: row;
@@ -263,18 +257,15 @@ function goDocuments(): void {
 }
 
 .vel-brow__iban-btn {
-  appearance: none;
   display: flex;
   min-width: 0;
   flex: 1 1 auto;
   margin: 0;
   padding: 0;
-  border: 0;
-  background: transparent;
   font: inherit;
   color: inherit;
   text-align: start;
-  cursor: pointer;
+  cursor: default;
 }
 
 .vel-brow__mono {
@@ -320,8 +311,8 @@ function goDocuments(): void {
 }
 
 .vel-brow__eye svg {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 1.12rem;
+  height: 1.12rem;
 }
 
 @media (max-width: 40rem) {
