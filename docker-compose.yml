@@ -18,6 +18,8 @@ services:
       POSTGRES_DB: calipso_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:25432:5432"
     networks:
       - calipso_network
     healthcheck:
