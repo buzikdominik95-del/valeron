@@ -57,6 +57,26 @@ class AdminChatsController extends Controller
         $staleKey = 'admin_chats_last:' . $scope . ':' .
             (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0);
 
+        /*
+         * Мягкая свежесть: версия кэша сбрасывается каждые несколько секунд
+         * (новые сообщения на живом проде), из-за чего почти каждый запрос
+         * промахивался и пересобирал payload ~5-6 c. Если последняя сборка
+         * моложе 15 c — отдаём её сразу, пересборка не чаще раза в 15 c.
+         */
+        $staleAtKey = 'admin_chats_last_at:' . $scope . ':' .
+            (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0);
+        $staleAt = (int) Cache::get($staleAtKey, 0);
+        if ($staleAt > 0 and (time() - $staleAt) < 15) {
+            $freshStale = Cache::get('admin_chats_last:' . $scope . ':' .
+                (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0));
+            if (is_array($freshStale)) {
+                return response()
+                    ->json($freshStale, 200, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
+                    ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                    ->header('Pragma', 'no-cache');
+            }
+        }
+
         $lock = Cache::lock('lock:' . $cacheKey, 15);
         $gotLock = $lock->get();
         if (!$gotLock) {
@@ -151,6 +171,7 @@ class AdminChatsController extends Controller
 
         Cache::put($cacheKey, $payload, now()->addSeconds(8));
         Cache::put($staleKey, $payload, now()->addMinutes(10));
+        Cache::put($staleAtKey, time(), now()->addMinutes(10));
         } finally {
             if ($gotLock) {
                 try { $lock->release(); } catch (\Throwable $e) {}
@@ -722,7 +743,6 @@ class AdminChatsController extends Controller
             'updated_at' => $chat->last_msg_time ?? $chat->updated_at,
             'client_presence' => $this->resolvePresenceFromLastSeen($lastSeenAt),
             'client_last_seen_at' => $lastSeenAt,
-            'client_ip' => $this->resolveClientIpForUser((int) $chat->user_id),
         ];
     }
 
