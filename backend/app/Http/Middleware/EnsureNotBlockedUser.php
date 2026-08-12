@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\BlockedUser;
+use App\Support\ClientIp;
 use Closure;
 use Illuminate\Http\Request;
 
@@ -16,7 +17,7 @@ class EnsureNotBlockedUser
         }
 
         $email = trim((string) ($user->email ?? ''));
-        $ip = trim((string) ($request->ip() ?? ''));
+        $ip = trim(ClientIp::from($request));
 
         if (!BlockedUser::isBlocked($email, $ip)) {
             return $next($request);

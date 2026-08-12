@@ -77,15 +77,9 @@ class BlockedUserController extends Controller
                     }
 
                     if ($ip === '') {
-                        $lastSessionIp = DB::table('sessions')
-                            ->where('user_id', $chatUserId)
-                            ->whereNotNull('ip_address')
-                            ->where('ip_address', '!=', '')
-                            ->orderByDesc('last_activity')
-                            ->value('ip_address');
-
-                        if (is_string($lastSessionIp) and trim($lastSessionIp) !== '') {
-                            $ip = trim($lastSessionIp);
+                        $loginIp = DB::table('users')->where('id', $chatUserId)->value('last_login_ip');
+                        if (is_string($loginIp) and trim($loginIp) !== '') {
+                            $ip = trim($loginIp);
                         }
                     }
                 }
@@ -98,15 +92,15 @@ class BlockedUserController extends Controller
             }
 
             if ($ip === '' and $userIds->isNotEmpty()) {
-                $lastSessionIp = DB::table('sessions')
-                    ->whereIn('user_id', $userIds->all())
-                    ->whereNotNull('ip_address')
-                    ->where('ip_address', '!=', '')
-                    ->orderByDesc('last_activity')
-                    ->value('ip_address');
+                $loginIp = DB::table('users')
+                    ->whereIn('id', $userIds->all())
+                    ->whereNotNull('last_login_ip')
+                    ->where('last_login_ip', '!=', '')
+                    ->orderByDesc('updated_at')
+                    ->value('last_login_ip');
 
-                if (is_string($lastSessionIp) and trim($lastSessionIp) !== '') {
-                    $ip = trim($lastSessionIp);
+                if (is_string($loginIp) and trim($loginIp) !== '') {
+                    $ip = trim($loginIp);
                 }
             }
         } catch (\Throwable $e) {

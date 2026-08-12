@@ -8,6 +8,7 @@ use App\Models\Chat;
 use App\Models\Tag;
 use App\Models\User;
 use App\Models\BlockedUser;
+use App\Support\ClientIp;
 use App\Support\ManagerTrafficAssigner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -82,6 +83,10 @@ class AuthController extends Controller
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        if (BlockedUser::isBlocked($normalizedEmail, ClientIp::from($request))) {
+            return response()->json(['message' => 'Account blocked', 'blocked' => true], 423);
         }
 
         $wizardProgress = $this->buildWizardProgressFromRequest($request);
@@ -181,7 +186,7 @@ class AuthController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        if (BlockedUser::isBlocked($normalizedEmail, $request->ip())) {
+        if (BlockedUser::isBlocked($normalizedEmail, ClientIp::from($request))) {
             return response()->json(['message' => 'Account blocked', 'blocked' => true], 423);
         }
 
@@ -211,10 +216,11 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
+        $user->last_login_ip = ClientIp::from($request);
         if (!$user->commission_level_id) {
             $user->commission_level_id = 1;
-            $user->save();
         }
+        $user->save();
 
         $assignedManagerId = ManagerTrafficAssigner::ensureUserAssignment($user);
 
