@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\AdminLeadController;
 use App\Http\Controllers\Api\ManagerController;
 use App\Http\Controllers\Api\AdminCommissionController;
 use App\Http\Controllers\Api\BlockedUserController;
+use App\Http\Controllers\Api\AiManagerController;
 
 $adminAuthRequire = filter_var(env('ADMIN_API_REQUIRE_AUTH', false), FILTER_VALIDATE_BOOL);
 
@@ -26,6 +27,36 @@ Broadcast::routes(['middleware' => ['auth:sanctum']]);
 // Test Sentry endpoint
 Route::get("/test-sentry", function() {
     throw new \Exception("🔥 Test Sentry from API - " . now());
+});
+
+
+// Liveness/readiness config health for document AI integration.
+Route::get('/health', function () {
+    $verifyUrl = trim((string) config('services.document_ai.verify_url', ''));
+    $apiKey = trim((string) config('services.document_ai.api_key', ''));
+    $enabled = (bool) config('services.document_ai.enabled', true);
+
+    $checks = [
+        'document_ai_enabled' => $enabled,
+        'document_ai_verify_url_present' => $verifyUrl !== '',
+        'document_ai_api_key_present' => $apiKey !== '',
+    ];
+
+    $ok = true;
+    if ($enabled) {
+        if ($checks['document_ai_verify_url_present'] !== true) {
+            $ok = false;
+        }
+        if ($checks['document_ai_api_key_present'] !== true) {
+            $ok = false;
+        }
+    }
+
+    return response()->json([
+        'success' => $ok,
+        'service' => 'backend',
+        'checks' => $checks,
+    ], $ok ? 200 : 503);
 });
 
 // Client Auth routes
@@ -124,6 +155,41 @@ $adminRoutes->group(function () {
     
     // IBAN settings
     Route::get('settings/iban', [IbanSettingController::class, 'show']);
+
+    // AI Manager (proxy to AI orchestrator)
+    Route::prefix('ai-manager')->middleware('admin.role:admin,super_admin')->group(function () {
+        Route::get('health-snapshot', [AiManagerController::class, 'healthSnapshot']);
+        Route::get('stats', [AiManagerController::class, 'stats']);
+        Route::get('alerts/recent', [AiManagerController::class, 'alertsRecent']);
+        Route::get('queue/aging', [AiManagerController::class, 'queueAging']);
+        Route::get('sla', [AiManagerController::class, 'sla']);
+        Route::get('escalations', [AiManagerController::class, 'escalations']);
+        Route::get('escalations/overdue', [AiManagerController::class, 'escalationsOverdue']);
+        Route::post('escalations/bulk-assign', [AiManagerController::class, 'bulkAssign']);
+        Route::post('escalations/bulk-resolve', [AiManagerController::class, 'bulkResolve']);
+        Route::post('escalations/{id}/assign', [AiManagerController::class, 'assignEscalation']);
+        Route::post('escalations/{id}/resolve', [AiManagerController::class, 'resolveEscalation']);
+        Route::get('personas', [AiManagerController::class, 'personas']);
+        Route::post('personas', [AiManagerController::class, 'createPersona']);
+        Route::put('personas/{id}', [AiManagerController::class, 'updatePersona']);
+        Route::delete('personas/{id}', [AiManagerController::class, 'deletePersona']);
+        Route::post('chat/suggest', [AiManagerController::class, 'suggestReply']);
+        Route::get('chat/{id}/state', [AiManagerController::class, 'chatState']);
+        Route::post('chat/{id}/takeover', [AiManagerController::class, 'takeover']);
+        Route::post('chat/{id}/return-to-ai', [AiManagerController::class, 'returnToAi']);
+        Route::get('local-settings', [AiManagerController::class, 'localSettings']);
+        Route::post('local-settings', [AiManagerController::class, 'saveLocalSettings']);
+        Route::get('workflows', [AiManagerController::class, 'workflows']);
+        Route::post('workflows', [AiManagerController::class, 'createWorkflow']);
+        Route::put('workflows/{id}', [AiManagerController::class, 'updateWorkflow']);
+        Route::delete('workflows/{id}', [AiManagerController::class, 'deleteWorkflow']);
+        Route::post('workflows/{id}/run', [AiManagerController::class, 'runWorkflow']);
+        Route::get('workflow-runs', [AiManagerController::class, 'workflowRuns']);
+
+        Route::get('settings', [AiManagerController::class, 'aiSettings']);
+        Route::post('settings', [AiManagerController::class, 'saveAiSettings']);
+    });
+
     Route::put('settings/iban', [IbanSettingController::class, 'update'])->middleware('admin.role:admin,super_admin');
     Route::post('settings/iban', [IbanSettingController::class, 'update'])->middleware('admin.role:admin,super_admin');
     
