@@ -37,6 +37,10 @@ class BlockedUser extends Model
         $email = trim((string) $email);
         $ipAddress = trim((string) $ipAddress);
 
+        if ($email === '' && $ipAddress === '') {
+            return false;
+        }
+
         return static::query()
             ->active()
             ->where(function ($q) use ($email, $ipAddress) {

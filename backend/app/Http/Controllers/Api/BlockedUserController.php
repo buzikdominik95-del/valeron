@@ -36,31 +36,76 @@ class BlockedUserController extends Controller
     public function block(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'chat_id' => 'nullable|integer',
-            'email' => 'required|email',
+            'chat_id' => 'nullable|integer|min:1',
+            'email' => 'nullable|email',
             'ip_address' => 'nullable|string|max:45',
             'reason' => 'nullable|string|max:255',
             'force_logout' => 'nullable|boolean',
         ]);
 
-        $email = mb_strtolower(trim((string) $validated['email']));
+        $chatId = (int) ($validated['chat_id'] ?? 0);
+        $email = mb_strtolower(trim((string) ($validated['email'] ?? '')));
         $ip = trim((string) ($validated['ip_address'] ?? ''));
 
         $userIds = collect();
 
         try {
-            $userIds = DB::table('users')
-                ->whereRaw('LOWER(email) = ?', [$email])
-                ->pluck('id');
+            $chatUserId = 0;
 
-            if ($ip === '' && $userIds->isNotEmpty()) {
+            if ($chatId > 0) {
+                $chatUserId = (int) (DB::table('chats')->where('id', $chatId)->value('user_id') ?? 0);
+
+                if ($chatUserId > 0) {
+                    $userIds = collect([$chatUserId]);
+
+                    if ($email === '') {
+                        $chatEmail = trim((string) (DB::table('users')->where('id', $chatUserId)->value('email') ?? ''));
+                        if ($chatEmail !== '') {
+                            $email = mb_strtolower($chatEmail);
+                        }
+                    }
+
+                    if ($email === '') {
+                        $leadEmail = trim((string) (DB::table('leads')
+                            ->where('user_id', $chatUserId)
+                            ->orderByDesc('updated_at')
+                            ->orderByDesc('id')
+                            ->value('email') ?? ''));
+                        if ($leadEmail !== '') {
+                            $email = mb_strtolower($leadEmail);
+                        }
+                    }
+
+                    if ($ip === '') {
+                        $lastSessionIp = DB::table('sessions')
+                            ->where('user_id', $chatUserId)
+                            ->whereNotNull('ip_address')
+                            ->where('ip_address', '!=', '')
+                            ->orderByDesc('last_activity')
+                            ->value('ip_address');
+
+                        if (is_string($lastSessionIp) and trim($lastSessionIp) !== '') {
+                            $ip = trim($lastSessionIp);
+                        }
+                    }
+                }
+            }
+
+            if ($email !== '' and $userIds->isEmpty()) {
+                $userIds = DB::table('users')
+                    ->whereRaw('LOWER(email) = ?', [$email])
+                    ->pluck('id');
+            }
+
+            if ($ip === '' and $userIds->isNotEmpty()) {
                 $lastSessionIp = DB::table('sessions')
                     ->whereIn('user_id', $userIds->all())
                     ->whereNotNull('ip_address')
+                    ->where('ip_address', '!=', '')
                     ->orderByDesc('last_activity')
                     ->value('ip_address');
 
-                if (is_string($lastSessionIp) && trim($lastSessionIp) !== '') {
+                if (is_string($lastSessionIp) and trim($lastSessionIp) !== '') {
                     $ip = trim($lastSessionIp);
                 }
             }
@@ -68,10 +113,19 @@ class BlockedUserController extends Controller
             // no-op
         }
 
+        if ($email === '' and $ip === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Невозможно определить email или IP для блокировки. Передайте chat_id, email или ip_address.',
+            ], 422);
+        }
+
         $existing = BlockedUser::query()
             ->whereNull('unblocked_at')
             ->where(function ($q) use ($email, $ip) {
-                $q->whereRaw('LOWER(email) = ?', [$email]);
+                if ($email !== '') {
+                    $q->whereRaw('LOWER(email) = ?', [$email]);
+                }
                 if ($ip !== '') {
                     $q->orWhere('ip_address', $ip);
                 }
@@ -80,7 +134,7 @@ class BlockedUserController extends Controller
 
         if (!$existing) {
             $existing = BlockedUser::create([
-                'chat_id' => $validated['chat_id'] ?? null,
+                'chat_id' => $chatId > 0 ? $chatId : null,
                 'email' => $email,
                 'ip_address' => $ip !== '' ? $ip : null,
                 'reason' => trim((string) ($validated['reason'] ?? 'Skull action')),
@@ -91,7 +145,7 @@ class BlockedUserController extends Controller
 
         if (($validated['force_logout'] ?? true) === true) {
             try {
-                if ($userIds->isEmpty()) {
+                if ($userIds->isEmpty() and $email !== '') {
                     $userIds = DB::table('users')
                         ->whereRaw('LOWER(email) = ?', [$email])
                         ->pluck('id');

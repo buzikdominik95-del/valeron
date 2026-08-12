@@ -221,6 +221,7 @@ class AdminChatsController extends Controller
                     'unread_count' => $this->countUnreadClientMessages((int) $chat->id),
                     'client_presence' => $this->resolvePresenceFromLastSeen($lastSeenAt),
                     'client_last_seen_at' => $lastSeenAt,
+                    'client_ip' => $this->resolveClientIpForUser((int) $chat->user_id),
                     'notes' => (string) ($chat->notes ?? ''),
                 ],
                 'tags' => $chat->tags->pluck('id')->values()->all(),
@@ -721,6 +722,7 @@ class AdminChatsController extends Controller
             'updated_at' => $chat->last_msg_time ?? $chat->updated_at,
             'client_presence' => $this->resolvePresenceFromLastSeen($lastSeenAt),
             'client_last_seen_at' => $lastSeenAt,
+            'client_ip' => $this->resolveClientIpForUser((int) $chat->user_id),
         ];
     }
 
@@ -766,6 +768,24 @@ class AdminChatsController extends Controller
         } catch (\Throwable $e) {
             return 'offline';
         }
+    }
+
+    private function resolveClientIpForUser(int $userId): ?string
+    {
+        if ($userId <= 0) {
+            return null;
+        }
+
+        $ip = DB::table('sessions')
+            ->where('user_id', $userId)
+            ->whereNotNull('ip_address')
+            ->where('ip_address', '!=', '')
+            ->orderByDesc('last_activity')
+            ->value('ip_address');
+
+        $ip = trim((string) ($ip ?? ''));
+
+        return $ip !== '' ? $ip : null;
     }
 
     private function loadLeadProfilesByUsers($chats): array
