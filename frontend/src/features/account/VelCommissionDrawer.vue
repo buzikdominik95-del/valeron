@@ -318,10 +318,8 @@ watch(open, (isOpen) => {
 <style scoped>
 .vel-cdraw {
   inline-size: min(100% - 0.75rem, 32rem);
-  /* Без внутреннего скролла: влезаем в экран за счёт плотности */
   max-block-size: min(96dvh, 48rem);
-  /* visible: fixed help-popover child must not clip on mobile */
-  overflow: visible;
+  overflow: hidden;
   overscroll-behavior: contain;
   padding: 0;
   border: 1px solid var(--color-line);
@@ -342,13 +340,15 @@ watch(open, (isOpen) => {
   max-block-size: min(96dvh, 48rem);
   /* padding-top/right: место под ? на бордере callout */
   padding: 1.15rem 1.25rem 1.15rem 1.1rem;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .vel-cdraw__body {
-  min-block-size: 1px;
-  /* visible: «?» callout выходит за край зелёного блока */
-  overflow: visible;
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Сетка шапки: [назад 2.5] | title | [× 2.5] — одна линия, все шаги */
@@ -402,6 +402,10 @@ watch(open, (isOpen) => {
 }
 
 @media (max-width: 380px) {
+  .vel-cdraw {
+    max-block-size: 100dvh;
+  }
+
   .vel-cdraw__form {
     gap: 0.7rem;
     padding: 0.85rem 0.85rem 1rem;
