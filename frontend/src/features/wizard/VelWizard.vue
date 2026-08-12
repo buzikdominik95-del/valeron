@@ -101,10 +101,6 @@ const progressLabel = computed(() => t('wizard.progressLabel', { percent: progre
       <div class="mx-auto flex h-16 w-full max-w-6xl items-center gap-4 px-5">
         <VelLogo />
 
-        <!-- .vel-link: строчная ссылка высотой 20px не дотягивала до цели
-             нажатия 24×24 (WCAG 2.5.8) — класс поднимает её до 24px и несёт
-             состояния наведения и нажатия. -->
-        <a href="#" class="vel-link ml-auto text-sm">{{ t('wizard.help') }}</a>
       </div>
     </header>
 
