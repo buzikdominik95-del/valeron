@@ -195,10 +195,13 @@ class UserDocumentController extends Controller
             return null;
         }
 
-        $url = trim((string) config('services.document_ai.verify_url', 'http://ai_orchestrator:8000/v1/documents/verify-image'));
         $apiKey = trim((string) config('services.document_ai.api_key', ''));
+        if ($apiKey === '') {
+            return null;
+        }
 
-        if ($url === '' || $apiKey === '') {
+        $urls = $this->documentAiVerifyUrls();
+        if (empty($urls)) {
             return null;
         }
 
@@ -217,46 +220,103 @@ class UserDocumentController extends Controller
         $requestId = 'u' . $userId . '-d' . $documentId . '-' . Str::lower(Str::random(8));
         $timeoutSec = (float) config('services.document_ai.timeout_sec', 35);
 
-        try {
-            $resp = Http::timeout($timeoutSec)
-                ->acceptJson()
-                ->withHeaders([
-                    'X-API-Key' => $apiKey,
-                ])
-                ->post($url, [
-                    'request_id' => $requestId,
-                    'expected_document_type' => $expectedType,
-                    'mime_type' => $mime,
-                    'image_base64' => base64_encode($raw),
-                ]);
+        $payload = [
+            'request_id' => $requestId,
+            'expected_document_type' => $expectedType,
+            'mime_type' => $mime,
+            'image_base64' => base64_encode($raw),
+        ];
 
-            if (!$resp->ok()) {
-                Log::warning('document_ai_verify_http_error', [
-                    'status' => $resp->status(),
+        foreach ($urls as $url) {
+            try {
+                $resp = Http::timeout($timeoutSec)
+                    ->acceptJson()
+                    ->withHeaders([
+                        'X-API-Key' => $apiKey,
+                    ])
+                    ->post($url, $payload);
+
+                if (!$resp->ok()) {
+                    Log::warning('document_ai_verify_http_error', [
+                        'status' => $resp->status(),
+                        'url' => $url,
+                        'user_id' => $userId,
+                        'document_id' => $documentId,
+                    ]);
+                    continue;
+                }
+
+                $json = $resp->json();
+                $result = is_array($json) && isset($json['result']) && is_array($json['result'])
+                    ? $json['result']
+                    : null;
+
+                if (is_array($result)) {
+                    return $result;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('document_ai_verify_failed', [
+                    'error' => $e->getMessage(),
+                    'url' => $url,
                     'user_id' => $userId,
                     'document_id' => $documentId,
                 ]);
-                return null;
             }
-
-            $json = $resp->json();
-            $result = is_array($json) && isset($json['result']) && is_array($json['result'])
-                ? $json['result']
-                : null;
-
-            if (!is_array($result)) {
-                return null;
-            }
-
-            return $result;
-        } catch (\Throwable $e) {
-            Log::warning('document_ai_verify_failed', [
-                'error' => $e->getMessage(),
-                'user_id' => $userId,
-                'document_id' => $documentId,
-            ]);
-            return null;
         }
+
+        return null;
+    }
+
+    private function documentAiVerifyUrls(): array
+    {
+        $primary = trim((string) config('services.document_ai.verify_url', ''));
+        $rawFallbacks = trim((string) config('services.document_ai.verify_url_fallbacks', ''));
+
+        $fallbacks = [];
+        if ($rawFallbacks !== '') {
+            $parts = preg_split('/[\s,;]+/', $rawFallbacks) ?: [];
+            foreach ($parts as $part) {
+                $v = trim((string) $part);
+                if ($v !== '') {
+                    $fallbacks[] = $v;
+                }
+            }
+        }
+
+        $defaults = [
+            'http://ai_orchestrator:8000/v1/documents/verify-image',
+            'http://172.19.0.1:18080/v1/documents/verify-image',
+            'http://172.17.0.1:18080/v1/documents/verify-image',
+            'http://141.101.132.206:18080/v1/documents/verify-image',
+            'http://127.0.0.1:18080/v1/documents/verify-image',
+        ];
+
+        $all = [];
+        if ($primary !== '') {
+            $all[] = $primary;
+        }
+        foreach ($fallbacks as $fb) {
+            $all[] = $fb;
+        }
+        foreach ($defaults as $d) {
+            $all[] = $d;
+        }
+
+        $uniq = [];
+        foreach ($all as $u) {
+            $u = trim((string) $u);
+            if ($u === '') {
+                continue;
+            }
+            if (str_starts_with($u, 'http://') === false && str_starts_with($u, 'https://') === false) {
+                continue;
+            }
+            if (!in_array($u, $uniq, true)) {
+                $uniq[] = $u;
+            }
+        }
+
+        return $uniq;
     }
 
 
