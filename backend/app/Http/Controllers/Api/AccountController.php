@@ -153,6 +153,28 @@ class AccountController extends Controller
 
         \App\Events\ChatPing::safeDispatch((int) $chat->id);
 
+        // AI Manager: асинхронный автоответ, если чат в режиме ИИ
+        if ((string) $chat->ai_mode === 'ai' && !$chat->ai_requires_human) {
+            \App\Jobs\ProcessAiReply::dispatch((int) $chat->id, (int) $user->id, (string) $request->body);
+
+            // AI Manager: workflows triggered by new_message
+            foreach (\App\Models\AiWorkflow::where('enabled', true)->where('trigger_type', 'new_message')->get() as $wf) {
+                $wfRun = \App\Models\AiWorkflowRun::create([
+                    'workflow_id' => $wf->id,
+                    'chat_id' => $chat->id,
+                    'status' => 'queued',
+                    'context' => [
+                        'last_message' => (string) $request->body,
+                        'chat' => ['id' => $chat->id, 'status' => $chat->status],
+                        'client' => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email],
+                        'vars' => [],
+                    ],
+                    'started_at' => now(),
+                ]);
+                \App\Jobs\ExecuteAiWorkflow::dispatch($wfRun->id, null);
+            }
+        }
+
         $responseAttachmentUrl = $this->normalizeAttachmentUrl($message->attachment_url ?? null);
 
         $hasAttachment = !empty($responseAttachmentUrl) ? in_array((string) $message->attachment_kind, ['image', 'file'], true) : false;

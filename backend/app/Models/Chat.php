@@ -11,10 +11,15 @@ class Chat extends Model
         'manager_id',
         'status',
         'last_message_at',
+        'ai_mode',
+        'ai_requires_human',
+        'ai_last_reply_at',
     ];
 
     protected $casts = [
         'last_message_at' => 'datetime',
+        'ai_requires_human' => 'boolean',
+        'ai_last_reply_at' => 'datetime',
     ];
 
 
