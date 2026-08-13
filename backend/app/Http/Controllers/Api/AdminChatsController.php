@@ -669,27 +669,6 @@ class AdminChatsController extends Controller
             $chat->updated_at = now();
             $chat->save();
 
-            $chat->messages()->create([
-                'chat_id' => $chat->id,
-                'sender_type' => 'system',
-                'sender_id' => null,
-                'message' => $targetManager
-                    ? sprintf(
-                        'Чат завершён менеджером %s на уровне %d и клиент передан менеджеру %s на уровень %d.',
-                        (string) ($actor->name ?? 'manager'),
-                        $currentLevel,
-                        (string) ($targetManager->name ?? 'manager'),
-                        $nextLevel
-                    )
-                    : sprintf(
-                        'Чат завершён менеджером %s на уровне %d. Уровень клиента повышен до %d.',
-                        (string) ($actor->name ?? 'manager'),
-                        $currentLevel,
-                        $nextLevel
-                    ),
-                'is_read' => true,
-                'read_at' => now(),
-            ]);
         });
 
         return response()->json([
@@ -698,10 +677,12 @@ class AdminChatsController extends Controller
             'data' => [
                 'chat_id' => (int) $chat->id,
                 'from_manager_id' => (int) $actor->id,
+                'from_manager_name' => (string) ($actor->name ?? 'manager'),
                 'to_manager_id' => $targetManager ? (int) $targetManager->id : null,
                 'to_manager_name' => $targetManager ? (string) $targetManager->name : null,
+                'previous_commission_level' => $currentLevel,
                 'new_commission_level' => $nextLevel,
-                'chat_status' => 'completed',
+                'chat_status' => $targetManager ? 'active' : 'completed',
             ],
         ]);
     }
