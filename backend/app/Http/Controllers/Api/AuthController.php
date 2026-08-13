@@ -104,16 +104,8 @@ class AuthController extends Controller
             'commission_level_id' => 1,
         ]);
 
-        /* Meta CAPI: лид + честная регистрация (аккаунт реально создан в БД). */
+        /* Meta CAPI: отправляем только Lead после реального создания аккаунта в БД. */
         \App\Support\MetaConversionsApi::sendLead(
-            (string) $user->email,
-            $request->ip(),
-            (string) $request->userAgent(),
-            $request->cookie('_fbp'),
-            $request->cookie('_fbc'),
-        );
-
-        \App\Support\MetaConversionsApi::sendCompleteRegistration(
             (string) $user->email,
             $request->ip(),
             (string) $request->userAgent(),

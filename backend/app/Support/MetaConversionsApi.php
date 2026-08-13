@@ -36,27 +36,6 @@ class MetaConversionsApi
         );
     }
 
-    public static function sendCompleteRegistration(
-        string $email,
-        ?string $clientIp,
-        ?string $userAgent,
-        ?string $fbp = null,
-        ?string $fbc = null,
-    ): void {
-        self::sendEvent(
-            eventName: 'CompleteRegistration',
-            eventIdPrefix: 'reg_',
-            email: $email,
-            clientIp: $clientIp,
-            userAgent: $userAgent,
-            fbp: $fbp,
-            fbc: $fbc,
-            customData: [
-                'content_name' => 'AccountCreated',
-            ],
-        );
-    }
-
     private static function sendEvent(
         string $eventName,
         string $eventIdPrefix,
