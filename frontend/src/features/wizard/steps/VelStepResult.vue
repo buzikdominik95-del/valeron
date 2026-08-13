@@ -26,18 +26,7 @@ const { amount, termMonths } = useCreditSimulator()
 /** Единственное действие экрана: куда вести дальше — решает родитель. */
 const emit = defineEmits<{ cta: [] }>()
 
-/** Meta Pixel: Lead при «Finalizza la mia richiesta». */
-function trackLead(): void {
-  try {
-    const fbq = (window as Window & { fbq?: (...args: unknown[]) => void }).fbq
-    if (typeof fbq === 'function') fbq('track', 'Lead')
-  } catch {
-    /* pixel blocked / adblock */
-  }
-}
-
 function onCtaClick(): void {
-  trackLead()
   emit('cta')
 }
 
@@ -130,7 +119,6 @@ const tickerValue = computed(() => (amountRevealed.value ? approvedAmount.value 
             type="button"
             size="lg"
             block
-            onclick="trackMetaOnce('loan_step_5', 'Lead', { content_name: 'LoanOfferConfirmed', step: 5 });"
             @click="onCtaClick"
           >
           {{ t('wizard.result.cta') }}

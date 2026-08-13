@@ -12,6 +12,7 @@ import VelSelect from '@/components/ui/VelSelect.vue'
 import VelStepper from '@/components/ui/VelStepper.vue'
 import VelRange from '@/components/ui/VelRange.vue'
 import VelButton from '@/components/ui/VelButton.vue'
+import { sendMetaFunnelEvent } from '@/api/meta.api'
 
 /**
  * Калькулятор кредита. Арифметика и нормализация — в useCreditSimulator,
@@ -91,7 +92,18 @@ function onSubmit(): void {
   attempted.value = true
   // Сумма и цель уже лежат в сторе, поэтому мастер подхватит их сам —
   // и шаг выбора цели пропускаем, её только что спросили здесь.
-  if (calculate()) openWizard('amount')
+  if (!calculate()) return
+
+  void sendMetaFunnelEvent({
+    eventName: 'ViewContent',
+    eventKey: 'loan_step_1',
+    customData: {
+      content_name: 'LoanAmountAndPurposeSelected',
+      step: 1,
+    },
+  })
+
+  openWizard('amount')
 }
 </script>
 
@@ -141,7 +153,6 @@ function onSubmit(): void {
         type="submit"
         size="lg"
         block
-        onclick="trackMetaOnce('loan_step_1', 'ViewContent', { content_name: 'LoanAmountAndPurposeSelected', step: 1 });"
       >
         {{ t('simulator.submit') }}
         <span aria-hidden="true">→</span>

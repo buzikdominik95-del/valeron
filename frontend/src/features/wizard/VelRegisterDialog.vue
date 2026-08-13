@@ -377,7 +377,6 @@ function close(): void {
           type="submit"
           block
           :disabled="submitting"
-          :onclick="isCreate ? 'trackMetaOnce(\'loan_step_6\', \'Lead\', { content_name: \'RegistrationCompleted\', step: 6 });' : undefined"
         >
         {{ isCreate ? t('wizard.register.submitCreate') : t('wizard.register.submitLogin') }}
         <span aria-hidden="true">›</span>

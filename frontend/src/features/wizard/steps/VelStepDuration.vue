@@ -7,6 +7,7 @@ import { useStaggerReveal } from '@/composables/useStaggerReveal'
 import VelOfferSummary from '@/features/wizard/VelOfferSummary.vue'
 import VelRange from '@/components/ui/VelRange.vue'
 import VelButton from '@/components/ui/VelButton.vue'
+import { sendMetaFunnelEvent } from '@/api/meta.api'
 
 /**
  * Шаг 60%: срок погашения. Ползунок 12–84 месяца и карточка-итог,
@@ -28,6 +29,19 @@ const monthlyText = computed(() => n(monthlyPayment.value, 'currency'))
  * и шаг ползунка в один месяц не тянет за собой правила множественного числа.
  */
 const termText = computed(() => t('wizard.duration.months', { count: termMonths.value }))
+
+function onNext(): void {
+  void sendMetaFunnelEvent({
+    eventName: 'InitiateCheckout',
+    eventKey: 'loan_step_3',
+    customData: {
+      content_name: 'LoanTermConfirmed',
+      step: 3,
+    },
+  })
+
+  next()
+}
 </script>
 
 <template>
@@ -75,8 +89,7 @@ const termText = computed(() => t('wizard.duration.months', { count: termMonths.
   <Teleport to="#vel-wizard-actions" defer>
     <VelButton
       type="button"
-      onclick="trackMetaOnce('loan_step_3', 'InitiateCheckout', { content_name: 'LoanTermConfirmed', step: 3 });"
-      @click="next"
+      @click="onNext"
     >
       {{ t('wizard.next') }}
       <span aria-hidden="true">→</span>

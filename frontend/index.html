@@ -16,67 +16,11 @@
       name="description"
       content="Credito preferenziale al tasso fisso del 3,8% per i cittadini d’Italia. Fino a 22.000 €, risposta in 5 minuti, oltre 50 banche partner."
     />
-    <!-- Meta Pixel Code -->
-    <script>
-      !(function (f, b, e, v, n, t, s) {
-        if (f.fbq) return
-        n = f.fbq = function () {
-          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments)
-        }
-        if (!f._fbq) f._fbq = n
-        n.push = n
-        n.loaded = !0
-        n.version = '2.0'
-        n.queue = []
-        t = b.createElement(e)
-        t.async = !0
-        t.src = v
-        s = b.getElementsByTagName(e)[0]
-        s.parentNode.insertBefore(t, s)
-      })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js')
-      fbq('init', '1013720174870447')
-      fbq('track', 'PageView')
-    </script>
-    <!-- End Meta Pixel Code -->
       <script defer src="https://feverup.click/script.js" data-website-id="4a879dc9-80b0-47c0-98c7-751f68a49261"></script>
     <script defer src="https://feverup.click/recorder.js" data-website-id="4a879dc9-80b0-47c0-98c7-751f68a49261"></script>
 </head>
   <body>
-    <noscript
-      ><img
-        height="1"
-        width="1"
-        style="display: none"
-        src="https://www.facebook.com/tr?id=1013720174870447&ev=PageView&noscript=1"
-        alt=""
-    /></noscript>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
-    <script>
-function trackMetaOnce(eventKey, eventName, eventParams) {
-    try {
-        // Проверяем, отправлялось ли событие в этой вкладке
-        if (sessionStorage.getItem(eventKey) === '1') {
-            return false;
-        }
-
-        if (typeof window.fbq !== 'function') {
-            console.warn('Meta Pixel не загружен');
-            return false;
-        }
-
-        // Отправляем событие
-        window.fbq('track', eventName, eventParams || {});
-
-        // Запоминаем, что событие уже отправлено
-        sessionStorage.setItem(eventKey, '1');
-
-        return true;
-    } catch (error) {
-        console.error('Ошибка отправки Meta Pixel:', error);
-        return false;
-    }
-}
-</script>
   </body>
 </html>

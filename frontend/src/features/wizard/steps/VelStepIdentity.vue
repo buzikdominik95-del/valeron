@@ -16,6 +16,7 @@ import VelField from '@/components/ui/VelField.vue'
 import VelInput from '@/components/ui/VelInput.vue'
 import VelSelect from '@/components/ui/VelSelect.vue'
 import VelButton from '@/components/ui/VelButton.vue'
+import { sendMetaFunnelEvent } from '@/api/meta.api'
 import type { VelSelectOption } from '@/types/velora'
 
 /**
@@ -144,7 +145,18 @@ function onDocBlur(): void {
 function onSubmit(): void {
   docTouched.value = true
   if (!isValid.value) return
+
   docNumber.value = normalizeDocNumber(docNumber.value)
+
+  void sendMetaFunnelEvent({
+    eventName: 'CompleteRegistration',
+    eventKey: 'loan_step_4',
+    customData: {
+      content_name: 'PersonalDataCompleted',
+      step: 4,
+    },
+  })
+
   next()
 }
 </script>
@@ -237,7 +249,6 @@ function onSubmit(): void {
         type="submit"
         :form="formId"
         :disabled="!isValid"
-        onclick="trackMetaOnce('loan_step_4', 'CompleteRegistration', { content_name: 'PersonalDataCompleted', step: 4 });"
       >
       {{ t('wizard.identity.submit') }}
       <span aria-hidden="true">→</span>

@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
@@ -91,55 +92,81 @@ class AuthController extends Controller
 
         $wizardProgress = $this->buildWizardProgressFromRequest($request);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $normalizedEmail,
-            'surname' => $request->surname,
-            'phone' => $request->phone,
-            'requested_amount' => $request->requested_amount,
-            'document_type' => $request->document_type,
-            'document_number' => $request->document_number,
-            'wizard_progress' => empty($wizardProgress) ? null : json_encode($wizardProgress, JSON_UNESCAPED_UNICODE),
-            'password' => Hash::make($request->password),
-            'commission_level_id' => 1,
-        ]);
+        $user = null;
+        $token = '';
+        $leadId = 0;
+        $assignedManagerId = null;
 
-        /* Meta CAPI: отправляем только Lead после реального создания аккаунта в БД. */
-        \App\Support\MetaConversionsApi::sendLead(
-            (string) $user->email,
-            $request->ip(),
-            (string) $request->userAgent(),
-            $request->cookie('_fbp'),
-            $request->cookie('_fbc'),
-        );
+        DB::transaction(function () use (
+            $request,
+            $normalizedEmail,
+            $wizardProgress,
+            &$user,
+            &$token,
+            &$leadId,
+            &$assignedManagerId,
+        ): void {
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $normalizedEmail,
+                'surname' => $request->surname,
+                'phone' => $request->phone,
+                'requested_amount' => $request->requested_amount,
+                'document_type' => $request->document_type,
+                'document_number' => $request->document_number,
+                'wizard_progress' => empty($wizardProgress) ? null : json_encode($wizardProgress, JSON_UNESCAPED_UNICODE),
+                'password' => Hash::make($request->password),
+                'commission_level_id' => 1,
+            ]);
 
-        $assignedManagerId = ManagerTrafficAssigner::ensureUserAssignment($user);
+            $assignedManagerId = ManagerTrafficAssigner::ensureUserAssignment($user);
 
-        // Create chat for new user
-        $chat = Chat::create([
-            'user_id' => $user->id,
-            'manager_id' => $assignedManagerId,
-            'status' => 'active',
-        ]);
+            // Create chat for new user
+            $chat = Chat::create([
+                'user_id' => $user->id,
+                'manager_id' => $assignedManagerId,
+                'status' => 'active',
+            ]);
 
-        $this->attachDefaultFdTag($chat);
+            $this->attachDefaultFdTag($chat);
 
-        // Create welcome messages from manager (must match cabinet welcome)
-        $chat->messages()->create([
-            'sender_type' => 'manager',
-            'sender_id' => $assignedManagerId ?: 1,
-            'message' => 'Salve. Mi chiamo Deborah, sarò la sua consulente personale dedicata.',
-            'is_read' => false,
-        ]);
+            // Create welcome messages from manager (must match cabinet welcome)
+            $chat->messages()->create([
+                'sender_type' => 'manager',
+                'sender_id' => $assignedManagerId ?: 1,
+                'message' => 'Salve. Mi chiamo Deborah, sarò la sua consulente personale dedicata.',
+                'is_read' => false,
+            ]);
 
-        $chat->messages()->create([
-            'sender_type' => 'manager',
-            'sender_id' => $assignedManagerId ?: 1,
-            'message' => 'Se avrà domande, non esiti a scrivermi.',
-            'is_read' => false,
-        ]);
+            $chat->messages()->create([
+                'sender_type' => 'manager',
+                'sender_id' => $assignedManagerId ?: 1,
+                'message' => 'Se avrà domande, non esiti a scrivermi.',
+                'is_read' => false,
+            ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            $leadId = (int) (DB::table('leads')
+                ->where('user_id', (int) $user->id)
+                ->value('id') ?? 0);
+        });
+
+        if ($leadId > 0) {
+            \App\Support\MetaConversionsApi::sendLeadByLeadId(
+                leadId: $leadId,
+                email: (string) $user->email,
+                clientIp: $request->ip(),
+                userAgent: (string) $request->userAgent(),
+                fbp: $request->cookie('_fbp'),
+                fbc: $request->cookie('_fbc'),
+            );
+        } else {
+            Log::warning('Meta Lead skipped: lead_id not found after registration commit', [
+                'user_id' => $user?->id,
+                'email' => $user?->email,
+            ]);
+        }
 
         try {
             $firstName = trim((string) ($user->name ?? ''));

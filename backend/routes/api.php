@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\ManagerController;
 use App\Http\Controllers\Api\AdminCommissionController;
 use App\Http\Controllers\Api\BlockedUserController;
 use App\Http\Controllers\Api\AiManagerController;
+use App\Http\Controllers\Api\MetaEventController;
 
 $adminAuthRequire = filter_var(env('ADMIN_API_REQUIRE_AUTH', false), FILTER_VALIDATE_BOOL);
 
@@ -63,6 +64,9 @@ Route::get('/health', function () {
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/demo-login', [AuthController::class, 'login']); // alias for frontend
+
+// Server-side Meta CAPI events (browser pixel disabled)
+Route::post('/meta/events', [MetaEventController::class, 'store']);
 
 // Client Account routes (protected)
 Route::middleware(['auth:sanctum', 'not_blocked'])->group(function () {

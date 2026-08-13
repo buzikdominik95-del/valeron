@@ -6,6 +6,7 @@ import { useCreditSimulator } from '@/composables/useCreditSimulator'
 import { useWizard } from '@/composables/useWizard'
 import { useStaggerReveal } from '@/composables/useStaggerReveal'
 import VelButton from '@/components/ui/VelButton.vue'
+import { sendMetaFunnelEvent } from '@/api/meta.api'
 
 /**
  * Шаг 1 мастера: сумма кредита.
@@ -106,6 +107,16 @@ function commit(): void {
 function onSubmit(): void {
   commit()
   if (!isValid.value) return
+
+  void sendMetaFunnelEvent({
+    eventName: 'AddToCart',
+    eventKey: 'loan_step_2',
+    customData: {
+      content_name: 'LoanAmountConfirmed',
+      step: 2,
+    },
+  })
+
   next()
 }
 
@@ -183,7 +194,6 @@ const inputClass = computed(() =>
       type="submit"
       :form="formId"
       :disabled="!isValid"
-      onclick="trackMetaOnce('loan_step_2', 'AddToCart', { content_name: 'LoanAmountConfirmed', step: 2 });"
     >
       {{ t('wizard.next') }}
       <span aria-hidden="true">→</span>
