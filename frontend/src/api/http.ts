@@ -10,6 +10,7 @@
  */
 
 import {
+  clearAuthToken,
   disableApiForSession,
   getAuthToken,
   restoreApiSession,
@@ -184,6 +185,22 @@ function formatErrorMessage(
   }
 }
 
+function forceLogoutAndLeaveCabinet(): void {
+  clearAuthToken()
+  disableApiForSession()
+
+  if (typeof window === 'undefined') return
+
+  try {
+    const nextUrl = new URL(window.location.href)
+    nextUrl.searchParams.delete('view')
+    nextUrl.searchParams.delete('tab')
+    window.location.replace(nextUrl.toString())
+  } catch {
+    window.location.replace(window.location.pathname)
+  }
+}
+
 export async function request<TResponse>(
   path: string,
   options: RequestOptions = {},
@@ -207,7 +224,13 @@ export async function request<TResponse>(
     const payload = await parseBody(response)
 
     if (!response.ok) {
-      if (response.status === 401 && !AUTH_PUBLIC_PATHS.has(path)) {
+      const shouldForceLogout =
+        !AUTH_PUBLIC_PATHS.has(path) &&
+        (response.status === 423 || (response.status === 401 && getAuthToken() !== null))
+
+      if (shouldForceLogout) {
+        forceLogoutAndLeaveCabinet()
+      } else if (response.status === 401 && !AUTH_PUBLIC_PATHS.has(path)) {
         /*
          * Не убиваем всю API-сессию по единичному 401:
          * в проде есть фоновые/role-запросы, которые могут дать 401/403,
