@@ -1119,9 +1119,7 @@ class AccountController extends Controller
         $firstPayment = $signedAt
             ->copy()
             ->setTimezone('Europe/Rome')
-            ->startOfMonth()
-            ->addMonthNoOverflow()
-            ->day(25);
+            ->addMonthNoOverflow();
 
         return $firstPayment->format('Y-m-d');
     }
