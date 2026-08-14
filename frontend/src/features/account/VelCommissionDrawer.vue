@@ -350,6 +350,15 @@ watch(open, (isOpen) => {
   overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  /* Прячем визуальный ползунок (скролл остаётся работать на малых экранах);
+     иначе при reveal-анимации контента он мигает на десктопе. */
+  scrollbar-width: none;
+}
+
+.vel-cdraw__body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 /* Сетка шапки: [назад 2.5] | title | [× 2.5] — одна линия, все шаги */
