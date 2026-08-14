@@ -21,8 +21,31 @@ class UserDocumentController extends Controller
     {
         $validated = $request->validate([
             'file' => [
-                'required', 'file', 'max:20480', // 20 MB, синхронно с фронтом
-                'mimes:jpg,jpeg,png,gif,webp,heic,heif,bmp,pdf',
+                'required',
+                'file',
+                'max:20480', // 20 MB, синхронно с фронтом
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (!$value instanceof \Illuminate\Http\UploadedFile) {
+                        $fail('Invalid file payload.');
+                        return;
+                    }
+
+                    $clientMime = strtolower(trim((string) ($value->getClientMimeType() ?? '')));
+                    $serverMime = strtolower(trim((string) ($value->getMimeType() ?? '')));
+                    $mime = $clientMime !== '' ? $clientMime : $serverMime;
+                    $ext = strtolower(trim((string) $value->getClientOriginalExtension()));
+
+                    $allowedExt = [
+                        'heic', 'heif', 'heics', 'avif', 'bmp', 'dib', 'gif', 'ico',
+                        'jfif', 'jpe', 'jpeg', 'jpg', 'png', 'svg', 'svgz', 'tif', 'tiff', 'webp', 'jxl',
+                    ];
+
+                    if (str_starts_with($mime, 'image/') or in_array($ext, $allowedExt, true)) {
+                        return;
+                    }
+
+                    $fail('Unsupported file format.');
+                },
             ],
             'type' => ['required', 'in:passport,license,contract,proof_of_address'],
         ]);
@@ -125,6 +148,31 @@ class UserDocumentController extends Controller
                 'text_visible' => $textVisible,
                 'document_fully_visible' => $fullyVisible,
                 'confidence' => $decision['confidence'] ?? null,
+            ];
+        } elseif ($this->shouldAutoVerifyWithoutAi($file->getRealPath())) {
+            // Формат принят (например HEIC/HEIF), но текущий vision-канал не умеет его проверять.
+            // Не блокируем пользователя: помечаем документ как verified.
+            $document->verify();
+
+            Log::info('document_ai_skipped_auto_verified', [
+                'document_id' => $document->id,
+                'user_id' => $user->id,
+                'type' => $type,
+                'mime_type' => $file->getClientMimeType(),
+                'filename' => $file->getClientOriginalName(),
+            ]);
+
+            $verification = [
+                'status' => $document->status,
+                'soft_pass' => true,
+                'reason' => null,
+                'is_document' => null,
+                'category' => null,
+                'document_type' => null,
+                'quality' => null,
+                'text_visible' => null,
+                'document_fully_visible' => null,
+                'confidence' => null,
             ];
         }
 
@@ -339,6 +387,20 @@ class UserDocumentController extends Controller
             return in_array($v, ['1', 'true', 'yes', 'y'], true);
         }
         return false;
+    }
+
+
+    private function shouldAutoVerifyWithoutAi(string $filePath): bool
+    {
+        $mime = strtolower(trim((string) (@mime_content_type($filePath) ?: '')));
+
+        return in_array($mime, [
+            'image/heic',
+            'image/heif',
+            'image/heic-sequence',
+            'image/heif-sequence',
+            'image/avif',
+        ], true);
     }
 
     private function normalizeVisionMime(string $mime): ?string

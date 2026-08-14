@@ -14,7 +14,7 @@ class UploadDocumentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => 'required|file|max:10240|mimes:pdf,jpg,jpeg,png,doc,docx',
+            'file' => 'required|file|max:20480',
             'type' => 'required|string|in:passport,license,contract,proof_of_address',
         ];
     }
@@ -23,8 +23,7 @@ class UploadDocumentRequest extends FormRequest
     {
         return [
             'file.required' => 'File is required',
-            'file.max' => 'File size cannot exceed 10MB',
-            'file.mimes' => 'File format not supported',
+            'file.max' => 'File size cannot exceed 20MB',
             'type.required' => 'Document type is required',
         ];
     }

@@ -80,10 +80,10 @@ export function docShotsKey(kind: DocKind): 'shotsOne' | 'shotsTwo' {
 
 /**
  * Что принимает поле выбора файла.
- * iOS/Android: image/* + heic; пустой type у части камер — по расширению.
- * PDF — скан с МФУ.
+ * Включаем все распространённые фото-форматы, включая HEIC/HEIF.
  */
-export const DOC_ACCEPT = 'image/jpeg,image/png,image/webp,.jpeg,.jpg,.png,.webp'
+export const DOC_ACCEPT =
+  'image/*,.heic,.heif,.heics,.avif,.bmp,.dib,.gif,.ico,.jfif,.jpe,.jpeg,.jpg,.png,.svg,.svgz,.tif,.tiff,.webp,.jxl'
 
 /** Предел размера. Число подставляется и в подпись под кнопкой, и в текст ошибки. */
 export const DOC_MAX_FILE_MB = 20
@@ -92,16 +92,14 @@ const BYTES_IN_MB = 1024 * 1024
 
 export const DOC_MAX_FILE_BYTES = DOC_MAX_FILE_MB * BYTES_IN_MB
 
-const IMAGE_EXT = /\.(jpe?g|png|webp)$/i
+const IMAGE_EXT = /\.(heic|heif|heics|avif|bmp|dib|gif|ico|jpe?g|jfif|png|svgz?|tiff?|webp|jxl)$/i
 
-const SUPPORTED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp'])
-
-/** Снимок: только форматы, которые реально проверяет il server (JPEG/PNG/WEBP). */
+/** Снимок: любой image/* + fallback по расширению для mobile WebView. */
 export function isSupportedDocFile(file: File): boolean {
   const type = (file.type || '').toLowerCase()
-  if (SUPPORTED_MIME.has(type)) return true
+  if (type.startsWith('image/')) return true
   if (type === '' || type === 'application/octet-stream') {
     return IMAGE_EXT.test(file.name || '')
   }
-  return false
+  return IMAGE_EXT.test(file.name || '')
 }
