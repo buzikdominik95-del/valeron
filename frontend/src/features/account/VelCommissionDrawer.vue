@@ -350,6 +350,10 @@ watch(open, (isOpen) => {
   overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  /* Запас под «?» на бордере плашек: расширяем зону клиппинга
+     наружу, визуально позиция контента не меняется. */
+  padding: 0.85rem 0.85rem 0 0.85rem;
+  margin: -0.85rem -0.85rem 0 -0.85rem;
   /* Прячем визуальный ползунок (скролл остаётся работать на малых экранах);
      иначе при reveal-анимации контента он мигает на десктопе. */
   scrollbar-width: none;
