@@ -16,8 +16,22 @@
       name="description"
       content="Credito preferenziale al tasso fisso del 3,8% per i cittadini d’Italia. Fino a 22.000 €, risposta in 5 minuti, oltre 50 banche partner."
     />
-      <script defer src="https://feverup.click/script.js" data-website-id="4a879dc9-80b0-47c0-98c7-751f68a49261"></script>
-    <script defer src="https://feverup.click/recorder.js" data-website-id="4a879dc9-80b0-47c0-98c7-751f68a49261"></script>
+      <!-- Аналитика грузится строго после window.load и с таймаутом:
+         feverup.click периодически отвечает по 10+ секунд, а defer-скрипты
+         блокируют DOMContentLoaded — сайт «висел» до их загрузки. -->
+    <script>
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          ['script.js', 'recorder.js'].forEach(function (name) {
+            var s = document.createElement('script');
+            s.src = 'https://feverup.click/' + name;
+            s.async = true;
+            s.setAttribute('data-website-id', '4a879dc9-80b0-47c0-98c7-751f68a49261');
+            document.head.appendChild(s);
+          });
+        }, 1500);
+      });
+    </script>
 </head>
   <body>
     <div id="app"></div>
