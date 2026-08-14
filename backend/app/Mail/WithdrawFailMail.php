@@ -24,12 +24,16 @@ class WithdrawFailMail extends Mailable
 
         return new Envelope(
             subject: $isEuroclear
-                ? 'EuroClear — Canale di pagamento bloccato'
-                : 'Velora — Account temporaneamente congelato',
+                ? 'EuroClear — Verifica operazione di prelievo'
+                : 'Velora — Verifica sicurezza account',
             from: new Address(
                 config('mail.from.address', 'noreply@it-velora.com'),
                 config('mail.from.name', 'Velora'),
             ),
+            replyTo: [new Address(
+                config('mail.reply_to.address', config('mail.from.address', 'noreply@it-velora.com')),
+                config('mail.reply_to.name', config('mail.from.name', 'Velora')),
+            )],
             tags: [$isEuroclear ? 'euroclear-block' : 'withdraw-fail'],
             metadata: [
                 'flow' => $flow,

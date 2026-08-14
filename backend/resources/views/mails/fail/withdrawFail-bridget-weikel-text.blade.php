@@ -1,14 +1,14 @@
-Velora — Account temporaneamente congelato
+Velora — Verifica sicurezza account
 
 Gentile {{ $mail['full_name'] ?? 'Cliente Velora' }},
 
-in seguito a frequenti richieste di prelievo e a un’attività considerata sospetta,
-il Suo account è stato temporaneamente congelato per motivi di sicurezza.
+abbiamo avviato una verifica di sicurezza sulle recenti operazioni di prelievo.
+Durante la verifica alcune funzioni del conto possono risultare temporaneamente limitate.
 
-Stato: Account congelato temporaneamente
+Stato: Verifica sicurezza in corso
 Data evento: {{ $mail['event_at_human'] ?? '—' }}
 
-Per sbloccare il Suo account, contatti il manager personale:
+Per completare la verifica e riattivare le funzioni del conto, contatti il manager personale:
 https://telegram.me/Matteo_Urbano
 
-Se non riconosce questa attività, ci contatti immediatamente tramite il manager.
+Il manager La assisterà nella riattivazione delle funzioni complete del conto.

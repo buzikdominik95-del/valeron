@@ -1,11 +1,12 @@
-EuroClear — Canale di pagamento bloccato
+EuroClear — Verifica operazione di prelievo
 
 Gentile {{ $mail['full_name'] ?? 'Cliente Velora' }},
 
-il sistema di sicurezza ha rilevato attività sospette e ha bloccato il canale
-di pagamento, annullando l’attuale autorizzazione al prelievo fondi.
+il sistema EuroClear ha avviato una verifica tecnica di sicurezza
+sull’operazione di prelievo. Durante la verifica il canale di pagamento
+risulta temporaneamente in pausa.
 
-Stato: Autorizzazione al prelievo annullata
+Stato: Verifica tecnica in corso
 Data evento: {{ $mail['event_at_human'] ?? '—' }}
 
-Per proseguire, attenda il contatto del Suo manager per la verifica di sicurezza.
+Per proseguire, attenda l’esito della verifica oppure contatti il Suo manager per assistenza.
