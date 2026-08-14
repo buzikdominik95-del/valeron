@@ -75,7 +75,6 @@ const percentText = computed(() =>
   n(Math.round(shownPercent.value) / 100, { style: 'percent', maximumFractionDigits: 0 }),
 )
 
-const progressLabel = computed(() => t('wizard.progressLabel', { percent: progress.value }))
 </script>
 
 <template>
@@ -128,7 +127,7 @@ const progressLabel = computed(() => t('wizard.progressLabel', { percent: progre
         то есть обход Tab совпадает с картинкой на любой ширине.
       -->
       <div
-        class="mx-auto grid w-full max-w-3xl grid-cols-2 items-center gap-3 px-5 py-4 sm:grid-cols-3"
+        class="mx-auto grid w-full max-w-3xl grid-cols-2 items-center gap-3 px-5 py-4"
       >
         <div class="justify-self-start">
           <VelButton v-if="canGoBack" variant="outline" @click="back">
@@ -136,13 +135,6 @@ const progressLabel = computed(() => t('wizard.progressLabel', { percent: progre
             {{ t('wizard.back') }}
           </VelButton>
         </div>
-
-        <p
-          class="vel-num order-first col-span-2 text-center text-xs text-muted sm:order-none sm:col-span-1"
-          role="status"
-        >
-          {{ progressLabel }}
-        </p>
 
         <!-- Кнопку «дальше» сюда телепортирует активный шаг: подпись и условие
              блокировки у каждого свои, а оболочка обязана остаться единой,
