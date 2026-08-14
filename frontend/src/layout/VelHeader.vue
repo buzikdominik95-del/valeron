@@ -72,6 +72,7 @@ function onLoginClick(): void {
       <!-- Accedi / Torna all'area personale — справа -->
       <VelButton
         class="ml-auto shrink-0"
+        :class="{ 'vel-back-pulse': hasCabinet }"
         variant="outline"
         data-testid="nav-login"
         @click="onLoginClick"
@@ -104,6 +105,21 @@ function onLoginClick(): void {
   opacity: 0.55;
 }
 
+.vel-back-pulse {
+  animation: vel-back-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes vel-back-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.28);
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow: 0 0 0 7px rgba(37, 99, 235, 0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   header {
     transition: none;
@@ -111,6 +127,10 @@ function onLoginClick(): void {
 
   .vel-home {
     transition: none;
+  }
+
+  .vel-back-pulse {
+    animation: none;
   }
 }
 </style>
