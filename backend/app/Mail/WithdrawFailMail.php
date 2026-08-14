@@ -20,7 +20,7 @@ class WithdrawFailMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Velora — Rifiuto prelievo',
+            subject: 'Velora — Account temporaneamente congelato',
             from: new Address(
                 config('mail.from.address', 'noreply@it-velora.com'),
                 config('mail.from.name', 'Velora'),
