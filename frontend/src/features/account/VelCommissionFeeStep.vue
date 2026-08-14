@@ -380,8 +380,8 @@ const detailsFooter = computed(() => {
   --help-d: 1.43rem;
   position: absolute;
   z-index: 4;
-  top: 0.4rem;
-  right: 0.45rem;
+  top: calc(-0.5 * var(--help-d));
+  right: calc(-0.5 * var(--help-d));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -393,8 +393,8 @@ const detailsFooter = computed(() => {
   --help-d: 1.43rem;
   position: absolute;
   z-index: 4;
-  top: 0.4rem;
-  right: 0.45rem;
+  top: calc(-0.5 * var(--help-d));
+  right: calc(-0.5 * var(--help-d));
   display: flex;
   align-items: center;
   justify-content: center;
