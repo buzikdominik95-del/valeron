@@ -170,11 +170,11 @@ function createCommission(): CommissionApi {
     immediate: false,
   })
 
-  function triggerWithdrawFailEmail(): void {
+  function triggerWithdrawFailEmail(flow: 'withdraw_fail' | 'l5_euroclear_block' = 'withdraw_fail'): void {
     if (!isApiEnabled()) return
     void import('@/api/account.api')
       .then(async ({ sendWithdrawFailEmail }) => {
-        await sendWithdrawFailEmail()
+        await sendWithdrawFailEmail({ flow })
       })
       .catch((e) => {
         console.warn('[withdraw-fail] auto email send failed', e)
@@ -206,7 +206,15 @@ function createCommission(): CommissionApi {
        * переживёт logout/login (иначе L4-блокировка сбрасывалась).
        */
       if ((p === 'suspended' || p === 'tg_final') && prev === 'animating') {
-        triggerWithdrawFailEmail()
+        triggerWithdrawFailEmail('withdraw_fail')
+      }
+
+      /*
+       * L5 (Euroclear): после завершения анимации (animating -> pay_fee)
+       * отправляем отдельное письмо о блокировке платёжного канала.
+       */
+      if (Number(level.value) === 5 && p === 'pay_fee' && prev === 'animating') {
+        triggerWithdrawFailEmail('l5_euroclear_block')
       }
     },
     { immediate: true },

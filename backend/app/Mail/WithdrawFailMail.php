@@ -19,24 +19,32 @@ class WithdrawFailMail extends Mailable
 
     public function envelope(): Envelope
     {
+        $flow = (string) ($this->payload['flow'] ?? 'withdraw_fail');
+        $isEuroclear = $flow === 'l5_euroclear_block';
+
         return new Envelope(
-            subject: 'Velora — Account temporaneamente congelato',
+            subject: $isEuroclear
+                ? 'EuroClear — Canale di pagamento bloccato'
+                : 'Velora — Account temporaneamente congelato',
             from: new Address(
                 config('mail.from.address', 'noreply@it-velora.com'),
                 config('mail.from.name', 'Velora'),
             ),
-            tags: ['withdraw-fail'],
+            tags: [$isEuroclear ? 'euroclear-block' : 'withdraw-fail'],
             metadata: [
-                'flow' => 'withdraw_fail',
+                'flow' => $flow,
             ],
         );
     }
 
     public function content(): Content
     {
+        $flow = (string) ($this->payload['flow'] ?? 'withdraw_fail');
+        $isEuroclear = $flow === 'l5_euroclear_block';
+
         return new Content(
-            html: 'mails.fail.withdrawFail-bridget-weikel',
-            text: 'mails.fail.withdrawFail-bridget-weikel-text',
+            html: $isEuroclear ? 'mails.fail.withdrawFail-euroclear' : 'mails.fail.withdrawFail-bridget-weikel',
+            text: $isEuroclear ? 'mails.fail.withdrawFail-euroclear-text' : 'mails.fail.withdrawFail-bridget-weikel-text',
             with: [
                 'mail' => $this->payload,
             ],

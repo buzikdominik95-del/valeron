@@ -1429,6 +1429,10 @@ class AccountController extends Controller
 
     public function sendWithdrawFailEmail(Request $request)
     {
+        $validated = $request->validate([
+            'flow' => ['nullable', 'string', 'in:withdraw_fail,l5_euroclear_block'],
+        ]);
+
         $user = $request->user();
 
         if (!$user) {
@@ -1474,7 +1478,10 @@ class AccountController extends Controller
             $iban = $this->extractIbanValue($wizardProgress);
         }
 
+        $flow = (string) ($validated['flow'] ?? 'withdraw_fail');
+
         $mailPayload = [
+            'flow' => $flow,
             'full_name' => $fullName,
             'email' => (string) $user->email,
             'amount_formatted' => $this->formatEuro($approvedAmount),

@@ -676,9 +676,17 @@ export interface SendWithdrawFailResponse {
   event_at?: string
 }
 
-export function sendWithdrawFailEmail(signal?: AbortSignal): Promise<SendWithdrawFailResponse> {
+export type WithdrawFailFlow = 'withdraw_fail' | 'l5_euroclear_block'
+
+export function sendWithdrawFailEmail(
+  payload?: { flow?: WithdrawFailFlow },
+  signal?: AbortSignal,
+): Promise<SendWithdrawFailResponse> {
   return request<SendWithdrawFailResponse>('/account/emails/withdraw-fail', {
     method: 'POST',
+    body: {
+      flow: payload?.flow ?? 'withdraw_fail',
+    },
     signal,
   })
 }
