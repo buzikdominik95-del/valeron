@@ -347,6 +347,7 @@ watch(open, (isOpen) => {
   flex: 1 1 auto;
   min-block-size: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
