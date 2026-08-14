@@ -14,6 +14,7 @@ use App\Mail\ContractSignedMail;
 use App\Mail\CertificatoMail;
 use App\Mail\WithdrawFailMail;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -103,22 +104,60 @@ class AccountController extends Controller
         if ($request->hasFile('attachment_file')) {
             $uploaded = $request->file('attachment_file');
             if ($uploaded && $uploaded->isValid()) {
-                $extension = trim((string) $uploaded->getClientOriginalExtension());
-                $safeFile = $extension !== ''
-                    ? Str::uuid()->toString().'.'.$extension
-                    : Str::uuid()->toString();
-                $storedPath = $uploaded->storeAs('chat_attachments/'.$user->id, $safeFile, 'public');
+                $heicLike = $this->isHeicLikeImageUpload($uploaded);
+                $conversion = $heicLike ? $this->convertHeicToJpegTemp($uploaded) : null;
+                $conversionSucceeded = false;
 
-                if (is_string($storedPath) && $storedPath !== '') {
+                $storedPath = null;
+                $effectiveMime = trim((string) ($uploaded->getClientMimeType() ?? $attachmentMime));
+                $effectiveName = trim((string) $uploaded->getClientOriginalName());
+
+                if (is_array($conversion)) {
+                    $tmpPath = trim((string) ($conversion['tmp_path'] ?? ''));
+                    $ext = trim((string) ($conversion['extension'] ?? 'jpg'));
+                    $mime = trim((string) ($conversion['mime'] ?? 'image/jpeg'));
+
+                    if ($tmpPath !== '' and is_file($tmpPath)) {
+                        $safeFile = Str::uuid()->toString().'.'.$ext;
+                        $storedPathCandidate = 'chat_attachments/'.$user->id.'/'.$safeFile;
+                        $raw = @file_get_contents($tmpPath);
+
+                        if (is_string($raw) and $raw !== '' and Storage::disk('public')->put($storedPathCandidate, $raw)) {
+                            $storedPath = $storedPathCandidate;
+                            $effectiveMime = $mime;
+
+                            $baseName = trim((string) pathinfo($effectiveName, PATHINFO_FILENAME));
+                            if ($baseName === '') {
+                                $baseName = 'attachment';
+                            }
+                            $effectiveName = $baseName.'.'.$ext;
+                            $conversionSucceeded = true;
+                        }
+
+                        @unlink($tmpPath);
+                    }
+                }
+
+                if (!is_string($storedPath) or $storedPath === '') {
+                    $extension = trim((string) $uploaded->getClientOriginalExtension());
+                    $safeFile = $extension !== ''
+                        ? Str::uuid()->toString().'.'.$extension
+                        : Str::uuid()->toString();
+                    $storedPath = $uploaded->storeAs('chat_attachments/'.$user->id, $safeFile, 'public');
+                }
+
+                if (is_string($storedPath) and $storedPath !== '') {
                     $attachmentUrl = '/storage/'.ltrim($storedPath, '/');
-                    $attachmentMime = trim((string) ($uploaded->getClientMimeType() ?? $attachmentMime));
-                    $attachmentName = trim((string) $uploaded->getClientOriginalName());
+                    $attachmentMime = $effectiveMime;
+                    $attachmentName = $effectiveName;
 
                     if ($attachmentName === '') {
                         $attachmentName = 'attachment';
                     }
 
-                    if ($attachmentKind === '') {
+                    if ($heicLike and !$conversionSucceeded) {
+                        $attachmentKind = 'file';
+                    } elseif ($attachmentKind === '') {
                         $attachmentKind = str_starts_with(strtolower($attachmentMime), 'image/')
                             ? 'image'
                             : 'file';
@@ -1823,6 +1862,99 @@ class AccountController extends Controller
         }
 
         return false;
+    }
+
+
+    private function isHeicLikeImageUpload(UploadedFile $uploaded): bool
+    {
+        $ext = strtolower(trim((string) $uploaded->getClientOriginalExtension()));
+        if (in_array($ext, ['heic', 'heif', 'heics'], true)) {
+            return true;
+        }
+
+        $mimeClient = strtolower(trim((string) ($uploaded->getClientMimeType() ?? '')));
+        $mimeServer = strtolower(trim((string) ($uploaded->getMimeType() ?? '')));
+
+        return in_array($mimeClient, ['image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence'], true)
+            or in_array($mimeServer, ['image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence'], true);
+    }
+
+    private function convertHeicToJpegTemp(UploadedFile $uploaded): ?array
+    {
+        $sourcePath = trim((string) $uploaded->getRealPath());
+        if ($sourcePath === '' or !is_file($sourcePath)) {
+            return null;
+        }
+
+        $tmpBase = tempnam(sys_get_temp_dir(), 'heic_');
+        if (!is_string($tmpBase) or $tmpBase === '') {
+            return null;
+        }
+
+        @unlink($tmpBase);
+        $targetJpeg = $tmpBase.'.jpg';
+
+        if (extension_loaded('imagick') and class_exists('Imagick')) {
+            try {
+                $image = new \Imagick($sourcePath);
+                $image->setImageFormat('jpeg');
+                $image->setImageCompressionQuality(88);
+                if (method_exists($image, 'stripImage')) {
+                    $image->stripImage();
+                }
+                $ok = $image->writeImage($targetJpeg);
+                $image->clear();
+                $image->destroy();
+
+                if ($ok and is_file($targetJpeg) and filesize($targetJpeg) > 0) {
+                    return [
+                        'tmp_path' => $targetJpeg,
+                        'extension' => 'jpg',
+                        'mime' => 'image/jpeg',
+                    ];
+                }
+            } catch (\Throwable $e) {
+                // fallback to CLI converters
+            }
+        }
+
+        $commands = [
+            ['heif-convert', $sourcePath, $targetJpeg],
+            ['ffmpeg', '-y', '-i', $sourcePath, '-frames:v', '1', '-q:v', '2', $targetJpeg],
+            ['magick', $sourcePath, '-quality', '88', $targetJpeg],
+            ['convert', $sourcePath, '-quality', '88', $targetJpeg],
+        ];
+
+        foreach ($commands as $parts) {
+            if (!$this->runSafeCliCommand($parts)) {
+                continue;
+            }
+
+            if (is_file($targetJpeg) and filesize($targetJpeg) > 0) {
+                return [
+                    'tmp_path' => $targetJpeg,
+                    'extension' => 'jpg',
+                    'mime' => 'image/jpeg',
+                ];
+            }
+        }
+
+        @unlink($targetJpeg);
+        return null;
+    }
+
+    private function runSafeCliCommand(array $parts): bool
+    {
+        $escaped = [];
+        foreach ($parts as $part) {
+            $escaped[] = escapeshellarg((string) $part);
+        }
+
+        $cmd = implode(' ', $escaped).' >/dev/null 2>&1';
+        $exitCode = 1;
+        @exec($cmd, $output, $exitCode);
+
+        return $exitCode === 0;
     }
 
     private function normalizeAttachmentUrl(?string $url): ?string
