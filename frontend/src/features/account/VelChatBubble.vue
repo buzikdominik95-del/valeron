@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
 import type { ChatAttachment, ChatAuthor, ChatDelivery } from '@/features/account/chat-thread'
@@ -59,6 +59,28 @@ const timeText = computed(() => (props.at === '' ? '' : d(new Date(props.at), 't
 
 /** Полная дата и время — голосом: на экране стоит только «14:31». */
 const stampLabel = computed(() => (props.at === '' ? '' : d(new Date(props.at), 'long')))
+
+/* Полноэкранный просмотр фото: клик по превью — открыть, Esc/клик — закрыть. */
+const lightboxOpen = ref(false)
+
+const onLightboxKey = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') closeLightbox()
+}
+
+const openLightbox = () => {
+  if (!imageSrc.value) return
+  lightboxOpen.value = true
+  window.addEventListener('keydown', onLightboxKey)
+}
+
+const closeLightbox = () => {
+  lightboxOpen.value = false
+  window.removeEventListener('keydown', onLightboxKey)
+}
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onLightboxKey)
+})
 </script>
 
 <template>
@@ -87,9 +109,32 @@ const stampLabel = computed(() => (props.at === '' ? '' : d(new Date(props.at), 
         alt=""
         loading="lazy"
         decoding="async"
+        role="button"
+        tabindex="0"
+        @click="openLightbox"
+        @keydown.enter="openLightbox"
       />
+      <Teleport to="body">
+        <div
+          v-if="lightboxOpen"
+          class="vel-lightbox"
+          role="dialog"
+          aria-modal="true"
+          @click="closeLightbox"
+        >
+          <img class="vel-lightbox__img" :src="imageSrc" alt="" @click.stop />
+          <button
+            type="button"
+            class="vel-lightbox__close"
+            aria-label="Chiudi"
+            @click="closeLightbox"
+          >
+            &#10005;
+          </button>
+        </div>
+      </Teleport>
       <a
-        v-else-if="fileAttach"
+        v-if="fileAttach"
         class="vel-bubble__file"
         :href="fileAttach.url"
         :download="fileAttach.name"
@@ -256,6 +301,46 @@ const stampLabel = computed(() => (props.at === '' ? '' : d(new Date(props.at), 
   margin: 0 0 0.35rem;
   border-radius: calc(var(--radius-panel) - 0.15rem);
   object-fit: cover;
+  cursor: zoom-in;
+}
+
+.vel-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgb(10 12 16 / 88%);
+  cursor: zoom-out;
+}
+
+.vel-lightbox__img {
+  max-inline-size: 100%;
+  max-block-size: 100%;
+  border-radius: 0.5rem;
+  object-fit: contain;
+  cursor: default;
+}
+
+.vel-lightbox__close {
+  position: absolute;
+  inset-block-start: 0.9rem;
+  inset-inline-end: 1rem;
+  inline-size: 2.4rem;
+  block-size: 2.4rem;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 12%);
+  color: #fff;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.vel-lightbox__close:hover {
+  background: rgb(255 255 255 / 24%);
 }
 
 .vel-bubble__file {
