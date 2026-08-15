@@ -32,27 +32,25 @@ function openSupport(): void {
       </svg>
       <span v-if="hasUnread" class="vel-support-fab__badge vel-num" aria-hidden="true">{{ badgeText }}</span>
     </span>
-    <span class="vel-support-fab__label">Assistenza</span>
   </button>
 </template>
 
 <style scoped>
 .vel-support-fab {
-  position: absolute;
-  z-index: 1200;
-  inset-inline-start: 50%;
-  inset-block-start: 0;
-  transform: translate(-50%, -50%);
+  position: fixed;
+  z-index: 55;
+  inset-inline-end: max(0.9rem, env(safe-area-inset-right));
+  inset-block-end: calc(var(--vel-tabbar-h, 4rem) + var(--vel-tabbar-gap, 0.4rem) + env(safe-area-inset-bottom) + 0.75rem);
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  min-block-size: 2.25rem;
-  padding: 0.34rem 0.74rem;
-  border: 1px solid color-mix(in oklab, var(--color-line) 78%, transparent);
+  justify-content: center;
+  inline-size: 3.35rem;
+  block-size: 3.35rem;
+  border: 0;
   border-radius: 999px;
-  background: var(--color-accent-deep);
-  color: var(--color-accent-ink);
-  box-shadow: 0 0.35rem 0.8rem color-mix(in oklab, var(--color-fg) 18%, transparent);
+  background: radial-gradient(circle at 30% 25%, #5a66ff 0%, #4a54f5 42%, #3d46dd 100%);
+  color: #fff;
+  box-shadow: 0 0.7rem 1.35rem color-mix(in oklab, var(--color-fg) 26%, transparent);
 }
 
 .vel-support-fab__icon {
@@ -61,60 +59,36 @@ function openSupport(): void {
 }
 
 .vel-support-fab__icon svg {
-  width: 1rem;
-  height: 1rem;
-}
-
-.vel-support-fab__label {
-  font-size: 0.82rem;
-  font-weight: 700;
+  width: 1.32rem;
+  height: 1.32rem;
 }
 
 .vel-support-fab__badge {
   position: absolute;
-  inset-block-start: -0.42rem;
-  inset-inline-end: -0.5rem;
-  min-inline-size: 1.05rem;
-  padding: 0.05rem 0.28rem;
+  inset-block-start: -0.55rem;
+  inset-inline-end: -0.62rem;
+  min-inline-size: 1.22rem;
+  padding: 0.08rem 0.34rem;
   border-radius: 999px;
-  background-color: var(--color-danger);
-  color: var(--color-accent-ink);
-  font-size: 0.62rem;
+  background-color: #ff3b5b;
+  color: #fff;
+  font-size: 0.7rem;
   font-weight: 700;
-  line-height: 1.2;
-  box-shadow: 0 0 0 1.5px var(--color-accent-deep);
-  animation: vel-support-fab-badge 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+  line-height: 1.15;
+  box-shadow: 0 0 0 2px #fff;
 }
 
 .vel-support-fab--alert {
   animation: vel-support-fab-pulse 1.15s ease-in-out infinite;
 }
 
-@keyframes vel-support-fab-badge {
-  0%,
-  100% {
-    transform: translateY(0) scale(1);
-  }
-  35% {
-    transform: translateY(-0.3rem) scale(1.2);
-  }
-  55% {
-    transform: translateY(0.05rem) scale(0.95);
-  }
-}
-
 @keyframes vel-support-fab-pulse {
   0%,
-  100% {
-    filter: brightness(1);
-  }
-  50% {
-    filter: brightness(1.12);
-  }
+  100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vel-support-fab__badge,
   .vel-support-fab--alert {
     animation: none;
   }

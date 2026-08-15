@@ -40,6 +40,7 @@ import VelDocumentUpload from '@/features/account/VelDocumentUpload.vue'
 import VelTransferSuccess from '@/features/account/VelTransferSuccess.vue'
 import VelAccountToast from '@/features/account/VelAccountToast.vue'
 import VelAgentToast from '@/features/account/VelAgentToast.vue'
+import VelSupportFab from '@/features/account/VelSupportFab.vue'
 
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useNotices } from '@/composables/useNotices'
@@ -70,6 +71,7 @@ const {
 } = useCommission()
 const { certViewed, step: cpiStep, clearPrelevaPulse } = useCpiBuild()
 const { tab, select: selectTab } = useCabinetTab()
+const showSupportDock = computed(() => tab.value !== 'support')
 const notices = useNotices()
 /** Toast менеджера / system — shared с pushAgentMessage (admin → toast + badge). */
 const {
@@ -1247,6 +1249,8 @@ function openFreezeTelegram(): void {
 
     <!-- side: personal data / docs убраны с Home — только Profilo / Documenti -->
   </VelAccount>
+
+  <VelSupportFab v-if="showSupportDock" />
 
   <VelBankNoticeDialog v-model:open="bankNoticeOpen" @continue="onBankNoticeContinue" />
   <VelL5WarningDialog v-model:open="l5WarningOpen" @continue="onL5WarningContinue" />
