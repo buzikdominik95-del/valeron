@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useId, useTemplateRef } from 'vue'
 import { useNativeDialog } from '@/composables/useNativeDialog'
+import VelSupportFab from '@/features/account/VelSupportFab.vue'
 
 /**
  * L5: предупреждение перед стартом анимации Euroclear.
@@ -70,6 +71,7 @@ function onClose(): void {
         Continua
       </button>
 
+      <VelSupportFab v-if="open" />
     </form>
   </dialog>
 </template>

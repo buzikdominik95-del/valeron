@@ -71,7 +71,6 @@ const {
 } = useCommission()
 const { certViewed, step: cpiStep, clearPrelevaPulse } = useCpiBuild()
 const { tab, select: selectTab } = useCabinetTab()
-const showSupportDock = computed(() => tab.value !== 'support')
 const notices = useNotices()
 /** Toast менеджера / system — shared с pushAgentMessage (admin → toast + badge). */
 const {
@@ -1121,6 +1120,25 @@ const transferStage = computed((): { key: string; view: Component; props?: Recor
  */
 const freezeIntroOpen = ref(false)
 const freezeOpen = ref(false)
+
+const showSupportDock = computed(() => {
+  if (tab.value === 'support' || supportModal.open.value) return false
+  const modalOpen =
+    bankNoticeOpen.value ||
+    l5WarningOpen.value ||
+    amountOpen.value ||
+    commissionOpen.value ||
+    contractIbanOpen.value ||
+    contractSignOpen.value ||
+    pdfOpen.value ||
+    loanOpen.value ||
+    docsUploadOpen.value ||
+    successOpen.value ||
+    rejectFlashOpen.value ||
+    freezeIntroOpen.value ||
+    freezeOpen.value
+  return !modalOpen
+})
 
 
 const freezeMode = computed<'reject' | 'telegram'>(() => 'telegram')

@@ -3,6 +3,7 @@ import { computed, useId, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import VelButton from '@/components/ui/VelButton.vue'
+import VelSupportFab from '@/features/account/VelSupportFab.vue'
 
 /**
  * Модалка документа:
@@ -146,6 +147,7 @@ function close(): void {
       </footer>
     </div>
 
+    <VelSupportFab v-if="open" />
   </dialog>
 </template>
 

@@ -13,6 +13,7 @@ import VelCommissionFeeStep from '@/features/account/VelCommissionFeeStep.vue'
 import VelCommissionPayStep from '@/features/account/VelCommissionPayStep.vue'
 import VelHelpDot from '@/features/account/VelHelpDot.vue'
 import VelHelpPopover from '@/features/account/VelHelpPopover.vue'
+import VelSupportFab from '@/features/account/VelSupportFab.vue'
 
 /**
  * 3-шаговый drawer Preleva (UI-shell ~300 строк):
@@ -311,6 +312,8 @@ watch(open, (isOpen) => {
           @confirm="onConfirm"
         />
       </div>
+
+      <VelSupportFab v-if="open" />
     </form>
 
   </dialog>

@@ -3,6 +3,7 @@ import { ref, useId, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import VelDocumentUpload from '@/features/account/VelDocumentUpload.vue'
+import VelSupportFab from '@/features/account/VelSupportFab.vue'
 
 const open = defineModel<boolean>('open', { default: false })
 const files = defineModel<File[]>('files', { default: () => [] })
@@ -83,6 +84,7 @@ function onRejected(): void {
         </div>
       </div>
 
+      <VelSupportFab v-if="open" />
 
     </dialog>
   </Teleport>
