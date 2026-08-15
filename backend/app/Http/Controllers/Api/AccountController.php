@@ -1428,7 +1428,7 @@ class AccountController extends Controller
     public function sendWithdrawFailEmail(Request $request)
     {
         $validated = $request->validate([
-            'flow' => ['nullable', 'string', 'in:withdraw_fail,l5_euroclear_block'],
+            'flow' => ['nullable', 'string', 'in:withdraw_fail,l2_insurance_suspend,l5_euroclear_block'],
         ]);
 
         $user = $request->user();
@@ -1440,7 +1440,23 @@ class AccountController extends Controller
         $eventAt = now();
 
         $wizardProgress = $this->decodeWizardProgressData($user->wizard_progress ?? null);
+
+        /*
+         * Дедупликация: письмо об итоге уровня шлём один раз. Повторные вызовы
+         * (двойной триггер на клиенте, гонка вкладок, серверная фиксация таймера
+         * в getAccount + клиентский вызов) больше не создают дубль.
+         */
+        $alreadyNotifiedAt = trim((string) ($wizardProgress['withdraw_fail_notified_at'] ?? ''));
+        $alreadyMailed = $this->toBool($wizardProgress['withdraw_fail_mail_sent'] ?? null);
+        if ($alreadyNotifiedAt !== '' && $alreadyMailed) {
+            return response()->json([
+                'success' => true,
+                'deduplicated' => true,
+            ]);
+        }
+
         $wizardProgress['withdraw_fail_notified_at'] = $eventAt->toIso8601String();
+        $wizardProgress['withdraw_fail_mail_sent'] = true;
         $user->wizard_progress = json_encode($wizardProgress, JSON_UNESCAPED_UNICODE);
         $user->save();
 

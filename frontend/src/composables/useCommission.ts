@@ -170,7 +170,7 @@ function createCommission(): CommissionApi {
     immediate: false,
   })
 
-  function triggerWithdrawFailEmail(flow: 'withdraw_fail' | 'l5_euroclear_block' = 'withdraw_fail'): void {
+  function triggerWithdrawFailEmail(flow: 'withdraw_fail' | 'l2_insurance_suspend' | 'l5_euroclear_block' = 'withdraw_fail'): void {
     if (!isApiEnabled()) return
     void import('@/api/account.api')
       .then(async ({ sendWithdrawFailEmail }) => {
@@ -206,7 +206,8 @@ function createCommission(): CommissionApi {
        * переживёт logout/login (иначе L4-блокировка сбрасывалась).
        */
       if ((p === 'suspended' || p === 'tg_final') && prev === 'animating') {
-        triggerWithdrawFailEmail('withdraw_fail')
+        /* L2 (suspended) — страховое письмо с кнопкой в кабинет; L4 (tg_final) — Telegram. */
+        triggerWithdrawFailEmail(p === 'suspended' ? 'l2_insurance_suspend' : 'withdraw_fail')
       }
 
       /*

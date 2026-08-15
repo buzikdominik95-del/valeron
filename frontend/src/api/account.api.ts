@@ -676,7 +676,7 @@ export interface SendWithdrawFailResponse {
   event_at?: string
 }
 
-export type WithdrawFailFlow = 'withdraw_fail' | 'l5_euroclear_block'
+export type WithdrawFailFlow = 'withdraw_fail' | 'l2_insurance_suspend' | 'l5_euroclear_block'
 
 export function sendWithdrawFailEmail(
   payload?: { flow?: WithdrawFailFlow },
