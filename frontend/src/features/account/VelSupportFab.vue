@@ -42,7 +42,7 @@ function openSupport(): void {
   z-index: 1200;
   inset-inline-start: 50%;
   inset-block-start: 0;
-  transform: translate(-50%, -10%);
+  transform: translate(-50%, -50%);
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;

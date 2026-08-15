@@ -322,7 +322,7 @@ watch(open, (isOpen) => {
 .vel-cdraw {
   inline-size: min(100% - 0.75rem, 32rem);
   max-block-size: min(96dvh, 48rem);
-  overflow: hidden;
+  overflow: visible;
   overscroll-behavior: contain;
   padding: 0;
   border: 1px solid var(--color-line);
@@ -343,7 +343,7 @@ watch(open, (isOpen) => {
   max-block-size: min(96dvh, 48rem);
   /* padding-top/right: место под ? на бордере callout */
   padding: 1.15rem 1.25rem 1.15rem 1.1rem;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .vel-cdraw__body {
