@@ -20,12 +20,13 @@ class ManagerController extends Controller
     public function index(): JsonResponse
     {
         $trafficMap = $this->getTrafficMap();
+        $trafficByLevel = \App\Support\ManagerTrafficAssigner::getTrafficByLevelMap();
 
         $managers = AdminUser::query()
             ->whereIn('role', ['manager', 'team_lead'])
             ->orderByDesc('created_at')
             ->get()
-            ->map(function (AdminUser $manager) use ($trafficMap) {
+            ->map(function (AdminUser $manager) use ($trafficMap, $trafficByLevel) {
                 $totalLeads = DB::table('leads')->where('assigned_manager_id', $manager->id)->count();
                 $leads24h = DB::table('leads')
                     ->where('assigned_manager_id', $manager->id)
@@ -66,6 +67,10 @@ class ManagerController extends Controller
                     'uses_level_system' => (bool) ($manager->uses_level_system ?? true),
                     'handled_levels' => AdminManagerLevelStore::getFor((int) $manager->id),
                     'traffic_percent' => (int) ($trafficMap[(string) $manager->id] ?? 0),
+                    'traffic_by_level' => collect($trafficByLevel)->mapWithKeys(function ($levelMap, $lvl) use ($manager, $trafficMap) {
+                        $val = is_array($levelMap) ? ($levelMap[(string) $manager->id] ?? $levelMap[$manager->id] ?? null) : null;
+                        return [(string) $lvl => $val === null ? null : (int) $val];
+                    })->filter(fn ($v) => $v !== null)->all(),
                     'total_leads' => $totalLeads,
                     'leads_24h' => $leads24h,
                     'unread_chats' => $unreadChats,
@@ -174,18 +179,32 @@ class ManagerController extends Controller
 
         $validated = $request->validate([
             'traffic_percent' => 'required|integer|min:0|max:100',
+            'level' => 'nullable|integer|min:1|max:50',
         ]);
 
-        $map = $this->getTrafficMap();
-        $map[(string) $manager->id] = (int) $validated['traffic_percent'];
-        $this->saveTrafficMap($map);
+        $percent = (int) $validated['traffic_percent'];
+        $level = isset($validated['level']) ? (int) $validated['level'] : null;
+
+        if ($level !== null) {
+            // Per-level вес
+            $byLevel = $this->getJsonMap('manager_traffic_by_level');
+            $levelMap = is_array($byLevel[(string) $level] ?? null) ? $byLevel[(string) $level] : [];
+            $levelMap[(string) $manager->id] = $percent;
+            $byLevel[(string) $level] = $levelMap;
+            $this->saveJsonMap('manager_traffic_by_level', $byLevel);
+        } else {
+            $map = $this->getTrafficMap();
+            $map[(string) $manager->id] = $percent;
+            $this->saveTrafficMap($map);
+        }
 
         return response()->json([
             'success' => true,
             'message' => 'Процент трафика обновлён',
             'data' => [
                 'id' => $manager->id,
-                'traffic_percent' => (int) $validated['traffic_percent'],
+                'traffic_percent' => $percent,
+                'level' => $level,
             ],
         ]);
     }
@@ -219,24 +238,17 @@ class ManagerController extends Controller
             ], 422);
         }
 
-        $weights = [];
-        if ($level === 1) {
-            $trafficMap = $this->getTrafficMap();
-            foreach ($managers as $manager) {
-                $id = (int) $manager->id;
-                $weights[$id] = max(0, (int) ($trafficMap[(string) $id] ?? 0));
-            }
+        $weights = \App\Support\ManagerTrafficAssigner::resolveWeights(
+            $managers->pluck('id')->map(fn ($v) => (int) $v)->all(),
+            $level
+        );
 
-            $hasPositiveWeight = collect($weights)->contains(fn ($w) => $w > 0);
-            if (!$hasPositiveWeight) {
-                foreach ($weights as $id => $weight) {
-                    $weights[$id] = 1;
-                }
-            }
-        } else {
-            foreach ($managers as $manager) {
-                $weights[(int) $manager->id] = 1;
-            }
+        if (empty($weights)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'У всех менеджеров уровня ' . $level . ' стоит 0% — распределять некому',
+                'data' => ['level' => $level],
+            ], 422);
         }
 
         $eligibleManagerIds = array_map('intval', array_keys($weights));

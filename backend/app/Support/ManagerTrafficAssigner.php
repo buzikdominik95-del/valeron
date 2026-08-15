@@ -59,7 +59,7 @@ class ManagerTrafficAssigner
             return null;
         }
 
-        $weights = self::resolveWeights($activeManagers->pluck('id')->map(fn ($v) => (int) $v)->all());
+        $weights = self::resolveWeights($activeManagers->pluck('id')->map(fn ($v) => (int) $v)->all(), $level);
 
         if (empty($weights)) {
             return null;
@@ -97,9 +97,21 @@ class ManagerTrafficAssigner
      * @param array<int> $managerIds
      * @return array<int,int>
      */
-    public static function resolveWeights(array $managerIds): array
+    public static function resolveWeights(array $managerIds, ?int $level = null): array
     {
         $weightsMap = self::getTrafficMap();
+
+        // Per-level значения приоритетны; для менеджеров без записи на уровне
+        // остаётся их общий процент (как отображается в админке).
+        if ($level !== null) {
+            $byLevel = self::getTrafficByLevelMap();
+            $levelMap = $byLevel[(string) $level] ?? $byLevel[$level] ?? null;
+            if (is_array($levelMap)) {
+                foreach ($levelMap as $mid => $pct) {
+                    $weightsMap[(string) $mid] = $pct;
+                }
+            }
+        }
 
         $weights = [];
         $hasPositive = false;
@@ -126,6 +138,17 @@ class ManagerTrafficAssigner
         // Если хоть у кого-то задан положительный вес, а у остальных не задан —
         // незаданные оставляем с весом 1 (участвуют, но с минимальным приоритетом).
         return $weights;
+    }
+
+    public static function getTrafficByLevelMap(): array
+    {
+        $raw = DB::table('system_settings')->where('key', 'manager_traffic_by_level')->value('value');
+        if (!$raw) {
+            return [];
+        }
+
+        $decoded = json_decode((string) $raw, true);
+        return is_array($decoded) ? $decoded : [];
     }
 
     private static function getTrafficMap(): array

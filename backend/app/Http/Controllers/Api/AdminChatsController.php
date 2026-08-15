@@ -1348,7 +1348,8 @@ class AdminChatsController extends Controller
 
         // Веса распределения трафика: 0% исключает менеджера из ротации.
         $weights = \App\Support\ManagerTrafficAssigner::resolveWeights(
-            $eligible->pluck('id')->map(fn ($v) => (int) $v)->all()
+            $eligible->pluck('id')->map(fn ($v) => (int) $v)->all(),
+            $level
         );
 
         if (empty($weights)) {
