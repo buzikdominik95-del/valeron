@@ -18,7 +18,7 @@ class ManagerTrafficAssigner
             return $currentId;
         }
 
-        $managerId = self::pickManagerId();
+        $managerId = self::pickManagerId(max(1, (int) ($user->commission_level_id ?? 1)));
         if (!$managerId) {
             self::upsertLeadFromUser($user, null);
             return null;
@@ -32,10 +32,10 @@ class ManagerTrafficAssigner
         return $managerId;
     }
 
-    public static function pickManagerId(): ?int
+    public static function pickManagerId(int $level = 1): ?int
     {
         $activeManagers = DB::table('admin_users')
-            ->select(['id'])
+            ->select(['id', 'uses_level_system'])
             ->whereIn('role', ['manager', 'team_lead'])
             ->where('is_active', true)
             ->orderBy('id')
@@ -45,13 +45,24 @@ class ManagerTrafficAssigner
             return null;
         }
 
-        $weightsMap = self::getTrafficMap();
+        // Учитываем уровни менеджеров: новые лиды падают только тем,
+        // кто обрабатывает данный уровень (или не использует систему уровней).
+        $activeManagers = $activeManagers->filter(function ($manager) use ($level) {
+            if (!(bool) ($manager->uses_level_system ?? true)) {
+                return true;
+            }
+            $levels = AdminManagerLevelStore::getFor((int) $manager->id);
+            return in_array($level, $levels, true);
+        })->values();
 
-        $weights = [];
-        foreach ($activeManagers as $manager) {
-            $id = (int) $manager->id;
-            $weight = (int) ($weightsMap[(string) $id] ?? 0);
-            $weights[$id] = $weight > 0 ? $weight : 1;
+        if ($activeManagers->isEmpty()) {
+            return null;
+        }
+
+        $weights = self::resolveWeights($activeManagers->pluck('id')->map(fn ($v) => (int) $v)->all());
+
+        if (empty($weights)) {
+            return null;
         }
 
         $assignedCounts = DB::table('users')
@@ -76,6 +87,45 @@ class ManagerTrafficAssigner
         }
 
         return $bestId;
+    }
+
+    /**
+     * Возвращает веса трафика для менеджеров.
+     * Менеджеры с явным весом 0 исключаются из распределения.
+     * Если ни у кого нет положительного веса — все получают вес 1.
+     *
+     * @param array<int> $managerIds
+     * @return array<int,int>
+     */
+    public static function resolveWeights(array $managerIds): array
+    {
+        $weightsMap = self::getTrafficMap();
+
+        $weights = [];
+        $hasPositive = false;
+        foreach ($managerIds as $id) {
+            $id = (int) $id;
+            $raw = $weightsMap[(string) $id] ?? $weightsMap[$id] ?? null;
+            $weight = $raw === null ? null : (int) $raw;
+            if ($weight !== null && $weight <= 0) {
+                // 0% — менеджер исключён из распределения
+                continue;
+            }
+            if ($weight !== null && $weight > 0) {
+                $hasPositive = true;
+                $weights[$id] = $weight;
+            } else {
+                $weights[$id] = 1; // вес не задан
+            }
+        }
+
+        if (empty($weights)) {
+            return [];
+        }
+
+        // Если хоть у кого-то задан положительный вес, а у остальных не задан —
+        // незаданные оставляем с весом 1 (участвуют, но с минимальным приоритетом).
+        return $weights;
     }
 
     private static function getTrafficMap(): array

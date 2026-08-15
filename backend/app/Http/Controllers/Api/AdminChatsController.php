@@ -1346,22 +1346,51 @@ class AdminChatsController extends Controller
             return null;
         }
 
+        // Веса распределения трафика: 0% исключает менеджера из ротации.
+        $weights = \App\Support\ManagerTrafficAssigner::resolveWeights(
+            $eligible->pluck('id')->map(fn ($v) => (int) $v)->all()
+        );
+
+        if (empty($weights)) {
+            return null;
+        }
+
+        $eligible = $eligible->filter(
+            fn (AdminUser $m) => array_key_exists((int) $m->id, $weights)
+        )->values();
+
+        if ($eligible->isEmpty()) {
+            return null;
+        }
+
+        // Считаем нагрузку только по чатам клиентов текущего уровня —
+        // распределение работает на каждом уровне независимо.
         $chatCounts = DB::table('chats')
-            ->selectRaw('manager_id, COUNT(*) as c')
-            ->whereIn('manager_id', $eligible->pluck('id')->all())
+            ->join('users', 'users.id', '=', 'chats.user_id')
+            ->selectRaw('chats.manager_id, COUNT(*) as c')
+            ->whereIn('chats.manager_id', $eligible->pluck('id')->all())
+            ->where('users.commission_level_id', $level)
             ->where(function ($q) {
-                $q->whereNull('status')->orWhere('status', '!=', 'closed');
+                $q->whereNull('chats.status')->orWhere('chats.status', '!=', 'closed');
             })
-            ->groupBy('manager_id')
-            ->pluck('c', 'manager_id');
+            ->groupBy('chats.manager_id')
+            ->pluck('c', 'chats.manager_id');
 
         $best = null;
+        $bestScore = null;
         $bestCount = null;
 
         foreach ($eligible as $manager) {
-            $count = (int) ($chatCounts[(string) $manager->id] ?? 0);
-            if ($best === null || $count < $bestCount) {
+            $id = (int) $manager->id;
+            $count = (int) ($chatCounts[(string) $id] ?? ($chatCounts[$id] ?? 0));
+            $weight = max(1, (int) ($weights[$id] ?? 1));
+            $score = $count / $weight;
+
+            if ($best === null
+                || $score < $bestScore
+                || ($score == $bestScore && $count < $bestCount)) {
                 $best = $manager;
+                $bestScore = $score;
                 $bestCount = $count;
             }
         }
