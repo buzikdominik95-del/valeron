@@ -147,6 +147,7 @@ function onConfirm(): void {
 }
 
 .vel-wd__form {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 1.15rem;

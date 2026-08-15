@@ -86,6 +86,7 @@ function onContinue(): void {
 }
 
 .vel-bn__form {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;

@@ -159,6 +159,7 @@ function onRejected(): void {
 }
 
 .vel-docs-modal__panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   max-block-size: 92vh;
@@ -218,6 +219,7 @@ function onRejected(): void {
   }
 
   .vel-docs-modal__panel {
+  position: relative;
     max-block-size: calc(100dvh - 0.75rem);
   }
 }

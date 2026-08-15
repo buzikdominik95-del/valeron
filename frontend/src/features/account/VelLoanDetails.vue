@@ -314,6 +314,7 @@ function onEditName(): void {
 }
 
 .vel-loan__shell {
+  position: relative;
   display: flex;
   max-block-size: min(94dvh, 52rem);
   flex-direction: column;
