@@ -600,6 +600,38 @@ watch(tab, async (next) => {
   backdrop-filter: blur(4px);
 }
 
+.vel-support-modal[open] .vel-support-modal__sheet {
+  -webkit-animation: slide-fwd-left 0.62s cubic-bezier(0.19, 1, 0.22, 1) both;
+  animation: slide-fwd-left 0.62s cubic-bezier(0.19, 1, 0.22, 1) both;
+  will-change: transform, opacity;
+}
+
+@-webkit-keyframes slide-fwd-left {
+  0% {
+    opacity: 0;
+    -webkit-transform: translateZ(0) translateX(2.75rem) scale(0.96);
+    transform: translateZ(0) translateX(2.75rem) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    -webkit-transform: translateZ(160px) translateX(0) scale(1);
+    transform: translateZ(160px) translateX(0) scale(1);
+  }
+}
+
+@keyframes slide-fwd-left {
+  0% {
+    opacity: 0;
+    -webkit-transform: translateZ(0) translateX(2.75rem) scale(0.96);
+    transform: translateZ(0) translateX(2.75rem) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    -webkit-transform: translateZ(160px) translateX(0) scale(1);
+    transform: translateZ(160px) translateX(0) scale(1);
+  }
+}
+
 .vel-support-modal__sheet {
   display: flex;
   min-block-size: min(80dvh, 42rem);
@@ -707,4 +739,12 @@ watch(tab, async (next) => {
     max-inline-size: 56rem;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-support-modal[open] .vel-support-modal__sheet {
+    -webkit-animation: none;
+    animation: none;
+  }
+}
+
 </style>
