@@ -601,8 +601,8 @@ watch(tab, async (next) => {
 }
 
 .vel-support-modal[open] .vel-support-modal__sheet {
-  -webkit-animation: slide-fwd-left 0.62s cubic-bezier(0.19, 1, 0.22, 1) both;
-  animation: slide-fwd-left 0.62s cubic-bezier(0.19, 1, 0.22, 1) both;
+  -webkit-animation: slide-fwd-left 1.24s cubic-bezier(0.19, 1, 0.22, 1) both;
+  animation: slide-fwd-left 1.24s cubic-bezier(0.19, 1, 0.22, 1) both;
   will-change: transform, opacity;
 }
 
