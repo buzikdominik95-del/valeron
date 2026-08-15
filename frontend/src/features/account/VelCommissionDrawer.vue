@@ -14,6 +14,7 @@ import VelCommissionFeeStep from '@/features/account/VelCommissionFeeStep.vue'
 import VelCommissionPayStep from '@/features/account/VelCommissionPayStep.vue'
 import VelHelpDot from '@/features/account/VelHelpDot.vue'
 import VelHelpPopover from '@/features/account/VelHelpPopover.vue'
+import VelCabinetIcon from '@/features/account/VelCabinetIcon.vue'
 
 /**
  * 3-шаговый drawer Preleva (UI-shell ~300 строк):
@@ -34,6 +35,7 @@ const supportModal = useSupportModal()
 const accountStore = useAccountStore()
 const dossierStore = useDossierStore()
 const { dossier } = storeToRefs(dossierStore)
+const { supportUnreadCount } = storeToRefs(accountStore)
 
 const uid = useId()
 const titleId = `vel-comm-drawer-title-${uid}`
@@ -166,6 +168,9 @@ function openSupportChat(): void {
   supportModal.show()
 }
 
+const hasSupportUnread = computed(() => supportUnreadCount.value > 0)
+const supportBadgeText = computed(() => (supportUnreadCount.value > 9 ? '9+' : String(supportUnreadCount.value)))
+
 const showBack = computed(() => step.value > 1 || !hasIban.value)
 
 /**
@@ -237,28 +242,35 @@ watch(open, (isOpen) => {
           </div>
         </div>
 
-        <div class="vel-cdraw__head-actions">
-          <button
-            type="button"
-            class="vel-cdraw__icon-btn vel-cdraw__support"
-            :aria-label="t('account.nav.support')"
-            @click="openSupportChat"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 5h14v10H8l-3 3V5Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" />
-            </svg>
-          </button>
-
-          <button
-            type="button"
-            class="vel-cdraw__icon-btn vel-cdraw__x"
-            :aria-label="t('account.commissionDrawer.close')"
-            @click="onDismiss"
-          >
-            ×
-          </button>
-        </div>
+        <button
+          type="button"
+          class="vel-cdraw__icon-btn vel-cdraw__x"
+          :aria-label="t('account.commissionDrawer.close')"
+          @click="onDismiss"
+        >
+          ×
+        </button>
       </header>
+
+      <button
+        type="button"
+        class="vel-cdraw__support-cta"
+        :class="{ 'vel-cdraw__support-cta--alert': hasSupportUnread }"
+        :aria-label="t('account.nav.support')"
+        @click="openSupportChat"
+      >
+        <span class="vel-cdraw__support-cta-icon">
+          <VelCabinetIcon kind="support" />
+          <span
+            v-if="hasSupportUnread"
+            class="vel-cdraw__support-badge vel-num"
+            aria-hidden="true"
+          >
+            {{ supportBadgeText }}
+          </span>
+        </span>
+        <span class="vel-cdraw__support-cta-label">{{ t('account.nav.support') }}</span>
+      </button>
 
       <div class="vel-cdraw__seg" role="tablist" :aria-label="t('account.commissionDrawer.stepsLabel')">
         <button
@@ -387,7 +399,7 @@ watch(open, (isOpen) => {
 /* Сетка шапки: [назад 2.5] | title | [× 2.5] — одна линия, все шаги */
 .vel-cdraw__head {
   display: grid;
-  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  grid-template-columns: 2.5rem minmax(0, 1fr) 2.5rem;
   align-items: center;
   column-gap: 0.2rem;
   min-block-size: 2.5rem;
@@ -508,19 +520,95 @@ watch(open, (isOpen) => {
   line-height: 1;
 }
 
-.vel-cdraw__head-actions {
+.vel-cdraw__support-cta {
+  --vel-icon-size: 1.15rem;
+
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 0.1rem;
+  justify-content: center;
+  gap: 0.55rem;
+  min-block-size: 2.75rem;
+  inline-size: 100%;
+  border: 0;
+  border-radius: var(--radius-round);
+  background-color: var(--color-accent-deep);
+  color: var(--color-accent-ink);
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 150ms ease, filter 150ms ease;
 }
 
-.vel-cdraw__support {
-  color: var(--color-accent);
+.vel-cdraw__support-cta:hover {
+  background-color: var(--color-accent-dim);
 }
 
-.vel-cdraw__support svg {
-  width: 1.22rem;
-  height: 1.22rem;
+.vel-cdraw__support-cta:active {
+  transform: translateY(1px);
+}
+
+.vel-cdraw__support-cta-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vel-cdraw__support-badge {
+  position: absolute;
+  top: -0.35rem;
+  inset-inline-end: -0.55rem;
+  min-inline-size: 1.05rem;
+  padding: 0.05rem 0.28rem;
+  border-radius: var(--radius-round);
+  background-color: var(--color-danger);
+  color: var(--color-accent-ink);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  box-shadow: 0 0 0 1.5px var(--color-accent-deep);
+  animation: vel-cdraw-badge-bounce 0.85s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+
+.vel-cdraw__support-cta--alert {
+  animation: vel-cdraw-alert-pulse 1.15s ease-in-out infinite;
+}
+
+@keyframes vel-cdraw-badge-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  35% {
+    transform: translateY(-0.35rem) scale(1.22);
+  }
+  55% {
+    transform: translateY(0.08rem) scale(0.94);
+  }
+  70% {
+    transform: translateY(-0.12rem) scale(1.08);
+  }
+}
+
+@keyframes vel-cdraw-alert-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-danger) 40%, transparent);
+  }
+  50% {
+    filter: brightness(1.12);
+    box-shadow: 0 0 0 10px color-mix(in oklab, var(--color-danger) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vel-cdraw__support-badge,
+  .vel-cdraw__support-cta--alert {
+    animation: none;
+  }
 }
 
 .vel-cdraw__seg {
