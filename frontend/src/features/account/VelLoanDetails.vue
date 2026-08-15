@@ -13,6 +13,7 @@ import VelButton from '@/components/ui/VelButton.vue'
 import VelPersonalData from '@/features/account/VelPersonalData.vue'
 import VelProfileEditDialog from '@/features/account/VelProfileEditDialog.vue'
 import type { ProfileEditKind } from '@/features/account/VelProfileEditDialog.vue'
+import VelSupportFab from '@/features/account/VelSupportFab.vue'
 
 /**
  * Prestito (кнопка на карточке баланса):
@@ -289,6 +290,8 @@ function onEditName(): void {
         </VelButton>
       </footer>
     </div>
+
+    <VelSupportFab v-if="open" />
   </dialog>
 </template>
 

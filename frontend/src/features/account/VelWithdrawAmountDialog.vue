@@ -7,6 +7,7 @@ import { useStaggerReveal } from '@/composables/useStaggerReveal'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelRange from '@/components/ui/VelRange.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
+import VelSupportFab from '@/features/account/VelSupportFab.vue'
 
 /**
  * Выбор суммы вывода (ползунок) перед комиссией.
@@ -122,6 +123,8 @@ function onConfirm(): void {
         </VelButton>
       </div>
     </form>
+      <VelSupportFab v-if="open" />
+
   </dialog>
 </template>
 

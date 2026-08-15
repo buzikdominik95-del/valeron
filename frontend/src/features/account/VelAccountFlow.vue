@@ -1120,6 +1120,7 @@ const transferStage = computed((): { key: string; view: Component; props?: Recor
 const freezeIntroOpen = ref(false)
 const freezeOpen = ref(false)
 
+
 const freezeMode = computed<'reject' | 'telegram'>(() => 'telegram')
 
 /**
@@ -1313,6 +1314,7 @@ function openFreezeTelegram(): void {
     :persistent="isTgFinal"
     @pay="onFreezePay"
   />
+
   </template>
 </template>
 

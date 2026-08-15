@@ -6,6 +6,7 @@ import { useDialogFocus } from '@/composables/useDialogFocus'
 import type { SignatureMode } from '@/composables/useSignaturePad'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelSignatureClose from '@/features/account/VelSignatureClose.vue'
+import VelSupportFab from '@/features/account/VelSupportFab.vue'
 
 /**
  * Модальная панель подписи договора — только росчерк (графическая подпись).
@@ -99,6 +100,8 @@ function confirm(): void {
             </VelButton>
           </div>
         </div>
+
+        <VelSupportFab v-if="open" />
       </div>
     </Transition>
   </Teleport>

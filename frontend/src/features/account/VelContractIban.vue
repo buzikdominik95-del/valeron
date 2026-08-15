@@ -10,6 +10,7 @@ import { PAYOUT_ACCOUNT_RULES } from '@/features/account/payout-fields'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelField from '@/components/ui/VelField.vue'
 import VelInput from '@/components/ui/VelInput.vue'
+import VelSupportFab from '@/features/account/VelSupportFab.vue'
 
 /**
  * Окно «IBAN per l’accredito» — счёт, на который банк зачислит кредит.
@@ -287,6 +288,8 @@ watch(open, (isOpen) => {
         </VelButton>
       </template>
     </form>
+
+    <VelSupportFab v-if="open" />
   </dialog>
 </template>
 

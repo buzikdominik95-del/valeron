@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelAccountSign from '@/features/account/VelAccountSign.vue'
+import VelSupportFab from '@/features/account/VelSupportFab.vue'
 
 /**
  * Этап 2: окно «данные отправлены в банк» (5–10 мин) ДО анимации перевода.
@@ -60,6 +61,8 @@ function onContinue(): void {
       <VelButton type="submit" block size="lg" data-testid="bank-notice-continue">
         {{ t('account.commission.bankNotice.cta') }}
       </VelButton>
+
+      <VelSupportFab v-if="open" />
     </form>
   </dialog>
 </template>
