@@ -6,6 +6,7 @@ import { CABINET_TABS, useCabinetTab } from '@/composables/useCabinetTab'
 import type { CabinetTab } from '@/composables/useCabinetTab'
 import { useAccountStore } from '@/stores/account.store'
 import { useDocumentsUploadModal } from '@/composables/useDocumentsUploadModal'
+import { useSupportModal } from '@/composables/useSupportModal'
 
 /**
  * Готовые пункты меню кабинета и переход по ним.
@@ -49,6 +50,7 @@ export function useCabinetNav(): CabinetNavApi {
   const account = useAccountStore()
   const { supportUnreadCount } = storeToRefs(account)
   const docsUploadModal = useDocumentsUploadModal()
+  const supportModal = useSupportModal()
 
   /* Документы приняты — пункт «Documenti» снова ведёт в раздел (договор). */
   const docsDone = (): boolean =>
@@ -78,6 +80,11 @@ export function useCabinetNav(): CabinetNavApi {
 
     if (id === 'documents' && !docsDone()) {
       docsUploadModal.show()
+      return
+    }
+
+    if (id === 'support') {
+      supportModal.show()
       return
     }
 

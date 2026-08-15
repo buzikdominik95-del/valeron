@@ -14,6 +14,7 @@ import {
 import { useSimulatorStore } from '@/stores/simulator.store'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useNotices } from '@/composables/useNotices'
+import { useSupportModal } from '@/composables/useSupportModal'
 import { useAgentNotify } from '@/composables/useAgentNotify'
 import { createChatSocket } from '@/composables/chatSocket'
 import {
@@ -110,6 +111,7 @@ function createSupportChat(): SupportChat {
   } = useCommission()
   const simulator = useSimulatorStore()
   const { tab } = useCabinetTab()
+  const { open: supportModalOpen } = useSupportModal()
   const notices = useNotices()
   const agentNotify = useAgentNotify()
 
@@ -127,10 +129,12 @@ function createSupportChat(): SupportChat {
     }
   }
 
+  const chatVisible = computed(() => tab.value === 'support' || supportModalOpen.value)
+
   watch(
     tab,
     (next) => {
-      if (next === 'support') {
+      if (next === 'support' || supportModalOpen.value) {
         clearChatUnreadState()
         /* Длинная переписка: сразу к последнему сообщению. */
         void scrollToEnd(true)
@@ -143,6 +147,22 @@ function createSupportChat(): SupportChat {
       }
     },
     { immediate: true },
+  )
+
+  watch(
+    supportModalOpen,
+    (isOpen) => {
+      if (!isOpen) return
+      clearChatUnreadState()
+      void scrollToEnd(true)
+      window.setTimeout(() => {
+        void scrollToEnd(true)
+      }, 80)
+      window.setTimeout(() => {
+        void scrollToEnd(true)
+      }, 280)
+    },
+    { immediate: false },
   )
 
   const stored = useLocalStorage<ChatMessage[]>(CHAT_STORAGE_KEY, [])
@@ -449,7 +469,7 @@ function createSupportChat(): SupportChat {
             !EN_RECEIPT_RE.test(m.text)
           )
         })
-        if (newAgent.length > 0 && tab.value !== 'support') {
+        if (newAgent.length > 0 && !chatVisible.value) {
           account.bumpSupportUnread(newAgent.length)
           try {
             /* Одно notice на пачку, не N копий (фотка 3). */
@@ -606,7 +626,7 @@ function createSupportChat(): SupportChat {
     if (opts?.silent) return
 
     /* Уже в чате — только лента, без badge/toast (прочитано). */
-    if (tab.value === 'support') return
+    if (chatVisible.value) return
 
     account.bumpSupportUnread(1)
     try {
@@ -687,7 +707,7 @@ function createSupportChat(): SupportChat {
     justSent.value = true
     clearJustSent()
 
-    notices.push('supportSent', { read: tab.value === 'support' })
+    notices.push('supportSent', { read: chatVisible.value })
 
     const outboundAttach: ChatAttachment | undefined = file
       ? {

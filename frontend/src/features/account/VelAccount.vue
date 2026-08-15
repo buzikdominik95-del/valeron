@@ -7,8 +7,10 @@ import { useCommission } from '@/composables/useCommission'
 import { CABINET_HEADING_ID, useCabinetTab } from '@/composables/useCabinetTab'
 import { useNotices } from '@/composables/useNotices'
 import { useSupportChat } from '@/composables/useSupportChat'
+import { useSupportModal } from '@/composables/useSupportModal'
 import { useShellHeadHeight } from '@/composables/useShellHeadHeight'
 import { useHeaderCondense } from '@/composables/useHeaderCondense'
+import { useNativeDialog } from '@/composables/useNativeDialog'
 import VelCabinetHeader from '@/features/account/VelCabinetHeader.vue'
 import VelClientBrow from '@/features/account/VelClientBrow.vue'
 import VelCabinetNav from '@/features/account/VelCabinetNav.vue'
@@ -19,6 +21,10 @@ import VelCabinetHome from '@/features/account/VelCabinetHome.vue'
 import VelCabinetProfile from '@/features/account/VelCabinetProfile.vue'
 import VelCabinetDocuments from '@/features/account/VelCabinetDocuments.vue'
 import VelCabinetSupport from '@/features/account/VelCabinetSupport.vue'
+import { endsRun, startsNewDay } from '@/features/account/chat-thread'
+import VelChatHeader from '@/features/account/VelChatHeader.vue'
+import VelChatComposer from '@/features/account/VelChatComposer.vue'
+import VelChatBubble from '@/features/account/VelChatBubble.vue'
 
 /**
  * ОБОЛОЧКА личного кабинета: шапка, навигация, заставка входа и ОДНО место
@@ -45,13 +51,11 @@ import VelCabinetSupport from '@/features/account/VelCabinetSupport.vue'
  * с клавиатуры человек остаётся в меню: экран сменился, а фокус нет, и
  * следующий Tab уводит по старому месту.
  */
-const { t } = useI18n()
+const { t, d } = useI18n()
 const { client, steps } = useAccount()
 const { tab } = useCabinetTab()
 const accountStore = useAccountStore()
 const { level, isTgFinal } = useCommission()
-/* Early singleton init in shell setup — before any click / toast / dev bar. */
-void useSupportChat()
 
 /** С L2+ верхний step-bar скрыт — у шапки нет второй строки. */
 const noTopTrack = computed(() => level.value >= 2)
@@ -123,6 +127,52 @@ watch(
 const emit = defineEmits<{ notices: [] }>()
 
 const noticesOpen = ref(false)
+
+const { open: supportModalOpen, hide: hideSupportModal } = useSupportModal()
+const supportDialog = useTemplateRef<HTMLDialogElement>('supportDialog')
+useNativeDialog(supportDialog, supportModalOpen)
+
+const supportChat = useSupportChat()
+const supportThread = computed(() =>
+  supportChat.messages.value.map((message, index) => ({
+    message,
+    dayLabel: startsNewDay(message, supportChat.messages.value[index - 1])
+      ? d(new Date(message.at), 'day')
+      : null,
+    last: endsRun(message, supportChat.messages.value[index + 1]),
+  })),
+)
+
+watch(
+  supportModalOpen,
+  (isOpen) => {
+    if (!isOpen) return
+    accountStore.clearSupportUnread()
+    try {
+      useNotices().markChatNoticesRead()
+    } catch {
+      /* notices optional */
+    }
+  },
+  { flush: 'post' },
+)
+
+function closeSupportModal(): void {
+  hideSupportModal()
+}
+
+function onSupportBackdropClick(event: MouseEvent): void {
+  if (event.target !== event.currentTarget) return
+  closeSupportModal()
+}
+
+function onSupportComposerSend(): void {
+  void supportChat.send()
+}
+
+function setSupportThreadEl(element: unknown): void {
+  supportChat.threadEl.value = element instanceof HTMLElement ? element : null
+}
 
 function onNotices(): void {
   noticesOpen.value = !noticesOpen.value
@@ -346,6 +396,63 @@ watch(tab, async (next) => {
          её границами на узком экране. -->
     <VelNoticesPanel v-model:open="noticesOpen" />
 
+    <dialog
+      ref="supportDialog"
+      class="vel-support-modal"
+      aria-label="Assistenza"
+      @click="onSupportBackdropClick"
+    >
+      <section class="vel-support-modal__sheet" role="document">
+        <header class="vel-support-modal__head">
+          <VelChatHeader />
+          <button
+            type="button"
+            class="vel-support-modal__close"
+            :aria-label="t('account.loan.close')"
+            @click="closeSupportModal"
+          >
+            ×
+          </button>
+        </header>
+
+        <div
+          :ref="setSupportThreadEl"
+          class="vel-support-modal__thread vel-chat-thread"
+          role="log"
+          aria-live="polite"
+          tabindex="0"
+          :aria-label="t('account.support.chat.threadLabel')"
+        >
+          <div class="vel-support-modal__stack">
+            <template v-for="item in supportThread" :key="item.message.id">
+              <p v-if="item.dayLabel" class="vel-support-modal__day">{{ item.dayLabel }}</p>
+
+              <VelChatBubble
+                :author="item.message.author"
+                :text="item.message.text"
+                :at="item.message.at"
+                :delivery="item.message.delivery"
+                :last="item.last"
+                :image-url="item.message.imageUrl"
+                :attachment="item.message.attachment"
+              />
+            </template>
+          </div>
+        </div>
+
+        <VelChatComposer
+          v-model="supportChat.draft.value"
+          :can-send="supportChat.canSend.value"
+          :sending="supportChat.sending.value"
+          :just-sent="supportChat.justSent.value"
+          :funnel="supportChat.isFunnelMode.value"
+          :pending-attachment="supportChat.pendingAttachment.value"
+          @update:pending-attachment="supportChat.setPendingAttachment"
+          @send="onSupportComposerSend"
+        />
+      </section>
+    </dialog>
+
     <VelWelcomeSplash v-model:open="splashOpen" :name="client.fullName" />
   </div>
 </template>
@@ -477,6 +584,85 @@ watch(tab, async (next) => {
 }
 
 /* Планшет: чуть больше поле, контент шире — меньше пустых боков. */
+
+.vel-support-modal {
+  inline-size: min(100vw - 1rem, 31rem);
+  max-block-size: min(92dvh, 46rem);
+  padding: 0;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  background: transparent;
+  box-shadow: 0 20px 48px color-mix(in oklab, var(--color-fg) 20%, transparent);
+}
+
+.vel-support-modal::backdrop {
+  background: color-mix(in oklab, var(--color-fg) 38%, transparent);
+  backdrop-filter: blur(4px);
+}
+
+.vel-support-modal__sheet {
+  display: flex;
+  min-block-size: min(80dvh, 42rem);
+  max-block-size: min(92dvh, 46rem);
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--color-surface);
+}
+
+.vel-support-modal__head {
+  position: relative;
+  border-block-end: 1px solid var(--color-line);
+}
+
+.vel-support-modal__close {
+  position: absolute;
+  inset-block-start: 0.45rem;
+  inset-inline-end: 0.5rem;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-round);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.vel-support-modal__thread {
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-block-size: 14rem;
+  flex: 1 1 auto;
+  padding: 0.85rem;
+  background-color: var(--color-ground);
+  background-image: radial-gradient(
+    circle at center,
+    color-mix(in oklab, var(--color-line-strong) 50%, transparent) 0,
+    color-mix(in oklab, var(--color-line-strong) 50%, transparent) 1px,
+    transparent 1.1px
+  );
+  background-size: 18px 18px;
+}
+
+.vel-support-modal__stack {
+  display: flex;
+  min-block-size: 100%;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.vel-support-modal__day {
+  margin: 0.5rem auto 0.15rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: var(--radius-round);
+  background-color: var(--color-surface);
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
 @media (min-width: 40rem) {
   .vel-cabinet {
     --vel-cab-pad-x: max(1rem, env(safe-area-inset-left, 0px));
