@@ -42,17 +42,17 @@ function openSupport(): void {
   z-index: 1200;
   inset-inline-start: 50%;
   inset-block-start: 0;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -10%);
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  min-block-size: 2.3rem;
-  padding: 0.38rem 0.78rem;
+  min-block-size: 2.25rem;
+  padding: 0.34rem 0.74rem;
   border: 1px solid color-mix(in oklab, var(--color-line) 78%, transparent);
   border-radius: 999px;
   background: var(--color-accent-deep);
   color: var(--color-accent-ink);
-  box-shadow: 0 0.45rem 0.9rem color-mix(in oklab, var(--color-fg) 20%, transparent);
+  box-shadow: 0 0.35rem 0.8rem color-mix(in oklab, var(--color-fg) 18%, transparent);
 }
 
 .vel-support-fab__icon {
