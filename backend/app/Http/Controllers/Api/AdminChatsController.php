@@ -666,8 +666,10 @@ class AdminChatsController extends Controller
         }
 
         $autoDistributionEnabled = $this->isAutoDistributionEnabledForLevel($nextLevel);
+        // Текущий менеджер не исключается: если он обрабатывает и следующий
+        // уровень, он участвует в ротации наравне с остальными.
         $targetManager = $autoDistributionEnabled
-            ? $this->pickNextLevelManager($nextLevel, (int) $actor->id)
+            ? $this->pickNextLevelManager($nextLevel)
             : null;
 
         DB::transaction(function () use ($chat, $currentLevel, $nextLevel, $targetManager, $actor) {
