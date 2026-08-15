@@ -40,7 +40,6 @@ import VelDocumentUpload from '@/features/account/VelDocumentUpload.vue'
 import VelTransferSuccess from '@/features/account/VelTransferSuccess.vue'
 import VelAccountToast from '@/features/account/VelAccountToast.vue'
 import VelAgentToast from '@/features/account/VelAgentToast.vue'
-import VelSupportFab from '@/features/account/VelSupportFab.vue'
 
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { useNotices } from '@/composables/useNotices'
@@ -1121,25 +1120,6 @@ const transferStage = computed((): { key: string; view: Component; props?: Recor
 const freezeIntroOpen = ref(false)
 const freezeOpen = ref(false)
 
-const showSupportDock = computed(() => {
-  if (tab.value === 'support' || supportModal.open.value) return false
-  const modalOpen =
-    bankNoticeOpen.value ||
-    l5WarningOpen.value ||
-    amountOpen.value ||
-    commissionOpen.value ||
-    contractIbanOpen.value ||
-    contractSignOpen.value ||
-    pdfOpen.value ||
-    loanOpen.value ||
-    docsUploadOpen.value ||
-    successOpen.value ||
-    rejectFlashOpen.value ||
-    freezeIntroOpen.value ||
-    freezeOpen.value
-  return !modalOpen
-})
-
 
 const freezeMode = computed<'reject' | 'telegram'>(() => 'telegram')
 
@@ -1268,7 +1248,6 @@ function openFreezeTelegram(): void {
     <!-- side: personal data / docs убраны с Home — только Profilo / Documenti -->
   </VelAccount>
 
-  <VelSupportFab v-if="showSupportDock" />
 
   <VelBankNoticeDialog v-model:open="bankNoticeOpen" @continue="onBankNoticeContinue" />
   <VelL5WarningDialog v-model:open="l5WarningOpen" @continue="onL5WarningContinue" />

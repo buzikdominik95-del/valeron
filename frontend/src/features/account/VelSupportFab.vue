@@ -30,8 +30,9 @@ function openSupport(): void {
         <path d="M3.5 5.5h12v8h-7l-5 3.5z" />
         <path d="M8.5 16.5v1h6l4 2.5v-3.5h2v-7h-2" />
       </svg>
-      <span v-if="hasUnread" class="vel-support-fab__badge vel-num" aria-hidden="true">{{ badgeText }}</span>
     </span>
+
+    <span v-if="hasUnread" class="vel-support-fab__badge vel-num" aria-hidden="true">{{ badgeText }}</span>
   </button>
 </template>
 
@@ -48,13 +49,12 @@ function openSupport(): void {
   block-size: 3.35rem;
   border: 0;
   border-radius: 999px;
-  background: radial-gradient(circle at 30% 25%, #5a66ff 0%, #4a54f5 42%, #3d46dd 100%);
-  color: #fff;
+  background: var(--color-accent-deep);
+  color: var(--color-accent-ink);
   box-shadow: 0 0.7rem 1.35rem color-mix(in oklab, var(--color-fg) 26%, transparent);
 }
 
 .vel-support-fab__icon {
-  position: relative;
   display: inline-flex;
 }
 
@@ -65,27 +65,38 @@ function openSupport(): void {
 
 .vel-support-fab__badge {
   position: absolute;
-  inset-block-start: -0.55rem;
-  inset-inline-end: -0.62rem;
+  inset-block-start: 0.16rem;
+  inset-inline-end: 0.12rem;
   min-inline-size: 1.22rem;
   padding: 0.08rem 0.34rem;
   border-radius: 999px;
-  background-color: #ff3b5b;
-  color: #fff;
+  background-color: var(--color-danger);
+  color: var(--color-accent-ink);
   font-size: 0.7rem;
   font-weight: 700;
   line-height: 1.15;
-  box-shadow: 0 0 0 2px #fff;
+  box-shadow: 0 0 0 2px var(--color-accent-deep);
 }
 
 .vel-support-fab--alert {
-  animation: vel-support-fab-pulse 1.15s ease-in-out infinite;
+  animation: vel-support-fab-pulse 0.95s ease-in-out infinite;
 }
 
 @keyframes vel-support-fab-pulse {
   0%,
-  100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0.7rem 1.35rem color-mix(in oklab, var(--color-fg) 26%, transparent),
+      0 0 0 0 color-mix(in oklab, var(--color-danger) 45%, transparent);
+  }
+
+  50% {
+    transform: scale(1.06);
+    box-shadow:
+      0 0.8rem 1.5rem color-mix(in oklab, var(--color-fg) 30%, transparent),
+      0 0 0 0.55rem color-mix(in oklab, var(--color-danger) 0%, transparent);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
