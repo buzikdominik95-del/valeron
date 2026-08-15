@@ -8,6 +8,7 @@ import { useNativeDialog } from '@/composables/useNativeDialog'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import { useAccountStore } from '@/stores/account.store'
 import { buildLoanPlan } from '@/lib/loan-schedule'
+import { firstPaymentIso } from '@/features/account/contract-number'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelPersonalData from '@/features/account/VelPersonalData.vue'
 import VelProfileEditDialog from '@/features/account/VelProfileEditDialog.vue'
@@ -39,10 +40,12 @@ const editKind = ref<ProfileEditKind>('name')
 const months = computed(() => (termMonths.value > 0 ? termMonths.value : 36))
 
 const firstDate = computed(() => {
-  const d = new Date()
-  d.setMonth(d.getMonth() + 1)
-  d.setDate(25)
-  return d.toISOString().slice(0, 10)
+  const rawSignedAt = accountStore.contractSignedAt?.trim?.() ?? ''
+  if (rawSignedAt !== '') {
+    const parsed = new Date(rawSignedAt)
+    if (!Number.isNaN(parsed.getTime())) return firstPaymentIso(parsed)
+  }
+  return firstPaymentIso(new Date())
 })
 
 /**

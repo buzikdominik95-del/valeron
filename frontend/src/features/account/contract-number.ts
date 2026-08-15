@@ -26,9 +26,6 @@ const FNV_PRIME = 0x01000193
 /** Сколько знаков в серийной части номера. */
 const SERIAL_LENGTH = 7
 
-/** День месяца, на который приходится первый платёж — как в «Dettagli del prestito». */
-const FIRST_PAYMENT_DAY = 25
-
 /**
  * Хэш строки заявки. Нужен ровно для одного: получить из данных заявки
  * устойчивый номер договора.
@@ -63,9 +60,11 @@ export function contractNumber(seed: string): string {
   return `VLR-${ISSUED_AT.getFullYear()}-${serial}`
 }
 
-/** ISO-дата первого платежа: 25-е число следующего месяца от даты договора. */
+/** ISO-дата первого платежа: через месяц от даты договора, в тот же день месяца. */
 export function firstPaymentIso(from: Date): string {
-  const date = new Date(Date.UTC(from.getFullYear(), from.getMonth() + 1, FIRST_PAYMENT_DAY))
+  const date = new Date(from)
+  if (Number.isNaN(date.getTime())) return ''
+  date.setMonth(date.getMonth() + 1)
   return date.toISOString().slice(0, 10)
 }
 

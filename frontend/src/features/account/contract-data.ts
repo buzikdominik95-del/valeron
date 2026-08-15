@@ -138,12 +138,21 @@ export function useContractData(): ContractView {
       .reduce((sum, e) => sum + e.amountCents, 0),
   )
 
+  const paymentBaseDate = computed(() => {
+    const raw = contractSignedAt.value.trim()
+    if (raw !== '') {
+      const parsed = new Date(raw)
+      if (!Number.isNaN(parsed.getTime())) return parsed
+    }
+    return ISSUED_AT
+  })
+
   const plan = computed<LoanPlan>(() =>
     buildLoanPlan(
       principalCents.value,
       ratePercent.value,
       months.value,
-      firstPaymentIso(ISSUED_AT),
+      firstPaymentIso(paymentBaseDate.value),
     ),
   )
 
