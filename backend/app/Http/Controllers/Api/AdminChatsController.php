@@ -712,6 +712,13 @@ class AdminChatsController extends Controller
 
         });
 
+        /*
+         * Инвалидация кэша списка чатов + realtime-пинг: без этого у старого
+         * менеджера чат «висел» до истечения stale-кэша, а у нового не появлялся
+         * без перезагрузки страницы.
+         */
+        \App\Events\ChatPing::safeDispatch((int) $chat->id);
+
         return response()->json([
             'success' => true,
             'message' => 'Чат завершен',
