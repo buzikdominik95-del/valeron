@@ -46,6 +46,7 @@ import { useNotices } from '@/composables/useNotices'
 import { useAgentNotify } from '@/composables/useAgentNotify'
 import { useSupportChat } from '@/composables/useSupportChat'
 import { useDocumentsUploadModal } from '@/composables/useDocumentsUploadModal'
+import { useSupportModal } from '@/composables/useSupportModal'
 
 const { t } = useI18n()
 const account = useAccountStore()
@@ -82,6 +83,7 @@ const {
  * Never first-call from async/click — that throws «Must be called at top of setup».
  */
 const supportChat = useSupportChat()
+const supportModal = useSupportModal()
 const { open: docsUploadOpen, hide: hideDocsUploadModal } = useDocumentsUploadModal()
 
 const apiError = ref<string | null>(null)
@@ -832,14 +834,18 @@ function onBankNoticeContinue(): void {
  * L2 шаг 7: «Conferma pagamento» → messenger + Assistenza + заготовка.
  * (confirmFeePaid / markFeePaidOffline уже в drawer — phase = messenger.)
  */
-function onCommissionConfirmed(): void {
-  commissionOpen.value = false
-  selectTab('support')
+function openSupportModalWithDraft(): void {
+  supportModal.show()
   void import('vue').then(({ nextTick }) =>
     nextTick(() => {
       supportChat.seedFunnelDraft(true)
     }),
   )
+}
+
+function onCommissionConfirmed(): void {
+  commissionOpen.value = false
+  openSupportModalWithDraft()
 }
 
 /**
@@ -929,12 +935,7 @@ watch(level, (lv, prev) => {
 watch(isMessenger, (needChat) => {
   if (!needChat) return
   commissionOpen.value = false
-  selectTab('support')
-  void import('vue').then(({ nextTick }) =>
-    nextTick(() => {
-      supportChat.seedFunnelDraft(true)
-    }),
-  )
+  openSupportModalWithDraft()
 })
 
 /*
