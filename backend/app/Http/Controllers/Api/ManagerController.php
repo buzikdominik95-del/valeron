@@ -38,6 +38,24 @@ class ManagerController extends Controller
                     })
                     ->count();
 
+                // Активные чаты менеджера с непрочитанными сообщениями клиента
+                $unreadChats = DB::table('chats')
+                    ->where('chats.manager_id', $manager->id)
+                    ->where(function ($q) {
+                        $q->whereNull('chats.status')->orWhere('chats.status', '!=', 'closed');
+                    })
+                    ->whereExists(function ($q) {
+                        $q->selectRaw('1')
+                            ->from('chat_messages')
+                            ->whereColumn('chat_messages.chat_id', 'chats.id')
+                            ->where('chat_messages.sender_type', '!=', 'manager')
+                            ->where(function ($qq) {
+                                $qq->whereNull('chat_messages.is_read')
+                                    ->orWhere('chat_messages.is_read', false);
+                            });
+                    })
+                    ->count();
+
                 return [
                     'id' => $manager->id,
                     'name' => $manager->name,
@@ -50,6 +68,7 @@ class ManagerController extends Controller
                     'traffic_percent' => (int) ($trafficMap[(string) $manager->id] ?? 0),
                     'total_leads' => $totalLeads,
                     'leads_24h' => $leads24h,
+                    'unread_chats' => $unreadChats,
                     'active_chats' => $activeChats,
                 ];
             })
