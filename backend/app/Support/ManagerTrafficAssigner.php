@@ -65,9 +65,12 @@ class ManagerTrafficAssigner
             return null;
         }
 
+        // Нагрузка считается только по клиентам ТЕКУЩЕГО уровня —
+        // диалоги менеджера на других уровнях не влияют на ротацию этого уровня.
         $assignedCounts = DB::table('users')
             ->select('assigned_manager_id', DB::raw('COUNT(*) as cnt'))
             ->whereIn('assigned_manager_id', array_keys($weights))
+            ->whereRaw('COALESCE(NULLIF(commission_level_id, 0), 1) = ?', [$level])
             ->groupBy('assigned_manager_id')
             ->pluck('cnt', 'assigned_manager_id');
 
