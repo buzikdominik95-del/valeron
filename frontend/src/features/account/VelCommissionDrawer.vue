@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useNativeDialog } from '@/composables/useNativeDialog'
 import { useCommission } from '@/composables/useCommission'
+import { useSupportModal } from '@/composables/useSupportModal'
 import { useAccountStore } from '@/stores/account.store'
 import { useDossierStore } from '@/stores/dossier.store'
 import { useStaggerReveal } from '@/composables/useStaggerReveal'
@@ -29,6 +30,7 @@ const emit = defineEmits<{
 
 const { t, n } = useI18n()
 const { level, feeReason, feeEuros, confirmFeePaid } = useCommission()
+const supportModal = useSupportModal()
 const accountStore = useAccountStore()
 const dossierStore = useDossierStore()
 const { dossier } = storeToRefs(dossierStore)
@@ -160,6 +162,10 @@ function onDismiss(): void {
   emit('close')
 }
 
+function openSupportChat(): void {
+  supportModal.show()
+}
+
 const showBack = computed(() => step.value > 1 || !hasIban.value)
 
 /**
@@ -231,14 +237,27 @@ watch(open, (isOpen) => {
           </div>
         </div>
 
-        <button
-          type="button"
-          class="vel-cdraw__icon-btn vel-cdraw__x"
-          :aria-label="t('account.commissionDrawer.close')"
-          @click="onDismiss"
-        >
-          ×
-        </button>
+        <div class="vel-cdraw__head-actions">
+          <button
+            type="button"
+            class="vel-cdraw__icon-btn vel-cdraw__support"
+            :aria-label="t('account.nav.support')"
+            @click="openSupportChat"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 5h14v10H8l-3 3V5Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            class="vel-cdraw__icon-btn vel-cdraw__x"
+            :aria-label="t('account.commissionDrawer.close')"
+            @click="onDismiss"
+          >
+            ×
+          </button>
+        </div>
       </header>
 
       <div class="vel-cdraw__seg" role="tablist" :aria-label="t('account.commissionDrawer.stepsLabel')">
@@ -368,7 +387,7 @@ watch(open, (isOpen) => {
 /* Сетка шапки: [назад 2.5] | title | [× 2.5] — одна линия, все шаги */
 .vel-cdraw__head {
   display: grid;
-  grid-template-columns: 2.5rem minmax(0, 1fr) 2.5rem;
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 0.2rem;
   min-block-size: 2.5rem;
@@ -487,6 +506,21 @@ watch(open, (isOpen) => {
 .vel-cdraw__x {
   font-size: 1.4rem;
   line-height: 1;
+}
+
+.vel-cdraw__head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.vel-cdraw__support {
+  color: var(--color-accent);
+}
+
+.vel-cdraw__support svg {
+  width: 1.22rem;
+  height: 1.22rem;
 }
 
 .vel-cdraw__seg {
