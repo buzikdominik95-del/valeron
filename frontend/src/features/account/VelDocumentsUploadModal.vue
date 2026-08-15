@@ -84,7 +84,7 @@ function onRejected(): void {
         </div>
       </div>
 
-        <VelSupportFab v-if="open" />
+      <VelSupportFab v-if="open" />
 
     </dialog>
   </Teleport>
@@ -96,7 +96,7 @@ function onRejected(): void {
   /* Safari < 15.4 не знает dvh и выбрасывает всё правило — сначала vh-фолбэк. */
   max-block-size: 92vh;
   max-block-size: min(92dvh, 100%);
-  overflow: hidden;
+  overflow: visible;
   padding: 0;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-panel);
