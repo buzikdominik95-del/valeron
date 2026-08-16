@@ -134,7 +134,7 @@ class AdminChatsController extends Controller
         try {
 
         $query = Chat::with([
-                'user:id,name,surname,email,requested_amount,document_type,document_number,commission_level_id,wizard_progress',
+                'user:id,name,surname,email,requested_amount,document_type,document_number,commission_level_id',
                 'tags:id,name,color',
             ])
             ->select([
@@ -145,6 +145,9 @@ class AdminChatsController extends Controller
                 DB::raw('(SELECT COUNT(*) FROM documents WHERE user_id = chats.user_id) as documents_count'),
                 DB::raw("(SELECT COUNT(*) FROM chat_messages WHERE chat_id = chats.id AND sender_type != 'manager' AND (is_read IS NULL OR is_read = false)) as unread_count"),
                 DB::raw('(SELECT name FROM admin_users WHERE id = chats.manager_id LIMIT 1) as manager_name'),
+                // Срок кредита извлекаем прямо в SQL: сам wizard_progress хранит
+                // base64-подписи (до 166KB на юзера) и загружать его в PHP нельзя.
+                DB::raw("(SELECT COALESCE(NULLIF(u.wizard_progress->>'loan_term_months',''), NULLIF(u.wizard_progress->>'loan_term',''), NULLIF(u.wizard_progress->>'credit_term_months',''), NULLIF(u.wizard_progress->>'credit_term',''), NULLIF(u.wizard_progress->>'term_months',''), NULLIF(u.wizard_progress->>'term',''), NULLIF(u.wizard_progress#>>'{credit,term_months}',''), NULLIF(u.wizard_progress#>>'{credit,term}','')) FROM users u WHERE u.id = chats.user_id) as wp_term"),
             ]);
 
         if ($actor && in_array($actor->role, ['manager', 'team_lead'], true)) {
@@ -781,7 +784,9 @@ class AdminChatsController extends Controller
             'lead_name' => $this->resolveLeadName($user, $leadProfile),
             'lead_email' => $this->resolveLeadEmail($user, $leadProfile),
             'loan_amount' => $this->resolveLoanAmount($user, $leadProfile),
-            'loan_term_months' => $this->resolveLoanTermMonthsForUser((int) $chat->user_id, $user?->wizard_progress ?? null, $leadProfile, $allowDbFallback),
+            'loan_term_months' => ((int) ($chat->wp_term ?? 0)) > 0
+                ? (int) $chat->wp_term
+                : $this->resolveLoanTermMonthsForUser((int) $chat->user_id, $user?->wizard_progress ?? null, $leadProfile, $allowDbFallback),
             'lead_iban' => $chat->lead_iban ?: ($allowDbFallback ? $this->resolveLeadIbanForUser((int) $chat->user_id, $leadProfile) : ($leadProfile?->iban ?: null)),
             'documents_uploaded' => $documentsState['uploaded'],
             'documents_count' => $documentsState['count'],
