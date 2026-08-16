@@ -788,9 +788,11 @@ class AdminChatsController extends Controller
             'chat_created_at' => $chat->created_at,
             'document_type' => $user?->document_type ?? null,
             'document_number' => $resolvedDocumentNumber,
-            'last_msg' => $chat->last_msg,
+            // Превью: полный текст не нужен в списке (экономит мегабайты на 12k+ чатах).
+            'last_msg' => $chat->last_msg !== null ? mb_substr((string) $chat->last_msg, 0, 200) : null,
             'status' => $chat->status,
-            'notes' => (string) ($chat->notes ?? ''),
+            // Заметки грузятся отдельно при открытии чата (show/meta); в списке — пусто.
+            'notes' => '',
             'unread_count' => $unreadCount,
             'has_unread_messages' => $unreadCount > 0,
             'stage_name' => null,
