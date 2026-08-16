@@ -37,11 +37,37 @@ class AdminChatsController extends Controller
         $cacheKey = 'admin_chats_index:' . $cacheVersion . ':' . $scope . ':' .
             (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0);
 
+        /*
+         * ETag/304 привязан к моменту последней СБОРКИ payload (staleAt),
+         * а не к версии кэша: версия бампается каждым сообщением, а сборка
+         * происходит не чаще MIN_REBUILD_SECONDS. Между сборками клиенты
+         * получают пустые 304 вместо повторной сериализации мегабайт JSON.
+         */
+        $staleAtKey = 'admin_chats_last_at:' . $scope . ':' .
+            (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0);
+        $staleAt = (int) Cache::get($staleAtKey, 0);
+        $staleVer = (int) Cache::get($staleAtKey . ':ver', -1);
+        $etag = '"ac-' . $scope . '-' .
+            (int) $request->integer('page', 1) . '-' . (int) $request->integer('per_page', 0) .
+            '-' . $staleVer . '-' . $staleAt . '"';
+        $minRebuildSeconds = 5;
+        $buildIsFresh = $staleAt > 0 && (
+            ($staleVer === $cacheVersion && (time() - $staleAt) < 15) ||
+            ((time() - $staleAt) < $minRebuildSeconds)
+        );
+        if ($buildIsFresh && $request->headers->get('If-None-Match') === $etag) {
+            return response('', 304)
+                ->header('ETag', $etag)
+                ->header('Cache-Control', 'private, no-cache, must-revalidate')
+                ->header('Pragma', 'no-cache');
+        }
+
         $cachedPayload = Cache::get($cacheKey);
         if (is_array($cachedPayload)) {
             return response()
                 ->json($cachedPayload, 200, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
-                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                ->header('ETag', $etag)
+                ->header('Cache-Control', 'private, no-cache, must-revalidate')
                 ->header('Pragma', 'no-cache');
         }
 
@@ -59,22 +85,20 @@ class AdminChatsController extends Controller
             (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0);
 
         /*
-         * Мягкая свежесть: версия кэша сбрасывается каждые несколько секунд
-         * (новые сообщения на живом проде), из-за чего почти каждый запрос
-         * промахивался и пересобирал payload ~5-6 c. Если последняя сборка
-         * моложе 15 c — отдаём её сразу, пересборка не чаще раза в 15 c.
+         * Мягкая свежесть: если версия не менялась — сборка не чаще раза в 15c.
+         * Дополнительно (ключевое!): даже если версия сброшена новым сообщением,
+         * пересборка не чаще раза в $minRebuildSeconds на scope — иначе при живой
+         * переписке каждый 4с-поллинг каждого менеджера строит payload заново
+         * (12k Eloquent-моделей + JSON), что и раскручивало CPU app/postgres.
          */
-        $staleAtKey = 'admin_chats_last_at:' . $scope . ':' .
-            (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0);
-        $staleAt = (int) Cache::get($staleAtKey, 0);
-        $staleVer = (int) Cache::get($staleAtKey . ':ver', -1);
-        if ($staleVer === $cacheVersion and $staleAt > 0 and (time() - $staleAt) < 15) {
+        if ($buildIsFresh) {
             $freshStale = Cache::get('admin_chats_last:' . $scope . ':' .
                 (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0));
             if (is_array($freshStale)) {
                 return response()
                     ->json($freshStale, 200, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
-                    ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                    ->header('ETag', $etag)
+                ->header('Cache-Control', 'private, no-cache, must-revalidate')
                     ->header('Pragma', 'no-cache');
             }
         }
@@ -86,7 +110,8 @@ class AdminChatsController extends Controller
             if (is_array($stale)) {
                 return response()
                     ->json($stale, 200, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
-                    ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                    ->header('ETag', $etag)
+                ->header('Cache-Control', 'private, no-cache, must-revalidate')
                     ->header('Pragma', 'no-cache');
             }
             try {
@@ -100,7 +125,8 @@ class AdminChatsController extends Controller
                 if ($gotLock) $lock->release();
                 return response()
                     ->json($cachedPayload, 200, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
-                    ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                    ->header('ETag', $etag)
+                ->header('Cache-Control', 'private, no-cache, must-revalidate')
                     ->header('Pragma', 'no-cache');
             }
         }
@@ -183,7 +209,8 @@ class AdminChatsController extends Controller
 
         return response()
             ->json($payload, 200, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
-            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('ETag', $etag)
+                ->header('Cache-Control', 'private, no-cache, must-revalidate')
             ->header('Pragma', 'no-cache');
     }
 
