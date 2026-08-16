@@ -650,6 +650,43 @@ watch(tab, async (next) => {
   }
 }
 
+/*
+  Закрытие: «втягивание» в FAB-кнопку чата (genie). Кнопка при открытом
+  окне снята с DOM (v-if), поэтому целимся в её фиксированную позицию:
+  правый нижний угол над таббаром. Окно центрировано в top layer, так что
+  смещение до цели ~ половина вьюпорта минус отступы кнопки.
+  Перебиваем глобальный vel-dialog-out большей специфичностью; длительность
+  держим < 300мс — useNativeDialog страхуется таймаутом DIALOG_OUT_MS+80.
+*/
+.vel-support-modal.vel-dialog-out[open] {
+  animation: vel-support-genie-out 0.28s cubic-bezier(0.55, 0.06, 0.68, 0.19) both !important;
+  transform-origin: 100% 100%;
+}
+
+@keyframes vel-support-genie-out {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+    filter: blur(0);
+    border-radius: var(--radius-panel);
+  }
+
+  35% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(
+        calc(50vw - 2.6rem - max(0.9rem, env(safe-area-inset-right))),
+        calc(50vh - 2.6rem - var(--vel-tabbar-h, 4rem) - var(--vel-tabbar-gap, 0.4rem) - 0.75rem)
+      )
+      scale(0.06);
+    filter: blur(1px);
+    border-radius: 999px;
+  }
+}
+
 .vel-support-modal__sheet {
   display: flex;
   min-block-size: min(80dvh, 42rem);
@@ -760,7 +797,8 @@ watch(tab, async (next) => {
 
 @media (prefers-reduced-motion: reduce) {
   .vel-support-modal[open]:not(.vel-dialog-out),
-  .vel-support-modal[open]:not(.vel-dialog-out)::backdrop {
+  .vel-support-modal[open]:not(.vel-dialog-out)::backdrop,
+  .vel-support-modal.vel-dialog-out[open] {
     animation: none;
   }
 }
