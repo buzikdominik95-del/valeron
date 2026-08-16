@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAccount } from '@/composables/useAccount'
 import type { ChatAttachment, ChatAuthor, ChatDelivery } from '@/features/account/chat-thread'
@@ -60,26 +60,37 @@ const timeText = computed(() => (props.at === '' ? '' : d(new Date(props.at), 't
 /** Полная дата и время — голосом: на экране стоит только «14:31». */
 const stampLabel = computed(() => (props.at === '' ? '' : d(new Date(props.at), 'long')))
 
-/* Полноэкранный просмотр фото: клик по превью — открыть, Esc/клик — закрыть. */
+/*
+ * Полноэкранный просмотр фото. Чат открыт как <dialog>.showModal() (top-layer),
+ * поэтому обычный fixed-оверлей с любым z-index оказывается ПОД модалкой.
+ * Решение: лайтбокс — тоже нативный <dialog>.showModal(): последний открытый
+ * dialog в top-layer всегда сверху. Esc закрывает его штатно (событие close).
+ */
 const lightboxOpen = ref(false)
+const lightboxEl = ref<HTMLDialogElement | null>(null)
 
-const onLightboxKey = (event: KeyboardEvent) => {
-  if (event.key === 'Escape') closeLightbox()
-}
-
-const openLightbox = () => {
+const openLightbox = async () => {
   if (!imageSrc.value) return
   lightboxOpen.value = true
-  window.addEventListener('keydown', onLightboxKey)
+  await nextTick()
+  try {
+    lightboxEl.value?.showModal()
+  } catch {
+    /* already open */
+  }
 }
 
 const closeLightbox = () => {
+  try {
+    lightboxEl.value?.close()
+  } catch {
+    /* not open */
+  }
   lightboxOpen.value = false
-  window.removeEventListener('keydown', onLightboxKey)
 }
 
 onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onLightboxKey)
+  closeLightbox()
 })
 </script>
 
@@ -115,12 +126,13 @@ onBeforeUnmount(() => {
         @keydown.enter="openLightbox"
       />
       <Teleport to="body">
-        <div
+        <dialog
           v-if="lightboxOpen"
+          ref="lightboxEl"
           class="vel-lightbox"
-          role="dialog"
-          aria-modal="true"
+          aria-label="Foto"
           @click="closeLightbox"
+          @close="lightboxOpen = false"
         >
           <img class="vel-lightbox__img" :src="imageSrc" alt="" @click.stop />
           <button
@@ -131,7 +143,7 @@ onBeforeUnmount(() => {
           >
             &#10005;
           </button>
-        </div>
+        </dialog>
       </Teleport>
       <a
         v-if="fileAttach"
@@ -307,13 +319,25 @@ onBeforeUnmount(() => {
 .vel-lightbox {
   position: fixed;
   inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: none;
+  border: 0;
+  inline-size: 100vw;
+  block-size: 100vh;
+  max-inline-size: 100vw;
+  max-block-size: 100vh;
   padding: 1.25rem;
   background: rgb(10 12 16 / 88%);
   cursor: zoom-out;
+}
+
+.vel-lightbox[open] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vel-lightbox::backdrop {
+  background: transparent;
 }
 
 .vel-lightbox__img {

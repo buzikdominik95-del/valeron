@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import consultantPhoto from '@/img/consulente-schierano.jpg'
 import VelLogo from '@/components/ui/VelLogo.vue'
@@ -24,6 +24,30 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+/*
+ * Тост должен быть виден ПОВЕРХ модалок (commissione, контракт и т.д.),
+ * которые открыты через <dialog>.showModal() (top-layer). Обычный fixed
+ * с z-index туда не пробивается. Popover API кладёт элемент в тот же
+ * top-layer выше ранее открытых диалогов.
+ */
+const rootEl = ref<HTMLElement | null>(null)
+
+watch(
+  () => props.open,
+  async (isOpen) => {
+    await nextTick()
+    const el = rootEl.value as (HTMLElement & { showPopover?: () => void; hidePopover?: () => void }) | null
+    if (!el || typeof el.showPopover !== 'function') return
+    try {
+      if (isOpen) el.showPopover()
+      else el.hidePopover?.()
+    } catch {
+      /* not supported / already shown */
+    }
+  },
+  { immediate: true },
+)
 const isSystem = computed(() => props.variant === 'system')
 const toastBody = computed(() => {
   if (props.variant === 'system') return t('account.agentToast.systemBody')
@@ -36,6 +60,8 @@ const toastBody = computed(() => {
   <Transition name="vel-agent-toast">
     <div
       v-if="open"
+      ref="rootEl"
+      popover="manual"
       class="vel-agent-toast"
       :class="{ 'vel-agent-toast--system': isSystem }"
       role="status"
@@ -103,6 +129,12 @@ const toastBody = computed(() => {
 
 <style scoped>
 .vel-agent-toast {
+  /* Popover (top-layer): сбрасываем UA-стили и оставляем свою геометрию */
+  overflow: visible;
+  border: 0;
+  padding: 0;
+  background: transparent;
+
   /* Справа снизу: над tab bar (+ safe-area), не «в пол» */
   position: fixed;
   inset-block-end: calc(
@@ -310,6 +342,39 @@ const toastBody = computed(() => {
 }
 
 /* Выезд справа снизу (не сверху) */
+/* Появление в top-layer: Vue Transition не видит popover — анимируем сами */
+.vel-agent-toast:popover-open {
+  animation: vel-agent-toast-pop 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes vel-agent-toast-pop {
+  from {
+    opacity: 0;
+    transform: translateY(0.9rem) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.vel-agent-toast--system:popover-open {
+  animation: vel-agent-toast-pop-sys 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes vel-agent-toast-pop-sys {
+  from {
+    opacity: 0;
+    transform: translateY(0.9rem) scale(0.76);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(0.8);
+  }
+}
+
 .vel-agent-toast-enter-active,
 .vel-agent-toast-leave-active {
   transition:
