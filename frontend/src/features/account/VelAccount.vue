@@ -607,21 +607,31 @@ watch(tab, async (next) => {
   Анимируем сам dialog, а не sheet: backdrop и окно въезжают согласованно.
 */
 .vel-support-modal[open]:not(.vel-dialog-out) {
-  animation: vel-support-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: vel-support-in 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) both;
 }
 
 .vel-support-modal[open]:not(.vel-dialog-out)::backdrop {
-  animation: vel-support-backdrop-in 0.32s ease-out both;
+  animation: vel-support-backdrop-in 0.45s ease-out both;
 }
 
+/*
+  Пружинящее появление: окно поднимается снизу с лёгким overshoot
+  (кривая с выбегом >1), blur уходит в первой трети. Заметно живее
+  простого fade, но без «желе» — один мягкий выбег без колебаний.
+*/
 @keyframes vel-support-in {
-  from {
+  0% {
     opacity: 0;
-    transform: translateY(0.85rem) scale(0.96);
-    filter: blur(2px);
+    transform: translateY(2.4rem) scale(0.88);
+    filter: blur(6px);
   }
 
-  to {
+  45% {
+    opacity: 1;
+    filter: blur(0);
+  }
+
+  100% {
     opacity: 1;
     transform: translateY(0) scale(1);
     filter: blur(0);
@@ -631,10 +641,12 @@ watch(tab, async (next) => {
 @keyframes vel-support-backdrop-in {
   from {
     opacity: 0;
+    backdrop-filter: blur(0);
   }
 
   to {
     opacity: 1;
+    backdrop-filter: blur(4px);
   }
 }
 
