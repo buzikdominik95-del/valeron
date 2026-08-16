@@ -600,35 +600,41 @@ watch(tab, async (next) => {
   backdrop-filter: blur(4px);
 }
 
-.vel-support-modal[open] .vel-support-modal__sheet {
-  -webkit-animation: slide-fwd-left 1.24s cubic-bezier(0.19, 1, 0.22, 1) both;
-  animation: slide-fwd-left 1.24s cubic-bezier(0.19, 1, 0.22, 1) both;
-  will-change: transform, opacity;
+/*
+  Enter зеркален глобальному leave (vel-dialog-out в main.css):
+  fade + подъём + scale + blur. Vue <Transition> здесь не применим —
+  окно живёт на нативном <dialog>/showModal() (top layer), а не на v-if.
+  Анимируем сам dialog, а не sheet: backdrop и окно въезжают согласованно.
+*/
+.vel-support-modal[open]:not(.vel-dialog-out) {
+  animation: vel-support-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-@-webkit-keyframes slide-fwd-left {
-  0% {
+.vel-support-modal[open]:not(.vel-dialog-out)::backdrop {
+  animation: vel-support-backdrop-in 0.32s ease-out both;
+}
+
+@keyframes vel-support-in {
+  from {
     opacity: 0;
-    -webkit-transform: translateZ(0) translateX(2.75rem) scale(0.96);
-    transform: translateZ(0) translateX(2.75rem) scale(0.96);
+    transform: translateY(0.85rem) scale(0.96);
+    filter: blur(2px);
   }
-  100% {
+
+  to {
     opacity: 1;
-    -webkit-transform: translateZ(160px) translateX(0) scale(1);
-    transform: translateZ(160px) translateX(0) scale(1);
+    transform: translateY(0) scale(1);
+    filter: blur(0);
   }
 }
 
-@keyframes slide-fwd-left {
-  0% {
+@keyframes vel-support-backdrop-in {
+  from {
     opacity: 0;
-    -webkit-transform: translateZ(0) translateX(2.75rem) scale(0.96);
-    transform: translateZ(0) translateX(2.75rem) scale(0.96);
   }
-  100% {
+
+  to {
     opacity: 1;
-    -webkit-transform: translateZ(160px) translateX(0) scale(1);
-    transform: translateZ(160px) translateX(0) scale(1);
   }
 }
 
@@ -741,8 +747,8 @@ watch(tab, async (next) => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vel-support-modal[open] .vel-support-modal__sheet {
-    -webkit-animation: none;
+  .vel-support-modal[open]:not(.vel-dialog-out),
+  .vel-support-modal[open]:not(.vel-dialog-out)::backdrop {
     animation: none;
   }
 }
