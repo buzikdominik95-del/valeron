@@ -639,6 +639,10 @@ class AdminChatsController extends Controller
                         'commission_level_id' => $nextLevel,
                         'updated_at' => now(),
                     ]);
+
+                // Сбрасываем кэш списков и оповещаем всех открытых клиентов (иначе
+                // менеджеры видят старый уровень до следующего сообщения в чате).
+                \App\Events\ChatPing::safeDispatch((int) $chat->id);
             }
         }
 
