@@ -112,6 +112,8 @@ function openSupport(): void {
   inset: 0;
   display: block;
   border-radius: inherit;
+  border: 1.5px solid #166534;
+  box-shadow: 0 0 0 1px color-mix(in oklab, #22c55e 35%, transparent);
   overflow: hidden;
   z-index: 1;
 }
@@ -122,6 +124,8 @@ function openSupport(): void {
   block-size: 100%;
   object-fit: cover;
   border-radius: inherit;
+  border: 1.5px solid #166534;
+  box-shadow: 0 0 0 1px color-mix(in oklab, #22c55e 35%, transparent);
 }
 
 .vel-support-fab__icon svg {
@@ -192,13 +196,13 @@ function openSupport(): void {
   100% {
     box-shadow:
       0 0.7rem 1.35rem color-mix(in oklab, var(--color-fg) 26%, transparent),
-      0 0 0 0 color-mix(in oklab, #22c55e 45%, transparent);
+      0 0 0 0 color-mix(in oklab, #22c55e 58%, transparent);
   }
 
   50% {
     box-shadow:
       0 0.8rem 1.5rem color-mix(in oklab, var(--color-fg) 30%, transparent),
-      0 0 0 0.55rem color-mix(in oklab, #22c55e 0%, transparent);
+      0 0 0 0.85rem color-mix(in oklab, #22c55e 0%, transparent);
   }
 }
 
