@@ -816,7 +816,8 @@ class AdminChatsController extends Controller
             })->values()->all(),
             'commission_level' => (int) ($user?->commission_level_id ?? 1),
             'manager_name' => $chat->manager_name ?: null,
-            'updated_at' => $chat->last_msg_time ?? $chat->updated_at,
+            'first_unread_msg_time' => $chat->first_unread_msg_time ?? null,
+            'updated_at' => $chat->first_unread_msg_time ?? $chat->last_msg_time ?? $chat->updated_at,
             'client_presence' => $this->resolvePresenceFromLastSeen($lastSeenAt),
             'client_last_seen_at' => $lastSeenAt,
         ];
