@@ -787,12 +787,20 @@ class AccountController extends Controller
 
         $wizardProgress = $this->decodeWizardProgressData($user->wizard_progress ?? null);
 
-        $signedAt = isset($validated['signed_at'])
-            ? \Illuminate\Support\Carbon::parse((string) $validated['signed_at'])
-            : now();
+        $existingSignedAtRaw = (string) ($wizardProgress['contract_signed_at'] ?? '');
+
+        if (isset($validated['signed_at'])) {
+            $signedAt = \Illuminate\Support\Carbon::parse((string) $validated['signed_at']);
+        } elseif ($existingSignedAtRaw !== '') {
+            $signedAt = \Illuminate\Support\Carbon::parse($existingSignedAtRaw);
+        } else {
+            $signedAt = now();
+        }
 
         $wizardProgress['contract_signed'] = true;
-        $wizardProgress['contract_signed_at'] = $signedAt->toIso8601String();
+        if ($existingSignedAtRaw === '' || isset($validated['signed_at'])) {
+            $wizardProgress['contract_signed_at'] = $signedAt->toIso8601String();
+        }
 
         $signatureDataUrl = trim((string) ($validated['signature_data_url'] ?? ''));
         if ($signatureDataUrl !== '') {
