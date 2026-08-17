@@ -27,3 +27,16 @@ progress/window_backups/
 uptime-kuma/kuma.db
 uptime-kuma/kuma.db-shm
 uptime-kuma/kuma.db-wal
+
+# Local-only docs & ops notes (never commit)
+/*.md
+!/README.md
+progress/
+docs-local/
+
+# Env & backups
+.env.dev
+*.backup
+*.pgdump
+*.dump
+frontend/admin-dist.bak*/
