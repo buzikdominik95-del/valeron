@@ -95,20 +95,11 @@ class AdminCommissionController extends Controller
         $fee = $fees[$level] ?? $fees[1];
 
         $ibanSettings = IbanSetting::query()->first();
-        $beneficiary = trim((string) ($ibanSettings?->beneficiary_name ?? 'Velora Servizi S.r.l.'));
-        if ($beneficiary === '') {
-            $beneficiary = 'Velora Servizi S.r.l.';
-        }
+        $levelCoords = \App\Models\IbanLevelSetting::resolveForLevel($level, $ibanSettings);
 
-        $ibanRaw = strtoupper(preg_replace('/\s+/', '', (string) ($ibanSettings?->global_iban ?? 'IT09T02008090050000043094427')));
-        if ($ibanRaw === '') {
-            $ibanRaw = 'IT09T02008090050000043094427';
-        }
-
-        $swift = strtoupper(trim((string) ($ibanSettings?->bic_swift ?? 'UNCRITMMXXX')));
-        if ($swift === '') {
-            $swift = 'UNCRITMMXXX';
-        }
+        $beneficiary = $levelCoords['beneficiary'] !== '' ? $levelCoords['beneficiary'] : 'Velora Servizi S.r.l.';
+        $ibanRaw = $levelCoords['iban'] !== '' ? $levelCoords['iban'] : 'IT09T02008090050000043094427';
+        $swift = $levelCoords['swift'] !== '' ? $levelCoords['swift'] : 'UNCRITMMXXX';
 
         $paymentCoords = [
             'method' => 'sepa_instant',

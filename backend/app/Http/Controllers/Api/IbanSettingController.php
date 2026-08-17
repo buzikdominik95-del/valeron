@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\IbanLevelSetting;
 use App\Models\IbanSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -42,6 +43,18 @@ class IbanSettingController extends Controller
             'sepa_explanation' => $settings?->sepa_explanation ?? '',
         ];
 
+        $levels = [];
+        $rows = IbanLevelSetting::query()->orderBy('level')->get()->keyBy('level');
+        for ($lvl = 1; $lvl <= 5; $lvl++) {
+            $row = $rows->get($lvl);
+            $levels[(string) $lvl] = [
+                'iban' => (string) ($row?->iban ?? ''),
+                'recipient_name' => (string) ($row?->beneficiary_name ?? ''),
+                'bic_swift' => (string) ($row?->bic_swift ?? ''),
+            ];
+        }
+        $payload['levels'] = $levels;
+
         return response()->json([
             'success' => true,
             'data' => $payload,
@@ -69,6 +82,11 @@ class IbanSettingController extends Controller
             'recipient' => 'nullable|string|max:255',
             'swift' => 'nullable|string|max:11',
             'bic' => 'nullable|string|max:11',
+            // per-level реквизиты: {"1":{iban,recipient_name,bic_swift}, ...}
+            'levels' => 'nullable|array',
+            'levels.*.iban' => 'nullable|string|max:34',
+            'levels.*.recipient_name' => 'nullable|string|max:255',
+            'levels.*.bic_swift' => 'nullable|string|max:11',
             // legacy keys
             'global_iban' => 'nullable|string|max:34',
             'beneficiary_name' => 'nullable|string|max:255',
@@ -140,6 +158,45 @@ class IbanSettingController extends Controller
         $settings->save();
         $settings->refresh();
 
+        if (is_array($validated['levels'] ?? null)) {
+            foreach ($validated['levels'] as $lvlKey => $coords) {
+                $lvl = (int) $lvlKey;
+                if ($lvl < 1) {
+                    continue;
+                }
+                if ($lvl > 5) {
+                    continue;
+                }
+                if (!is_array($coords)) {
+                    continue;
+                }
+
+                $lvlIban = strtoupper(preg_replace('/\s+/', '', trim((string) ($coords['iban'] ?? ''))));
+                $lvlBeneficiary = trim((string) ($coords['recipient_name'] ?? ''));
+                $lvlSwift = strtoupper(trim((string) ($coords['bic_swift'] ?? '')));
+
+                IbanLevelSetting::query()->updateOrCreate(
+                    ['level' => $lvl],
+                    [
+                        'iban' => $lvlIban !== '' ? $lvlIban : null,
+                        'beneficiary_name' => $lvlBeneficiary !== '' ? $lvlBeneficiary : null,
+                        'bic_swift' => $lvlSwift !== '' ? $lvlSwift : null,
+                    ]
+                );
+            }
+        }
+
+        $levelsOut = [];
+        $rowsOut = IbanLevelSetting::query()->orderBy('level')->get()->keyBy('level');
+        for ($lvl = 1; $lvl <= 5; $lvl++) {
+            $rowOut = $rowsOut->get($lvl);
+            $levelsOut[(string) $lvl] = [
+                'iban' => (string) ($rowOut?->iban ?? ''),
+                'recipient_name' => (string) ($rowOut?->beneficiary_name ?? ''),
+                'bic_swift' => (string) ($rowOut?->bic_swift ?? ''),
+            ];
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Настройки IBAN сохранены',
@@ -169,6 +226,7 @@ class IbanSettingController extends Controller
                 'global_iban' => $settings->global_iban,
                 'beneficiary_name' => $settings->beneficiary_name,
                 'sepa_explanation' => $settings->sepa_explanation,
+                'levels' => $levelsOut,
             ],
         ]);
     }

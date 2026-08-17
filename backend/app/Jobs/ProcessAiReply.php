@@ -166,10 +166,15 @@ class ProcessAiReply implements ShouldQueue
             }
 
             if ($iban) {
+                $clientLevelOrder = 1;
+                if (isset($ctx['client']['current_level_order'])) {
+                    $clientLevelOrder = max(1, (int) $ctx['client']['current_level_order']);
+                }
+                $levelCoords = \App\Models\IbanLevelSetting::resolveForLevel($clientLevelOrder, $iban);
                 $ctx['payment'] = [
-                    'iban' => (string) ($iban->global_iban ?? ''),
-                    'beneficiary' => (string) ($iban->beneficiary_name ?? ''),
-                    'bic_swift' => (string) ($iban->bic_swift ?? ''),
+                    'iban' => $levelCoords['iban'],
+                    'beneficiary' => $levelCoords['beneficiary'],
+                    'bic_swift' => $levelCoords['swift'],
                     'how_to' => (string) ($iban->payment_method_text ?? ''),
                 ];
             }

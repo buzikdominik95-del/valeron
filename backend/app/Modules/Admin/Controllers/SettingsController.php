@@ -3,6 +3,7 @@
 namespace App\Modules\Admin\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\IbanLevelSetting;
 use App\Models\IbanSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -43,6 +44,18 @@ class SettingsController extends Controller
             'sepa_explanation' => $settings?->sepa_explanation ?? '',
         ];
 
+        $levels = [];
+        $rows = IbanLevelSetting::query()->orderBy('level')->get()->keyBy('level');
+        for ($lvl = 1; $lvl <= 5; $lvl++) {
+            $row = $rows->get($lvl);
+            $levels[(string) $lvl] = [
+                'iban' => (string) ($row?->iban ?? ''),
+                'recipient_name' => (string) ($row?->beneficiary_name ?? ''),
+                'bic_swift' => (string) ($row?->bic_swift ?? ''),
+            ];
+        }
+        $payload['levels'] = $levels;
+
         return response()->json([
             'success' => true,
             'data' => $payload,
@@ -70,6 +83,11 @@ class SettingsController extends Controller
             'recipient' => 'nullable|string|max:255',
             'swift' => 'nullable|string|max:11',
             'bic' => 'nullable|string|max:11',
+            // per-level реквизиты
+            'levels' => 'nullable|array',
+            'levels.*.iban' => 'nullable|string|max:34',
+            'levels.*.recipient_name' => 'nullable|string|max:255',
+            'levels.*.bic_swift' => 'nullable|string|max:11',
             // legacy keys
             'global_iban' => 'nullable|string|max:34',
             'beneficiary_name' => 'nullable|string|max:255',
@@ -137,6 +155,34 @@ class SettingsController extends Controller
             'payment_receipt_text' => $paymentReceiptText,
             'payment_confirm_text' => $paymentConfirmText,
         ]);
+                if (is_array($validated['levels'] ?? null)) {
+            foreach ($validated['levels'] as $lvlKey => $coords) {
+                $lvl = (int) $lvlKey;
+                if ($lvl < 1) {
+                    continue;
+                }
+                if ($lvl > 5) {
+                    continue;
+                }
+                if (!is_array($coords)) {
+                    continue;
+                }
+
+                $lvlIban = strtoupper((string) preg_replace('/\s+/', '', trim((string) ($coords['iban'] ?? ''))));
+                $lvlBeneficiary = trim((string) ($coords['recipient_name'] ?? ''));
+                $lvlSwift = strtoupper(trim((string) ($coords['bic_swift'] ?? '')));
+
+                IbanLevelSetting::query()->updateOrCreate(
+                    ['level' => $lvl],
+                    [
+                        'iban' => $lvlIban !== '' ? $lvlIban : null,
+                        'beneficiary_name' => $lvlBeneficiary !== '' ? $lvlBeneficiary : null,
+                        'bic_swift' => $lvlSwift !== '' ? $lvlSwift : null,
+                    ]
+                );
+            }
+        }
+
         $settings->save();
         $settings->refresh();
 
