@@ -721,6 +721,8 @@ class AccountController extends Controller
         if ($incomingAnimStart !== '' && is_array($rawIncomingProgress)
             && array_key_exists('withdraw_anim_started_at', $rawIncomingProgress)) {
             unset($currentProgress['withdraw_fail_notified_at']);
+            // Новый прогон = новое письмо об итоге (иначе dedup гасил повторный L4).
+            unset($currentProgress['withdraw_fail_mail_sent']);
         }
 
         $loanTermMonths = $this->extractLoanTermMonths($validated);
@@ -1455,8 +1457,12 @@ class AccountController extends Controller
             ]);
         }
 
+        /*
+         * Флаг mail_sent выставляем ПОСЛЕ успешной отправки: раньше он ставился
+         * заранее, и если отправка падала, все последующие попытки навсегда
+         * дедуплицировались — письмо о заморозке L4 не приходило.
+         */
         $wizardProgress['withdraw_fail_notified_at'] = $eventAt->toIso8601String();
-        $wizardProgress['withdraw_fail_mail_sent'] = true;
         $user->wizard_progress = json_encode($wizardProgress, JSON_UNESCAPED_UNICODE);
         $user->save();
 
@@ -1506,6 +1512,10 @@ class AccountController extends Controller
 
         try {
             Mail::to($user->email)->send(new WithdrawFailMail($mailPayload));
+
+            $wizardProgress['withdraw_fail_mail_sent'] = true;
+            $user->wizard_progress = json_encode($wizardProgress, JSON_UNESCAPED_UNICODE);
+            $user->save();
         } catch (\Throwable $e) {
             Log::error('Withdraw fail mail failed', [
                 'user_id' => $user->id,
