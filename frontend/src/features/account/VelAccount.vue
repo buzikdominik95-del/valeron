@@ -411,7 +411,10 @@ watch(tab, async (next) => {
             :aria-label="t('account.loan.close')"
             @click="closeSupportModal"
           >
-            ×
+            <svg class="vel-support-modal__close-x" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M18 6L6 18" />
+              <path d="M6 6L18 18" />
+            </svg>
           </button>
         </header>
 
@@ -704,16 +707,35 @@ watch(tab, async (next) => {
 
 .vel-support-modal__close {
   position: absolute;
-  inset-block-start: 0.45rem;
+  inset-block-start: 0.42rem;
   inset-inline-end: 0.5rem;
   inline-size: 2rem;
   block-size: 2rem;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-round);
-  background: var(--color-surface);
-  color: var(--color-muted);
-  font-size: 1.2rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
+  font-weight: 800;
+}
+
+.vel-support-modal__close:hover,
+.vel-support-modal__close:focus-visible {
+  background: transparent;
+  color: #fff;
+  opacity: 0.9;
+}
+
+.vel-support-modal__close-x {
+  inline-size: 1.35rem;
+  block-size: 1.35rem;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .vel-support-modal__thread {
