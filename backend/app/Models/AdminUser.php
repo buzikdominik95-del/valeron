@@ -16,6 +16,7 @@ class AdminUser extends Authenticatable
         'password',
         'password_plain_encrypted',
         'role',
+        'display_role',
         'is_active',
         'uses_level_system',
     ];
