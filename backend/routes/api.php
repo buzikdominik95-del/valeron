@@ -120,6 +120,9 @@ $adminRoutes->group(function () {
     Route::post('chats/{id}/messages', [AdminChatsController::class, 'sendMessage'])->middleware('admin.role:manager,team_lead,admin,super_admin');
     Route::delete('chats/{id}/messages/{messageId}', [AdminChatsController::class, 'deleteMessage'])->middleware('admin.role:manager,team_lead,admin,super_admin');
     Route::put('chats/{id}/meta', [AdminChatsController::class, 'updateMeta'])->middleware('admin.role:manager,team_lead,admin,super_admin');
+    // Шаблоны быстрых ответов: серверное хранение (переезд с localStorage)
+    Route::get('quick-replies', [AdminChatsController::class, 'getQuickReplies']);
+    Route::put('quick-replies', [AdminChatsController::class, 'saveQuickReplies'])->middleware('admin.role:manager,team_lead,admin,super_admin');
     Route::post('chats/{id}/meta', [AdminChatsController::class, 'updateMeta'])->middleware('admin.role:manager,team_lead,admin,super_admin');
     Route::post('chats/{id}/complete-transfer', [AdminChatsController::class, 'completeAndTransfer'])->middleware('admin.role:manager,team_lead,admin,super_admin');
     

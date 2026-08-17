@@ -1577,4 +1577,55 @@ class AdminChatsController extends Controller
 
         return trim($base . ' ' . $tail);
     }
+
+    /**
+     * Шаблоны быстрых ответов менеджера. Раньше жили в localStorage браузера —
+     * пользователи «теряли» их при входе с другого устройства. Теперь сервер:
+     * system_settings, ключ на пользователя.
+     */
+    public function getQuickReplies(Request $request)
+    {
+        $actor = $this->resolveCurrentAdminUser($request);
+        if (!$actor) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+
+        $raw = DB::table('system_settings')
+            ->where('key', 'quick_replies:' . (int) $actor->id)
+            ->value('value');
+
+        $items = [];
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) $items = $decoded;
+        }
+
+        return response()->json(['success' => true, 'data' => $items]);
+    }
+
+    public function saveQuickReplies(Request $request)
+    {
+        $actor = $this->resolveCurrentAdminUser($request);
+        if (!$actor) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+        if ($this->isObserver($actor)) {
+            return response()->json(['success' => false, 'message' => 'Read only'], 403);
+        }
+
+        $validated = $request->validate([
+            'items' => 'present|array|max:60',
+            'items.*.id' => 'required|string|max:64',
+            'items.*.title' => 'required|string|max:200',
+            'items.*.text' => 'required|string|max:5000',
+            'items.*.category' => 'nullable|string|max:100',
+        ]);
+
+        DB::table('system_settings')->updateOrInsert(
+            ['key' => 'quick_replies:' . (int) $actor->id],
+            ['value' => json_encode($validated['items'], JSON_UNESCAPED_UNICODE), 'updated_at' => now(), 'created_at' => now()]
+        );
+
+        return response()->json(['success' => true]);
+    }
 }
