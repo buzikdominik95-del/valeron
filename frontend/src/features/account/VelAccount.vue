@@ -130,7 +130,8 @@ const noticesOpen = ref(false)
 
 const { open: supportModalOpen, hide: hideSupportModal } = useSupportModal()
 const supportDialog = useTemplateRef<HTMLDialogElement>('supportDialog')
-useNativeDialog(supportDialog, supportModalOpen)
+const supportModalPersistent = ref(true)
+useNativeDialog(supportDialog, supportModalOpen, { persistent: supportModalPersistent })
 
 const supportChat = useSupportChat()
 const supportThread = computed(() =>
@@ -158,12 +159,27 @@ watch(
 )
 
 function closeSupportModal(): void {
+  /*
+   * Порядок важен: persistent выключаем и держим выключенным, пока
+   * dialog реально не закроется (leave-анимация ~220мс + native close).
+   * Если вернуть persistent слишком рано, close-обработчик composable
+   * снова откроет окно — получается «не закрывается» / мигание.
+   */
+  supportModalPersistent.value = false
   hideSupportModal()
+  window.setTimeout(() => {
+    supportModalPersistent.value = true
+  }, 600)
 }
 
 function onSupportBackdropClick(event: MouseEvent): void {
   if (event.target !== event.currentTarget) return
-  closeSupportModal()
+  /* По задаче: модалка закрывается только по кнопке-крестику. */
+}
+
+function onSupportDialogCancel(event: Event): void {
+  /* Только крестик закрывает окно: блокируем ESC/системный cancel. */
+  event.preventDefault()
 }
 
 function onSupportComposerSend(): void {
@@ -400,6 +416,7 @@ watch(tab, async (next) => {
       ref="supportDialog"
       class="vel-support-modal"
       aria-label="Assistenza"
+      @cancel="onSupportDialogCancel"
       @click="onSupportBackdropClick"
     >
       <section class="vel-support-modal__sheet" role="document">
@@ -596,6 +613,8 @@ watch(tab, async (next) => {
   border-radius: var(--radius-panel);
   background: transparent;
   box-shadow: 0 20px 48px color-mix(in oklab, var(--color-fg) 20%, transparent);
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 .vel-support-modal::backdrop {
