@@ -47,7 +47,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'username' => 'required|string|max:255|unique:admin_users,name',
             'password' => 'required|string|min:6',
-            'role' => 'required|in:manager,team_lead,observer',
+            'role' => 'required|in:manager,team_lead,observer,none',
             'display_role' => 'nullable|string|max:120',
             'hidden_elements' => 'nullable|array',
             'hidden_elements.*' => 'string|max:80',
@@ -62,8 +62,9 @@ class UserController extends Controller
         }
 
         $isObserverRole = ($validated['role'] ?? '') === 'observer';
+        $isFreeRole = ($validated['role'] ?? '') === 'none';
 
-        $usesLevelSystem = $isObserverRole
+        $usesLevelSystem = ($isObserverRole || $isFreeRole)
             ? false
             : (array_key_exists('uses_level_system', $validated)
                 ? (bool) $validated['uses_level_system']
@@ -101,10 +102,12 @@ class UserController extends Controller
             $hidden = array_values(array_unique(array_merge($hidden, $observerHidden)));
         } elseif (($validated['role'] ?? '') === 'manager') {
             $hidden = array_values(array_unique(array_merge($hidden, $this->defaultManagerHiddenElements())));
+        } elseif ($isFreeRole) {
+            $hidden = array_values(array_unique($hidden));
         }
         AdminUiPermissionStore::setFor((int) $user->id, $hidden);
 
-        $levels = $isObserverRole
+        $levels = ($isObserverRole || $isFreeRole)
             ? []
             : (is_array($validated['handled_levels'] ?? null) ? $validated['handled_levels'] : []);
 

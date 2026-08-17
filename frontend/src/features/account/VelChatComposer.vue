@@ -30,6 +30,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   send: []
   'update:pendingAttachment': [value: ChatAttachment | null]
+  'picker-open': []
 }>()
 
 const { t } = useI18n()
@@ -80,6 +81,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 function openPicker(): void {
+  emit('picker-open')
   fileInput.value?.click()
 }
 
@@ -383,7 +385,8 @@ function onFileChange(event: Event): void {
   background-color: var(--color-ground);
   color: var(--color-fg);
   font: inherit;
-  font-size: 0.9rem;
+  /* >=16px: иначе iOS зумит страницу при фокусе и не всегда возвращает масштаб */
+  font-size: 1rem;
   line-height: 1.35;
   resize: none;
   transition:

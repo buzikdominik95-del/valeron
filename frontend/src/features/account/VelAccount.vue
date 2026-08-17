@@ -613,8 +613,12 @@ watch(tab, async (next) => {
   border-radius: var(--radius-panel);
   background: transparent;
   box-shadow: 0 20px 48px color-mix(in oklab, var(--color-fg) 20%, transparent);
+  position: fixed;
+  inset: 0;
+  margin: auto;
   overflow: hidden;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 .vel-support-modal::backdrop {
@@ -771,6 +775,9 @@ watch(tab, async (next) => {
     transparent 1.1px
   );
   background-size: 18px 18px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 .vel-support-modal__stack {

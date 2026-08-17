@@ -118,10 +118,16 @@ export function useNativeDialog(
         return
       }
 
-      /* persistent: open=false игнорируем и снова showModal */
+      /*
+       * persistent: запрещаем только ЗАКРЫТИЕ уже открытого окна.
+       * Если окно и так закрыто (mount, страница перезагрузилась) —
+       * НЕ открываем его принудительно, иначе чат всплывает сам.
+       */
       if (isPersistent()) {
-        if (!element.open) element.showModal()
-        open.value = true
+        if (element.open) {
+          open.value = true
+          return
+        }
         return
       }
 
@@ -139,6 +145,7 @@ export function useNativeDialog(
     () => dialog.value,
     'cancel',
     (event) => {
+      if (event.defaultPrevented) return
       event.preventDefault()
       if (isPersistent()) return
       if (open.value) open.value = false
@@ -150,8 +157,8 @@ export function useNativeDialog(
     () => dialog.value,
     'close',
     () => {
-      if (isPersistent()) {
-        open.value = true
+      /* persistent: системный close отменяем ТОЛЬКО если окно считалось открытым. */
+      if (isPersistent() && open.value) {
         const el = dialog.value
         if (el && !el.open) el.showModal()
         return

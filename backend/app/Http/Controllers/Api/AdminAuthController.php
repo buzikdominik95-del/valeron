@@ -53,6 +53,7 @@ class AdminAuthController extends Controller
                 'uses_level_system' => (bool) ($admin->uses_level_system ?? true),
                 'handled_levels' => AdminManagerLevelStore::getFor((int) $admin->id),
                 'hidden_elements' => AdminUiPermissionStore::getFor((int) $admin->id),
+                'display_role' => (string) ($admin->display_role ?? ''),
             ],
             'token' => $token,
         ]);
@@ -89,6 +90,7 @@ class AdminAuthController extends Controller
                 'uses_level_system' => (bool) ($user->uses_level_system ?? true),
                 'handled_levels' => AdminManagerLevelStore::getFor((int) $user->id),
                 'hidden_elements' => AdminUiPermissionStore::getFor((int) $user->id),
+                'display_role' => (string) ($user->display_role ?? ''),
             ],
         ]);
     }

@@ -491,6 +491,28 @@ function createSupportChat(): SupportChat {
         }
       }
 
+      /*
+       * Только что отправленные локальные сообщения клиента могли ещё не
+       * дойти до сервера — не даём sync их затереть (иначе сообщение
+       * «исчезает» и появляется через пару секунд).
+       */
+      const FRESH_MS = 60_000
+      const nowTs = Date.now()
+      const serverFp = new Set(next.map((m) => chatFingerprint(m)))
+      const serverClientTexts = new Set(
+        next.filter((m) => m.author === 'client').map((m) => m.text.trim()),
+      )
+      const freshLocal = messages.value.filter((m) => {
+        if (m.author !== 'client') return false
+        const age = nowTs - new Date(m.at).getTime()
+        if (!Number.isFinite(age) || age > FRESH_MS) return false
+        if (serverFp.has(chatFingerprint(m))) return false
+        return !serverClientTexts.has(m.text.trim())
+      })
+      if (freshLocal.length > 0) {
+        next = [...next, ...freshLocal].slice(-CHAT_KEEP)
+      }
+
       messages.value = next
       chatSyncedOnce = true
 
