@@ -156,11 +156,9 @@ class AdminChatsController extends Controller
         }
 
         $orderedQuery = $query
-            // 1) Вверх чаты с непрочитанными
-            ->orderByRaw("CASE WHEN first_unread_msg_time IS NULL THEN 1 ELSE 0 END ASC")
-            // 2) Среди непрочитанных — по САМОМУ ПЕРВОМУ непрочитанному (старые первыми)
-            ->orderByRaw("first_unread_msg_time ASC NULLS LAST")
-            // 3) Фолбэк для остальных — текущая активность
+            // Вверх — чаты со старейшим первым непрочитанным входящим; NULL (нет непрочитанных) уходит вниз.
+            ->orderByRaw("(SELECT created_at FROM chat_messages WHERE chat_id = chats.id AND sender_type != 'manager' AND (is_read IS NULL OR is_read = false) ORDER BY created_at ASC LIMIT 1) ASC NULLS LAST")
+            // Фолбэк для одинакового времени/чатов без непрочитанных — по активности.
             ->orderBy('updated_at', 'desc');
 
         // Всегда используем пагинацию: без неё выборка всех чатов может
