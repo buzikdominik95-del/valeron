@@ -40,3 +40,5 @@ docs-local/
 *.pgdump
 *.dump
 frontend/admin-dist.bak*/
+*.bak.*
+backend/SENTRY_SETUP.md
