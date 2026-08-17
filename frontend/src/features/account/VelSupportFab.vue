@@ -49,12 +49,30 @@ function openSupport(): void {
   block-size: 4.02rem;
   border: 0;
   border-radius: 999px;
+  overflow: hidden;
   background: var(--color-accent-deep);
   color: var(--color-accent-ink);
   box-shadow:
     0 0.75rem 1.45rem color-mix(in oklab, var(--color-fg) 28%, transparent),
     0 0 0.85rem color-mix(in oklab, var(--color-accent) 38%, transparent),
     0 0 1.7rem color-mix(in oklab, var(--color-accent-deep) 30%, transparent);
+  animation: vel-support-fab-orbit 7.8s ease-in-out infinite;
+}
+
+.vel-support-fab::before {
+  content: '';
+  position: absolute;
+  inset: -35%;
+  background: linear-gradient(
+    120deg,
+    transparent 35%,
+    color-mix(in oklab, #fff 82%, transparent) 50%,
+    transparent 65%
+  );
+  opacity: 0;
+  transform: translateX(-135%) rotate(18deg);
+  animation: vel-support-fab-shine 4.8s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .vel-support-fab__icon {
@@ -82,7 +100,42 @@ function openSupport(): void {
 }
 
 .vel-support-fab--alert {
-  animation: vel-support-fab-pulse 0.95s ease-in-out infinite;
+  animation:
+    vel-support-fab-orbit 7.8s ease-in-out infinite,
+    vel-support-fab-pulse 0.95s ease-in-out infinite;
+}
+
+@keyframes vel-support-fab-orbit {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  25% {
+    transform: rotate(1.6deg);
+  }
+
+  75% {
+    transform: rotate(-1.6deg);
+  }
+}
+
+@keyframes vel-support-fab-shine {
+  0%,
+  72%,
+  100% {
+    opacity: 0;
+    transform: translateX(-135%) rotate(18deg);
+  }
+
+  78% {
+    opacity: 0.38;
+  }
+
+  88% {
+    opacity: 0.6;
+    transform: translateX(135%) rotate(18deg);
+  }
 }
 
 @keyframes vel-support-fab-pulse {
@@ -103,6 +156,14 @@ function openSupport(): void {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .vel-support-fab {
+    animation: none;
+  }
+
+  .vel-support-fab::before {
+    animation: none;
+  }
+
   .vel-support-fab--alert {
     animation: none;
   }
