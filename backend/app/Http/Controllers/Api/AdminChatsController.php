@@ -144,6 +144,7 @@ class AdminChatsController extends Controller
                 DB::raw('(SELECT iban FROM ibans WHERE user_id = chats.user_id ORDER BY is_default DESC, updated_at DESC, id DESC LIMIT 1) as lead_iban'),
                 DB::raw('(SELECT COUNT(*) FROM documents WHERE user_id = chats.user_id) as documents_count'),
                 DB::raw("(SELECT COUNT(*) FROM chat_messages WHERE chat_id = chats.id AND sender_type != 'manager' AND (is_read IS NULL OR is_read = false)) as unread_count"),
+                DB::raw("(SELECT created_at FROM chat_messages WHERE chat_id = chats.id AND sender_type != 'manager' AND (is_read IS NULL OR is_read = false) ORDER BY created_at ASC LIMIT 1) as first_unread_msg_time"),
                 DB::raw('(SELECT name FROM admin_users WHERE id = chats.manager_id LIMIT 1) as manager_name'),
                 // Срок кредита извлекаем прямо в SQL: сам wizard_progress хранит
                 // base64-подписи (до 166KB на юзера) и загружать его в PHP нельзя.
@@ -154,7 +155,13 @@ class AdminChatsController extends Controller
             $query->where('chats.manager_id', $actor->id);
         }
 
-        $orderedQuery = $query->orderBy('updated_at', 'desc');
+        $orderedQuery = $query
+            // 1) Вверх чаты с непрочитанными
+            ->orderByRaw("CASE WHEN first_unread_msg_time IS NULL THEN 1 ELSE 0 END ASC")
+            // 2) Среди непрочитанных — по САМОМУ ПЕРВОМУ непрочитанному (старые первыми)
+            ->orderByRaw("first_unread_msg_time ASC NULLS LAST")
+            // 3) Фолбэк для остальных — текущая активность
+            ->orderBy('updated_at', 'desc');
 
         // Всегда используем пагинацию: без неё выборка всех чатов может
         // приводить к 500 на больших объёмах данных.
