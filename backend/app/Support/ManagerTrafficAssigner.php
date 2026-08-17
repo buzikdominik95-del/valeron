@@ -65,31 +65,70 @@ class ManagerTrafficAssigner
             return null;
         }
 
-        // Нагрузка считается только по клиентам ТЕКУЩЕГО уровня —
-        // диалоги менеджера на других уровнях не влияют на ротацию этого уровня.
-        $assignedCounts = DB::table('users')
-            ->select('assigned_manager_id', DB::raw('COUNT(*) as cnt'))
-            ->whereIn('assigned_manager_id', array_keys($weights))
-            ->whereRaw('COALESCE(NULLIF(commission_level_id, 0), 1) = ?', [$level])
-            ->groupBy('assigned_manager_id')
-            ->pluck('cnt', 'assigned_manager_id');
+        // Новые лиды распределяются строго по заданным процентам (smooth weighted
+        // round-robin), независимо от исторического количества клиентов у менеджера.
+        return self::pickBySmoothWeightedRoundRobin($weights, $level);
+    }
 
-        $bestId = null;
-        $bestScore = null;
-        $bestCount = null;
-
-        foreach ($weights as $managerId => $weight) {
-            $count = (int) ($assignedCounts[(string) $managerId] ?? 0);
-            $score = $count / max($weight, 1);
-
-            if ($bestId === null || $score < $bestScore || ($score == $bestScore && $count < $bestCount) || ($score == $bestScore && $count == $bestCount && $managerId < $bestId)) {
-                $bestId = $managerId;
-                $bestScore = $score;
-                $bestCount = $count;
-            }
+    /**
+     * Smooth weighted round-robin (как в nginx): на дистанции каждый менеджер
+     * получает долю новых лидов, равную его весу. Состояние хранится в
+     * system_settings под блокировкой строки (защита от гонок).
+     *
+     * @param array<int,int> $weights
+     */
+    private static function pickBySmoothWeightedRoundRobin(array $weights, int $level): ?int
+    {
+        if (empty($weights)) {
+            return null;
         }
 
-        return $bestId;
+        return DB::transaction(function () use ($weights, $level) {
+            $stateKey = 'manager_traffic_rr_state';
+
+            $row = DB::table('system_settings')->where('key', $stateKey)->lockForUpdate()->first();
+            $state = [];
+            if ($row && $row->value) {
+                $decoded = json_decode((string) $row->value, true);
+                if (is_array($decoded)) {
+                    $state = $decoded;
+                }
+            }
+
+            $levelState = $state[(string) $level] ?? [];
+            if (!is_array($levelState)) {
+                $levelState = [];
+            }
+
+            // Баланс сохраняем только для актуальных участников распределения.
+            $current = [];
+            foreach ($weights as $id => $w) {
+                $current[(string) $id] = (float) ($levelState[(string) $id] ?? 0);
+            }
+
+            $totalWeight = (float) array_sum($weights);
+
+            $bestId = null;
+            $bestVal = null;
+            foreach ($weights as $id => $w) {
+                $current[(string) $id] += (float) $w;
+                $val = $current[(string) $id];
+                if ($bestId === null || $val > $bestVal || ($val === $bestVal && (int) $id < $bestId)) {
+                    $bestId = (int) $id;
+                    $bestVal = $val;
+                }
+            }
+
+            $current[(string) $bestId] -= $totalWeight;
+            $state[(string) $level] = $current;
+
+            DB::table('system_settings')->updateOrInsert(
+                ['key' => $stateKey],
+                ['value' => json_encode($state), 'updated_at' => now()]
+            );
+
+            return $bestId;
+        });
     }
 
     /**
