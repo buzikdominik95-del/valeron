@@ -41,17 +41,20 @@ function openSupport(): void {
   position: fixed;
   z-index: 55;
   inset-inline-end: max(0.9rem, env(safe-area-inset-right));
-  inset-block-end: calc(var(--vel-tabbar-h, 4rem) + var(--vel-tabbar-gap, 0.4rem) + env(safe-area-inset-bottom) + 0.75rem);
+  inset-block-end: calc(var(--vel-tabbar-h, 4rem) + var(--vel-tabbar-gap, 0.4rem) + env(safe-area-inset-bottom) + 1.42rem);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  inline-size: 3.35rem;
-  block-size: 3.35rem;
+  inline-size: 4.02rem;
+  block-size: 4.02rem;
   border: 0;
   border-radius: 999px;
   background: var(--color-accent-deep);
   color: var(--color-accent-ink);
-  box-shadow: 0 0.7rem 1.35rem color-mix(in oklab, var(--color-fg) 26%, transparent);
+  box-shadow:
+    0 0.75rem 1.45rem color-mix(in oklab, var(--color-fg) 28%, transparent),
+    0 0 0.85rem color-mix(in oklab, var(--color-accent) 38%, transparent),
+    0 0 1.7rem color-mix(in oklab, var(--color-accent-deep) 30%, transparent);
 }
 
 .vel-support-fab__icon {
@@ -59,8 +62,8 @@ function openSupport(): void {
 }
 
 .vel-support-fab__icon svg {
-  width: 1.32rem;
-  height: 1.32rem;
+  width: 1.58rem;
+  height: 1.58rem;
 }
 
 .vel-support-fab__badge {
