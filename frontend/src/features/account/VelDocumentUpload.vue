@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, useId, useTemplateRef, watch } from 'vue'
+import { computed, onUnmounted, useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useAutoAnimate } from '@/composables/useAutoAnimate'
@@ -78,7 +78,6 @@ onUnmounted(() => {
   if (unlockTimer) clearTimeout(unlockTimer)
 })
 
-const titleId = `vel-docup-${useId()}`
 
 /** Подпись слота зависит и от вида, и от стороны: у паспорта сторон нет вовсе. */
 function slotLabel(side: DocSide): string {
@@ -114,8 +113,7 @@ useAutoAnimate(slotList)
 </script>
 
 <template>
-  <section class="vel-docup" data-coach-docs :aria-labelledby="titleId">
-    <h2 :id="titleId" class="vel-docup__title">{{ t('account.docs.cardTitle') }}</h2>
+  <section class="vel-docup" data-coach-docs>
 
     <div class="vel-docup__head">
       <span class="vel-docup__head-mark" aria-hidden="true">

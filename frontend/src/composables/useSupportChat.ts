@@ -137,12 +137,12 @@ function createSupportChat(): SupportChat {
       if (next === 'support' || supportModalOpen.value) {
         clearChatUnreadState()
         /* Длинная переписка: сразу к последнему сообщению. */
-        void scrollToEnd(true)
+        void scrollToEnd(true, true)
         window.setTimeout(() => {
-          void scrollToEnd(true)
+          void scrollToEnd(true, true)
         }, 80)
         window.setTimeout(() => {
-          void scrollToEnd(true)
+          void scrollToEnd(true, true)
         }, 280)
       }
     },
@@ -154,12 +154,12 @@ function createSupportChat(): SupportChat {
     (isOpen) => {
       if (!isOpen) return
       clearChatUnreadState()
-      void scrollToEnd(true)
+      void scrollToEnd(true, true)
       window.setTimeout(() => {
-        void scrollToEnd(true)
+        void scrollToEnd(true, true)
       }, 80)
       window.setTimeout(() => {
-        void scrollToEnd(true)
+        void scrollToEnd(true, true)
       }, 280)
     },
     { immediate: false },
@@ -170,6 +170,18 @@ function createSupportChat(): SupportChat {
   const funnelSeeded = useLocalStorage<string>(`${CHAT_STORAGE_KEY}:funnelSeed`, '')
   const chatOwner = useLocalStorage<string>(`${CHAT_STORAGE_KEY}:owner`, '')
   const threadEl = ref<HTMLElement | null>(null)
+  const shouldStickToBottom = ref(true)
+  let threadScrollEl: HTMLElement | null = null
+
+  const isNearBottom = (el: HTMLElement): boolean =>
+    el.scrollHeight - (el.scrollTop + el.clientHeight) <= 80
+
+  const updateStickToBottom = (): void => {
+    const el = threadEl.value
+    if (!el) return
+    shouldStickToBottom.value = isNearBottom(el)
+  }
+
   const sending = ref(false)
   const justSent = ref(false)
   /** Локальное фото/файл до send (file в памяти, не в LS). */
@@ -365,13 +377,7 @@ function createSupportChat(): SupportChat {
     { immediate: true },
   )
 
-  /* Пустой draft в messenger — снова шаблон (в т.ч. L1). */
-  watch(
-    () => isMessenger.value && draft.value.trim() === '',
-    (need) => {
-      if (need) seedFunnelDraft(true)
-    },
-  )
+  /* ВАЖНО: если пользователь вручную очистил поле, не возвращаем шаблон автоматически. */
 
   const trimmed = computed(() => draft.value.trim())
 
@@ -521,6 +527,18 @@ function createSupportChat(): SupportChat {
     document.addEventListener('visibilitychange', handleVisibilityOrFocus)
   }
 
+  watch(
+    threadEl,
+    (el, prev) => {
+      if (prev) prev.removeEventListener('scroll', updateStickToBottom)
+      threadScrollEl = el
+      if (el) {
+        el.addEventListener('scroll', updateStickToBottom, { passive: true })
+        updateStickToBottom()
+      }
+    },
+    { immediate: true },
+  )
 
   onBeforeUnmount(() => {
     if (syncTimer !== null) {
@@ -538,15 +556,21 @@ function createSupportChat(): SupportChat {
       window.removeEventListener('focus', handleVisibilityOrFocus)
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus)
     }
+
+    if (threadScrollEl) {
+      threadScrollEl.removeEventListener('scroll', updateStickToBottom)
+      threadScrollEl = null
+    }
   })
 
-  async function scrollToEnd(instant = false): Promise<void> {
+  async function scrollToEnd(instant = false, force = false): Promise<void> {
     await nextTick()
     /* Двойной rAF: после роста пузыря/фото layout уже посчитан. */
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const element = threadEl.value
         if (element === null) return
+        if (!force && !shouldStickToBottom.value) return
         element.scrollTo({
           top: element.scrollHeight,
           behavior: instant ? 'auto' : 'smooth',
@@ -675,7 +699,7 @@ function createSupportChat(): SupportChat {
     const tail = rest.map((m) => ({ ...m, id: n++ }))
 
     messages.value = [...welcome, ...tail].slice(0, CHAT_KEEP)
-    void scrollToEnd(true)
+    void scrollToEnd()
   }
 
   /**
@@ -727,7 +751,7 @@ function createSupportChat(): SupportChat {
     setPendingAttachment(null)
     if (funnel) advanceFunnel()
     clearChatUnreadState()
-    void scrollToEnd(true)
+    void scrollToEnd(true, true)
 
     if (apiMode) {
       try {
