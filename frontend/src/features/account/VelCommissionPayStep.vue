@@ -180,7 +180,7 @@ function toggleSepaHelp(): void {
   justify-content: center;
   gap: 0.22rem;
   color: var(--color-fg);
-  font-size: clamp(0.58rem, 2.25vw, 0.66rem);
+  font-size: clamp(0.75rem, 2.25vw, 0.66rem);
   font-weight: 500;
   line-height: 1.2;
   text-align: center;
