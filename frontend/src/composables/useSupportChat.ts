@@ -357,9 +357,10 @@ function createSupportChat(): SupportChat {
     if (text === '') return
     const lv = Math.min(5, Math.max(1, Number(level.value) || 1))
     const key = `l${lv}:${feeReason.value}:${feeEuros.value}`
-    const empty = draft.value.trim() === ''
     const sameKey = funnelSeeded.value === key
-    if (!force && sameKey && !empty) return
+    /* Этот этап уже сеяли: пользователь мог осознанно очистить поле —
+       не возвращаем шаблон без force (напр. после перезагрузки страницы). */
+    if (!force && sameKey) return
     draft.value = text
     funnelSeeded.value = key
   }
@@ -371,8 +372,8 @@ function createSupportChat(): SupportChat {
         : '',
     (key) => {
       if (!key) return
-      /* Новый этап / вход в messenger — всегда свежий шаблон. */
-      seedFunnelDraft(true)
+      /* Новый этап — свежий шаблон; тот же этап (перезагрузка) — не трогаем поле. */
+      seedFunnelDraft(false)
     },
     { immediate: true },
   )

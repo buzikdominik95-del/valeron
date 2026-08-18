@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CHAT_MAX_LENGTH } from '@/features/account/chat-thread'
 import type { ChatAttachment } from '@/features/account/chat-thread'
@@ -65,6 +65,8 @@ const isImagePending = computed(
 function resize(): void {
   const element = area.value
   if (element === null) return
+  /* Скрытый элемент (модалка ещё не открыта) даёт scrollHeight=0 — ждём видимости. */
+  if (element.offsetParent === null && element.getClientRects().length === 0) return
   element.style.height = 'auto'
   const max =
     MAX_ROWS * LINE_REM * parseFloat(getComputedStyle(document.documentElement).fontSize)
@@ -72,6 +74,20 @@ function resize(): void {
 }
 
 watch(model, () => void nextTick(resize), { immediate: true })
+
+/* Пересчёт при появлении в вёрстке (открытие модалки) и смене ширины. */
+let sizeObserver: ResizeObserver | null = null
+onMounted(() => {
+  void nextTick(resize)
+  if (typeof ResizeObserver !== 'undefined' && area.value) {
+    sizeObserver = new ResizeObserver(() => resize())
+    sizeObserver.observe(area.value)
+  }
+})
+onBeforeUnmount(() => {
+  sizeObserver?.disconnect()
+  sizeObserver = null
+})
 
 function onKeydown(event: KeyboardEvent): void {
   if (event.key !== 'Enter' || event.shiftKey) return
