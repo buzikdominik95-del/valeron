@@ -1084,7 +1084,7 @@ export default {
       copy: 'Copia',
       copied: 'Copiato',
       sendReceipt: 'Invia la ricevuta al tuo consulente',
-      causaleHint: 'Nel campo "Causale" indichi "Trasfer". Se si tratta di un campo opzionale, lo lasci vuoto',
+      causaleHint: 'Se necessario, nel campo "Causale" indichi "Trasfer"',
       confirm: 'Conferma pagamento',
       /** L1 / acconto iniziale — CTA по финальному промту этапа 1 */
       payCta: 'Paga',
@@ -2109,7 +2109,7 @@ export default {
       copy: 'Копировать',
       copied: 'Скопировано',
       sendReceipt: 'Отправить квитанцию консультанту',
-      causaleHint: 'Nel campo "Causale" indichi "Trasfer". Se si tratta di un campo opzionale, lo lasci vuoto',
+      causaleHint: 'Se necessario, nel campo "Causale" indichi "Trasfer"',
       confirm: 'Подтвердить оплату',
       payCta: 'Оплатить',
       initialNote: 'Фиксированный первоначальный взнос. После оплаты — чат с менеджером.',
