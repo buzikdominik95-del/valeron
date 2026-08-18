@@ -14,7 +14,7 @@ npm-debug.log
 codebase-memory/
 
 # Frontend build artifacts
-frontend/dist/
+# frontend/dist/ - now tracked for auto-deploy
 
 # Server-side transient artifacts
 *.bak
