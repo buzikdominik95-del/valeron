@@ -112,12 +112,11 @@ function toggleSepaHelp(): void {
       <VelCopyRow :label="ibanLabelText" :value="iban" :copy-value="ibanCopyValue" mono />
       <VelCopyRow :label="swiftLabelText" :value="swift" mono />
       <VelCopyRow :label="amountLabelText" :value="feeText" />
+      <p class="vel-cpay__causale m-0" role="note">
+        <span>{{ t('account.payment.causaleHint') }}</span>
+        <span class="vel-cpay__causale-bang" aria-hidden="true">!</span>
+      </p>
     </div>
-
-    <p data-reveal class="vel-cpay__causale m-0" role="note">
-      <span>{{ t('account.payment.causaleHint') }}</span>
-      <span class="vel-cpay__causale-bang" aria-hidden="true">!</span>
-    </p>
 
     <div data-reveal class="vel-cpay__cta">
       <p v-if="showReceiptNote" class="vel-cpay__receipt m-0">
@@ -179,6 +178,9 @@ function toggleSepaHelp(): void {
   align-items: center;
   justify-content: center;
   gap: 0.22rem;
+  margin-block-start: 0.25rem;
+  padding-block: 0.5rem 0.15rem;
+  border-top: 1px solid color-mix(in oklab, var(--color-line) 75%, transparent);
   color: var(--color-fg);
   font-size: clamp(0.75rem, 2.25vw, 0.66rem);
   font-weight: 500;
