@@ -192,7 +192,8 @@ function toggleSepaHelp(): void {
   color: var(--color-accent);
   font-size: 1.40em;
   font-weight: 700;
-  transform: translateY(-0.08em);
+  display: inline-block;
+  transform: translateY(-0.14em);
   line-height: 1;
   animation: vel-cpay-bang-pulse 1.2s ease-in-out infinite;
 }
