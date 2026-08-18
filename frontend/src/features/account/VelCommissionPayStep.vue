@@ -189,8 +189,10 @@ function toggleSepaHelp(): void {
 
 .vel-cpay__causale-bang {
   color: var(--color-accent);
-  font-size: 1.40em;
+  font-size: 2.0em;
   font-weight: 700;
+  transform: translateY(-0.08em);
+  line-height: 1;
   animation: vel-cpay-bang-pulse 1.2s ease-in-out infinite;
 }
 
