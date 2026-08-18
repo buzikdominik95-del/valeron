@@ -180,9 +180,8 @@ function toggleSepaHelp(): void {
   gap: 0.22rem;
   margin-block-start: 0.25rem;
   padding-block: 0.5rem 0.15rem;
-  border-top: 1px solid color-mix(in oklab, var(--color-line) 75%, transparent);
   color: var(--color-fg);
-  font-size: clamp(0.75rem, 2.25vw, 0.66rem);
+  font-size: clamp(.65rem, 2.25vw, .66rem);
   font-weight: 500;
   line-height: 1.2;
   text-align: center;
