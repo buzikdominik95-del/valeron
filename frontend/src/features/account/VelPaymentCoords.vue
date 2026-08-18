@@ -251,6 +251,11 @@ function receipt(): void {
           <VelCopyRow :label="t('account.payment.swift')" :value="coords.swift" mono />
         </div>
 
+        <p data-reveal class="vel-pay-causale-note m-0">
+          <span>{{ t('account.payment.causaleHint') }}</span>
+          <span class="vel-pay-causale-note__bang" aria-hidden="true">!</span>
+        </p>
+
         <p data-reveal class="m-0 text-xs text-faint">{{ t('account.payment.sslNote') }}</p>
 
         <div data-reveal class="flex flex-col gap-2">
@@ -285,8 +290,44 @@ function receipt(): void {
   }
 }
 
+.vel-pay-causale-note {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  color: rgb(var(--color-fg-rgb));
+  font-size: clamp(10px, 2.6vw, 12px);
+  line-height: 1.25;
+  font-weight: 500;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.vel-pay-causale-note__bang {
+  color: rgb(var(--color-accent-rgb));
+  font-size: 1.05em;
+  animation: vel-pay-bang-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes vel-pay-bang-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    text-shadow: 0 0 0 transparent;
+  }
+
+  50% {
+    opacity: 1;
+    text-shadow: 0 0 10px rgba(var(--color-accent-rgb), 0.35);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .vel-pay-row {
+    animation: none;
+  }
+
+  .vel-pay-causale-note__bang {
     animation: none;
   }
 }
