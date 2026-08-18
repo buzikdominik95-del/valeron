@@ -114,6 +114,11 @@ function toggleSepaHelp(): void {
       <VelCopyRow :label="amountLabelText" :value="feeText" />
     </div>
 
+    <p data-reveal class="vel-cpay__causale m-0" role="note">
+      <span>{{ t('account.payment.causaleHint') }}</span>
+      <span class="vel-cpay__causale-bang" aria-hidden="true">!</span>
+    </p>
+
     <div data-reveal class="vel-cpay__cta">
       <p v-if="showReceiptNote" class="vel-cpay__receipt m-0">
         {{ receiptText }}
@@ -169,6 +174,39 @@ function toggleSepaHelp(): void {
   margin-block-start: 0.15rem;
 }
 
+.vel-cpay__causale {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.22rem;
+  color: var(--color-fg);
+  font-size: clamp(0.58rem, 2.25vw, 0.66rem);
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.vel-cpay__causale-bang {
+  color: var(--color-accent);
+  font-size: 1.05em;
+  font-weight: 700;
+  animation: vel-cpay-bang-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes vel-cpay-bang-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    text-shadow: 0 0 0 transparent;
+  }
+
+  50% {
+    opacity: 1;
+    text-shadow: 0 0 10px color-mix(in oklab, var(--color-accent) 35%, transparent);
+  }
+}
+
 .vel-cpay__receipt {
   align-self: center;
   margin-block-end: 0.1rem;
@@ -188,4 +226,10 @@ function toggleSepaHelp(): void {
   line-height: 1.35;
   text-align: center;
 }
+@media (prefers-reduced-motion: reduce) {
+  .vel-cpay__causale-bang {
+    animation: none;
+  }
+}
+
 </style>
