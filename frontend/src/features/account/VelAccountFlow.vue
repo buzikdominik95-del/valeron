@@ -228,12 +228,10 @@ const { start: startWelcomeToast } = useTimeoutFn(
      */
     const onChat = tab.value === 'support'
     if (!onChat) {
-      try {
-        notices.push('managerMessage')
-      } catch {
-        /* storage */
-      }
-      account.bumpSupportUnread(2)
+      /*
+       * Welcome-toast не должен создавать фейковые «непрочитанные 2».
+       * Счетчик/notice поднимаем только реальными server-сообщениями.
+       */
     }
     showAgentNotify('welcome')
   },
