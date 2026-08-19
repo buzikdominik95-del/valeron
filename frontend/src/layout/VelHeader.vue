@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import { useWindowScroll } from '@vueuse/core'
 import { useAccountView } from '@/composables/useAccountView'
 import { useSimulatorStore } from '@/stores/simulator.store'
+import { hasAuthToken } from '@/api/session'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelLogo from '@/components/ui/VelLogo.vue'
 
@@ -27,10 +28,16 @@ const scrolled = computed(() => y.value > 8)
 const { open: openAccount } = useAccountView()
 const { email, firstName, surname } = storeToRefs(useSimulatorStore())
 
+/*
+ * «Torna all'area personale» — только пока жива авторизованная сессия
+ * (Bearer token). После Esci токен отозван, и вход требует пароль —
+ * подпись обязана честно сказать «Accedi», а не обещать возврат.
+ */
 const hasCabinet = computed(
   () =>
     email.value.trim() !== '' &&
-    (firstName.value.trim() !== '' || surname.value.trim() !== ''),
+    (firstName.value.trim() !== '' || surname.value.trim() !== '') &&
+    hasAuthToken(),
 )
 
 const loginLabel = computed(() =>
