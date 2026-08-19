@@ -147,10 +147,17 @@ function updateSupportViewportMetrics(): void {
 
   root.style.setProperty('--vel-vv-h', `${Math.max(0, Math.round(vvHeight))}px`)
 
-  const baseline = window.innerHeight
-  const keyboardLikelyOpen = vvHeight < baseline - 120
   const dialog = supportDialog.value
   if (!dialog) return
+
+  const baseline = window.innerHeight
+  const keyboardLikelyOpen = vvHeight < baseline - 120
+
+  /*
+   * На iOS/Brave keyboard лучше не «перепозиционировать» сам dialog:
+   * Safari может смещать top-layer независимо и появляется дополнительный отступ/срез.
+   * Оставляем центрирование dialog, меняем только внутреннюю высоту sheet.
+   */
   dialog.classList.toggle('vel-support-modal--keyboard', keyboardLikelyOpen)
 }
 
@@ -655,10 +662,8 @@ watch(tab, async (next) => {
 
 
 .vel-support-modal.vel-support-modal--keyboard {
-  inset: auto 0 max(0.35rem, env(safe-area-inset-bottom)) 0;
-  margin-inline: auto;
-  margin-block: 0;
-  max-block-size: calc(var(--vel-vv-h, 100dvh) - 0.5rem);
+  /* keep native centered dialog geometry; avoid iOS top-layer jump */
+  max-block-size: min(calc(var(--vel-vv-h, 100dvh) - 1rem), 46rem);
 }
 .vel-support-modal::backdrop {
   background: color-mix(in oklab, var(--color-fg) 38%, transparent);
@@ -765,7 +770,11 @@ watch(tab, async (next) => {
 
 .vel-support-modal.vel-support-modal--keyboard .vel-support-modal__sheet {
   min-block-size: 0;
-  max-block-size: calc(var(--vel-vv-h, 100dvh) - 0.5rem);
+  max-block-size: calc(
+    var(--vel-vv-h, 100dvh)
+    - env(safe-area-inset-bottom)
+    - 2.9rem
+  );
 }
 .vel-support-modal__head {
   position: relative;
