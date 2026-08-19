@@ -1186,7 +1186,7 @@ function openFreezeTelegram(): void {
     <p class="vel-account-boot__text">Sincronizzazione del profilo…</p>
   </div>
 
-  <VelAccount>
+  <VelAccount v-if="!bootSyncPending">
     <!-- Баланс на первом плане; loan details — только когда открыт, ниже воронки. -->
     <template #summary>
       <VelPayoutCard
