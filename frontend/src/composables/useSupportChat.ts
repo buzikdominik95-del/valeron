@@ -442,22 +442,6 @@ function createSupportChat(): SupportChat {
         .filter((m) => !EN_RECEIPT_RE.test(m.text))
         .slice(-CHAT_KEEP)
 
-      /*
-       * Не затирать локальные welcome Deborah, если сервер их не знает.
-       * Иначе после sync остаётся только старый greeting / пусто (фотка 1).
-       */
-      const localWelcome = messages.value.filter(
-        (m) =>
-          m.author === 'agent' &&
-          (m.text.includes('Mi chiamo Deborah') || m.text.includes('non esiti a scrivermi')),
-      )
-      if (localWelcome.length > 0) {
-        const serverTexts = new Set(next.map((m) => m.text.trim()))
-        const missing = localWelcome.filter((m) => !serverTexts.has(m.text.trim()))
-        if (missing.length > 0) {
-          next = [...missing, ...next].slice(-CHAT_KEEP)
-        }
-      }
 
       if (chatSyncedOnce) {
         /* Дедуп по тексту agent: сервер/локальные id и at могут отличаться. */
@@ -517,14 +501,6 @@ function createSupportChat(): SupportChat {
       messages.value = next
       chatSyncedOnce = true
 
-      /* После любого sync снова вставляем 2 пузыря Deborah (сервер их не хранит). */
-      try {
-        const w1 = t('account.support.chat.welcomeMsg').trim()
-        const w2 = t('account.support.chat.welcomeMsg2').trim()
-        if (w1 && w2) ensureDeborahWelcome([w1, w2])
-      } catch {
-        /* i18n optional during early boot */
-      }
     } catch (error) {
       console.warn('[useSupportChat] Failed to sync messages:', error)
     }
@@ -695,34 +671,8 @@ function createSupportChat(): SupportChat {
    * Старый greeting и прочий agent-спам в начале убираем.
    * Вызывается после mount И после каждого sync (сервер затирает ленту).
    */
-  function ensureDeborahWelcome(texts: [string, string]): void {
-    const [a, b] = texts.map((s) => s.trim()) as [string, string]
-    if (!a || !b) return
-
-    /* Убрать старый greeting и дубликаты welcome */
-    const rest = messages.value.filter((m) => {
-      if (m.author !== 'agent') return true
-      const t = m.text.trim()
-      if (OLD_GREETING_RE.test(t)) return false
-      if (t === a || t === b) return false
-      if (t.includes('Scriva pure la sua domanda')) return false
-      if (t.includes('giorni lavorativi')) return false
-      return true
-    })
-
-    const now = new Date().toISOString()
-    /* Стабильные id: welcome всегда id 1 и 2, чтобы не плодить */
-    const welcome: ChatMessage[] = [
-      { id: 1, author: 'agent', text: a, at: now, delivery: 'sent' },
-      { id: 2, author: 'agent', text: b, at: now, delivery: 'sent' },
-    ]
-
-    /* Перенумеровать остальные, чтобы не конфликтовали с 1/2 */
-    let n = 3
-    const tail = rest.map((m) => ({ ...m, id: n++ }))
-
-    messages.value = [...welcome, ...tail].slice(0, CHAT_KEEP)
-    void scrollToEnd()
+  function ensureDeborahWelcome(_texts: [string, string]): void {
+    /* no-op: чат должен отображать только сообщения, пришедшие с сервера */
   }
 
   /**

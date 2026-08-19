@@ -68,16 +68,10 @@ function createAccountView(): AccountViewApi {
     cabinetOpening = true
 
     /*
-     * После logout + очистки cookie/local data локального dossier может не быть,
-     * и кабинет сначала рисует stub/Home до первого /account. Предзагружаем
-     * серверный dossier ДО открытия кабинета, чтобы L2-сцена появилась сразу.
-     * Фолбэк таймаут не даёт зависнуть входу при долгой сети.
+     * Загружаем server dossier до открытия кабинета: при L2/L4 это убирает
+     * «ложный Home» и сцена открывается сразу в правильном состоянии.
      */
-    const preloadTimeout = new Promise<void>((resolve) => {
-      window.setTimeout(resolve, 2200)
-    })
-
-    void Promise.race([dossier.pullAccount(), preloadTimeout]).finally(enterCabinet)
+    void dossier.pullAccount().finally(enterCabinet)
   }
 
   function close(): void {
