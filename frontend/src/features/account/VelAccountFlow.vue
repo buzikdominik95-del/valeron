@@ -88,7 +88,7 @@ const { open: docsUploadOpen, hide: hideDocsUploadModal } = useDocumentsUploadMo
 const apiError = ref<string | null>(null)
 const contractEmailSending = ref(false)
 /** Не показываем локальный fallback-стейт, пока не подтянули server truth на новом устройстве. */
-const bootSyncPending = ref(isApiEnabled())
+const bootSyncPending = ref(false)
 let accountSyncTimer: number | null = null
 const ACCOUNT_SYNC_INTERVAL_MS = 12_000
 
@@ -256,16 +256,12 @@ onMounted(() => {
   }
 
   if (!isApiEnabled()) {
-    bootSyncPending.value = false
     return
   }
   void syncEmailVerifiedFromBackend()
   void syncAccountNow()
     .then(() => ensureWelcomeMessages())
     .catch(() => undefined)
-    .finally(() => {
-      bootSyncPending.value = false
-    })
   startAccountSync()
   document.addEventListener('visibilitychange', onCabinetVisible)
 })

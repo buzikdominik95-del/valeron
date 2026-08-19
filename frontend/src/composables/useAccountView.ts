@@ -57,7 +57,6 @@ function createAccountView(): AccountViewApi {
       // назад, а начинают новую заявку.
       delete params.step
       appView.openCabinet()
-      cabinetOpening = false
     }
 
     if (!isApiEnabled()) {
@@ -66,12 +65,15 @@ function createAccountView(): AccountViewApi {
     }
 
     cabinetOpening = true
+    enterCabinet()
 
     /*
-     * Загружаем server dossier до открытия кабинета: при L2/L4 это убирает
-     * «ложный Home» и сцена открывается сразу в правильном состоянии.
+     * Синхронизацию тянем в фоне: кабинет открывается мгновенно,
+     * а server dossier догружается без блокировки первого кадра L2/L4.
      */
-    void dossier.pullAccount().finally(enterCabinet)
+    void dossier.pullAccount().finally(() => {
+      cabinetOpening = false
+    })
   }
 
   function close(): void {
