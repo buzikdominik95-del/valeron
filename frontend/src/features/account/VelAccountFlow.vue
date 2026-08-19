@@ -32,7 +32,6 @@ import VelTransferAnim from '@/features/account/VelTransferAnim.vue'
 import VelL4UnlockAnim from '@/features/account/VelL4UnlockAnim.vue'
 import VelAccountFreezeModal from '@/features/account/VelAccountFreezeModal.vue'
 import VelAccountFreezeIntro from '@/features/account/VelAccountFreezeIntro.vue'
-import VelRejectFlash from '@/features/account/VelRejectFlash.vue'
 import VelStageSwitch from '@/features/account/VelStageSwitch.vue'
 import VelLoanDetails from '@/features/account/VelLoanDetails.vue'
 import VelDocumentsUploadModal from '@/features/account/VelDocumentsUploadModal.vue'
@@ -215,9 +214,6 @@ function onCabinetVisible(): void {
   if (document.visibilityState !== 'visible') return
   void syncAccountNow()
 }
-/** Полноэкранный крестик при L2 freeze / L4 reject — сам закрывается. */
-const rejectFlashOpen = ref(false)
-
 /** Приветствие: пузыри сразу, toast через 10 с (промт 0000331 §8). */
 const welcomeToastSeen = useSessionStorage('velora:cabinet:welcome-manager-toast', false)
 const WELCOME_TOAST_DELAY_MS = 15_000
@@ -947,7 +943,6 @@ watch(level, (lv, prev) => {
     }
     freezeIntroOpen.value = false
     freezeOpen.value = false
-    rejectFlashOpen.value = false
     payoutPanelOpen.value = false
     commissionOpen.value = false
     successOpen.value = false
@@ -1015,25 +1010,7 @@ watch(
   },
 )
 
-/*
- * Конец анимации L2/L4: fullscreen X показываем ТОЛЬКО на переходе
- * animating -> suspended/failed.
- *
- * Иначе после login/sync уже «застывшее» suspended могло снова включать X,
- * хотя новая анимация не стартовала.
- */
-watch(phase, (now, prev) => {
-  const lv = Number(level.value)
-  if (lv === 5) return
 
-  const endedWithReject =
-    prev === 'animating' && (now === 'suspended' || now === 'failed')
-
-  if (!endedWithReject) return
-
-  rejectFlashOpen.value = true
-  if (lv === 2) account.lockL2Preleva()
-})
 
 const showClassicBank = computed(
   () => isAuthorizing.value && !isAnimating.value && !isSuspended.value && !isFailed.value,
@@ -1332,8 +1309,6 @@ function openFreezeTelegram(): void {
     @close="onAgentToastClose"
   />
 
-  <!-- L2: крестик на весь экран → сам закрывается -->
-  <VelRejectFlash v-model:open="rejectFlashOpen" />
 
   <!-- L4: заморозка счёта → затем TG-модалка -->
   <VelAccountFreezeIntro v-model:open="freezeIntroOpen" @done="onFreezeIntroDone" />

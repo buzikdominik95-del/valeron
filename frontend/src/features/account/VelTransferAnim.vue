@@ -314,7 +314,7 @@ onBeforeUnmount(() => {
     <!-- leadFailed убран: на fail-сцене только title + diagram + CTA -->
     <p v-if="!sceneFailed" class="relative z-[1] m-0 text-sm text-muted">{{ lead }}</p>
 
-    <div class="relative z-[1]" :class="{ 'vel-transfer-scene-wrap--reject': sceneFailed }">
+    <div class="relative z-[1]">
       <VelEuroclearScene
         v-if="showEuroclearScene"
         :progress="animationProgress"
@@ -333,20 +333,6 @@ onBeforeUnmount(() => {
         :failed="sceneFailed"
         :look="personLook"
       />
-      <!-- Отказ: soft pulse + badge + freeze chips — в стиле transfer-anim -->
-      <div v-if="sceneFailed" class="vel-reject-overlay" aria-hidden="true">
-        <span class="vel-reject-overlay__glow" />
-        <span class="vel-reject-overlay__ring vel-reject-overlay__ring--a" />
-        <span class="vel-reject-overlay__ring vel-reject-overlay__ring--b" />
-        <span class="vel-reject-overlay__slash" />
-        <span class="vel-reject-overlay__badge">
-          <svg class="vel-reject-overlay__x" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M7 7l10 10M17 7 7 17" />
-          </svg>
-        </span>
-        <span class="vel-reject-overlay__chip vel-reject-overlay__chip--l">SEPA</span>
-        <span class="vel-reject-overlay__chip vel-reject-overlay__chip--r">HOLD</span>
-      </div>
     </div>
 
     <!-- L4 failed: волна red ⇄ green. -->
@@ -575,134 +561,6 @@ onBeforeUnmount(() => {
   }
 }
 
-.vel-transfer-scene-wrap--reject {
-  position: relative;
-  border-radius: var(--radius-control);
-  overflow: hidden;
-  animation: vel-reject-shake 0.55s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
-
-.vel-reject-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-  background:
-    radial-gradient(
-      circle at 50% 48%,
-      color-mix(in oklab, var(--color-danger) 22%, transparent) 0%,
-      color-mix(in oklab, var(--color-danger) 8%, transparent) 42%,
-      transparent 72%
-    ),
-    color-mix(in oklab, var(--color-fg) 18%, transparent);
-  animation: vel-reject-fade 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
-  backdrop-filter: saturate(0.85) blur(0.5px);
-}
-
-.vel-reject-overlay__glow {
-  position: absolute;
-  width: 7.5rem;
-  height: 7.5rem;
-  border-radius: var(--radius-round);
-  background: color-mix(in oklab, var(--color-danger) 28%, transparent);
-  filter: blur(18px);
-  animation: vel-reject-glow 2.2s ease-in-out infinite;
-}
-
-.vel-reject-overlay__ring {
-  position: absolute;
-  width: 5.75rem;
-  height: 5.75rem;
-  border: 2.5px solid color-mix(in oklab, var(--color-danger) 55%, transparent);
-  border-radius: var(--radius-round);
-  animation: vel-reject-ring 1.7s ease-out infinite;
-}
-
-.vel-reject-overlay__ring--b {
-  width: 4.35rem;
-  height: 4.35rem;
-  border-width: 2px;
-  border-color: color-mix(in oklab, var(--color-danger) 40%, transparent);
-  animation-delay: 0.35s;
-  animation-duration: 1.9s;
-}
-
-.vel-reject-overlay__slash {
-  position: absolute;
-  width: 6.5rem;
-  height: 3px;
-  border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in oklab, var(--color-danger) 85%, #fff),
-    transparent
-  );
-  transform: rotate(-28deg) scaleX(0.2);
-  opacity: 0;
-  animation: vel-reject-slash 0.7s 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.vel-reject-overlay__badge {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 3.4rem;
-  height: 3.4rem;
-  border-radius: var(--radius-round);
-  background: linear-gradient(
-    145deg,
-    color-mix(in oklab, var(--color-danger) 88%, #fff),
-    var(--color-danger)
-  );
-  color: #fff;
-  box-shadow:
-    0 0 0 3px color-mix(in oklab, var(--color-surface) 90%, transparent),
-    0 0.55rem 1.6rem color-mix(in oklab, var(--color-danger) 48%, transparent);
-  animation: vel-reject-pop 0.58s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.vel-reject-overlay__x {
-  width: 1.35rem;
-  height: 1.35rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.6;
-  stroke-linecap: round;
-}
-
-.vel-reject-overlay__chip {
-  position: absolute;
-  z-index: 2;
-  padding: 0.22rem 0.55rem;
-  border-radius: 999px;
-  border: 1px solid color-mix(in oklab, var(--color-danger) 35%, transparent);
-  background: color-mix(in oklab, var(--color-surface) 92%, var(--color-danger));
-  color: var(--color-danger);
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  line-height: 1.2;
-  box-shadow: 0 0.25rem 0.75rem color-mix(in oklab, var(--color-fg) 12%, transparent);
-  animation: vel-reject-chip 0.55s 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.vel-reject-overlay__chip--l {
-  top: 18%;
-  left: 12%;
-  transform: rotate(-8deg);
-}
-
-.vel-reject-overlay__chip--r {
-  right: 12%;
-  bottom: 16%;
-  transform: rotate(7deg);
-  animation-delay: 0.32s;
-}
-
 .vel-transfer--reject {
   box-shadow:
     0 0 0 1px color-mix(in oklab, var(--color-danger) 28%, transparent),
@@ -885,114 +743,8 @@ onBeforeUnmount(() => {
   }
 }
 
-@keyframes vel-reject-fade {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes vel-reject-pop {
-  0% {
-    opacity: 0;
-    transform: scale(0.45) rotate(-12deg);
-  }
-
-  70% {
-    opacity: 1;
-    transform: scale(1.08) rotate(2deg);
-  }
-
-  100% {
-    opacity: 1;
-    transform: scale(1) rotate(0deg);
-  }
-}
-
-@keyframes vel-reject-ring {
-  0% {
-    transform: scale(0.82);
-    opacity: 0.72;
-  }
-
-  100% {
-    transform: scale(1.65);
-    opacity: 0;
-  }
-}
-
-@keyframes vel-reject-glow {
-  0%,
-  100% {
-    opacity: 0.55;
-    transform: scale(0.95);
-  }
-
-  50% {
-    opacity: 0.9;
-    transform: scale(1.08);
-  }
-}
-
-@keyframes vel-reject-slash {
-  from {
-    opacity: 0;
-    transform: rotate(-28deg) scaleX(0.15);
-  }
-
-  to {
-    opacity: 0.95;
-    transform: rotate(-28deg) scaleX(1);
-  }
-}
-
-@keyframes vel-reject-chip {
-  from {
-    opacity: 0;
-    filter: blur(2px);
-  }
-
-  to {
-    opacity: 1;
-    filter: blur(0);
-  }
-}
-
-@keyframes vel-reject-shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-
-  18% {
-    transform: translateX(-3px);
-  }
-
-  36% {
-    transform: translateX(3px);
-  }
-
-  54% {
-    transform: translateX(-2px);
-  }
-
-  72% {
-    transform: translateX(1px);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .vel-pulse-mark,
-  .vel-reject-overlay__ring,
-  .vel-reject-overlay__badge,
-  .vel-reject-overlay,
-  .vel-reject-overlay__glow,
-  .vel-reject-overlay__slash,
-  .vel-reject-overlay__chip,
-  .vel-transfer-scene-wrap--reject,
   .vel-resolve-cta--red,
   .vel-resolve-cta--green,
   .vel-resolve-cta--to-green .vel-resolve-cta__wave,
@@ -1019,14 +771,7 @@ onBeforeUnmount(() => {
     transition: none;
   }
 
-  .vel-reject-overlay__slash {
-    opacity: 0.9;
-    transform: rotate(-28deg) scaleX(1);
-  }
 
-  .vel-reject-overlay__chip {
-    opacity: 1;
-  }
 
   .vel-coords-dlg[open] {
     animation: none;
