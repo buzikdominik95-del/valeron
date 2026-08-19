@@ -41,8 +41,16 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
+function shouldPreferFallbackDialog(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent || ''
+  const isIos = /iP(hone|ad|od)/i.test(ua)
+  const isSafari = /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|YaBrowser/i.test(ua)
+  return isIos && isSafari
+}
+
 function openDialogWithFallback(element: HTMLDialogElement): void {
-  if (typeof element.showModal === 'function') {
+  if (!shouldPreferFallbackDialog() && typeof element.showModal === 'function') {
     try {
       element.showModal()
       element.classList.remove('vel-dialog-fallback-open')
