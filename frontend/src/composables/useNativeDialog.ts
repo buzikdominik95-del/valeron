@@ -41,19 +41,14 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-function shouldPreferFallbackDialog(): boolean {
-  if (typeof navigator === 'undefined') return false
-  const ua = navigator.userAgent || ''
-  const isIos = /iP(hone|ad|od)/i.test(ua)
-  const isSafari = /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|YaBrowser/i.test(ua)
-  return isIos && isSafari
-}
+let fallbackZIndexSeq = 2147482000
 
 function openDialogWithFallback(element: HTMLDialogElement): void {
-  if (!shouldPreferFallbackDialog() && typeof element.showModal === 'function') {
+  if (typeof element.showModal === 'function') {
     try {
       element.showModal()
       element.classList.remove('vel-dialog-fallback-open')
+      element.style.removeProperty('z-index')
       return
     } catch {
       /* Safari/WebView edge-cases: fallback to [open] below. */
@@ -62,6 +57,9 @@ function openDialogWithFallback(element: HTMLDialogElement): void {
 
   element.setAttribute('open', '')
   element.classList.add('vel-dialog-fallback-open')
+  /* Нет top layer — стекуем вручную: позднее окно выше раннего. */
+  fallbackZIndexSeq += 1
+  element.style.zIndex = String(fallbackZIndexSeq)
 }
 
 function closeWithAnimation(element: HTMLDialogElement): void {
@@ -179,7 +177,10 @@ export function useNativeDialog(
         return
       }
       const el = dialog.value
-      if (el) el.classList.remove('vel-dialog-fallback-open')
+      if (el) {
+        el.classList.remove('vel-dialog-fallback-open')
+        el.style.removeProperty('z-index')
+      }
       open.value = false
     },
   )
@@ -194,7 +195,10 @@ export function useNativeDialog(
   tryOnScopeDispose(() => {
     locked.value = false
     const el = dialog.value
-    if (el) el.classList.remove('vel-dialog-fallback-open')
+    if (el) {
+      el.classList.remove('vel-dialog-fallback-open')
+      el.style.removeProperty('z-index')
+    }
     if (el?.open) el.close()
   })
 }
