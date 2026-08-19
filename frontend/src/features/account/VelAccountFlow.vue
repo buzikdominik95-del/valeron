@@ -214,30 +214,10 @@ function onCabinetVisible(): void {
   if (document.visibilityState !== 'visible') return
   void syncAccountNow()
 }
-/** Приветствие: пузыри сразу, toast через 10 с (промт 0000331 §8). */
-const welcomeToastSeen = useSessionStorage('velora:cabinet:welcome-manager-toast', false)
-const WELCOME_TOAST_DELAY_MS = 15_000
-
-const { start: startWelcomeToast } = useTimeoutFn(
-  () => {
-    if (welcomeToastSeen.value) return
-    welcomeToastSeen.value = true
-    /*
-     * Уже в чате — пузыри Deborah и так видны: не раздуваем колокольчик.
-     * На Home/других вкладках — notice + badge, гасятся при открытии Assistenza.
-     */
-    const onChat = tab.value === 'support'
-    if (!onChat) {
-      /*
-       * Welcome-toast не должен создавать фейковые «непрочитанные 2».
-       * Счетчик/notice поднимаем только реальными server-сообщениями.
-       */
-    }
-    showAgentNotify('welcome')
-  },
-  WELCOME_TOAST_DELAY_MS,
-  { immediate: false },
-)
+/**
+ * Welcome-тост отключён: показываем toast только при реальных новых
+ * server-сообщениях (useSupportChat), иначе это ложный сигнал.
+ */
 
 onMounted(() => {
   /*
@@ -249,9 +229,6 @@ onMounted(() => {
   /* Повтор после sync (сервер затирает ленту) */
   window.setTimeout(() => ensureWelcomeMessages(), 800)
   window.setTimeout(() => ensureWelcomeMessages(), 2500)
-  if (!welcomeToastSeen.value) {
-    startWelcomeToast()
-  }
 
   if (!isApiEnabled()) {
     return
