@@ -184,6 +184,9 @@ $adminRoutes->group(function () {
         Route::get('chat/{id}/state', [AiManagerController::class, 'chatState']);
         Route::post('chat/{id}/takeover', [AiManagerController::class, 'takeover']);
         Route::post('chat/{id}/return-to-ai', [AiManagerController::class, 'returnToAi']);
+        Route::get('chat/{id}/persona', [AiManagerController::class, 'chatPersona']);
+        Route::post('chat/{id}/persona', [AiManagerController::class, 'setChatPersona']);
+        Route::get('client-card/{userId}', [AiManagerController::class, 'clientCard']);
         Route::get('local-settings', [AiManagerController::class, 'localSettings']);
         Route::post('local-settings', [AiManagerController::class, 'saveLocalSettings']);
         Route::get('workflows', [AiManagerController::class, 'workflows']);

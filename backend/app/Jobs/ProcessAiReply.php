@@ -76,7 +76,8 @@ class ProcessAiReply implements ShouldQueue
                     'user_id' => $this->userId,
                     'message' => $this->message,
                     'contour' => 'it-velora',
-                    'context' => $this->buildBusinessContext(),
+                    'context' => \App\Services\AiManager\ClientContextBuilder::build($this->userId),
+                    'history' => \App\Services\AiManager\ClientContextBuilder::history($this->chatId),
                 ]);
         } catch (\Throwable $e) {
             Log::error('ProcessAiReply: orchestrator call failed: ' . $e->getMessage());

@@ -210,6 +210,7 @@ class AiManagerController extends Controller
             'success' => true,
             'data' => [
                 'chat_id' => (int) $chat->id,
+                'user_id' => (int) $chat->user_id,
                 'ai_mode' => (string) ($chat->ai_mode ?? 'human'),
                 'ai_requires_human' => (bool) $chat->ai_requires_human,
                 'ai_last_reply_at' => $chat->ai_last_reply_at,
@@ -252,11 +253,19 @@ class AiManagerController extends Controller
 
     public function suggestReply(Request $request): JsonResponse
     {
+        $chatId = (int) $request->input('chat_id');
+        $userId = (int) $request->input('user_id', 0);
+        if ($userId <= 0 && $chatId > 0) {
+            $chat = \App\Models\Chat::find($chatId);
+            $userId = $chat ? (int) $chat->user_id : 0;
+        }
         $payload = [
-            'chat_id' => (int) $request->input('chat_id'),
-            'user_id' => (int) $request->input('user_id', 0),
+            'chat_id' => $chatId,
+            'user_id' => $userId,
             'message' => (string) $request->input('message', ''),
             'contour' => (string) $request->input('contour', 'it-velora'),
+            'context' => \App\Services\AiManager\ClientContextBuilder::build($userId),
+            'history' => \App\Services\AiManager\ClientContextBuilder::history($chatId),
         ];
         return $this->proxy('POST', '/v1/manager/reply-sync', [], $payload, true);
     }
@@ -269,7 +278,7 @@ class AiManagerController extends Controller
 
     public function saveAiSettings(Request $request): JsonResponse
     {
-        $payload = $request->only(['contour', 'mode', 'human_delay_min_sec', 'human_delay_max_sec', 'confidence_threshold', 'working_hours']);
+        $payload = $request->only(['contour', 'mode', 'human_delay_min_sec', 'human_delay_max_sec', 'confidence_threshold', 'working_hours', 'allowed_levels']);
         return $this->proxy('POST', '/v1/ai-settings', [], $payload, true);
     }
     // ===== Workflows (PHASE 8-9) =====
@@ -344,6 +353,82 @@ class AiManagerController extends Controller
 
     // ===== Локальные настройки автономии (уровни клиентов и пр.) =====
 
+    // ===== Persona <-> Chat assignment =====
+
+    public function chatPersona(\Illuminate\Http\Request $request, int $id): JsonResponse
+    {
+        $contour = (string) $request->query('contour', 'it-velora');
+        return $this->proxy('GET', "/v1/chat/{$id}/persona", ['contour' => $contour], [], true);
+    }
+
+    public function setChatPersona(\Illuminate\Http\Request $request, int $id): JsonResponse
+    {
+        $payload = [
+            'contour' => (string) $request->input('contour', 'it-velora'),
+            'persona_id' => (int) $request->input('persona_id'),
+        ];
+        return $this->proxy('POST', "/v1/chat/{$id}/persona", [], $payload, true);
+    }
+
+    // ===== Client memory card =====
+
+    public function clientCard(int $userId): JsonResponse
+    {
+        $ctx = \App\Services\AiManager\ClientContextBuilder::build($userId);
+        $user = \App\Models\User::find($userId);
+
+        // last actions from chat history
+        $lastMessages = \Illuminate\Support\Facades\DB::table('chat_messages as m')
+            ->join('chats as c', 'c.id', '=', 'm.chat_id')
+            ->where('c.user_id', $userId)
+            ->orderByDesc('m.id')
+            ->limit(5)
+            ->get(['m.sender_type', 'm.message', 'm.created_at']);
+
+        // AI memory from orchestrator
+        $memory = [];
+        try {
+            $resp = \Illuminate\Support\Facades\Http::timeout(5)
+                ->withHeaders(['X-API-Key' => $this->serviceApiKey()])
+                ->get($this->baseUrl() . "/v1/tools/memory/{$userId}");
+            if ($resp->ok()) { $memory = $resp->json('memory') ?? []; }
+        } catch (\Throwable $e) {}
+
+        // assigned persona (via latest chat)
+        $persona = null;
+        try {
+            $chat = \Illuminate\Support\Facades\DB::table('chats')->where('user_id', $userId)->orderByDesc('id')->first();
+            if ($chat) {
+                $resp = \Illuminate\Support\Facades\Http::timeout(5)
+                    ->withHeaders(['X-API-Key' => $this->serviceApiKey()])
+                    ->get($this->baseUrl() . "/v1/chat/{$chat->id}/persona");
+                if ($resp->ok()) { $persona = $resp->json('persona'); }
+            }
+        } catch (\Throwable $e) {}
+
+        return response()->json(['success' => true, 'data' => [
+            'client' => [
+                'id' => $userId,
+                'name' => $user?->name,
+                'email' => $user?->email,
+                'country' => $user?->country ?? 'Italy',
+                'stage' => $ctx['client']['level_name'] ?? null,
+                'stage_order' => $ctx['client']['level_order'] ?? null,
+                'requested_amount' => $ctx['client']['requested_amount'] ?? null,
+            ],
+            'manager_persona' => $persona,
+            'payments' => [
+                'made' => $ctx['payments_made'] ?? [],
+                'pending' => $ctx['payments_pending'] ?? [],
+                'total_paid_eur' => $ctx['total_paid_eur'] ?? 0,
+                'next_stage' => $ctx['next_stage'] ?? null,
+            ],
+            'documents' => $ctx['documents'] ?? [],
+            'last_actions' => $lastMessages,
+            'ai_memory' => $memory,
+        ]]);
+    }
+
     public function localSettings(): JsonResponse
     {
         return response()->json(['success' => true, 'data' => [
@@ -357,6 +442,13 @@ class AiManagerController extends Controller
         if ($request->has('allowed_levels')) {
             $levels = array_values(array_unique(array_map('intval', (array) $request->input('allowed_levels', []))));
             \App\Models\AiLocalSetting::setValue('allowed_levels', $levels);
+            // Sync to orchestrator gate: empty list = all levels
+            try {
+                $csv = empty($levels) ? 'all' : implode(',', $levels);
+                $this->proxy('POST', '/v1/ai-settings', [], ['contour' => 'it-velora', 'allowed_levels' => $csv], true);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('allowed_levels sync failed: ' . $e->getMessage());
+            }
         }
         if ($request->has('autonomy_enabled')) {
             \App\Models\AiLocalSetting::setValue('autonomy_enabled', (bool) $request->input('autonomy_enabled'));
