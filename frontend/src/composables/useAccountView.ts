@@ -4,6 +4,8 @@ import { createSharedComposable } from '@vueuse/core'
 import { useAppView } from '@/composables/useAppView'
 import { useViewParams } from '@/composables/useViewParams'
 import { useLandingLogin } from '@/composables/useLandingLogin'
+import { useDossierStore } from '@/stores/dossier.store'
+import { isApiEnabled } from '@/api/account.api'
 
 /**
  * Открыт ли кабинет — одним окном для его шапки, кнопки «Accedi» и экрана
@@ -32,6 +34,8 @@ function createAccountView(): AccountViewApi {
   const appView = useAppView()
   const params = useViewParams()
   const landingLogin = useLandingLogin()
+  const dossier = useDossierStore()
+  let cabinetOpening = false
 
   const isOpen = computed(() => appView.view.value === 'cabinet')
 
@@ -46,10 +50,34 @@ function createAccountView(): AccountViewApi {
       landingLogin.show()
       return
     }
-    // Мастер на этом заканчивается: из кабинета в него не возвращаются шагом
-    // назад, а начинают новую заявку.
-    delete params.step
-    appView.openCabinet()
+    if (cabinetOpening) return
+
+    const enterCabinet = (): void => {
+      // Мастер на этом заканчивается: из кабинета в него не возвращаются шагом
+      // назад, а начинают новую заявку.
+      delete params.step
+      appView.openCabinet()
+      cabinetOpening = false
+    }
+
+    if (!isApiEnabled()) {
+      enterCabinet()
+      return
+    }
+
+    cabinetOpening = true
+
+    /*
+     * После logout + очистки cookie/local data локального dossier может не быть,
+     * и кабинет сначала рисует stub/Home до первого /account. Предзагружаем
+     * серверный dossier ДО открытия кабинета, чтобы L2-сцена появилась сразу.
+     * Фолбэк таймаут не даёт зависнуть входу при долгой сети.
+     */
+    const preloadTimeout = new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 2200)
+    })
+
+    void Promise.race([dossier.pullAccount(), preloadTimeout]).finally(enterCabinet)
   }
 
   function close(): void {
