@@ -599,7 +599,7 @@ class AccountController extends Controller
                 'document_number' => $serverDocNumber,
                 'contract_signed' => $signatureDone,
                 'contract_signed_at' => isset($wizardProgress['contract_signed_at']) ? (string) $wizardProgress['contract_signed_at'] : null,
-                'contract_signature_data_url' => $serverSignature !== '' ? $serverSignature : null,
+                'contract_signature_data_url' => $request->boolean('with_signature') ? (is_string($wizardProgress['contract_signature_data_url'] ?? null) ? (string) $wizardProgress['contract_signature_data_url'] : null) : null,
                 'withdraw_fail_notified_at' => $withdrawFailNotifiedAt !== '' ? $withdrawFailNotifiedAt : null,
                 'cpi_certificate_viewed' => $cpiViewed,
                 'cpi_certificate_viewed_at' => isset($wizardProgress['cpi_certificate_viewed_at']) ? (string) $wizardProgress['cpi_certificate_viewed_at'] : null,
