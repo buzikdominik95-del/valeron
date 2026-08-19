@@ -95,6 +95,7 @@ export interface SupportChat {
   threadEl: Ref<HTMLElement | null>
   /** true сразу после успешной отправки — для анимации кнопки. */
   justSent: Ref<boolean>
+  scrollToEnd: (instant?: boolean, force?: boolean) => Promise<void>
 }
 
 function createSupportChat(): SupportChat {
@@ -766,6 +767,7 @@ function createSupportChat(): SupportChat {
     seedFunnelDraft,
     threadEl,
     justSent,
+    scrollToEnd,
   }
 }
 

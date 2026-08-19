@@ -168,12 +168,30 @@ function updateSupportViewportMetrics(): void {
     vvHeight < supportViewportBaseH - 90 ||
     (vv ? vv.offsetTop > 0 : false)
 
+  const keyboardWasOpen = dialog.classList.contains('vel-support-modal--keyboard')
+
   /*
    * На iOS/Brave keyboard лучше не «перепозиционировать» сам dialog:
    * Safari может смещать top-layer независимо и появляется дополнительный отступ/срез.
    * Оставляем центрирование dialog, меняем только внутреннюю высоту sheet.
    */
   dialog.classList.toggle('vel-support-modal--keyboard', keyboardLikelyOpen)
+
+  /*
+   * Клавиатура открылась: принудительно показываем конец ленты,
+   * чтобы было видно последнее сообщение над composer.
+   */
+  if (!keyboardWasOpen && keyboardLikelyOpen && supportModalOpen.value) {
+    window.setTimeout(() => {
+      void supportChat.scrollToEnd(true, true)
+    }, 0)
+    window.setTimeout(() => {
+      void supportChat.scrollToEnd(true, true)
+    }, 120)
+    window.setTimeout(() => {
+      void supportChat.scrollToEnd(true, true)
+    }, 280)
+  }
 }
 
 const supportChat = useSupportChat()
