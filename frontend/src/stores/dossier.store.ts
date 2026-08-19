@@ -167,7 +167,6 @@ export const useDossierStore = defineStore('dossier', () => {
      */
     const serverAnimating =
       copy.commission.phase === 'animating' && copy.commission.animationStartedAt !== null
-    const localAnimating = prev.commission.phase === 'animating'
 
     /*
      * L5 race-guard: пользователь только что запустил новую 3-мин анимацию,
@@ -221,10 +220,13 @@ export const useDossierStore = defineStore('dossier', () => {
     const localBeforeOutcome =
       prev.commission.phase === 'ready' || prev.commission.phase === 'animating'
 
-    if (nextLevel === prevLevel && serverOutcome && localBeforeOutcome && !localFreshWithdrawAnimating) {
+    if (nextLevel === prevLevel && serverAnimating) {
+      /*
+       * Серверный animating всегда авторитетен: локальный merge не должен
+       * перетирать phase/startedAt и задерживать старт L2/L4 после re-login.
+       */
+    } else if (nextLevel === prevLevel && serverOutcome && localBeforeOutcome && !localFreshWithdrawAnimating) {
       /* copy оставляем как есть — серверная фаза побеждает */
-    } else if (nextLevel === prevLevel && serverAnimating && !localAnimating) {
-      /* copy уже несёт правильные phase/animationStartedAt/animationMs с сервера */
     } else if (
       nextLevel === prevLevel &&
       CLIENT_FUNNEL_PHASES.has(prev.commission.phase) &&
