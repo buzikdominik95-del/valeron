@@ -866,6 +866,23 @@ function onCommissionDismiss(): void {
 }
 
 /*
+ * Любое закрытие drawer (кнопка ×, backdrop, Escape, native close):
+ * для L1/L3 при pay_fee блокируем auto-reopen и локально уводим phase в ready.
+ */
+watch(commissionOpen, (open, wasOpen) => {
+  if (open || !wasOpen) return
+  const lv = Number(level.value)
+  if (lv === 2 || lv === 5) return
+  if (!isPayFee.value) return
+  commissionAutoReopenBlocked.value = true
+  try {
+    dossier.setCommissionPhase('ready')
+  } catch {
+    /* */
+  }
+})
+
+/*
  * L2: НЕ auto-open drawer / commission.
  * Только «Erogazione sospesa» → красная «Paga…» → openCommissionPayment.
  * Preleva зелёная — sticky locked (account.l2PrelevaLocked).
