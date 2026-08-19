@@ -138,7 +138,7 @@ export function useContractData(): ContractView {
       .reduce((sum, e) => sum + e.amountCents, 0),
   )
 
-  const paymentBaseDate = computed(() => {
+  const contractDate = computed(() => {
     const raw = contractSignedAt.value.trim()
     if (raw !== '') {
       const parsed = new Date(raw)
@@ -152,7 +152,7 @@ export function useContractData(): ContractView {
       principalCents.value,
       ratePercent.value,
       months.value,
-      firstPaymentIso(paymentBaseDate.value),
+      firstPaymentIso(contractDate.value),
     ),
   )
 
@@ -171,7 +171,7 @@ export function useContractData(): ContractView {
     ),
   )
 
-  const issuedDate = computed(() => day.value.format(ISSUED_AT))
+  const issuedDate = computed(() => day.value.format(contractDate.value))
 
   /*
    * Подпись вида документа берётся из словаря мастера — там она уже есть, и
