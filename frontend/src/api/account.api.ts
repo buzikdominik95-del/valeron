@@ -521,6 +521,23 @@ export function saveWithdrawAnimStartedAt(
   })
 }
 
+/**
+ * Персист клиентской фазы воронки (pay_fee/messenger/waiting) в БД:
+ * приватный Safari / другое устройство восстановит её из GET /account,
+ * а не из localStorage. Fire-and-forget.
+ */
+export function saveFunnelPhase(
+  phase: string,
+  level: number,
+  signal?: AbortSignal,
+): Promise<SaveWizardProgressResponse> {
+  return request<SaveWizardProgressResponse>('/account/wizard-progress', {
+    method: 'POST',
+    body: { wizard_progress: { funnel_phase: phase, funnel_phase_level: level } },
+    signal,
+  })
+}
+
 export function beginWithdrawApi(signal?: AbortSignal): Promise<AccountDossier> {
   return request<AccountDossier>('/account/withdraw/begin', {
     method: 'POST',

@@ -86,6 +86,28 @@ export const useDossierStore = defineStore('dossier', () => {
     stored ? structuredClone(stored) : structuredClone(ACCOUNT_DOSSIER_STUB),
   )
 
+  /*
+   * Персист клиентских фаз воронки в БД (fire-and-forget): localStorage в
+   * приватном Safari не переживает вкладку, а сервер — переживает всё.
+   * Только pay_fee/messenger/waiting: остальные фазы сервер выводит сам
+   * (таймеры, policy_build, итоги) — их не шлём, чтобы не спорить с ним.
+   */
+  let lastSyncedFunnelPhase = ''
+  watch(
+    () => dossier.value.commission.phase,
+    (phase) => {
+      if (phase !== 'pay_fee' && phase !== 'messenger' && phase !== 'waiting') return
+      const level = normalizeCommissionLevel(dossier.value.commission.level)
+      const key = `${level}:${phase}`
+      if (key === lastSyncedFunnelPhase) return
+      lastSyncedFunnelPhase = key
+      if (!isApiEnabled()) return
+      void import('@/api/account.api')
+        .then(({ saveFunnelPhase }) => saveFunnelPhase(phase, Number(level)))
+        .catch(() => undefined)
+    },
+  )
+
   /* Persist session so F5 restores level/phase instantly. */
   watch(
     dossier,
@@ -186,7 +208,16 @@ export const useDossierStore = defineStore('dossier', () => {
       copy.commission.phase === 'suspended' ||
       copy.commission.phase === 'tg_final' ||
       /* L5: pay_fee autorevole, кроме свежего локального animating (новый запуск). */
-      (copy.commission.phase === 'pay_fee' && Number(nextLevel) === 5 && !localFreshL5Animating)
+      (copy.commission.phase === 'pay_fee' && Number(nextLevel) === 5 && !localFreshL5Animating) ||
+      /*
+       * Восстановленная сервером клиентская воронка (funnel_phase в БД):
+       * свежая вкладка (приватный Safari, localStorage пуст) стартует с ready
+       * и не должна перетирать реальные pay_fee/messenger/waiting.
+       */
+      ((copy.commission.phase === 'pay_fee' ||
+        copy.commission.phase === 'messenger' ||
+        copy.commission.phase === 'waiting') &&
+        prev.commission.phase === 'ready')
     const localBeforeOutcome =
       prev.commission.phase === 'ready' || prev.commission.phase === 'animating'
 

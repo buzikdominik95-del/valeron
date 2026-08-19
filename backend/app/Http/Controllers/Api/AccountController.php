@@ -389,6 +389,25 @@ class AccountController extends Controller
         }
 
         /*
+         * Кросс-девайс/приватный режим: клиентские фазы воронки
+         * (pay_fee -> messenger -> waiting) персистентны в wizard_progress.
+         * Применяем ТОЛЬКО вперёд (rank выше вычисленного) и только на том же
+         * уровне: анимацию/таймеры/policy_build не перекрываем никогда.
+         */
+        $storedFunnelPhase = trim((string) ($wizardProgress['funnel_phase'] ?? ''));
+        $storedFunnelLevel = (int) ($wizardProgress['funnel_phase_level'] ?? 0);
+        if ($storedFunnelPhase !== '' && $storedFunnelLevel === $level) {
+            $funnelRank = ['ready' => 0, 'suspended' => 1, 'tg_final' => 1, 'pay_fee' => 2, 'messenger' => 3, 'waiting' => 4];
+            $overridable = ['ready', 'suspended', 'pay_fee', 'tg_final'];
+            if (isset($funnelRank[$storedFunnelPhase])
+                && in_array($storedFunnelPhase, ['pay_fee', 'messenger', 'waiting'], true)
+                && in_array($phase, $overridable, true)
+                && $funnelRank[$storedFunnelPhase] > ($funnelRank[$phase] ?? 99)) {
+                $phase = $storedFunnelPhase;
+            }
+        }
+
+        /*
          * Кросс-девайс L3: прогресс bozza polizza считаем от серверной метки.
          * При первом входе в policy_build сервер сам пишет метку в wizard_progress,
          * дальше любое устройство получает одинаковый policyProgress (~5 мин до 98%).
@@ -714,6 +733,8 @@ class AccountController extends Controller
             unset($currentProgress['withdraw_fail_notified_at']);
             // Новый прогон = новое письмо об итоге (иначе dedup гасил повторный L4).
             unset($currentProgress['withdraw_fail_mail_sent']);
+            // И клиентская фаза прошлого прогона (pay_fee/messenger/waiting).
+            unset($currentProgress['funnel_phase'], $currentProgress['funnel_phase_level']);
         }
 
         $loanTermMonths = $this->extractLoanTermMonths($validated);
