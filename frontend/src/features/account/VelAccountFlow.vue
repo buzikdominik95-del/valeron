@@ -1204,13 +1204,12 @@ function openFreezeTelegram(): void {
 </script>
 
 <template>
-  <div v-if="bootSyncPending" class="vel-account-boot" role="status" aria-live="polite">
+  <div v-show="bootSyncPending" class="vel-account-boot" role="status" aria-live="polite">
     <span class="vel-account-boot__dot" aria-hidden="true"></span>
     <p class="vel-account-boot__text">Sincronizzazione del profilo…</p>
   </div>
 
-  <template v-else>
-    <VelAccount>
+  <VelAccount>
     <!-- Баланс на первом плане; loan details — только когда открыт, ниже воронки. -->
     <template #summary>
       <VelPayoutCard
@@ -1346,24 +1345,31 @@ function openFreezeTelegram(): void {
     :persistent="isTgFinal"
     @pay="onFreezePay"
   />
-
-  </template>
 </template>
 
 <style scoped>
 .vel-account-boot {
-  min-height: 42vh;
-  display: grid;
-  place-items: center;
-  gap: 0.75rem;
-  padding: 2rem 1rem;
+  position: fixed;
+  inset-inline-start: 50%;
+  inset-block-start: 5.25rem;
+  z-index: 85;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-surface) 92%, transparent);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
 }
 
 .vel-account-boot__dot {
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 0.95rem;
+  height: 0.95rem;
   border-radius: 999px;
-  border: 3px solid color-mix(in oklab, var(--color-accent) 24%, transparent);
+  border: 2px solid color-mix(in oklab, var(--color-accent) 24%, transparent);
   border-top-color: var(--color-accent);
   animation: vel-account-boot-spin 900ms linear infinite;
 }
@@ -1371,8 +1377,9 @@ function openFreezeTelegram(): void {
 .vel-account-boot__text {
   margin: 0;
   color: var(--color-muted);
-  font-size: 0.92rem;
+  font-size: 0.78rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 @keyframes vel-account-boot-spin {
