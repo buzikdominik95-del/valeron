@@ -53,7 +53,7 @@ import VelChatBubble from '@/features/account/VelChatBubble.vue'
  */
 const { t, d } = useI18n()
 const { client, steps } = useAccount()
-const { tab } = useCabinetTab()
+const { tab, select } = useCabinetTab()
 const accountStore = useAccountStore()
 const { level, isTgFinal } = useCommission()
 
@@ -354,23 +354,37 @@ watch(supportModalOpen, (isOpen) => {
   void nextTick(() => updateSupportViewportMetrics())
 }, { flush: 'post' })
 
-watch(tab, async (next) => {
-  if (next === 'support') {
-    /*
-     * Badge Assistenza + chat-notices на колокольчике → прочитаны
-     * (managerMessage / supportSent). Остальные notice не трогаем.
-     * Дубль с useSupportChat.watch — оба вызываются при входе в чат.
-     */
-    accountStore.clearSupportUnread()
-    try {
-      useNotices().markChatNoticesRead()
-    } catch {
-      /* notices optional */
+const supportTabRedirecting = ref(false)
+
+watch(
+  tab,
+  async (next) => {
+    if (next === 'support') {
+      /*
+       * Любой переход в ?tab=support (в т.ч. клик по toast/notice или deep-link)
+       * переводим в popup-чат: держим вкладку Home и открываем модалку.
+       */
+      if (!supportTabRedirecting.value) {
+        supportTabRedirecting.value = true
+        supportModal.show()
+        select('home')
+      }
+
+      accountStore.clearSupportUnread()
+      try {
+        useNotices().markChatNoticesRead()
+      } catch {
+        /* notices optional */
+      }
+      return
     }
-  }
-  await nextTick()
-  document.getElementById(CABINET_HEADING_ID)?.focus()
-})
+
+    supportTabRedirecting.value = false
+    await nextTick()
+    document.getElementById(CABINET_HEADING_ID)?.focus()
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
