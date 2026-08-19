@@ -882,6 +882,35 @@ watch(
   font-weight: 600;
 }
 
+
+@media (max-width: 39.9375rem) {
+  .vel-support-modal {
+    inset: 0;
+    margin: 0;
+    inline-size: 100dvw;
+    max-inline-size: 100dvw;
+    block-size: 100dvh;
+    max-block-size: 100dvh;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .vel-support-modal.vel-support-modal--keyboard {
+    max-block-size: 100dvh;
+  }
+
+  .vel-support-modal__sheet {
+    min-block-size: 100dvh;
+    max-block-size: 100dvh;
+    border-radius: 0;
+  }
+
+  .vel-support-modal__thread {
+    min-block-size: 0;
+  }
+}
+
 @media (min-width: 40rem) {
   .vel-cabinet {
     --vel-cab-pad-x: max(1rem, env(safe-area-inset-left, 0px));
