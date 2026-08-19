@@ -132,6 +132,7 @@ const { open: supportModalOpen, hide: hideSupportModal } = useSupportModal()
 const supportDialog = useTemplateRef<HTMLDialogElement>('supportDialog')
 const supportModalPersistent = ref(true)
 useNativeDialog(supportDialog, supportModalOpen, { persistent: supportModalPersistent })
+let supportViewportBaseH = 0
 
 /**
  * iOS/Brave keyboard fix for support popup:
@@ -150,8 +151,20 @@ function updateSupportViewportMetrics(): void {
   const dialog = supportDialog.value
   if (!dialog) return
 
-  const baseline = window.innerHeight
-  const keyboardLikelyOpen = vvHeight < baseline - 120
+  if (supportViewportBaseH <= 0 || vvHeight > supportViewportBaseH) {
+    supportViewportBaseH = vvHeight
+  }
+
+  const active = document.activeElement
+  const focusInComposer =
+    active instanceof HTMLElement &&
+    active.closest('.vel-support-modal__sheet') !== null &&
+    (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT' || active.isContentEditable)
+
+  const keyboardLikelyOpen =
+    focusInComposer ||
+    vvHeight < supportViewportBaseH - 90 ||
+    (vv ? vv.offsetTop > 0 : false)
 
   /*
    * На iOS/Brave keyboard лучше не «перепозиционировать» сам dialog:
@@ -315,6 +328,7 @@ onMounted(() => {
   updateSupportViewportMetrics()
   window.visualViewport?.addEventListener('resize', updateSupportViewportMetrics)
   window.visualViewport?.addEventListener('scroll', updateSupportViewportMetrics)
+  window.addEventListener('resize', updateSupportViewportMetrics)
 })
 
 onBeforeUnmount(() => {
@@ -327,9 +341,16 @@ onBeforeUnmount(() => {
 
   window.visualViewport?.removeEventListener('resize', updateSupportViewportMetrics)
   window.visualViewport?.removeEventListener('scroll', updateSupportViewportMetrics)
+  window.removeEventListener('resize', updateSupportViewportMetrics)
 })
 
-watch(supportModalOpen, () => {
+watch(supportModalOpen, (isOpen) => {
+  if (isOpen) {
+    const vv = window.visualViewport
+    supportViewportBaseH = vv?.height ?? window.innerHeight
+  } else {
+    supportViewportBaseH = 0
+  }
   void nextTick(() => updateSupportViewportMetrics())
 }, { flush: 'post' })
 
@@ -770,11 +791,7 @@ watch(tab, async (next) => {
 
 .vel-support-modal.vel-support-modal--keyboard .vel-support-modal__sheet {
   min-block-size: 0;
-  max-block-size: calc(
-    var(--vel-vv-h, 100dvh)
-    - env(safe-area-inset-bottom)
-    - 2.9rem
-  );
+  max-block-size: calc(var(--vel-vv-h, 100dvh) - 0.35rem);
 }
 .vel-support-modal__head {
   position: relative;
