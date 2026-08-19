@@ -5,6 +5,7 @@ import { onClickOutside, onKeyStroke } from '@vueuse/core'
 import { useNotices } from '@/composables/useNotices'
 import { useCabinetTab } from '@/composables/useCabinetTab'
 import { NOTICE_TAB, NOTICE_TONE, type NoticeKind } from '@/features/account/notice-kinds'
+import { useSupportModal } from '@/composables/useSupportModal'
 import VelNoticeRow from '@/features/account/VelNoticeRow.vue'
 
 /**
@@ -17,6 +18,7 @@ const { t, d } = useI18n()
 const { items, unread, markAllRead, markRead } = useNotices()
 /* markAllRead — только кнопка «Segna come letti», не при open панели. */
 const { select: selectTab } = useCabinetTab()
+const supportModal = useSupportModal()
 
 const root = ref<HTMLElement | null>(null)
 const heading = ref<HTMLElement | null>(null)
@@ -45,6 +47,16 @@ function openNotice(id: number, kind: NoticeKind): void {
   markRead(id)
   const target = NOTICE_TAB[kind]
   open.value = false
+
+  /*
+   * Для уведомлений поддержки открываем тот же popup-чат, что и везде,
+   * а не полноэкранную вкладку Assistenza.
+   */
+  if (target === 'support') {
+    supportModal.show()
+    return
+  }
+
   selectTab(target)
 }
 
