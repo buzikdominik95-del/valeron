@@ -68,13 +68,12 @@ const {
   beginWithdraw,
 } = useCommission()
 const { certViewed, step: cpiStep, clearPrelevaPulse } = useCpiBuild()
-const { tab, select: selectTab } = useCabinetTab()
+const { select: selectTab } = useCabinetTab()
 const notices = useNotices()
 /** Toast менеджера / system — shared с pushAgentMessage (admin → toast + badge). */
 const {
   open: agentToastOpen,
   kind: agentToastKind,
-  show: showAgentNotify,
   hide: hideAgentNotify,
 } = useAgentNotify()
 /**
