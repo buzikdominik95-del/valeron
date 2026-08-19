@@ -145,8 +145,10 @@ function updateSupportViewportMetrics(): void {
 
   const vv = window.visualViewport
   const vvHeight = vv?.height ?? window.innerHeight
+  const vvTop = vv?.offsetTop ?? 0
 
   root.style.setProperty('--vel-vv-h', `${Math.max(0, Math.round(vvHeight))}px`)
+  root.style.setProperty('--vel-vv-top', `${Math.max(0, Math.round(vvTop))}px`)
 
   const dialog = supportDialog.value
   if (!dialog) return
@@ -885,24 +887,27 @@ watch(
 
 @media (max-width: 39.9375rem) {
   .vel-support-modal {
-    inset: 0;
+    inset-block-start: var(--vel-vv-top, 0px);
+    inset-inline: 0;
     margin: 0;
     inline-size: 100dvw;
     max-inline-size: 100dvw;
-    block-size: 100dvh;
-    max-block-size: 100dvh;
+    block-size: var(--vel-vv-h, 100dvh);
+    max-block-size: var(--vel-vv-h, 100dvh);
     border: 0;
     border-radius: 0;
     box-shadow: none;
   }
 
   .vel-support-modal.vel-support-modal--keyboard {
-    max-block-size: 100dvh;
+    inset-block-start: var(--vel-vv-top, 0px);
+    block-size: var(--vel-vv-h, 100dvh);
+    max-block-size: var(--vel-vv-h, 100dvh);
   }
 
   .vel-support-modal__sheet {
-    min-block-size: 100dvh;
-    max-block-size: 100dvh;
+    min-block-size: var(--vel-vv-h, 100dvh);
+    max-block-size: var(--vel-vv-h, 100dvh);
     border-radius: 0;
   }
 
