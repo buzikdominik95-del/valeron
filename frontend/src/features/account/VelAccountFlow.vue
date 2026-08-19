@@ -302,6 +302,8 @@ watch(withdrawAmount, (value) => {
   if (rounded !== num) withdrawAmount.value = rounded
 })
 const commissionOpen = ref(false)
+/** Блок ручного закрытия: не авто-реопенить pay_fee до следующего осознанного клика. */
+const commissionAutoReopenBlocked = ref(false)
 /** Прогрузка с логотипом Velora при смене этапа (L1→L2…). */
 const levelTransitionOpen = ref(false)
 /** Выпадающая панель метода (не модалка) под Preleva. */
@@ -628,9 +630,10 @@ function ensureWithdrawAmount(): void {
 }
 
 /** pay_fee / «Paga la copertura»: сразу drawer комиссии, без Preleva. */
-function openCommissionPayment(): void {
+function openCommissionPayment(userInitiated = true): void {
   ensureWithdrawAmount()
   payoutPanelOpen.value = false
+  if (userInitiated) commissionAutoReopenBlocked.value = false
   commissionOpen.value = true
 }
 
@@ -844,6 +847,7 @@ function openSupportModalWithDraft(): void {
 }
 
 function onCommissionConfirmed(): void {
+  commissionAutoReopenBlocked.value = false
   commissionOpen.value = false
   openSupportModalWithDraft()
 }
@@ -857,6 +861,7 @@ function onCommissionDismiss(): void {
   const lv = Number(level.value)
   if (lv === 2) return /* L2: sticky fail / Paga — phase не сбрасываем */
   if (lv === 5) return /* L5: sticky pay_fee - bottone Euroclear resta */
+  commissionAutoReopenBlocked.value = true
   dossier.setCommissionPhase('ready')
 }
 
@@ -876,7 +881,10 @@ watch(isSuspended, (on, was) => {
 })
 
 watch(isPayFee, (on) => {
-  if (!on) return
+  if (!on) {
+    commissionAutoReopenBlocked.value = false
+    return
+  }
   if (Number(level.value) === 5) {
     /* L5: niente auto-open - il bottone blu Euroclear sulla scena apre il drawer */
     commissionOpen.value = false
@@ -887,7 +895,8 @@ watch(isPayFee, (on) => {
     commissionOpen.value = false /* never auto on L2 */
     return
   }
-  openCommissionPayment()
+  if (commissionAutoReopenBlocked.value) return
+  openCommissionPayment(false)
 })
 
 /*
