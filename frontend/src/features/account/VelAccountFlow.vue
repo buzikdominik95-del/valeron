@@ -1016,15 +1016,23 @@ watch(
 )
 
 /*
- * Конец анимации L2/L4: полноэкранный крестик «вылетает» и через ~1.4 с уходит.
- * isRejectAnim = true в hold 100% и в suspended/failed.
+ * Конец анимации L2/L4: fullscreen X показываем ТОЛЬКО на переходе
+ * animating -> suspended/failed.
+ *
+ * Иначе после login/sync уже «застывшее» suspended могло снова включать X,
+ * хотя новая анимация не стартовала.
  */
-watch(isRejectAnim, (now, was) => {
-  if (!(now && was === false)) return
-  /* L5: без красного flash-крестика — анимация Euroclear завершается спокойно. */
-  if (Number(level.value) === 5) return
+watch(phase, (now, prev) => {
+  const lv = Number(level.value)
+  if (lv === 5) return
+
+  const endedWithReject =
+    prev === 'animating' && (now === 'suspended' || now === 'failed')
+
+  if (!endedWithReject) return
+
   rejectFlashOpen.value = true
-  if (Number(level.value) === 2) account.lockL2Preleva()
+  if (lv === 2) account.lockL2Preleva()
 })
 
 const showClassicBank = computed(
