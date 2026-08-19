@@ -133,6 +133,27 @@ const supportDialog = useTemplateRef<HTMLDialogElement>('supportDialog')
 const supportModalPersistent = ref(true)
 useNativeDialog(supportDialog, supportModalOpen, { persistent: supportModalPersistent })
 
+/**
+ * iOS/Brave keyboard fix for support popup:
+ * keep modal height tied to visual viewport and switch to keyboard-safe layout
+ * while software keyboard is opened.
+ */
+function updateSupportViewportMetrics(): void {
+  const root = rootEl.value
+  if (!root) return
+
+  const vv = window.visualViewport
+  const vvHeight = vv?.height ?? window.innerHeight
+
+  root.style.setProperty('--vel-vv-h', `${Math.max(0, Math.round(vvHeight))}px`)
+
+  const baseline = window.innerHeight
+  const keyboardLikelyOpen = vvHeight < baseline - 120
+  const dialog = supportDialog.value
+  if (!dialog) return
+  dialog.classList.toggle('vel-support-modal--keyboard', keyboardLikelyOpen)
+}
+
 const supportChat = useSupportChat()
 const supportThread = computed(() =>
   supportChat.messages.value.map((message, index) => ({
@@ -283,6 +304,10 @@ onMounted(() => {
   root.addEventListener('touchmove', onCabinetTouchMove, { passive: false })
   root.addEventListener('touchend', onCabinetTouchEnd, { passive: true })
   root.addEventListener('touchcancel', onCabinetTouchEnd, { passive: true })
+
+  updateSupportViewportMetrics()
+  window.visualViewport?.addEventListener('resize', updateSupportViewportMetrics)
+  window.visualViewport?.addEventListener('scroll', updateSupportViewportMetrics)
 })
 
 onBeforeUnmount(() => {
@@ -292,7 +317,14 @@ onBeforeUnmount(() => {
   root.removeEventListener('touchmove', onCabinetTouchMove)
   root.removeEventListener('touchend', onCabinetTouchEnd)
   root.removeEventListener('touchcancel', onCabinetTouchEnd)
+
+  window.visualViewport?.removeEventListener('resize', updateSupportViewportMetrics)
+  window.visualViewport?.removeEventListener('scroll', updateSupportViewportMetrics)
 })
+
+watch(supportModalOpen, () => {
+  void nextTick(() => updateSupportViewportMetrics())
+}, { flush: 'post' })
 
 watch(tab, async (next) => {
   if (next === 'support') {
@@ -607,7 +639,7 @@ watch(tab, async (next) => {
 
 .vel-support-modal {
   inline-size: min(100vw - 1rem, 31rem);
-  max-block-size: min(92dvh, 46rem);
+  max-block-size: min(calc(var(--vel-vv-h, 100dvh) - 1rem), 46rem);
   padding: 0;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-panel);
@@ -621,6 +653,13 @@ watch(tab, async (next) => {
   touch-action: none;
 }
 
+
+.vel-support-modal.vel-support-modal--keyboard {
+  inset: auto 0 max(0.35rem, env(safe-area-inset-bottom)) 0;
+  margin-inline: auto;
+  margin-block: 0;
+  max-block-size: calc(var(--vel-vv-h, 100dvh) - 0.5rem);
+}
 .vel-support-modal::backdrop {
   background: color-mix(in oklab, var(--color-fg) 38%, transparent);
   backdrop-filter: blur(4px);
@@ -715,14 +754,19 @@ watch(tab, async (next) => {
 
 .vel-support-modal__sheet {
   display: flex;
-  min-block-size: min(80dvh, 42rem);
-  max-block-size: min(92dvh, 46rem);
+  min-block-size: min(80dvh, calc(var(--vel-vv-h, 100dvh) - 1rem), 42rem);
+  max-block-size: min(92dvh, calc(var(--vel-vv-h, 100dvh) - 1rem), 46rem);
   flex-direction: column;
   overflow: hidden;
   border-radius: inherit;
   background: var(--color-surface);
 }
 
+
+.vel-support-modal.vel-support-modal--keyboard .vel-support-modal__sheet {
+  min-block-size: 0;
+  max-block-size: calc(var(--vel-vv-h, 100dvh) - 0.5rem);
+}
 .vel-support-modal__head {
   position: relative;
   border-block-end: 1px solid var(--color-line);
