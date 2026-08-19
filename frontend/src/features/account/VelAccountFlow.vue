@@ -491,8 +491,8 @@ function onAgentToastOpen(): void {
     }, 2000)
     return
   }
-  /* agent / welcome → чат с менеджером (badge гасится в VelAccount watch tab) */
-  selectTab('support')
+  /* agent / welcome → открываем popup-модалку чата (не отдельную вкладку). */
+  supportModal.show()
 }
 
 function onAgentToastClose(): void {
