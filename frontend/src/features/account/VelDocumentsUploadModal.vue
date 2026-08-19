@@ -95,7 +95,8 @@ function onRejected(): void {
   inline-size: min(100% - 1rem, 58rem);
   /* Safari < 15.4 не знает dvh и выбрасывает всё правило — сначала vh-фолбэк. */
   max-block-size: 92vh;
-  max-block-size: min(92dvh, 100%);
+  max-block-size: 88vh;
+  max-block-size: min(92dvh, 44rem);
   margin: auto;
   inset: 0;
   overflow: visible;
@@ -165,7 +166,8 @@ function onRejected(): void {
   display: flex;
   flex-direction: column;
   max-block-size: 92vh;
-  max-block-size: min(92dvh, 100%);
+  max-block-size: 88vh;
+  max-block-size: min(92dvh, 44rem);
 }
 
 .vel-docs-modal__head {

@@ -75,8 +75,10 @@ function close(): void {
 <style scoped>
 .vel-help-dlg {
   /* Без скролла: шире + плотнее, влезает в viewport */
-  inline-size: min(100% - 1rem, 26rem);
-  max-block-size: min(96dvh, 100%);
+  inline-size: calc(100% - 1rem);
+  max-inline-size: 26rem;
+  max-block-size: 92vh;
+  max-block-size: min(96dvh, 44rem);
   overflow: hidden;
   padding: 0;
   border: 1px solid var(--color-line);
@@ -87,8 +89,8 @@ function close(): void {
 }
 
 .vel-help-dlg--lg {
-  inline-size: min(100% - 0.75rem, 30rem);
-  max-block-size: min(96dvh, 100%);
+  inline-size: calc(100% - 0.75rem);
+  max-inline-size: 30rem;
 }
 
 .vel-help-dlg::backdrop {
@@ -100,7 +102,8 @@ function close(): void {
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
-  max-block-size: min(96dvh, 100%);
+  max-block-size: 92vh;
+  max-block-size: min(96dvh, 44rem);
   padding: 1rem 1.15rem 1.05rem;
   overflow: hidden;
 }
@@ -194,7 +197,8 @@ function close(): void {
   font-size: clamp(0.78rem, 2.6vw, 0.875rem);
   line-height: 1.42;
   text-align: center;
-  overflow: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .vel-help-dlg--lg .vel-help-dlg__body {
