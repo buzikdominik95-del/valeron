@@ -51,7 +51,7 @@ const VERIFY_REVEAL_MS = 1_150
 const VERIFY_REVEAL_FAST_MS = 220
 let unlockTimer: ReturnType<typeof setTimeout> | null = null
 
-watch(status, (s) => {
+watch(status, (s, prev) => {
   if (s !== 'verified') {
     if (unlockTimer) {
       clearTimeout(unlockTimer)
@@ -59,6 +59,14 @@ watch(status, (s) => {
     }
     return
   }
+
+  /*
+   * Важно: событие verified шлём только после реального цикла проверки
+   * (checking -> verified). Иначе при login/hydrate locked=true мог
+   * переводить карточку в verified и заново триггерить сценарий «открыть IBAN».
+   */
+  if (prev !== 'checking') return
+
   if (documentsUploaded.value) {
     emit('verified')
     return
