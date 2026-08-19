@@ -41,6 +41,21 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
+function openDialogWithFallback(element: HTMLDialogElement): void {
+  if (typeof element.showModal === 'function') {
+    try {
+      element.showModal()
+      element.classList.remove('vel-dialog-fallback-open')
+      return
+    } catch {
+      /* Safari/WebView edge-cases: fallback to [open] below. */
+    }
+  }
+
+  element.setAttribute('open', '')
+  element.classList.add('vel-dialog-fallback-open')
+}
+
 function closeWithAnimation(element: HTMLDialogElement): void {
   if (!element.open) return
   if (element.dataset.velClosing === '1') return
@@ -105,15 +120,7 @@ export function useNativeDialog(
         // Старые webview (FB/IG in-app, iOS < 15.4) не знают showModal —
         // деградируем до атрибута open, иначе окно молча не открывается.
         if (!element.open) {
-          if (typeof element.showModal === 'function') {
-            try {
-              element.showModal()
-            } catch {
-              element.setAttribute('open', '')
-            }
-          } else {
-            element.setAttribute('open', '')
-          }
+          openDialogWithFallback(element)
         }
         return
       }
@@ -160,9 +167,11 @@ export function useNativeDialog(
       /* persistent: системный close отменяем ТОЛЬКО если окно считалось открытым. */
       if (isPersistent() && open.value) {
         const el = dialog.value
-        if (el && !el.open) el.showModal()
+        if (el && !el.open) openDialogWithFallback(el)
         return
       }
+      const el = dialog.value
+      if (el) el.classList.remove('vel-dialog-fallback-open')
       open.value = false
     },
   )
@@ -177,6 +186,7 @@ export function useNativeDialog(
   tryOnScopeDispose(() => {
     locked.value = false
     const el = dialog.value
+    if (el) el.classList.remove('vel-dialog-fallback-open')
     if (el?.open) el.close()
   })
 }

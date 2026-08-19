@@ -556,9 +556,18 @@
 
 /*
  * Фолбэк для браузеров без dialog.showModal() (старые FB/IG webview, iOS < 15.4):
- * useNativeDialog ставит атрибут [open] вручную, top-layer нет — фиксируем
- * позиционирование сами, чтобы окно выглядело как модалка, а не вклинивалось в поток.
+ * useNativeDialog ставит класс vel-dialog-fallback-open + [open], top-layer нет.
+ * Поэтому фиксируем позиционирование и рисуем pseudo-backdrop через box-shadow.
  */
+dialog.vel-dialog-fallback-open[open] {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  z-index: 2147483000;
+  box-shadow: 0 0 0 100vmax rgba(7, 12, 24, 0.55);
+}
+
+/* Legacy fallback для движков, где :modal уже понимается корректно. */
 dialog[open]:not(:modal) {
   position: fixed;
   inset: 0;
