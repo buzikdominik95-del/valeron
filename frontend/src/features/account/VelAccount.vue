@@ -128,7 +128,7 @@ const emit = defineEmits<{ notices: [] }>()
 
 const noticesOpen = ref(false)
 
-const { open: supportModalOpen, hide: hideSupportModal } = useSupportModal()
+const { open: supportModalOpen, show: showSupportModal, hide: hideSupportModal } = useSupportModal()
 const supportDialog = useTemplateRef<HTMLDialogElement>('supportDialog')
 const supportModalPersistent = ref(true)
 useNativeDialog(supportDialog, supportModalOpen, { persistent: supportModalPersistent })
@@ -366,7 +366,7 @@ watch(
        */
       if (!supportTabRedirecting.value) {
         supportTabRedirecting.value = true
-        supportModal.show()
+        showSupportModal()
         select('home')
       }
 
