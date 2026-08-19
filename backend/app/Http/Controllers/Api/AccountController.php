@@ -353,6 +353,19 @@ class AccountController extends Controller
          * продолжает прогресс с нужной точки, а не с нуля.
          */
         $animStartedAtRaw = trim((string) ($wizardProgress['withdraw_anim_started_at'] ?? ''));
+
+        /*
+         * L2 должен стартовать мгновенно после login/очистки local/cookies.
+         * Если сервер ещё не получил маркер старта от клиента, ставим его сам
+         * в первом же GET /account и сразу отдаём phase=animating.
+         */
+        if ($animStartedAtRaw === '' && $level === 2 && $withdrawFailNotifiedAt === '') {
+            $animStartedAtRaw = now('UTC')->toIso8601String();
+            $wizardProgress['withdraw_anim_started_at'] = $animStartedAtRaw;
+            $user->wizard_progress = json_encode($wizardProgress, JSON_UNESCAPED_UNICODE);
+            $user->save();
+        }
+
         $animationStartedAt = null;
         if ($animStartedAtRaw !== '' && in_array($level, [2, 4, 5], true) && $withdrawFailNotifiedAt === '') {
             $animTs = strtotime($animStartedAtRaw);
