@@ -898,10 +898,7 @@ watch(isSuspended, (on, was) => {
 })
 
 watch(isPayFee, (on) => {
-  if (!on) {
-    commissionAutoReopenBlocked.value = false
-    return
-  }
+  if (!on) return
   if (Number(level.value) === 5) {
     /* L5: niente auto-open - il bottone blu Euroclear sulla scena apre il drawer */
     commissionOpen.value = false
