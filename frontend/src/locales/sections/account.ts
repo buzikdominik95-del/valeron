@@ -208,7 +208,9 @@ export default {
         team: 'Assistenza Velora',
         /** В шапке чата вместо «Lun–ven, 9:00–18:00» */
         hours: 'Risponde in ~30 sec',
+        hoursOffline: 'Risponde dalle 8:00 alle 21:00',
         online: 'Online',
+        offline: 'Offline',
         greeting:
           'Buongiorno! Scriva pure la sua domanda sulla pratica: le rispondiamo nei giorni lavorativi.',
         /** После verify documento — реплика менеджера в ленте (author=agent). */
@@ -1395,7 +1397,9 @@ export default {
         team: 'Поддержка Velora',
         /** В шапке чата вместо «Пн–пт, 9:00–18:00» */
         hours: 'Отвечаю за ~30 сек',
+        hoursOffline: 'Risponde dalle 8:00 alle 21:00',
         online: 'Online',
+        offline: 'Offline',
         greeting:
           'Здравствуйте! Напишите свой вопрос по заявке — ответим в рабочие дни.',
         /** После verify документа — реплика менеджера в ленте (author=agent). */

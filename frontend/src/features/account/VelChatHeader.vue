@@ -1,11 +1,55 @@
 <script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import consultantPhoto from '@/img/consulente-schierano.jpg'
 
 /**
- * Шапка переписки: фото консультанта, имя, статус «в сети», часы.
+ * Шапка переписки: фото консультанта, имя, статус и часы ответа.
+ * Ночной режим по Москве: 22:30–09:00 → Offline + расписание.
  */
 const { t } = useI18n()
+
+const nowMs = ref(Date.now())
+let timer: ReturnType<typeof setInterval> | null = null
+
+function getMoscowMinutes(epochMs: number): number {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Moscow',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date(epochMs))
+
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? '0')
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? '0')
+
+  return hour * 60 + minute
+}
+
+const isNightMode = computed(() => {
+  const minutes = getMoscowMinutes(nowMs.value)
+  return minutes >= 22 * 60 + 30 || minutes < 9 * 60
+})
+
+const statusLabel = computed(() =>
+  isNightMode.value ? t('account.support.chat.offline') : t('account.support.chat.online'),
+)
+
+const hoursLabel = computed(() =>
+  isNightMode.value
+    ? t('account.support.chat.hoursOffline')
+    : t('account.support.chat.hours'),
+)
+
+onMounted(() => {
+  timer = setInterval(() => {
+    nowMs.value = Date.now()
+  }, 30_000)
+})
+
+onBeforeUnmount(() => {
+  if (timer) clearInterval(timer)
+})
 </script>
 
 <template>
@@ -19,16 +63,20 @@ const { t } = useI18n()
         height="44"
         decoding="async"
       />
-      <span class="vel-chat__live" title="online" />
+      <span
+        class="vel-chat__live"
+        :class="{ 'vel-chat__live--offline': isNightMode }"
+        :title="statusLabel"
+      />
     </span>
 
     <span class="vel-chat__who">
       <span class="vel-chat__name">{{ t('account.support.chat.agentName') }}</span>
-      <span class="vel-chat__status">
-        <span class="vel-chat__dot" aria-hidden="true" />
-        {{ t('account.support.chat.online') }}
+      <span class="vel-chat__status" :class="{ 'vel-chat__status--offline': isNightMode }">
+        <span class="vel-chat__dot" :class="{ 'vel-chat__dot--offline': isNightMode }" aria-hidden="true" />
+        {{ statusLabel }}
       </span>
-      <span class="vel-chat__hours">{{ t('account.support.chat.hours') }}</span>
+      <span class="vel-chat__hours">{{ hoursLabel }}</span>
     </span>
   </header>
 </template>
@@ -113,6 +161,21 @@ const { t } = useI18n()
   border-radius: var(--radius-round);
   background: var(--color-success);
   box-shadow: 0 0 6px color-mix(in oklab, var(--color-success) 70%, transparent);
+}
+
+.vel-chat__status--offline {
+  color: color-mix(in oklab, #ef4444 72%, var(--color-accent-ink));
+}
+
+.vel-chat__dot--offline {
+  background: #ef4444;
+  box-shadow: 0 0 6px color-mix(in oklab, #ef4444 70%, transparent);
+}
+
+.vel-chat__live--offline {
+  background: #ef4444;
+  box-shadow: none;
+  animation: none;
 }
 
 .vel-chat__hours {
