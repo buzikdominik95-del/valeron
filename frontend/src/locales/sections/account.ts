@@ -209,6 +209,8 @@ export default {
         /** В шапке чата вместо «Lun–ven, 9:00–18:00» */
         hours: 'Risponde in ~30 sec',
         hoursOffline: 'Risponde dalle 8:00 alle 21:00',
+        nightOverlay:
+          "Al momento l'operatore è offline. Orario di lavoro: tutti i giorni dalle 8:00 alle 21:00. L'operatore Le risponderà durante l'orario lavorativo",
         online: 'Online',
         offline: 'Offline',
         greeting:
@@ -1398,6 +1400,8 @@ export default {
         /** В шапке чата вместо «Пн–пт, 9:00–18:00» */
         hours: 'Отвечаю за ~30 сек',
         hoursOffline: 'Risponde dalle 8:00 alle 21:00',
+        nightOverlay:
+          "Al momento l'operatore è offline. Orario di lavoro: tutti i giorni dalle 8:00 alle 21:00. L'operatore Le risponderà durante l'orario lavorativo",
         online: 'Online',
         offline: 'Offline',
         greeting:

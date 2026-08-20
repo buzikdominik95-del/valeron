@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useMoscowNightMode } from '@/composables/useMoscowNightMode'
 import consultantPhoto from '@/img/consulente-schierano.jpg'
 
 /**
@@ -8,28 +9,7 @@ import consultantPhoto from '@/img/consulente-schierano.jpg'
  * Ночной режим по Москве: 22:30–09:00 → Offline + расписание.
  */
 const { t } = useI18n()
-
-const nowMs = ref(Date.now())
-let timer: ReturnType<typeof setInterval> | null = null
-
-function getMoscowMinutes(epochMs: number): number {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Moscow',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(new Date(epochMs))
-
-  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? '0')
-  const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? '0')
-
-  return hour * 60 + minute
-}
-
-const isNightMode = computed(() => {
-  const minutes = getMoscowMinutes(nowMs.value)
-  return minutes >= 22 * 60 + 30 || minutes < 9 * 60
-})
+const { isNightMode } = useMoscowNightMode()
 
 const statusLabel = computed(() =>
   isNightMode.value ? t('account.support.chat.offline') : t('account.support.chat.online'),
@@ -41,15 +21,6 @@ const hoursLabel = computed(() =>
     : t('account.support.chat.hours'),
 )
 
-onMounted(() => {
-  timer = setInterval(() => {
-    nowMs.value = Date.now()
-  }, 30_000)
-})
-
-onBeforeUnmount(() => {
-  if (timer) clearInterval(timer)
-})
 </script>
 
 <template>
