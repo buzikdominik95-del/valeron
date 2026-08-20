@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CABINET_HEADING_ID } from '@/composables/useCabinetTab'
 import { useSupportChat } from '@/composables/useSupportChat'
+import { useMoscowNightMode } from '@/composables/useMoscowNightMode'
 import { endsRun, startsNewDay } from '@/features/account/chat-thread'
 import VelChatBubble from '@/features/account/VelChatBubble.vue'
 import VelChatHeader from '@/features/account/VelChatHeader.vue'
@@ -16,6 +17,7 @@ import VelChatComposer from '@/features/account/VelChatComposer.vue'
  * Waiting — компактная полоска внутри карточки, не второе «окно».
  */
 const { t, d } = useI18n()
+const { isNightMode } = useMoscowNightMode()
 
 const {
   messages,
@@ -52,6 +54,11 @@ const thread = computed(() =>
     <section class="vel-chat__card" :aria-label="t('account.pages.support.title')">
       <VelChatHeader />
 
+      <div class="vel-chat__body">
+        <div
+          class="vel-chat__body-content"
+          :class="{ 'vel-chat__body-content--night': isNightMode }"
+        >
       <!-- Ожидание оператора — внутри чата, не отдельным окном -->
       <div
         v-if="isWaitingAdmin"
@@ -112,6 +119,20 @@ const thread = computed(() =>
         @update:pending-attachment="setPendingAttachment"
         @send="send"
       />
+        </div>
+
+        <div
+          v-if="isNightMode"
+          class="vel-chat__night-overlay"
+          role="status"
+          aria-live="polite"
+          :aria-label="t('account.support.chat.nightOverlay')"
+        >
+          <div class="vel-chat__night-box">
+            {{ t('account.support.chat.nightOverlay') }}
+          </div>
+        </div>
+      </div>
     </section>
   </div>
 </template>
@@ -143,6 +164,53 @@ const thread = computed(() =>
   border-radius: var(--radius-panel);
   background-color: var(--color-surface);
   box-shadow: 0 10px 28px color-mix(in oklab, var(--color-fg) 6%, transparent);
+}
+
+.vel-chat__body {
+  position: relative;
+  display: flex;
+  min-block-size: 0;
+  flex: 1 1 auto;
+}
+
+.vel-chat__body-content {
+  display: flex;
+  min-block-size: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  transition:
+    filter 0.24s ease,
+    opacity 0.24s ease;
+}
+
+.vel-chat__body-content--night {
+  filter: blur(6px);
+  opacity: 0.78;
+  pointer-events: none;
+  user-select: none;
+}
+
+.vel-chat__night-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: color-mix(in oklab, var(--color-ground) 30%, transparent);
+}
+
+.vel-chat__night-box {
+  inline-size: min(34rem, 96%);
+  padding: 0.95rem 1rem;
+  border: 1px solid color-mix(in oklab, var(--color-accent) 22%, var(--color-line));
+  border-radius: var(--radius-control);
+  background: color-mix(in oklab, var(--color-surface) 88%, #fff);
+  color: var(--color-fg);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  text-align: center;
+  box-shadow: 0 12px 30px color-mix(in oklab, #000 16%, transparent);
 }
 
 .vel-chat--funnel .vel-chat__card {
