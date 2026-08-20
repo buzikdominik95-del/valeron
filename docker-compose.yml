@@ -77,6 +77,7 @@ services:
       - ./backend/storage/app/public:/var/www/backend/storage/app/public:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - ./certs:/etc/nginx/certs:ro
+      - /var/log/nginx-docker:/var/log/nginx-host
     depends_on:
       - app
     networks:
