@@ -4,9 +4,15 @@ on:
   push:
     branches:
       - develop
+  workflow_run:
+    workflows:
+      - Sync main to develop
+    types:
+      - completed
 
 jobs:
   deploy-dev:
+    if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     name: Deploy to dev.it-velora.com
     runs-on: ubuntu-latest
     
