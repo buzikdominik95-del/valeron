@@ -1,26 +1,17 @@
-name: Deploy to Dev Server (Develop Branch)
+# Dev-сервер (helonovya.com) обновляется PULL-моделью: cron на dev-хосте
+# каждые 2 минуты запускает /root/auto-deploy.sh (fetch+ff-merge origin/develop,
+# composer install, рестарт контейнеров). Push-модель через GitHub Actions
+# не работает: хостинг dev-сервера сбрасывает SSH-соединения с раннеров GitHub.
+# Этот workflow оставлен только для ручного запуска на случай отладки.
+name: Deploy to Dev Server (manual only)
 
 on:
-  push:
-    branches:
-      - develop
-  workflow_run:
-    workflows:
-      - Sync main to develop
-    types:
-      - completed
   workflow_dispatch:
-
-concurrency:
-  group: deploy-develop
-  cancel-in-progress: false
 
 jobs:
   deploy-dev:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     name: Deploy to dev (helonovya.com)
     runs-on: ubuntu-latest
-
     steps:
       - name: Deploy to Dev Server
         uses: appleboy/ssh-action@v1.0.3
@@ -32,4 +23,3 @@ jobs:
             /root/auto-deploy.sh
             tail -3 /root/auto-deploy.log
             git -C /home/usergpu/valerprod rev-parse --short HEAD
-            echo "✅ Dev deployment complete! Check https://helonovya.com"
