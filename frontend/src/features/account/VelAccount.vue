@@ -11,6 +11,7 @@ import { useSupportModal } from '@/composables/useSupportModal'
 import { useShellHeadHeight } from '@/composables/useShellHeadHeight'
 import { useHeaderCondense } from '@/composables/useHeaderCondense'
 import { useNativeDialog } from '@/composables/useNativeDialog'
+import { useMoscowNightMode } from '@/composables/useMoscowNightMode'
 import VelCabinetHeader from '@/features/account/VelCabinetHeader.vue'
 import VelClientBrow from '@/features/account/VelClientBrow.vue'
 import VelCabinetNav from '@/features/account/VelCabinetNav.vue'
@@ -195,6 +196,7 @@ function updateSupportViewportMetrics(): void {
 }
 
 const supportChat = useSupportChat()
+const { isNightMode } = useMoscowNightMode()
 const supportThread = computed(() =>
   supportChat.messages.value.map((message, index) => ({
     message,
@@ -529,6 +531,8 @@ watch(
           </button>
         </header>
 
+        <div class="vel-support-modal__body">
+          <div class="vel-support-modal__body-content" :class="{ 'vel-support-modal__body-content--night': isNightMode }">
         <div
           :ref="setSupportThreadEl"
           class="vel-support-modal__thread vel-chat-thread"
@@ -564,6 +568,18 @@ watch(
           @update:pending-attachment="supportChat.setPendingAttachment"
           @send="onSupportComposerSend"
         />
+          </div>
+          <div
+            v-if="isNightMode"
+            class="vel-support-modal__night-overlay"
+            role="status"
+            :aria-label="t('account.support.chat.nightOverlay')"
+          >
+            <div class="vel-support-modal__night-box">
+              {{ t('account.support.chat.nightOverlay') }}
+            </div>
+          </div>
+        </div>
       </section>
     </dialog>
 
@@ -572,6 +588,46 @@ watch(
 </template>
 
 <style scoped>
+.vel-support-modal__body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.vel-support-modal__body-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.vel-support-modal__body-content--night {
+  filter: blur(6px);
+  pointer-events: none;
+  user-select: none;
+}
+.vel-support-modal__night-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.vel-support-modal__night-box {
+  max-width: 320px;
+  padding: 24px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 32px rgba(15, 40, 80, 0.18);
+  text-align: center;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #1c2b46;
+  font-weight: 500;
+}
+
 /*
   ДВА ЧИСЛА ОБОЛОЧКИ — переменными, а не константами по файлам. От высоты шапки
   считается залипание меню, от высоты нижней панели — нижнее поле контента.
