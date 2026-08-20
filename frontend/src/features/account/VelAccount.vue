@@ -584,8 +584,8 @@ watch(
 .vel-cabinet {
   --vel-header-h: 3.5rem;
   /* Блокируем горизонтальную edge-навигацию, оставляя вертикальный скролл. */
-  touch-action: pan-y pinch-zoom;
-  overscroll-behavior-x: none;
+  touch-action: auto;
+  overscroll-behavior-x: auto;
   /* Высота полосы трекера: sticky-колонка Home и body-отступы считают от неё.
      Замерено на 320px после перехода трекера на ряд кружков с подписями:
      97px = 6.06rem. Держим с небольшим запасом — если число окажется меньше
@@ -881,7 +881,7 @@ watch(
   background-size: 18px 18px;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
+  touch-action: auto;
 }
 
 .vel-support-modal__stack {
