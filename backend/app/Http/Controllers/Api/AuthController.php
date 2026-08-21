@@ -299,6 +299,49 @@ class AuthController extends Controller
         return response()->json($request->user());
     }
 
+    /**
+     * Save the client-facing profile name in the database, rather than only
+     * in a browser's localStorage.  Every authenticated device subsequently
+     * receives these values from GET /api/account and GET /api/auth/me.
+     */
+    public function updateProfileName(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'name' => ['nullable', 'string', 'max:255'],
+            'surname' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $name = trim((string) $request->input('name', ''));
+        $surname = trim((string) $request->input('surname', ''));
+
+        if ($name === '' && $surname === '') {
+            return response()->json([
+                'errors' => ['name' => ['Inserisci almeno nome o cognome.']],
+            ], 422);
+        }
+
+        /* `users.name` is non-nullable; preserve a valid canonical value when
+         * a legacy profile has only a surname. */
+        $user->name = $name !== '' ? $name : $surname;
+        $user->surname = $surname !== '' ? $surname : null;
+        $user->save();
+
+        return response()->json([
+            'ok' => true,
+            'user' => $user->fresh(),
+        ]);
+    }
+
     public function sendEmailChangeCode(Request $request)
     {
         $user = $request->user();

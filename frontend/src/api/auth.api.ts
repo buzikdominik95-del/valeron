@@ -154,6 +154,22 @@ export function fetchMe(signal?: AbortSignal): Promise<AuthUser> {
   return request<AuthUser>('/auth/me', { signal })
 }
 
+/** POST /api/auth/profile/name — canonical profile name, shared by every device. */
+export function updateAccountName(
+  name: string,
+  surname: string,
+  signal?: AbortSignal,
+): Promise<{ ok: true; user: AuthUser }> {
+  return request<{ ok: true; user: AuthUser }>('/auth/profile/name', {
+    method: 'POST',
+    body: {
+      name: name.trim(),
+      surname: surname.trim(),
+    },
+    signal,
+  })
+}
+
 
 export async function sendEmailVerificationCode(signal?: AbortSignal): Promise<{ ok: true; already_verified?: boolean; ttl_seconds?: number }> {
   return request<{ ok: true; already_verified?: boolean; ttl_seconds?: number }>('/auth/email/send-code', {
