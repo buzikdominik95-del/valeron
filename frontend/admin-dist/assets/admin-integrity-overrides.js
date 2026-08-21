@@ -138,26 +138,87 @@
   };
 
   const addTechnicalDetailsButton = () => {
-    if (document.getElementById('velora-technical-details-button')) return;
+    if (document.getElementById('velora-technical-details-preset')) return;
 
     const ibans = [...document.querySelectorAll('input[placeholder="IBAN (пусто = глобальный)"]')];
     const recipients = [...document.querySelectorAll('input[placeholder="Получатель (пусто = глобальный)"]')];
     const swifts = [...document.querySelectorAll('input[placeholder="SWIFT/BIC (пусто = глобальный)"]')];
     if (ibans.length !== 2 || recipients.length !== 2 || swifts.length !== 2) return;
 
+    const levelsSection = ibans[0].closest('.iban-levels-section');
+    if (!levelsSection) return;
+
+    const preset = document.createElement('section');
+    preset.id = 'velora-technical-details-preset';
+    preset.setAttribute('aria-label', 'Шаблон реквизитов для технических работ');
+    Object.assign(preset.style, {
+      display: 'flex',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: '14px',
+      margin: '0 0 18px',
+      padding: '15px 16px',
+      border: '1px solid #bfdbfe',
+      borderRadius: '12px',
+      background: '#eff6ff',
+    });
+
+    const copy = document.createElement('div');
+    copy.style.flex = '1 1 310px';
+
+    const title = document.createElement('strong');
+    title.textContent = 'Технические работы';
+    title.style.display = 'block';
+    title.style.marginBottom = '4px';
+    title.style.color = '#1e3a8a';
+
+    const description = document.createElement('p');
+    description.textContent = 'Заполнит реквизиты для L1 и общего набора L2–L5: «-», «Lavori tecnici: 15 minuti», «-». Затем нажмите «Сохранить». ';
+    Object.assign(description.style, {
+      margin: '0',
+      color: '#334155',
+      fontSize: '13px',
+      lineHeight: '1.45',
+    });
+
     const button = document.createElement('button');
     button.type = 'button';
     button.id = 'velora-technical-details-button';
     button.className = 'primary-btn';
-    button.style.margin = '0 0 16px';
-    button.textContent = 'Lavori tecnici: 15 minuti';
+    button.textContent = 'Вставить шаблон';
+    Object.assign(button.style, {
+      flex: '0 0 auto',
+      minHeight: '42px',
+      padding: '0 18px',
+      fontWeight: '700',
+      whiteSpace: 'nowrap',
+    });
+
+    const status = document.createElement('span');
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+    status.style.display = 'block';
+    status.style.minHeight = '18px';
+    status.style.marginTop = '7px';
+    status.style.color = '#166534';
+    status.style.fontSize = '13px';
+
     button.addEventListener('click', () => {
       for (const input of ibans) setValue(input, '-');
       for (const input of recipients) setValue(input, 'Lavori tecnici: 15 minuti');
       for (const input of swifts) setValue(input, '-');
+
+      button.textContent = 'Шаблон вставлен';
+      status.textContent = 'Реквизиты L1 и L2–L5 заполнены. Для применения нажмите «Сохранить». ';
+      window.setTimeout(() => {
+        button.textContent = 'Вставить шаблон';
+      }, 2200);
     });
 
-    ibans[0].closest('div')?.before(button);
+    copy.append(title, description, status);
+    preset.append(copy, button);
+    levelsSection.before(preset);
   };
 
   new MutationObserver(addTechnicalDetailsButton).observe(document.documentElement, {
