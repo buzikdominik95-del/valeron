@@ -1,0 +1,21 @@
+services:
+  ai_orchestrator_fallback:
+    image: python:3.10-slim
+    container_name: ai_orchestrator_fallback
+    working_dir: /app
+    command: sh -lc "pip install --no-cache-dir -r requirements.txt ; uvicorn app:app --host 0.0.0.0 --port 18080"
+    environment:
+      POSTGRES_DSN: postgresql://ai_user:ai_pass@141.101.132.206:15433/ai_platform
+      REDIS_URL: redis://141.101.132.206:16379/0
+      QDRANT_URL: http://141.101.132.206:16333
+      LLM_BASE_URL: http://141.101.132.206:18001/v1
+      LLM_MODEL: Qwen/Qwen3-Coder-30B-A3B-Instruct
+      LLM_MAX_TOKENS: "800"
+      SERVICE_API_KEY: ""
+      ADMIN_API_KEY: ""
+      ADMIN_ALLOWED_IPS: 127.0.0.1,::1,172.18.0.1,172.19.0.1,109.120.137.127
+    ports:
+      - "127.0.0.1:18081:18080"
+    volumes:
+      - /home/usergpu/AI_SUPPORT/ai_platform/orchestrator:/app:ro
+    restart: unless-stopped

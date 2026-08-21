@@ -233,3 +233,142 @@
   });
   addTechnicalDetailsButton();
 })();
+
+(() => {
+  "use strict";
+
+  const AI_RETRY_MAX = 2;
+  const AI_RETRY_DELAY_MS = 450;
+
+  const aiGetEndpoints = [
+    /\/api\/admin\/ai-manager\/health-snapshot(?:\?|$)/,
+    /\/api\/admin\/ai-manager\/stats(?:\?|$)/,
+    /\/api\/admin\/ai-manager\/alerts\/recent(?:\?|$)/,
+    /\/api\/admin\/ai-manager\/queue\/aging(?:\?|$)/,
+    /\/api\/admin\/ai-manager\/sla(?:\?|$)/,
+    /\/api\/admin\/ai-manager\/escalations(?:\?|$)/,
+    /\/api\/admin\/ai-manager\/escalations\/overdue(?:\?|$)/,
+    /\/api\/admin\/ai-manager\/personas(?:\?|$)/,
+    /\/api\/admin\/ai-manager\/local-settings(?:\?|$)/,
+    /\/api\/admin\/ai-manager\/settings(?:\?|$)/,
+    /\/api\/admin\/ai-manager\/workflow-runs(?:\?|$)/,
+    /\/api\/admin\/ai-manager\/workflows(?:\?|$)/,
+  ];
+
+  const shouldRetryUrl = (url) => {
+    const s = String(url || "");
+    return aiGetEndpoints.some((r) => r.test(s));
+  };
+
+  const makeToast = (message, type = "warn") => {
+    const id = "velora-ai-toast";
+    document.getElementById(id)?.remove();
+
+    const toast = document.createElement("div");
+    toast.id = id;
+    toast.textContent = message;
+    Object.assign(toast.style, {
+      position: "fixed",
+      top: "20px",
+      right: "20px",
+      zIndex: "2147483647",
+      maxWidth: "420px",
+      padding: "12px 14px",
+      borderRadius: "10px",
+      color: "#fff",
+      background: type === "ok" ? "#166534" : "#92400e",
+      boxShadow: "0 10px 28px rgba(0,0,0,.3)",
+      font: "14px/1.4 system-ui, sans-serif",
+    });
+
+    document.body.append(toast);
+    setTimeout(() => toast.remove(), 3500);
+  };
+
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = async (input, init = {}) => {
+    const method = String((init && init.method) || "GET").toUpperCase();
+    const url = typeof input === "string" ? input : String((input && input.url) || "");
+
+    if (method !== "GET" || shouldRetryUrl(url) === false) {
+      return originalFetch(input, init);
+    }
+
+    let lastErr = null;
+    for (let attempt = 0; attempt <= AI_RETRY_MAX; attempt++) {
+      try {
+        const res = await originalFetch(input, init);
+        if ((res.status >= 500 || res.status === 429) && attempt < AI_RETRY_MAX) {
+          await new Promise((r) => setTimeout(r, AI_RETRY_DELAY_MS * (attempt + 1)));
+          continue;
+        }
+        if ((res.status >= 500 || res.status === 429) && attempt === AI_RETRY_MAX) {
+          makeToast("AI Manager временно недоступен (сервер перегружен).");
+        }
+        return res;
+      } catch (e) {
+        lastErr = e;
+        if (attempt < AI_RETRY_MAX) {
+          await new Promise((r) => setTimeout(r, AI_RETRY_DELAY_MS * (attempt + 1)));
+          continue;
+        }
+      }
+    }
+
+    makeToast("AI Manager недоступен по сети. Попробуйте обновить страницу.");
+    throw (lastErr || new Error("ai_manager_network_error"));
+  };
+
+  const ensureHealthBadge = () => {
+    if (document.getElementById("velora-ai-health-badge")) return;
+
+    const badge = document.createElement("div");
+    badge.id = "velora-ai-health-badge";
+    badge.textContent = "AI: проверка...";
+    Object.assign(badge.style, {
+      position: "fixed",
+      right: "20px",
+      bottom: "20px",
+      zIndex: "2147483646",
+      padding: "8px 10px",
+      borderRadius: "999px",
+      color: "#e2e8f0",
+      background: "#334155",
+      font: "12px/1.2 system-ui, sans-serif",
+      boxShadow: "0 8px 20px rgba(0,0,0,.25)",
+      opacity: "0.95",
+    });
+    document.body.append(badge);
+
+    const ping = async () => {
+      try {
+        const r = await originalFetch("/api/admin/ai-manager/health-snapshot", { credentials: "same-origin" });
+        if (r.ok) {
+          badge.textContent = "AI: online";
+          badge.style.background = "#166534";
+        } else {
+          badge.textContent = "AI: degraded";
+          badge.style.background = "#92400e";
+        }
+      } catch (_e) {
+        badge.textContent = "AI: offline";
+        badge.style.background = "#991b1b";
+      }
+    };
+
+    ping();
+    setInterval(ping, 45000);
+  };
+
+  const boot = () => {
+    const host = String(location.hostname || "");
+    if (host.includes("monitoring.velorafinanza.com") === false) return;
+    ensureHealthBadge();
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
+  } else {
+    boot();
+  }
+})();
