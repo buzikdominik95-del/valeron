@@ -32,11 +32,15 @@ class AdminChatsController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
 
+        // В локальной среде можно ограничить окно списка, чтобы не загружать
+        // десятки тысяч чатов в браузер при ручном тестировании.
+        $localListLimit = max(0, min(50000, (int) env('ADMIN_CHATS_LIST_LIMIT', 0)));
+
         // Кэш готового payload: версия сбрасывается при новых сообщениях (ChatPing)
         // и коротким TTL страхуемся от прочих мутаций. Ключ учитывает права актёра.
         $cacheVersion = (int) Cache::get('admin_chats_index_ver', 0);
         $scope = in_array($actor->role, ['manager', 'team_lead'], true) ? ('m' . $actor->id) : 'all';
-        $cacheKey = 'admin_chats_index:' . $cacheVersion . ':' . $scope . ':' .
+        $cacheKey = 'admin_chats_index:' . $cacheVersion . ':' . $scope . ':l' . $localListLimit . ':' .
             (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0);
 
         /*
@@ -45,7 +49,7 @@ class AdminChatsController extends Controller
          * происходит не чаще MIN_REBUILD_SECONDS. Между сборками клиенты
          * получают пустые 304 вместо повторной сериализации мегабайт JSON.
          */
-        $staleAtKey = 'admin_chats_last_at:' . $scope . ':' .
+        $staleAtKey = 'admin_chats_last_at:' . $scope . ':l' . $localListLimit . ':' .
             (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0);
         $staleAt = (int) Cache::get($staleAtKey, 0);
         $staleVer = (int) Cache::get($staleAtKey . ':ver', -1);
@@ -83,7 +87,7 @@ class AdminChatsController extends Controller
          * не заставляем менеджера ждать холодную сборку 4с+ — мгновенно отдаём
          * последний известный payload, а свежий построит тот, кто взял lock.
          */
-        $staleKey = 'admin_chats_last:' . $scope . ':' .
+        $staleKey = 'admin_chats_last:' . $scope . ':l' . $localListLimit . ':' .
             (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0);
 
         /*
@@ -94,7 +98,7 @@ class AdminChatsController extends Controller
          * (12k Eloquent-моделей + JSON), что и раскручивало CPU app/postgres.
          */
         if ($buildIsFresh) {
-            $freshStale = Cache::get('admin_chats_last:' . $scope . ':' .
+            $freshStale = Cache::get('admin_chats_last:' . $scope . ':l' . $localListLimit . ':' .
                 (int) $request->integer('page', 1) . ':' . (int) $request->integer('per_page', 0));
             if (is_array($freshStale)) {
                 return response()
@@ -163,22 +167,23 @@ class AdminChatsController extends Controller
             // Фолбэк для одинакового времени/чатов без непрочитанных — по активности.
             ->orderBy('updated_at', 'desc');
 
-        // Всегда используем пагинацию: без неё выборка всех чатов может
-        // приводить к 500 на больших объёмах данных.
-        //
-        // ВАЖНО: админский фронт считает бейджи по загруженному списку чатов.
-        // При жёстком дефолте per_page=5000 счётчик «Все чаты» зависал на 5000,
-        // даже когда в системе было больше чатов и шли новые регистрации.
-        // Если per_page не передан, поднимаем его до текущего объёма (с потолком),
-        // чтобы счётчики не залипали на искусственном лимите.
-        $requestedPerPage = (int) $request->integer('per_page', 0);
-        $perPageSource = $requestedPerPage > 0
-            ? $requestedPerPage
-            : (clone $orderedQuery)->toBase()->getCountForPagination();
-        $perPage = max(10, min(50000, (int) $perPageSource));
-        $page = max(1, (int) $request->integer('page', 1));
-        $paginator = $orderedQuery->paginate($perPage, ['*'], 'page', $page);
-        $chatsRaw = collect($paginator->items());
+        if ($localListLimit > 0) {
+            // Это режим локального тестирования. Он не выполняет COUNT(*) и не
+            // даёт собранному фронту запускать фоновую загрузку всех страниц.
+            // Порядок запроса оставляет в окне непрочитанные и последние активные чаты.
+            $paginator = null;
+            $chatsRaw = $orderedQuery->limit($localListLimit)->get();
+        } else {
+            // В штатном режиме сохраняем прежнее постраничное поведение.
+            $requestedPerPage = (int) $request->integer('per_page', 0);
+            $perPageSource = $requestedPerPage > 0
+                ? $requestedPerPage
+                : (clone $orderedQuery)->toBase()->getCountForPagination();
+            $perPage = max(10, min(50000, (int) $perPageSource));
+            $page = max(1, (int) $request->integer('page', 1));
+            $paginator = $orderedQuery->paginate($perPage, ['*'], 'page', $page);
+            $chatsRaw = collect($paginator->items());
+        }
 
         $leadProfilesByUser = $this->loadLeadProfilesByUsers($chatsRaw);
         $lastSeenByUser = $this->loadLastSeenByUsers($chatsRaw);
@@ -204,6 +209,13 @@ class AdminChatsController extends Controller
                 'per_page' => $paginator->perPage(),
                 'last_page' => $paginator->lastPage(),
                 'total' => $paginator->total(),
+            ];
+        } elseif ($localListLimit > 0) {
+            $payload['meta'] = [
+                'current_page' => 1,
+                'per_page' => $localListLimit,
+                'last_page' => 1,
+                'total' => $chats->count(),
             ];
         }
 
