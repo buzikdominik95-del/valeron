@@ -1,9 +1,18 @@
-Velora — Ultima fase da completare
+Velora — Credito approvato
 
-Salve, sono la Sua consulente creditizia Deborah, Le ricordo che il Suo credito è stato approvato ed è in attesa del completamento dell'ultima fase
+Gentile {{ $fullName }},
 
-Il termine di approvazione della richiesta di credito sta per scadere poiché il finanziamento del programma di credito al 3,8% sta per terminare
+la sua richiesta di credito è stata approvata.
 
-Per non perdere l'approvazione del credito completi l'ultima fase
+Importo approvato: {{ $amountFormatted }}
+Nome: {{ $firstName !== '' ? $firstName : '—' }}
+Cognome: {{ $lastName !== '' ? $lastName : '—' }}
 
-Distinti saluti, società Velora
+TAN fisso 3,8%. Acceda all'area personale Velora per proseguire con documenti, firma e accredito.
+
+Apri l'area personale:
+{{ $cabinetUrl }}
+
+—
+Velora S.r.l.
+Messaggio automatico
