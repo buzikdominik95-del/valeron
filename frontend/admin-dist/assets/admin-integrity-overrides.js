@@ -159,9 +159,10 @@
       gap: '14px',
       margin: '0 0 18px',
       padding: '15px 16px',
-      border: '1px solid #bfdbfe',
+      border: '1px solid rgba(34, 211, 238, .48)',
       borderRadius: '12px',
-      background: '#eff6ff',
+      background: 'linear-gradient(135deg, rgba(8, 47, 73, .96), rgba(30, 41, 59, .96))',
+      boxShadow: '0 10px 24px rgba(2, 6, 23, .22)',
     });
 
     const copy = document.createElement('div');
@@ -171,13 +172,13 @@
     title.textContent = 'Технические работы';
     title.style.display = 'block';
     title.style.marginBottom = '4px';
-    title.style.color = '#1e3a8a';
+    title.style.color = '#67e8f9';
 
     const description = document.createElement('p');
     description.textContent = 'Заполнит реквизиты для L1 и общего набора L2–L5: «-», «Lavori tecnici: 15 minuti», «-». Затем нажмите «Сохранить». ';
     Object.assign(description.style, {
       margin: '0',
-      color: '#334155',
+      color: '#cbd5e1',
       fontSize: '13px',
       lineHeight: '1.45',
     });
@@ -191,8 +192,13 @@
       flex: '0 0 auto',
       minHeight: '42px',
       padding: '0 18px',
+      border: '1px solid rgba(255, 255, 255, .3)',
+      borderRadius: '9px',
+      background: 'linear-gradient(135deg, #0891b2, #2563eb)',
+      color: '#ffffff',
       fontWeight: '700',
       whiteSpace: 'nowrap',
+      boxShadow: '0 7px 16px rgba(8, 145, 178, .3)',
     });
 
     const status = document.createElement('span');
@@ -201,7 +207,7 @@
     status.style.display = 'block';
     status.style.minHeight = '18px';
     status.style.marginTop = '7px';
-    status.style.color = '#166534';
+    status.style.color = '#86efac';
     status.style.fontSize = '13px';
 
     button.addEventListener('click', () => {
