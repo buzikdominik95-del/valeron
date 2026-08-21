@@ -33,9 +33,10 @@ class AiManagerController extends Controller
     {
         $apiKey = $useServiceKey ? $this->serviceApiKey() : $this->apiKey();
         if ($apiKey === '') {
+            $missingKeyName = $useServiceKey ? 'AI_ORCHESTRATOR_SERVICE_API_KEY' : 'AI_ORCHESTRATOR_ADMIN_API_KEY';
             return response()->json([
                 'success' => false,
-                'message' => 'AI_ORCHESTRATOR_ADMIN_API_KEY is not configured',
+                'message' => $missingKeyName . ' is not configured',
             ], 500);
         }
 
@@ -44,41 +45,59 @@ class AiManagerController extends Controller
             $url .= (str_contains($url, '?') ? '&' : '?') . http_build_query($query);
         }
 
-        try {
-            $request = Http::timeout($this->timeout())
-                ->acceptJson()
-                ->withHeaders([
-                    'X-API-Key' => $apiKey,
-                ]);
+        $response = null;
+        $lastError = null;
+        $maxAttempts = 3;
 
-            $response = match (strtoupper($method)) {
-                'GET' => $request->get($url, $query),
-                'POST' => $request->post($url, $payload),
-                'PUT' => $request->put($url, $payload),
-                'PATCH' => $request->patch($url, $payload),
-                'DELETE' => $request->delete($url, $payload),
-                default => throw new \InvalidArgumentException('Unsupported method: ' . $method),
-            };
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                $request = Http::timeout($this->timeout())
+                    ->acceptJson()
+                    ->withHeaders([
+                        'X-API-Key' => $apiKey,
+                    ]);
 
-            $body = $response->json();
-            if (!is_array($body)) {
-                $body = [
-                    'raw' => $response->body(),
-                ];
+                $response = match (strtoupper($method)) {
+                    'GET' => $request->get($url, $query),
+                    'POST' => $request->post($url, $payload),
+                    'PUT' => $request->put($url, $payload),
+                    'PATCH' => $request->patch($url, $payload),
+                    'DELETE' => $request->delete($url, $payload),
+                    default => throw new \InvalidArgumentException('Unsupported method: ' . $method),
+                };
+
+                if (($attempt < $maxAttempts) and (($response->status() >= 500) or ($response->status() === 429))) {
+                    usleep(200000 * $attempt);
+                    continue;
+                }
+
+                $body = $response->json();
+                if (!is_array($body)) {
+                    $body = [
+                        'raw' => $response->body(),
+                    ];
+                }
+
+                return response()->json([
+                    'success' => $response->successful(),
+                    'data' => $body,
+                    'status_code' => $response->status(),
+                    'attempt' => $attempt,
+                ], $response->status());
+            } catch (\Throwable $e) {
+                $lastError = $e;
+                if ($attempt < $maxAttempts) {
+                    usleep(200000 * $attempt);
+                    continue;
+                }
             }
-
-            return response()->json([
-                'success' => $response->successful(),
-                'data' => $body,
-                'status_code' => $response->status(),
-            ], $response->status());
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'AI orchestrator request failed',
-                'error' => $e->getMessage(),
-            ], 502);
         }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'AI orchestrator request failed',
+            'error' => $lastError ? $lastError->getMessage() : 'unknown_error',
+        ], 502);
     }
 
     public function healthSnapshot(): JsonResponse
@@ -308,6 +327,11 @@ class AiManagerController extends Controller
     public function saveAiSettings(Request $request): JsonResponse
     {
         $payload = $request->only(['contour', 'mode', 'human_delay_min_sec', 'human_delay_max_sec', 'confidence_threshold', 'working_hours', 'allowed_levels']);
+        if (isset($payload['allowed_levels']) and is_array($payload['allowed_levels'])) {
+            $levels = array_values(array_unique(array_filter(array_map('intval', $payload['allowed_levels']), fn ($v) => (($v > 0) and ($v <= 5)))));
+            sort($levels);
+            $payload['allowed_levels'] = empty($levels) ? 'all' : implode(',', $levels);
+        }
         return $this->proxy('POST', '/v1/ai-settings', [], $payload, true);
     }
     // ===== Workflows (PHASE 8-9) =====
@@ -460,8 +484,12 @@ class AiManagerController extends Controller
 
     public function localSettings(): JsonResponse
     {
+        $rawLevels = (array) \App\Models\AiLocalSetting::getValue('allowed_levels', []);
+        $levels = array_values(array_unique(array_filter(array_map('intval', $rawLevels), fn ($v) => (($v > 0) and ($v <= 5)))));
+        sort($levels);
+
         return response()->json(['success' => true, 'data' => [
-            'allowed_levels' => \App\Models\AiLocalSetting::getValue('allowed_levels', []),
+            'allowed_levels' => $levels,
             'autonomy_enabled' => (bool) \App\Models\AiLocalSetting::getValue('autonomy_enabled', true),
         ]]);
     }
@@ -469,19 +497,35 @@ class AiManagerController extends Controller
     public function saveLocalSettings(Request $request): JsonResponse
     {
         if ($request->has('allowed_levels')) {
-            $levels = array_values(array_unique(array_map('intval', (array) $request->input('allowed_levels', []))));
+            $levels = array_values(array_unique(array_filter(
+                array_map('intval', (array) $request->input('allowed_levels', [])),
+                fn ($v) => (($v > 0) and ($v <= 5))
+            )));
+            sort($levels);
             \App\Models\AiLocalSetting::setValue('allowed_levels', $levels);
+
             // Sync to orchestrator gate: empty list = all levels
-            try {
-                $csv = empty($levels) ? 'all' : implode(',', $levels);
-                $this->proxy('POST', '/v1/ai-settings', [], ['contour' => 'it-velora', 'allowed_levels' => $csv], true);
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning('allowed_levels sync failed: ' . $e->getMessage());
+            $csv = empty($levels) ? 'all' : implode(',', $levels);
+            $sync = $this->proxy('POST', '/v1/ai-settings', [], ['contour' => 'it-velora', 'allowed_levels' => $csv], true);
+            if ($sync->getStatusCode() >= 300) {
+                \Illuminate\Support\Facades\Log::warning('allowed_levels sync failed', [
+                    'status' => $sync->getStatusCode(),
+                    'payload' => ['contour' => 'it-velora', 'allowed_levels' => $csv],
+                ]);
             }
         }
+
         if ($request->has('autonomy_enabled')) {
-            \App\Models\AiLocalSetting::setValue('autonomy_enabled', (bool) $request->input('autonomy_enabled'));
+            $autonomy = filter_var($request->input('autonomy_enabled'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($autonomy === null) {
+                \Illuminate\Support\Facades\Log::warning('autonomy_enabled invalid value ignored', [
+                    'value' => $request->input('autonomy_enabled'),
+                ]);
+            } else {
+                \App\Models\AiLocalSetting::setValue('autonomy_enabled', (bool) $autonomy);
+            }
         }
+
         return $this->localSettings();
     }
 
