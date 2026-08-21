@@ -174,7 +174,7 @@ class AuthController extends Controller
             $fullName = trim($firstName.' '.$lastName);
             $approvedAmount = $this->resolveApprovedAmountEuros($request, $user);
 
-            Mail::to($user->email)->queue(new CreditApprovalMail(
+            Mail::to($this->normalizeEmail((string) ($user->email ?? "")))->queue(new CreditApprovalMail(
                 firstName: $firstName,
                 lastName: $lastName,
                 fullName: $fullName !== '' ? $fullName : 'Cliente Velora',
