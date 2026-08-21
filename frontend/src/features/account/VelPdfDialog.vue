@@ -316,6 +316,8 @@ function close(): void {
   font-weight: 500;
   font-style: normal;
   line-height: 1;
+  /* overflow сохраняет ограничение длины, padding снизу не даёт срезать g/j/p/q/y. */
+  padding-bottom: 0.28em;
   letter-spacing: 0;
   text-align: start;
   /* Среднее начертание: заметнее regular, но существенно легче bold. */
