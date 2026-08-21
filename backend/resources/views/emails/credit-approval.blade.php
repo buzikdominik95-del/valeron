@@ -11,12 +11,7 @@
       <td align="center">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #d8e0f0;border-radius:18px;overflow:hidden;box-shadow:0 18px 40px rgba(15,23,42,0.08);">
           <tr>
-            <td style="padding:18px 18px 8px;">
-              <img src="https://velorafinanza.com/img/email_img/email.png" alt="Velora" width="584" style="display:block;width:100%;max-width:584px;height:auto;border:0;border-radius:12px;">
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:6px 22px 24px;">
+            <td style="padding:24px 22px;">
               <p style="margin:0 0 14px;font-size:16px;line-height:1.65;color:#0f172a;">
                 Salve, sono la Sua consulente creditizia Deborah, Le ricordo che il Suo credito è stato approvato ed è in attesa del completamento dell'ultima fase
               </p>
