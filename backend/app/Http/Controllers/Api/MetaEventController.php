@@ -7,6 +7,7 @@ use App\Support\MetaConversionsApi;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\RateLimiter;
 
 class MetaEventController extends Controller
 {
@@ -25,6 +26,18 @@ class MetaEventController extends Controller
         }
 
         $eventName = (string) $request->input('event_name');
+
+        // Harden public endpoint against spam/flood while keeping legitimate funnel events.
+        if (!preg_match('/^loan_step_[1-4]$/', $eventKey)) {
+            return response()->json(['ok' => false, 'message' => 'Unsupported event key'], 422);
+        }
+
+        $rateBucket = sprintf('meta_events:%s:%s', $request->ip(), $eventKey);
+        if (RateLimiter::tooManyAttempts($rateBucket, 30)) {
+            return response()->json(['ok' => false, 'message' => 'Too many requests'], 429);
+        }
+        RateLimiter::hit($rateBucket, 60);
+
         $eventKey = (string) $request->input('event_key');
         $email = $request->input('email');
 

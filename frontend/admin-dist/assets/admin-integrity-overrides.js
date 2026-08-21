@@ -342,7 +342,7 @@
 
     const ping = async () => {
       try {
-        const r = await originalFetch("/api/admin/ai-manager/health-snapshot", { credentials: "same-origin" });
+        const r = await originalFetch("/api/ai-health", { credentials: "same-origin" });
         if (r.ok) {
           badge.textContent = "AI: online";
           badge.style.background = "#166534";
@@ -365,6 +365,86 @@
     if (host.includes("monitoring.velorafinanza.com") === false) return;
     ensureHealthBadge();
   };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
+  } else {
+    boot();
+  }
+})();
+
+(() => {
+  "use strict";
+
+  const badgeId = "velora-ai-health-badge";
+  const btnId = "velora-ai-health-check-btn";
+  const timeId = "velora-ai-health-last-check";
+
+  const ensureStyles = () => {
+    if (document.getElementById("velora-ai-health-style")) return;
+    const style = document.createElement("style");
+    style.id = "velora-ai-health-style";
+    style.textContent = [
+      "#" + btnId + " { position: fixed; right: 20px; bottom: 58px; z-index: 2147483646; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(148,163,184,.35); background: #0f172a; color: #e2e8f0; font: 12px/1.2 system-ui, sans-serif; cursor: pointer; box-shadow: 0 8px 20px rgba(0,0,0,.25); }",
+      "#" + btnId + ":hover { background: #1e293b; }",
+      "#" + timeId + " { position: fixed; right: 20px; bottom: 88px; z-index: 2147483646; color: #94a3b8; font: 11px/1.2 system-ui, sans-serif; background: rgba(15,23,42,.85); padding: 4px 8px; border-radius: 8px; }"
+    ].join("\n");
+    document.head.append(style);
+  };
+
+  const setBadge = (text, color) => {
+    const badge = document.getElementById(badgeId);
+    if (!badge) return;
+    badge.textContent = text;
+    badge.style.background = color;
+  };
+
+  const setLastCheck = () => {
+    const el = document.getElementById(timeId);
+    if (!el) return;
+    const d = new Date();
+    el.textContent = "Последняя проверка: " + d.toLocaleTimeString();
+  };
+
+  const runCheck = async () => {
+    setBadge("AI: проверка...", "#334155");
+    try {
+      const r = await fetch("/api/ai-health", { credentials: "same-origin" });
+      if (r.ok) {
+        setBadge("AI: online", "#166534");
+      } else {
+        setBadge("AI: degraded", "#92400e");
+      }
+    } catch (_e) {
+      setBadge("AI: offline", "#991b1b");
+    }
+    setLastCheck();
+  };
+
+  const boot = () => {
+    const host = String(location.hostname || "");
+    if (host.includes("monitoring.velorafinanza.com") === false) return;
+    if (!document.getElementById(badgeId)) return;
+    if (document.getElementById(btnId)) return;
+
+    ensureStyles();
+
+    const btn = document.createElement("button");
+    btn.id = btnId;
+    btn.type = "button";
+    btn.textContent = "Проверить AI";
+    btn.addEventListener("click", runCheck);
+
+    const time = document.createElement("div");
+    time.id = timeId;
+    time.textContent = "Последняя проверка: —";
+
+    document.body.append(btn, time);
+    setLastCheck();
+  };
+
+  const observer = new MutationObserver(() => boot());
+  observer.observe(document.documentElement, { childList: true, subtree: true });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot, { once: true });
