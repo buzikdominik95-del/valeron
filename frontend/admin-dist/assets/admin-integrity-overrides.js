@@ -342,7 +342,7 @@
 
     const ping = async () => {
       try {
-        const r = await originalFetch("/api/admin/ai-manager/health-snapshot", { credentials: "same-origin" });
+        const r = await originalFetch("/api/ai-health", { credentials: "same-origin" });
         if (r.ok) {
           badge.textContent = "AI: online";
           badge.style.background = "#166534";
@@ -409,7 +409,7 @@
   const runCheck = async () => {
     setBadge("AI: проверка...", "#334155");
     try {
-      const r = await fetch("/api/admin/ai-manager/health-snapshot", { credentials: "same-origin" });
+      const r = await fetch("/api/ai-health", { credentials: "same-origin" });
       if (r.ok) {
         setBadge("AI: online", "#166534");
       } else {

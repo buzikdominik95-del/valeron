@@ -61,6 +61,30 @@ Route::get('/health', function () {
 });
 
 // Tech diagnostic (no auth): confirms request is served by Laravel API, not nginx fallback.
+
+Route::get('/ai-health', function () {
+    $baseUrl = rtrim((string) config('services.ai_orchestrator.base_url', ''), '/');
+    $apiKey = (string) config('services.ai_orchestrator.service_api_key', '');
+    if ($baseUrl === '' or $apiKey === '') {
+        return response()->json(['success' => false, 'status' => 'down', 'reason' => 'not_configured'], 503);
+    }
+    try {
+        $resp = \Illuminate\Support\Facades\Http::timeout(8)
+            ->withHeaders(['X-API-Key' => $apiKey])
+            ->get($baseUrl . '/health');
+        $body = $resp->json();
+        $deps = $body['dependencies'] ?? [];
+        $overall = (bool) ($deps['overall_ok'] ?? false);
+        return response()->json([
+            'success' => $resp->successful() and $overall,
+            'status' => $overall ? 'ok' : 'degraded',
+            'dependencies' => $deps,
+        ], $resp->successful() ? 200 : 503);
+    } catch (\Throwable $e) {
+        return response()->json(['success' => false, 'status' => 'down', 'reason' => 'unreachable'], 503);
+    }
+});
+
 Route::get('/tech-check', function () {
     return response()->json([
         'success' => true,
