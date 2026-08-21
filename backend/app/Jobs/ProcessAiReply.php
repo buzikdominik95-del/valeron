@@ -69,6 +69,14 @@ class ProcessAiReply implements ShouldQueue
             }
         }
 
+        // Payment image analysis: if last user message has an image attachment, analyze it
+        $paymentAnalysis = $this->analyzeLastPaymentImage($baseUrl, $serviceKey);
+
+        $context = \App\Services\AiManager\ClientContextBuilder::build($this->userId);
+        if ($paymentAnalysis !== null) {
+            $context['payment_image_analysis'] = $paymentAnalysis;
+        }
+
         try {
             $resp = Http::timeout(90)->withHeaders(['X-API-Key' => $serviceKey])
                 ->post($baseUrl . '/v1/manager/reply-sync', [
@@ -76,7 +84,7 @@ class ProcessAiReply implements ShouldQueue
                     'user_id' => $this->userId,
                     'message' => $this->message,
                     'contour' => 'it-velora',
-                    'context' => \App\Services\AiManager\ClientContextBuilder::build($this->userId),
+                    'context' => $context,
                     'history' => \App\Services\AiManager\ClientContextBuilder::history($this->chatId),
                 ]);
         } catch (\Throwable $e) {
@@ -126,6 +134,80 @@ class ProcessAiReply implements ShouldQueue
     /**
      * Business context for orchestrator: funnel stages, current stage, payment details.
      */
+    /**
+     * Analyze last user image attachment for payment proof via orchestrator VL model.
+     */
+    private function analyzeLastPaymentImage(string $baseUrl, string $serviceKey): ?array
+    {
+        try {
+            $lastMsg = \App\Models\ChatMessage::where('chat_id', $this->chatId)
+                ->where('sender_type', 'user')
+                ->where('attachment_kind', 'image')
+                ->orderByDesc('id')
+                ->first();
+
+            if (!$lastMsg) {
+                return null;
+            }
+
+            $attachmentUrl = trim((string) ($lastMsg->attachment_url ?? ''));
+            if ($attachmentUrl === '') {
+                return null;
+            }
+
+            $relativePath = ltrim(parse_url($attachmentUrl, PHP_URL_PATH) ?? '', '/');
+            $storagePath = str_replace('storage/', '', $relativePath);
+            $fullPath = storage_path('app/public/' . $storagePath);
+
+            if (!is_file($fullPath)) {
+                return null;
+            }
+
+            $mime = trim((string) ($lastMsg->attachment_mime ?? 'image/jpeg'));
+            if (!in_array($mime, ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'], true)) {
+                $mime = 'image/jpeg';
+            }
+
+            $imageBase64 = base64_encode(file_get_contents($fullPath));
+            if (strlen($imageBase64) < 128) {
+                return null;
+            }
+
+            $resp = Http::timeout(90)->withHeaders(['X-API-Key' => $serviceKey])
+                ->post($baseUrl . '/v1/chat/analyze-payment-image', [
+                    'image_base64' => $imageBase64,
+                    'mime_type' => $mime,
+                    'chat_id' => $this->chatId,
+                    'user_id' => $this->userId,
+                ]);
+
+            if (!$resp->successful()) {
+                Log::warning('ProcessAiReply: payment image analysis failed: status ' . $resp->status());
+                return null;
+            }
+
+            $data = $resp->json();
+            $result = $data['result'] ?? null;
+            if (!is_array($result)) {
+                return null;
+            }
+
+            Log::info('payment_image_analyzed', [
+                'chat_id' => $this->chatId,
+                'message_id' => $lastMsg->id,
+                'is_payment_proof' => $result['is_payment_proof'] ?? false,
+                'amount' => $result['amount'] ?? null,
+                'currency' => $result['currency'] ?? null,
+                'confidence' => $result['confidence'] ?? 0,
+            ]);
+
+            return $result;
+        } catch (\Throwable $e) {
+            Log::warning('ProcessAiReply: payment image analysis error: ' . $e->getMessage());
+            return null;
+        }
+    }
+
     private function buildBusinessContext(): array
     {
         $ctx = [];
