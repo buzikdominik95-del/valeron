@@ -249,7 +249,14 @@ class AuthController extends Controller
         }
         $user->save();
 
-        $assignedManagerId = ManagerTrafficAssigner::ensureUserAssignment($user);
+        $assignmentLock = Cache::lock('lead_transition:' . (int) $user->id, 20);
+        if (!$assignmentLock->get()) {
+            return response()->json(['message' => 'Lead is being updated. Please retry in a few seconds.'], 409);
+        }
+
+        try {
+            $user = $user->fresh();
+            $assignedManagerId = ManagerTrafficAssigner::ensureUserAssignment($user);
 
         if ($assignedManagerId) {
             $chat = Chat::firstOrCreate(
@@ -257,12 +264,23 @@ class AuthController extends Controller
                 ['status' => 'active', 'manager_id' => $assignedManagerId]
             );
 
-            if (!$chat->manager_id) {
+            if ((int) $chat->manager_id !== (int) $assignedManagerId) {
                 $chat->manager_id = $assignedManagerId;
+                if ((string) $chat->status === 'completed') {
+                    $chat->status = 'active';
+                }
                 $chat->save();
             }
 
             $this->attachDefaultFdTag($chat);
+        } else {
+            Chat::query()->where('user_id', $user->id)->update([
+                'manager_id' => null,
+                'updated_at' => now(),
+            ]);
+        }
+        } finally {
+            try { $assignmentLock->release(); } catch (\Throwable $e) {}
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;

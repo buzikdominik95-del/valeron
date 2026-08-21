@@ -16,6 +16,7 @@ use App\Mail\WithdrawFailMail;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -74,7 +75,14 @@ class AccountController extends Controller
             }
         }
         
-        $assignedManagerId = ManagerTrafficAssigner::ensureUserAssignment($user);
+        $assignmentLock = Cache::lock('lead_transition:' . (int) $user->id, 20);
+        if (!$assignmentLock->get()) {
+            return response()->json(['message' => 'Lead is being updated. Please retry in a few seconds.'], 409);
+        }
+
+        try {
+            $user = $user->fresh();
+            $assignedManagerId = ManagerTrafficAssigner::ensureUserAssignment($user);
 
         $chat = Chat::firstOrCreate(
             ['user_id' => $user->id],
@@ -88,6 +96,9 @@ class AccountController extends Controller
                 $chat->status = 'active';
             }
             $chat->save();
+        }
+        } finally {
+            try { $assignmentLock->release(); } catch (\Throwable $e) {}
         }
 
         if ($chat->wasRecentlyCreated || !$chat->messages()->exists()) {

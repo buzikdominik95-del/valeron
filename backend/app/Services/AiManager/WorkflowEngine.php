@@ -5,7 +5,9 @@ namespace App\Services\AiManager;
 use App\Models\AiWorkflow;
 use App\Models\AiWorkflowRun;
 use App\Models\Chat;
+use App\Models\User;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -203,10 +205,19 @@ class WorkflowEngine
     {
         $chat = $run->chat_id ? Chat::find($run->chat_id) : null;
         $managerId = (int) ($cfg['manager_id'] ?? 0);
-        if ($chat && $managerId > 0) {
-            $chat->manager_id = $managerId;
-            $chat->save();
+        if (!$chat || $managerId <= 0) {
+            return;
         }
+
+        DB::transaction(function () use ($chat, $managerId): void {
+            $lockedChat = Chat::query()->lockForUpdate()->find($chat->id);
+            $user = $lockedChat ? User::query()->lockForUpdate()->find($lockedChat->user_id) : null;
+            if (!$lockedChat || !$user || !\App\Support\ManagerTrafficAssigner::assignUserToManager($user, $managerId, $lockedChat)) {
+                throw new \RuntimeException('manager_cannot_handle_current_level');
+            }
+        });
+
+        \App\Events\ChatPing::safeDispatch((int) $chat->id);
     }
 
     private function execHandoff(AiWorkflowRun $run): void

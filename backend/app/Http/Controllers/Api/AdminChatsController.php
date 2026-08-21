@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Chat;
 use App\Models\AdminUser;
+use App\Models\User;
 use App\Support\AdminManagerLevelStore;
+use App\Support\ManagerTrafficAssigner;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Controller;
@@ -625,32 +627,65 @@ class AdminChatsController extends Controller
         $validated = $request->validate([
             'tags' => 'sometimes|array',
             'tags.*' => 'integer|exists:tags,id',
-            'commission_level' => 'sometimes|integer|min:1',
+            'commission_level' => 'sometimes|integer|min:1|exists:commission_levels,order',
+            'expected_commission_level' => 'sometimes|integer|min:1',
             'notes' => 'sometimes|nullable|string|max:5000',
         ]);
+
+        // Старые собранные версии админки отправляли весь объект карточки даже
+        // при автосохранении заметок и тегов. Если в таком запросе нет версии
+        // этапа, изменение этапа намеренным считать нельзя: иначе старая
+        // вкладка способна откатить лида на прежний уровень.
+        if (array_key_exists('commission_level', $validated)
+            && (array_key_exists('tags', $validated) || array_key_exists('notes', $validated))
+            && !array_key_exists('expected_commission_level', $validated)) {
+            unset($validated['commission_level']);
+        }
 
         if (array_key_exists('tags', $validated)) {
             $chat->tags()->sync($validated['tags'] ?? []);
         }
 
         if (array_key_exists('commission_level', $validated)) {
+            $transitionLock = Cache::lock('lead_transition:' . (int) $chat->user_id, 20);
+            if (!$transitionLock->get()) {
+                return response()->json(['success' => false, 'message' => 'Лид сейчас переводится на другой этап. Повторите действие через несколько секунд.'], 409);
+            }
+
+            try {
             if ($chat->user) {
                 $nextLevel = max(1, (int) $validated['commission_level']);
                 $prevLevel = (int) ($chat->user->commission_level_id ?? 1);
+
+                if (array_key_exists('expected_commission_level', $validated)
+                    && (int) $validated['expected_commission_level'] !== $prevLevel) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Этап уже был изменён в другой вкладке. Обновите карточку и повторите действие.',
+                        'data' => ['commission_level' => $prevLevel],
+                    ], 409);
+                }
+
                 $this->resetFunnelProgressForLevelChange($chat->user, $prevLevel, $nextLevel);
                 $chat->user->commission_level_id = $nextLevel;
                 $chat->user->save();
+
+                $assignedManagerId = ManagerTrafficAssigner::syncChatAssignment($chat->user->fresh(), $chat);
 
                 DB::table('leads')
                     ->where('user_id', (int) $chat->user_id)
                     ->update([
                         'commission_level_id' => $nextLevel,
+                        'assigned_manager_id' => $assignedManagerId,
                         'updated_at' => now(),
                     ]);
 
                 // Сбрасываем кэш списков и оповещаем всех открытых клиентов (иначе
                 // менеджеры видят старый уровень до следующего сообщения в чате).
                 \App\Events\ChatPing::safeDispatch((int) $chat->id);
+            }
+            } finally {
+                try { $transitionLock->release(); } catch (\Throwable $e) {}
             }
         }
 
@@ -689,8 +724,18 @@ class AdminChatsController extends Controller
             return response()->json(['success' => false, 'message' => 'Клиент не найден'], 404);
         }
 
+        $transitionLock = Cache::lock('lead_transition:' . (int) $chat->user_id, 20);
+        if (!$transitionLock->get()) {
+            return response()->json(['success' => false, 'message' => 'Лид сейчас переводится на другой этап. Повторите действие через несколько секунд.'], 409);
+        }
+
+        try {
         $currentLevel = (int) ($chat->user->commission_level_id ?? 1);
-        $nextLevel = $currentLevel + 1;
+        $nextConfiguredLevel = DB::table('commission_levels')
+            ->where('order', '>', $currentLevel)
+            ->min('order');
+        $isFinalLevel = $nextConfiguredLevel === null;
+        $nextLevel = $isFinalLevel ? $currentLevel : (int) $nextConfiguredLevel;
 
         if (in_array($actor->role, ['manager', 'team_lead'], true) && (bool) ($actor->uses_level_system ?? true)) {
             $handled = AdminManagerLevelStore::getFor((int) $actor->id);
@@ -704,16 +749,18 @@ class AdminChatsController extends Controller
             }
         }
 
-        $autoDistributionEnabled = $this->isAutoDistributionEnabledForLevel($nextLevel);
+        $autoDistributionEnabled = !$isFinalLevel && $this->isAutoDistributionEnabledForLevel($nextLevel);
         // Текущий менеджер не исключается: если он обрабатывает и следующий
         // уровень, он участвует в ротации наравне с остальными.
         $targetManager = $autoDistributionEnabled
             ? $this->pickNextLevelManager($nextLevel)
             : null;
 
-        DB::transaction(function () use ($chat, $currentLevel, $nextLevel, $targetManager, $actor) {
-            $this->resetFunnelProgressForLevelChange($chat->user, $currentLevel, $nextLevel);
-            $chat->user->commission_level_id = $nextLevel;
+        DB::transaction(function () use ($chat, $currentLevel, $nextLevel, $targetManager, $actor, $isFinalLevel) {
+            if (!$isFinalLevel) {
+                $this->resetFunnelProgressForLevelChange($chat->user, $currentLevel, $nextLevel);
+                $chat->user->commission_level_id = $nextLevel;
+            }
 
             if ($targetManager) {
                 $chat->user->assigned_manager_id = (int) $targetManager->id;
@@ -721,10 +768,10 @@ class AdminChatsController extends Controller
 
             $chat->user->save();
 
-            $leadUpdatePayload = [
-                'commission_level_id' => $nextLevel,
-                'updated_at' => now(),
-            ];
+            $leadUpdatePayload = ['updated_at' => now()];
+            if (!$isFinalLevel) {
+                $leadUpdatePayload['commission_level_id'] = $nextLevel;
+            }
 
             if ($targetManager) {
                 $leadUpdatePayload['assigned_manager_id'] = (int) $targetManager->id;
@@ -774,6 +821,9 @@ class AdminChatsController extends Controller
                 'chat_status' => $targetManager ? 'active' : 'completed',
             ],
         ]);
+        } finally {
+            try { $transitionLock->release(); } catch (\Throwable $e) {}
+        }
     }
 
     private function mapChatData(Chat $chat, ?object $leadProfile = null, $lastSeenAt = null, bool $allowDbFallback = true): array

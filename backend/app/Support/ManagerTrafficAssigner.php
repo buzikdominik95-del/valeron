@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\User;
+use App\Models\Chat;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\QueryException;
 
@@ -12,14 +13,19 @@ class ManagerTrafficAssigner
 
     public static function ensureUserAssignment(User $user): ?int
     {
+        $level = max(1, (int) ($user->commission_level_id ?? 1));
         $currentId = (int) ($user->assigned_manager_id ?? 0);
-        if ($currentId > 0 && self::isActiveManager($currentId)) {
+        if ($currentId > 0 && self::managerCanHandleLevel($currentId, $level)) {
             self::upsertLeadFromUser($user, $currentId);
             return $currentId;
         }
 
-        $managerId = self::pickManagerId(max(1, (int) ($user->commission_level_id ?? 1)));
+        $managerId = self::pickManagerId($level);
         if (!$managerId) {
+            if ($currentId > 0) {
+                $user->assigned_manager_id = null;
+                $user->save();
+            }
             self::upsertLeadFromUser($user, null);
             return null;
         }
@@ -30,6 +36,116 @@ class ManagerTrafficAssigner
         self::upsertLeadFromUser($user, $managerId);
 
         return $managerId;
+    }
+
+    public static function managerCanHandleLevel(int $managerId, int $level): bool
+    {
+        $manager = DB::table('admin_users')
+            ->select(['id', 'uses_level_system'])
+            ->where('id', $managerId)
+            ->whereIn('role', ['manager', 'team_lead'])
+            ->where('is_active', true)
+            ->first();
+
+        if (!$manager) {
+            return false;
+        }
+
+        if (!(bool) ($manager->uses_level_system ?? true)) {
+            return true;
+        }
+
+        return in_array(max(1, $level), AdminManagerLevelStore::getFor($managerId), true);
+    }
+
+    /**
+     * Принудительное назначение используется только там, где менеджер выбран
+     * явно (например, AI-workflow). Пользователь, лид и чат всегда должны
+     * указывать на одного и того же менеджера.
+     */
+    public static function assignUserToManager(User $user, int $managerId, ?Chat $chat = null): bool
+    {
+        $level = max(1, (int) ($user->commission_level_id ?? 1));
+        if (!self::managerCanHandleLevel($managerId, $level)) {
+            return false;
+        }
+
+        $user->assigned_manager_id = $managerId;
+        $user->save();
+        self::upsertLeadFromUser($user, $managerId);
+
+        if ($chat) {
+            $chat->manager_id = $managerId;
+            if ((string) $chat->status === 'completed') {
+                $chat->status = 'active';
+            }
+            $chat->save();
+        }
+
+        return true;
+    }
+
+    /**
+     * Нормализует отставший chat.manager_id после любого перераспределения.
+     */
+    public static function syncChatAssignment(User $user, ?Chat $chat, bool $reactivateCompleted = true): ?int
+    {
+        $managerId = self::ensureUserAssignment($user);
+        if (!$chat) {
+            return $managerId;
+        }
+
+        if ((int) ($chat->manager_id ?? 0) !== (int) ($managerId ?? 0)) {
+            $chat->manager_id = $managerId;
+            if ($reactivateCompleted && $managerId && (string) $chat->status === 'completed') {
+                $chat->status = 'active';
+            }
+            $chat->save();
+        }
+
+        return $managerId;
+    }
+
+    /**
+     * Вызывается сразу после отключения менеджера или изменения его уровней.
+     * Без этой синхронизации старые лиды продолжают числиться за менеджером,
+     * который больше не может работать с их этапом.
+     *
+     * @return array<int>
+     */
+    public static function reassignIneligibleUsersForManager(int $managerId): array
+    {
+        if ($managerId <= 0) {
+            return [];
+        }
+
+        $userIds = User::query()->where('assigned_manager_id', $managerId)->pluck('id')->all();
+        $changedChatIds = [];
+
+        foreach ($userIds as $userId) {
+            $changed = DB::transaction(function () use ($userId, $managerId) {
+                $user = User::query()->lockForUpdate()->find($userId);
+                if (!$user || (int) $user->assigned_manager_id !== $managerId) {
+                    return null;
+                }
+
+                $level = max(1, (int) ($user->commission_level_id ?? 1));
+                if (self::managerCanHandleLevel($managerId, $level)) {
+                    return null;
+                }
+
+                $chat = Chat::query()->where('user_id', $user->id)->lockForUpdate()->first();
+                self::syncChatAssignment($user, $chat);
+
+                return $chat?->id;
+            });
+
+            if ($changed) {
+                $changedChatIds[] = (int) $changed;
+            }
+        }
+
+        return $changedChatIds;
     }
 
     public static function pickManagerId(int $level = 1): ?int

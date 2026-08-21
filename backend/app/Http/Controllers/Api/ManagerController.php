@@ -161,6 +161,11 @@ class ManagerController extends Controller
             $map = $this->getTrafficMap();
             $map[(string) $manager->id] = 0;
             $this->saveTrafficMap($map);
+
+            $changedChatIds = \App\Support\ManagerTrafficAssigner::reassignIneligibleUsersForManager((int) $manager->id);
+            foreach ($changedChatIds as $chatId) {
+                \App\Events\ChatPing::safeDispatch($chatId);
+            }
         }
 
         return response()->json([

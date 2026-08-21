@@ -228,6 +228,11 @@ class UserController extends Controller
             }
         }
 
+        $changedChatIds = \App\Support\ManagerTrafficAssigner::reassignIneligibleUsersForManager((int) $user->id);
+        foreach ($changedChatIds as $chatId) {
+            \App\Events\ChatPing::safeDispatch($chatId);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Ограничения менеджера сохранены',
