@@ -28,7 +28,7 @@ class CreditApprovalMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Velora — Credito approvato: '.$this->amountFormatted,
+            subject: 'Velora — Ultima fase da completare',
             from: new Address(
                 config('mail.from.address', 'noreply@velora.it'),
                 config('mail.from.name', 'Velora'),
