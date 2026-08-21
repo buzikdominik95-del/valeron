@@ -4,7 +4,12 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSimulatorStore } from '@/stores/simulator.store'
 import { ApiError } from '@/api/http'
-import { sendEmailChangeCode, confirmEmailChange, changeAccountPasswordApi } from '@/api/auth.api'
+import {
+  sendEmailChangeCode,
+  confirmEmailChange,
+  changeAccountPasswordApi,
+  updateAccountName,
+} from '@/api/auth.api'
 import { useAccountStore } from '@/stores/account.store'
 import VelButton from '@/components/ui/VelButton.vue'
 import VelField from '@/components/ui/VelField.vue'
@@ -209,8 +214,13 @@ async function onSubmit(): Promise<void> {
 
   try {
     if (props.kind === 'name') {
-      firstName.value = formFirst.value.trim()
-      surname.value = formLast.value.trim()
+      const updated = await updateAccountName(formFirst.value, formLast.value)
+      /*
+       * Do not show a local-only success.  The response is the canonical
+       * profile that another browser/device will receive from the server.
+       */
+      firstName.value = String(updated.user.name ?? '').trim()
+      surname.value = String(updated.user.surname ?? '').trim()
       showResult(true, t('account.profileEdit.successName'))
       return
     }

@@ -310,9 +310,22 @@ class AccountController extends Controller
 
         $wizardProgress = $this->decodeWizardProgressData($user->wizard_progress ?? null);
 
-        $nameParts = preg_split('/\s+/', trim((string) $user->name), 2);
-        $firstName = $nameParts[0] ?? '';
-        $lastName = trim((string) ($user->surname ?? ($nameParts[1] ?? '')));
+        $storedName = trim((string) $user->name);
+        $storedSurname = trim((string) ($user->surname ?? ''));
+
+        /*
+         * Current profiles store nome and cognome in separate columns.  Keep
+         * a multi-word given name intact; splitting is only a legacy fallback
+         * for records created before the surname column existed.
+         */
+        if ($storedSurname !== '') {
+            $firstName = $storedName;
+            $lastName = $storedSurname;
+        } else {
+            $nameParts = preg_split('/\s+/', $storedName, 2);
+            $firstName = $nameParts[0] ?? '';
+            $lastName = trim((string) ($nameParts[1] ?? ''));
+        }
 
         $leadProfile = DB::table('leads')
             ->where('user_id', $user->id)

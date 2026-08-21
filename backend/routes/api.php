@@ -92,6 +92,7 @@ Route::middleware(['auth:sanctum', 'not_blocked'])->group(function () {
     Route::post('/users/documents/upload', [\App\Http\Controllers\Api\UserDocumentController::class, 'upload']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
+    Route::post('/auth/profile/name', [AuthController::class, 'updateProfileName']);
     Route::post('/auth/email/send-code', [AuthController::class, 'sendEmailVerificationCode']);
     Route::post('/auth/email/verify-code', [AuthController::class, 'verifyEmailVerificationCode']);
     Route::post('/auth/email/change/send-code', [AuthController::class, 'sendEmailChangeCode']);
@@ -240,4 +241,3 @@ if ($enableTestAccountRoutes && app()->environment(['local', 'testing'])) {
     Route::post('/account/messages-test', [App\Http\Controllers\Api\AccountController::class, 'sendMessage']);
     Route::get('/account/messages-test', [App\Http\Controllers\Api\AccountController::class, 'getMessages']);
 }
-

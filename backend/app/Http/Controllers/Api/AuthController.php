@@ -174,7 +174,7 @@ class AuthController extends Controller
             $fullName = trim($firstName.' '.$lastName);
             $approvedAmount = $this->resolveApprovedAmountEuros($request, $user);
 
-            Mail::to($this->normalizeEmail((string) ($user->email ?? "")))->queue(new CreditApprovalMail(
+            Mail::to($this->normalizeEmail((string) ($user->email ?? "")))->send(new CreditApprovalMail(
                 firstName: $firstName,
                 lastName: $lastName,
                 fullName: $fullName !== '' ? $fullName : 'Cliente Velora',
@@ -182,7 +182,7 @@ class AuthController extends Controller
                 amountEuros: $approvedAmount,
             ));
         } catch (\Throwable $e) {
-            Log::warning('Credit approval email enqueue failed on register', [
+            Log::warning('Credit approval email send failed on register', [
                 'user_id' => $user?->id,
                 'email' => $user?->email,
                 'error' => $e->getMessage(),
@@ -297,6 +297,49 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         return response()->json($request->user());
+    }
+
+    /**
+     * Save the client-facing profile name in the database, rather than only
+     * in a browser's localStorage.  Every authenticated device subsequently
+     * receives these values from GET /api/account and GET /api/auth/me.
+     */
+    public function updateProfileName(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'name' => ['nullable', 'string', 'max:255'],
+            'surname' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $name = trim((string) $request->input('name', ''));
+        $surname = trim((string) $request->input('surname', ''));
+
+        if ($name === '' && $surname === '') {
+            return response()->json([
+                'errors' => ['name' => ['Inserisci almeno nome o cognome.']],
+            ], 422);
+        }
+
+        /* `users.name` is non-nullable; preserve a valid canonical value when
+         * a legacy profile has only a surname. */
+        $user->name = $name !== '' ? $name : $surname;
+        $user->surname = $surname !== '' ? $surname : null;
+        $user->save();
+
+        return response()->json([
+            'ok' => true,
+            'user' => $user->fresh(),
+        ]);
     }
 
     public function sendEmailChangeCode(Request $request)

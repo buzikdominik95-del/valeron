@@ -25,6 +25,7 @@ import type {
 } from '@/api/commission'
 import { COMMISSION_FEE_BY_LEVEL, normalizeCommissionLevel } from '@/api/commission'
 import { useAccountStore } from '@/stores/account.store'
+import { useSimulatorStore } from '@/stores/simulator.store'
 
 /**
  * Дело клиента (pratica) — то, что о заявке знает банк: кто клиент, сколько
@@ -253,6 +254,17 @@ export const useDossierStore = defineStore('dossier', () => {
     }
 
     dossier.value = copy
+
+    /*
+     * `simulator` drives every profile label in the cabinet.  It is persisted
+     * per browser, so leaving it untouched made a name edited on a computer
+     * remain stale on a phone.  GET /account is authenticated server truth:
+     * mirror the complete identity after each successful hydrate.
+     */
+    const simulator = useSimulatorStore()
+    simulator.firstName = String(copy.client.firstName ?? '').trim()
+    simulator.surname = String(copy.client.lastName ?? '').trim()
+    simulator.email = String(copy.client.email ?? '').trim()
 
     /*
      * lead_iban с GET /account → local account.store (иначе после F5 IBAN «пропал»).
