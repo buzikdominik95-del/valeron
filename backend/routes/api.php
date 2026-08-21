@@ -60,6 +60,17 @@ Route::get('/health', function () {
     ], $ok ? 200 : 503);
 });
 
+// Tech diagnostic (no auth): confirms request is served by Laravel API, not nginx fallback.
+Route::get('/tech-check', function () {
+    return response()->json([
+        'success' => true,
+        'service' => 'backend',
+        'marker' => 'laravel_api',
+        'app_env' => app()->environment(),
+        'time_utc' => now()->toIso8601String(),
+    ], 200);
+});
+
 // Client Auth routes
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
