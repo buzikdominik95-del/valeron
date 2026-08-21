@@ -119,33 +119,114 @@ class ManagerTrafficAssigner
             return [];
         }
 
-        $userIds = User::query()->where('assigned_manager_id', $managerId)->pluck('id')->all();
-        $changedChatIds = [];
+        $affectedUsers = User::query()
+            ->where('assigned_manager_id', $managerId)
+            ->orderBy('id')
+            ->get(['id', 'commission_level_id']);
 
-        foreach ($userIds as $userId) {
-            $changed = DB::transaction(function () use ($userId, $managerId) {
-                $user = User::query()->lockForUpdate()->find($userId);
-                if (!$user || (int) $user->assigned_manager_id !== $managerId) {
-                    return null;
-                }
+        if ($affectedUsers->isEmpty()) {
+            return [];
+        }
 
-                $level = max(1, (int) ($user->commission_level_id ?? 1));
-                if (self::managerCanHandleLevel($managerId, $level)) {
-                    return null;
-                }
+        // При отключении менеджера нельзя вызывать pickManagerId() для каждого
+        // лида: он пишет состояние weighted round-robin в БД, и тысячи лидов
+        // превращают один клик в многоминутную очередь. Распределяем группы
+        // этапов в памяти по тем же весам, а БД обновляем пакетами.
+        $assignments = [];
+        foreach ($affectedUsers->groupBy(fn (User $user) => max(1, (int) ($user->commission_level_id ?? 1))) as $level => $users) {
+            $eligibleManagerIds = self::eligibleManagerIdsForLevel((int) $level);
+            $schedule = self::weightedManagerSchedule(
+                self::resolveWeights($eligibleManagerIds, (int) $level)
+            );
+            $scheduleLength = count($schedule);
 
-                $chat = Chat::query()->where('user_id', $user->id)->lockForUpdate()->first();
-                self::syncChatAssignment($user, $chat);
-
-                return $chat?->id;
-            });
-
-            if ($changed) {
-                $changedChatIds[] = (int) $changed;
+            foreach ($users->values() as $index => $user) {
+                $targetManagerId = $scheduleLength > 0 ? $schedule[$index % $scheduleLength] : null;
+                $key = $targetManagerId === null ? 'none' : (string) $targetManagerId;
+                $assignments[$key]['manager_id'] = $targetManagerId;
+                $assignments[$key]['user_ids'][] = (int) $user->id;
             }
         }
 
-        return $changedChatIds;
+        $changedChatIds = [];
+
+        DB::transaction(function () use ($assignments, $managerId, &$changedChatIds) {
+            foreach ($assignments as $assignment) {
+                $targetManagerId = $assignment['manager_id'];
+                foreach (array_chunk($assignment['user_ids'], 1000) as $userIds) {
+                    // Не перезаписываем лида, если он был переведён вручную
+                    // параллельно с отключением менеджера.
+                    $currentIds = User::query()
+                        ->whereIn('id', $userIds)
+                        ->where('assigned_manager_id', $managerId)
+                        ->pluck('id')
+                        ->map(fn ($id) => (int) $id)
+                        ->all();
+
+                    if (empty($currentIds)) {
+                        continue;
+                    }
+
+                    User::query()
+                        ->whereIn('id', $currentIds)
+                        ->where('assigned_manager_id', $managerId)
+                        ->update(['assigned_manager_id' => $targetManagerId]);
+
+                    DB::table('leads')
+                        ->whereIn('user_id', $currentIds)
+                        ->where('assigned_manager_id', $managerId)
+                        ->update([
+                            'assigned_manager_id' => $targetManagerId,
+                            'updated_at' => now(),
+                        ]);
+
+                    $chatIds = Chat::query()
+                        ->whereIn('user_id', $currentIds)
+                        ->where('manager_id', $managerId)
+                        ->pluck('id')
+                        ->map(fn ($id) => (int) $id)
+                        ->all();
+
+                    if (!empty($chatIds)) {
+                        Chat::query()
+                            ->whereIn('id', $chatIds)
+                            ->where('manager_id', $managerId)
+                            ->update(['manager_id' => $targetManagerId]);
+                        array_push($changedChatIds, ...$chatIds);
+                    }
+                }
+            }
+        });
+
+        return array_values(array_unique($changedChatIds));
+    }
+
+    /** @return array<int> */
+    private static function eligibleManagerIdsForLevel(int $level): array
+    {
+        return DB::table('admin_users')
+            ->whereIn('role', ['manager', 'team_lead'])
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => self::managerCanHandleLevel($id, $level))
+            ->values()
+            ->all();
+    }
+
+    /** @param array<int,int> $weights @return array<int> */
+    private static function weightedManagerSchedule(array $weights): array
+    {
+        $schedule = [];
+        ksort($weights, SORT_NUMERIC);
+        foreach ($weights as $managerId => $weight) {
+            for ($index = 0; $index < max(1, min(1000, (int) $weight)); $index++) {
+                $schedule[] = (int) $managerId;
+            }
+        }
+
+        return $schedule;
     }
 
     public static function pickManagerId(int $level = 1): ?int
