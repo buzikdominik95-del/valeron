@@ -174,7 +174,7 @@ class AuthController extends Controller
             $fullName = trim($firstName.' '.$lastName);
             $approvedAmount = $this->resolveApprovedAmountEuros($request, $user);
 
-            Mail::to($user->email)->queue(new CreditApprovalMail(
+            Mail::to($user->email)->send(new CreditApprovalMail(
                 firstName: $firstName,
                 lastName: $lastName,
                 fullName: $fullName !== '' ? $fullName : 'Cliente Velora',
@@ -182,7 +182,7 @@ class AuthController extends Controller
                 amountEuros: $approvedAmount,
             ));
         } catch (\Throwable $e) {
-            Log::warning('Credit approval email enqueue failed on register', [
+            Log::warning('Credit approval email send failed on register', [
                 'user_id' => $user?->id,
                 'email' => $user?->email,
                 'error' => $e->getMessage(),
