@@ -148,7 +148,7 @@ services:
       - ./php.ini:/usr/local/etc/php/conf.d/99-custom.ini:ro
     env_file: .env
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     command: php artisan reverb:start --host=0.0.0.0 --port=8080
     depends_on:
       - app
@@ -160,7 +160,7 @@ services:
     image: louislam/uptime-kuma:1
     container_name: calipso_uptime_kuma
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
     volumes:
       - ./uptime-kuma:/app/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
