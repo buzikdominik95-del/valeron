@@ -2,10 +2,33 @@
   'use strict';
 
   const chatMetaPath = /\/api\/admin\/chats\/\d+\/meta(?:\?|$)/;
+  const chatDetailsPath = /\/api\/admin\/chats\/(\d+)(?:\?|$)/;
+  const chatIdPath = /\/api\/admin\/chats\/(\d+)(?:\/meta)?(?:\?|$)/;
   const ibanSettingsPath = /\/api\/admin\/settings\/iban(?:\?|$)/;
   const ibanVersionKey = 'velora-admin-iban-version';
+  const chatLevelById = new Map();
   const originalOpen = XMLHttpRequest.prototype.open;
   const originalSend = XMLHttpRequest.prototype.send;
+
+  const chatIdFromUrl = (url) => {
+    const match = String(url || '').match(chatIdPath);
+    return match ? Number(match[1]) : null;
+  };
+
+  const levelFromPage = () => {
+    const match = document.body.textContent.match(/Сейчас:\s*Уровень\s+(\d+)/);
+    const level = match ? Number(match[1]) : null;
+    return Number.isInteger(level) && level > 0 ? level : null;
+  };
+
+  const rememberChatLevel = (chatId, level) => {
+    const normalizedId = Number(chatId);
+    const normalizedLevel = Number(level);
+    if (Number.isInteger(normalizedId) && normalizedId > 0
+      && Number.isInteger(normalizedLevel) && normalizedLevel > 0) {
+      chatLevelById.set(normalizedId, normalizedLevel);
+    }
+  };
 
   const showIbanConflict = () => {
     document.getElementById('velora-iban-conflict-notice')?.remove();
@@ -31,6 +54,7 @@
 
   XMLHttpRequest.prototype.send = function (body) {
     const isChatMeta = this.__veloraMethod === 'PUT' && chatMetaPath.test(this.__veloraUrl);
+    const isChatDetails = this.__veloraMethod === 'GET' && chatDetailsPath.test(this.__veloraUrl);
     const isIbanSettings = ibanSettingsPath.test(this.__veloraUrl);
     let payload = null;
 
@@ -43,8 +67,8 @@
     }
 
     if (isChatMeta && payload && Object.prototype.hasOwnProperty.call(payload, 'commission_level')) {
-      const match = document.body.textContent.match(/Сейчас:\s*Уровень\s+(\d+)/);
-      const currentLevel = match ? Number(match[1]) : null;
+      const chatId = chatIdFromUrl(this.__veloraUrl);
+      const currentLevel = (chatId && chatLevelById.get(chatId)) || levelFromPage();
 
       if (currentLevel && Number(payload.commission_level) === currentLevel) {
         // Автосохранение заметки/тегов: этап в таком запросе не меняется.
@@ -56,6 +80,26 @@
       }
 
       body = JSON.stringify(payload);
+    }
+
+    if (isChatDetails) {
+      const chatId = chatIdFromUrl(this.__veloraUrl);
+      this.addEventListener('load', () => {
+        if (this.status < 200 || this.status >= 300) return;
+        try {
+          rememberChatLevel(chatId, JSON.parse(this.responseText)?.data?.chat?.commission_level);
+        } catch (_) {}
+      });
+    }
+
+    if (isChatMeta) {
+      const chatId = chatIdFromUrl(this.__veloraUrl);
+      this.addEventListener('load', () => {
+        if (this.status < 200 || this.status >= 300) return;
+        try {
+          rememberChatLevel(chatId, JSON.parse(this.responseText)?.data?.commission_level);
+        } catch (_) {}
+      });
     }
 
     if (isIbanSettings && payload && this.__veloraMethod !== 'GET') {

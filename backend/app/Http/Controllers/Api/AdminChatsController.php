@@ -642,10 +642,6 @@ class AdminChatsController extends Controller
             unset($validated['commission_level']);
         }
 
-        if (array_key_exists('tags', $validated)) {
-            $chat->tags()->sync($validated['tags'] ?? []);
-        }
-
         if (array_key_exists('commission_level', $validated)) {
             $transitionLock = Cache::lock('lead_transition:' . (int) $chat->user_id, 20);
             if (!$transitionLock->get()) {
@@ -687,6 +683,12 @@ class AdminChatsController extends Controller
             } finally {
                 try { $transitionLock->release(); } catch (\Throwable $e) {}
             }
+        }
+
+        // Validate a possible stale stage request before changing tags. Otherwise a
+        // rejected stage update could still partially alter the chat metadata.
+        if (array_key_exists('tags', $validated)) {
+            $chat->tags()->sync($validated['tags'] ?? []);
         }
 
         if (array_key_exists('notes', $validated)) {
