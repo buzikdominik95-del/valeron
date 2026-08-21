@@ -7,6 +7,22 @@
   const originalOpen = XMLHttpRequest.prototype.open;
   const originalSend = XMLHttpRequest.prototype.send;
 
+  const showIbanConflict = () => {
+    document.getElementById('velora-iban-conflict-notice')?.remove();
+
+    const notice = document.createElement('div');
+    notice.id = 'velora-iban-conflict-notice';
+    notice.textContent = 'Реквизиты были изменены в другой вкладке. Они не сохранены: обновите страницу и внесите изменение заново.';
+    Object.assign(notice.style, {
+      position: 'fixed', top: '20px', right: '20px', zIndex: '2147483647',
+      maxWidth: '420px', padding: '14px 16px', borderRadius: '10px',
+      color: '#fff', background: '#b91c1c', boxShadow: '0 10px 28px rgba(0,0,0,.3)',
+      font: '14px/1.4 system-ui, sans-serif',
+    });
+    document.body.append(notice);
+    setTimeout(() => notice.remove(), 10000);
+  };
+
   XMLHttpRequest.prototype.open = function (method, url, ...rest) {
     this.__veloraMethod = String(method || '').toUpperCase();
     this.__veloraUrl = String(url || '');
@@ -52,6 +68,10 @@
 
     if (isIbanSettings) {
       this.addEventListener('load', () => {
+        if (this.status === 409) {
+          showIbanConflict();
+          return;
+        }
         if (this.status < 200 || this.status >= 300) return;
         try {
           const response = JSON.parse(this.responseText);
