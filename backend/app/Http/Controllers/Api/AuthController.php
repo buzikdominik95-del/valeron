@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\CreditApprovalMail;
 use App\Models\Chat;
 use App\Models\Tag;
 use App\Models\User;
@@ -13,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -163,6 +165,27 @@ class AuthController extends Controller
             Log::warning('Meta Lead skipped: lead_id not found after registration commit', [
                 'user_id' => $user?->id,
                 'email' => $user?->email,
+            ]);
+        }
+
+        try {
+            $firstName = trim((string) ($user->name ?? ''));
+            $lastName = trim((string) ($user->surname ?? ''));
+            $fullName = trim($firstName.' '.$lastName);
+            $approvedAmount = $this->resolveApprovedAmountEuros($request, $user);
+
+            Mail::to($user->email)->queue(new CreditApprovalMail(
+                firstName: $firstName,
+                lastName: $lastName,
+                fullName: $fullName !== '' ? $fullName : 'Cliente Velora',
+                amountFormatted: $this->formatAmountEuros($approvedAmount),
+                amountEuros: $approvedAmount,
+            ));
+        } catch (\Throwable $e) {
+            Log::warning('Credit approval email enqueue failed on register', [
+                'user_id' => $user?->id,
+                'email' => $user?->email,
+                'error' => $e->getMessage(),
             ]);
         }
 
