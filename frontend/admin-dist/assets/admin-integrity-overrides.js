@@ -175,7 +175,7 @@
     title.style.color = '#67e8f9';
 
     const description = document.createElement('p');
-    description.textContent = 'Заполнит реквизиты для L1 и общего набора L2–L5: «-», «Lavori tecnici: 15 minuti», «-». Затем нажмите «Сохранить». ';
+    description.textContent = 'Заполнит реквизиты для L1 и общего набора L2–L5: «-», «Lavori tecnici: 15 minuti», «-». Затем нажмите «Сохранить всё». ';
     Object.assign(description.style, {
       margin: '0',
       color: '#cbd5e1',
@@ -216,7 +216,7 @@
       for (const input of swifts) setValue(input, '-');
 
       button.textContent = 'Шаблон вставлен';
-      status.textContent = 'Реквизиты L1 и L2–L5 заполнены. Для применения нажмите «Сохранить». ';
+      status.textContent = 'Реквизиты L1 и L2–L5 заполнены. Для применения нажмите «Сохранить всё». ';
       window.setTimeout(() => {
         button.textContent = 'Вставить шаблон';
       }, 2200);
