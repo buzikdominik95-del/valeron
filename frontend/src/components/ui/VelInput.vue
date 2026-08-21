@@ -40,7 +40,12 @@ const controlId = computed(
 const inputClass = computed(() =>
   cn(
     'h-13 w-full rounded-control border bg-ground',
-    'px-3.5 text-sm transition-colors duration-150 placeholder:text-muted',
+    // iOS Safari автоматически увеличивает viewport при фокусе на поле с
+    // шрифтом меньше 16px. На входе в кабинет native <dialog> отдаёт фокус
+    // первому полю, поэтому zoom возникал ещё до действий пользователя и
+    // затем смещал fixed-модалки. На телефоне держим 16px; с sm возвращаем
+    // компактную desktop-типографику.
+    'px-3.5 text-base sm:text-sm transition-colors duration-150 placeholder:text-muted',
     // Кольцо фокуса задаётся утилитами намеренно — см. комментарий в VelButton.
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
     'disabled:cursor-not-allowed disabled:opacity-40',

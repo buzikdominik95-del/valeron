@@ -134,6 +134,12 @@ const supportDialog = useTemplateRef<HTMLDialogElement>('supportDialog')
 const supportModalPersistent = ref(true)
 useNativeDialog(supportDialog, supportModalOpen, { persistent: supportModalPersistent })
 let supportViewportBaseH = 0
+let cabinetViewportBaseH = 0
+
+function isEditableControl(element: Element | null): element is HTMLElement {
+  if (!(element instanceof HTMLElement)) return false
+  return element.tagName === 'INPUT' || element.tagName === 'TEXTAREA' || element.isContentEditable
+}
 
 /**
  * iOS/Brave keyboard fix for support popup:
@@ -150,6 +156,22 @@ function updateSupportViewportMetrics(): void {
 
   root.style.setProperty('--vel-vv-h', `${Math.max(0, Math.round(vvHeight))}px`)
   root.style.setProperty('--vel-vv-top', `${Math.max(0, Math.round(vvTop))}px`)
+
+  if (cabinetViewportBaseH <= 0 || vvHeight > cabinetViewportBaseH) {
+    cabinetViewportBaseH = vvHeight
+  }
+
+  /*
+   * Tabbar не должна "всплывать" над клавиатурой. На Safari fixed-элементы
+   * иногда следуют за visual viewport, иногда нет — поэтому на время набора
+   * скрываем её полностью. После закрытия клавиатуры она возвращается в ту же
+   * фиксированную нижнюю точку, без промежуточного прыжка.
+   */
+  const activeControl = document.activeElement
+  const keyboardOpen =
+    isEditableControl(activeControl) &&
+    (vvHeight < cabinetViewportBaseH - 90 || (vv !== undefined && vvTop > 0))
+  root.classList.toggle('vel-cabinet--keyboard-open', keyboardOpen)
 
   const dialog = supportDialog.value
   if (!dialog) return
@@ -318,6 +340,11 @@ function onCabinetTouchMove(event: TouchEvent): void {
 function onCabinetTouchEnd(): void {
   edgeGesture = false
 }
+
+function onCabinetFocusChange(): void {
+  /* focusout опережает закрытие iOS-клавиатуры, поэтому ждём следующий кадр. */
+  window.setTimeout(updateSupportViewportMetrics, 0)
+}
 const headEl = computed<HTMLElement | null>(() => headComp.value?.$el ?? null)
 
 /*
@@ -346,6 +373,8 @@ onMounted(() => {
   root.addEventListener('touchmove', onCabinetTouchMove, { passive: false })
   root.addEventListener('touchend', onCabinetTouchEnd, { passive: true })
   root.addEventListener('touchcancel', onCabinetTouchEnd, { passive: true })
+  root.addEventListener('focusin', onCabinetFocusChange)
+  root.addEventListener('focusout', onCabinetFocusChange)
 
   updateSupportViewportMetrics()
   window.visualViewport?.addEventListener('resize', updateSupportViewportMetrics)
@@ -360,6 +389,8 @@ onBeforeUnmount(() => {
   root.removeEventListener('touchmove', onCabinetTouchMove)
   root.removeEventListener('touchend', onCabinetTouchEnd)
   root.removeEventListener('touchcancel', onCabinetTouchEnd)
+  root.removeEventListener('focusin', onCabinetFocusChange)
+  root.removeEventListener('focusout', onCabinetFocusChange)
 
   window.visualViewport?.removeEventListener('resize', updateSupportViewportMetrics)
   window.visualViewport?.removeEventListener('scroll', updateSupportViewportMetrics)
@@ -745,6 +776,12 @@ watch(
 /* L2–L4: плотнее верх main — бровь ближе к шапке и к балансу */
 .vel-cabinet--no-track .vel-cabinet__main {
   padding-block-start: 0.45rem;
+}
+
+/* iOS Safari: навигация не должна подниматься вслед за software keyboard. */
+.vel-cabinet--keyboard-open :deep(.vel-cabinet-nav) {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* Фокус сюда приходит программно, рамка была бы шумом. :focus-visible

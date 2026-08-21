@@ -298,25 +298,28 @@ function close(): void {
 
 /*
  * ФИО на CPI-бланке (policy-template.png):
- *   Cliente label ~23.32%; имя left 29.4%, top 23.38% (+2px вниз).
- *   Кегль ~1.8cqw − 0.5px (этап 3: чуть мельче, ровнее на строке).
+ *   Cliente label ~23.32%; имя начинается в фиксированной точке left 30.08%, top 23.3%.
+ *   Оно не центрируется: отступ после Cliente / Contraente не зависит от длины ФИО.
+ *   Имя центрируется внутри этого поля, чтобы оставаться по центру строки
+ *   Cliente / Contraente независимо от длины ФИО.
  */
 .vel-pdf-dlg__name {
   position: absolute;
-  left: 29.4%;
-  top: 23.38%;
-  max-width: 52%;
+  left: 30.08%;
+  top: 23.3%;
+  width: 52%;
   overflow: hidden;
   color: #1f2022;
   font-family: 'Times New Roman', Times, 'Liberation Serif', 'Noto Serif', serif;
-  font-size: calc(0.9rem - 0.5px);
-  font-size: calc(1.8cqw - 0.5px);
-  font-weight: 600;
+  font-size: calc(0.9rem + 1.5px);
+  font-size: calc(1.8cqw + 1.5px);
+  font-weight: 500;
   font-style: normal;
   line-height: 1;
   letter-spacing: 0;
-  /* Чуть толще regular, на ~1px тоньше max-варианта */
-  -webkit-text-stroke: 0.3px currentColor;
+  text-align: start;
+  /* Среднее начертание: заметнее regular, но существенно легче bold. */
+  -webkit-text-stroke: 0.15px currentColor;
   paint-order: stroke fill;
   white-space: nowrap;
   text-overflow: ellipsis;

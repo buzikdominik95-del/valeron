@@ -235,8 +235,21 @@ function backToMain(): void {
 
 <style scoped>
 .vel-freeze {
-  inline-size: min(100% - 1.25rem, 26rem);
-  max-block-size: min(92dvh, 40rem);
+  /*
+   * Safari on iOS does not reliably apply the native <dialog> centering.
+   * Making the dialog fixed and letting the four auto margins share the
+   * remaining visible viewport keeps it centred above Safari's bottom bar.
+   */
+  position: fixed;
+  inset-block: max(1.125rem, env(safe-area-inset-top)) max(1.125rem, env(safe-area-inset-bottom));
+  inset-inline: max(1.125rem, env(safe-area-inset-left)) max(1.125rem, env(safe-area-inset-right));
+  box-sizing: border-box;
+  inline-size: min(calc(100vw - 2.25rem - env(safe-area-inset-left) - env(safe-area-inset-right)), 26rem);
+  max-block-size: min(
+    calc(100dvh - 2.25rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)),
+    40rem
+  );
+  margin: auto;
   overflow: auto;
   overscroll-behavior: contain;
   padding: 0;

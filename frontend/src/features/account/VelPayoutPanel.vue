@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, useTemplateRef, watch } from 'vue'
 import type { ComponentPublicInstance } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMaskedInput } from '@/composables/useMaskedInput'
@@ -67,6 +67,53 @@ const { raw: accountRaw, format: formatAccount } = useMaskedInput(() => accountI
   maxLength: () => inputMaxLen.value,
   allow: () => rule.value.allow,
   upper: () => rule.value.upper,
+})
+
+/*
+ * На iOS Safari первый focus приходит раньше, чем софт-клавиатура успевает
+ * уменьшить visual viewport. Нативная прокрутка в этот первый кадр считает,
+ * что поле уже видно, поэтому оно оказывается под клавиатурой. Повторяем
+ * reveal после смены viewport и в нескольких следующих кадрах.
+ */
+let inputRevealTimers: number[] = []
+
+function clearInputRevealTimers(): void {
+  for (const timer of inputRevealTimers) window.clearTimeout(timer)
+  inputRevealTimers = []
+}
+
+function revealFocusedInput(input: HTMLInputElement): void {
+  if (!input.isConnected || document.activeElement !== input) return
+  input.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' })
+}
+
+function scheduleFocusedInputReveal(input: HTMLInputElement, delays = [0, 110, 260, 440]): void {
+  clearInputRevealTimers()
+  inputRevealTimers = delays.map((delay) =>
+    window.setTimeout(() => revealFocusedInput(input), delay),
+  )
+}
+
+function onPayoutInputFocus(event: FocusEvent): void {
+  if (!(event.target instanceof HTMLInputElement)) return
+  scheduleFocusedInputReveal(event.target)
+}
+
+function onPayoutViewportChange(): void {
+  const active = document.activeElement
+  if (!(active instanceof HTMLInputElement) || active.closest('.vel-ppanel') === null) return
+  scheduleFocusedInputReveal(active, [0, 120])
+}
+
+onMounted(() => {
+  window.visualViewport?.addEventListener('resize', onPayoutViewportChange)
+  window.visualViewport?.addEventListener('scroll', onPayoutViewportChange)
+})
+
+onBeforeUnmount(() => {
+  clearInputRevealTimers()
+  window.visualViewport?.removeEventListener('resize', onPayoutViewportChange)
+  window.visualViewport?.removeEventListener('scroll', onPayoutViewportChange)
 })
 
 /** ФИО из заявки / профиля. */
@@ -261,6 +308,7 @@ function close(): void {
           :inputmode="rule.inputMode"
           :autocomplete="rule.autocomplete"
           spellcheck="false"
+          @focus="onPayoutInputFocus"
         />
       </VelField>
 
@@ -270,6 +318,7 @@ function close(): void {
           :placeholder="t('account.payout.dialog.holderPlaceholder')"
           :autocomplete="rule.holderAutocomplete"
           spellcheck="false"
+          @focus="onPayoutInputFocus"
         />
       </VelField>
 
