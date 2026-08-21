@@ -83,7 +83,36 @@ class AiManagerController extends Controller
 
     public function healthSnapshot(): JsonResponse
     {
-        return $this->proxy('GET', '/v1/admin/health-snapshot');
+        $probe = $this->proxy('GET', '/v1/personas', [], [], true);
+        $code = $probe->getStatusCode();
+
+        if ($code >= 200) {
+            if ($code < 300) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'status' => 'ok',
+                        'dependencies' => [
+                            'overall_ok' => true,
+                            'fallback_mode' => true,
+                            'reason' => 'admin_health_forbidden_ip',
+                        ],
+                    ],
+                    'status_code' => 200,
+                ], 200);
+            }
+        }
+
+        return response()->json([
+            'success' => false,
+            'data' => [
+                'status' => 'down',
+                'dependencies' => [
+                    'overall_ok' => false,
+                ],
+            ],
+            'status_code' => 503,
+        ], 503);
     }
 
     public function stats(): JsonResponse

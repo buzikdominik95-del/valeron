@@ -185,5 +185,19 @@
     };
   }
 
-  setInterval(function(){ tick().catch(function(){}); },1200);
+  // Не допускаем перекрывающихся обновлений. Без этой защиты каждый интервал
+  // запускал четыре новых HTTP-запроса даже когда предыдущий ещё не завершился.
+  // На локальном PHP-сервере это забивало единственный рабочий поток и
+  // блокировало сохранение этапов, заметок и тегов.
+  var ticking = false;
+  async function tickSafely(){
+    if(ticking){ return; }
+    ticking = true;
+    try { await tick(); }
+    catch(e) {}
+    finally { ticking = false; }
+  }
+
+  tickSafely();
+  setInterval(tickSafely, 10000);
 })();

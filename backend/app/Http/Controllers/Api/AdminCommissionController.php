@@ -6,15 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Models\CommissionLevel;
 use App\Models\IbanSetting;
 use App\Models\User;
+use App\Models\Chat;
+use App\Support\ManagerTrafficAssigner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class AdminCommissionController extends Controller
 {
     public function advance(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'level' => 'required|integer|min:1|max:5',
+            'level' => 'required|integer|min:1|max:5|exists:commission_levels,order',
             'email' => 'nullable|email',
             'user_id' => 'nullable|integer|min:1',
         ]);
@@ -41,6 +44,12 @@ class AdminCommissionController extends Controller
             ], 404);
         }
 
+        $transitionLock = Cache::lock('lead_transition:' . (int) $user->id, 20);
+        if (!$transitionLock->get()) {
+            return response()->json(['message' => 'Лид сейчас переводится на другой этап. Повторите действие через несколько секунд.'], 409);
+        }
+
+        try {
         $level = (int) $validated['level'];
         if ($level < 1) {
             $level = 1;
@@ -61,7 +70,13 @@ class AdminCommissionController extends Controller
         $user->commission_level_id = $level;
         $user->save();
 
+        $chat = Chat::query()->where('user_id', $user->id)->first();
+        ManagerTrafficAssigner::syncChatAssignment($user->fresh(), $chat);
+
         return response()->json($this->buildDossier($user, $level));
+        } finally {
+            try { $transitionLock->release(); } catch (\Throwable $e) {}
+        }
     }
 
     private function buildDossier(User $user, int $level): array
