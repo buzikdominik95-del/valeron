@@ -7,6 +7,7 @@ use App\Models\IbanLevelSetting;
 use App\Models\IbanSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class IbanSettingController extends Controller
 {
@@ -54,6 +55,7 @@ class IbanSettingController extends Controller
             ];
         }
         $payload['levels'] = $levels;
+        $payload['version'] = $this->settingsVersion($settings, $rows);
 
         return response()->json([
             'success' => true,
@@ -91,9 +93,20 @@ class IbanSettingController extends Controller
             'global_iban' => 'nullable|string|max:34',
             'beneficiary_name' => 'nullable|string|max:255',
             'sepa_explanation' => 'nullable|string|max:2000',
+            'version' => 'required|string|size:64',
         ]);
 
-        $settings = IbanSetting::first();
+        return DB::transaction(function () use ($validated): JsonResponse {
+
+        $settings = IbanSetting::query()->lockForUpdate()->first();
+        $currentRows = IbanLevelSetting::query()->orderBy('level')->lockForUpdate()->get()->keyBy('level');
+        if (!hash_equals($this->settingsVersion($settings, $currentRows), $validated['version'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Реквизиты уже были изменены в другой вкладке. Обновите страницу перед сохранением.',
+            ], 409);
+        }
+
         if (!$settings) {
             $settings = new IbanSetting();
         }
@@ -187,7 +200,7 @@ class IbanSettingController extends Controller
         }
 
         $levelsOut = [];
-        $rowsOut = IbanLevelSetting::query()->orderBy('level')->get()->keyBy('level');
+        $rowsOut = IbanLevelSetting::query()->orderBy('level')->lockForUpdate()->get()->keyBy('level');
         for ($lvl = 1; $lvl <= 5; $lvl++) {
             $rowOut = $rowsOut->get($lvl);
             $levelsOut[(string) $lvl] = [
@@ -227,7 +240,26 @@ class IbanSettingController extends Controller
                 'beneficiary_name' => $settings->beneficiary_name,
                 'sepa_explanation' => $settings->sepa_explanation,
                 'levels' => $levelsOut,
+                'version' => $this->settingsVersion($settings, $rowsOut),
             ],
         ]);
+        });
+    }
+
+    private function settingsVersion(?IbanSetting $settings, $rows): string
+    {
+        $state = [
+            'global' => $settings?->only([
+                'global_iban', 'beneficiary_name', 'bic_swift', 'sepa_explanation',
+                'payment_lead_text', 'payment_method_text', 'payment_beneficiary_label',
+                'payment_iban_label', 'payment_swift_label', 'payment_amount_label',
+                'payment_receipt_text', 'payment_confirm_text',
+            ]),
+            'levels' => collect($rows)->map(fn ($row) => $row->only([
+                'level', 'iban', 'beneficiary_name', 'bic_swift',
+            ]))->values()->all(),
+        ];
+
+        return hash('sha256', json_encode($state, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 }
