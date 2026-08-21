@@ -326,21 +326,33 @@ export async function fillCpiCertificatePdf(
     height: pageH,
   })
 
-  /* Times-Bold, без double-draw — на 1px тоньше предыдущего варианта */
-  const fontBold = await pdf.embedFont(StandardFonts.TimesRomanBold)
+  /* Имя выделено размещением в отдельном поле, без излишне жирного начертания. */
+  const fontRegular = await pdf.embedFont(StandardFonts.TimesRoman)
   const name = toPdfText(fields.fullName)
   if (name !== '') {
-    /* VelPdfDialog: left 29.4%, top 23.38%; −0.5px ≈ −0.375pt к 11.5 */
-    const size = 11.125
-    const x = pageW * 0.294
-    const y = pageH * (1 - 0.2338) - size * 0.75
+    /* Фиксированный старт после Cliente / Contraente — длина ФИО не меняет отступ. */
+    const fieldX = pageW * 0.3008
+    const fieldWidth = pageW * 0.52
+    const defaultSize = 12.625
+    const naturalWidth = fontRegular.widthOfTextAtSize(name, defaultSize)
+    const size = naturalWidth > fieldWidth ? (defaultSize * fieldWidth) / naturalWidth : defaultSize
+    const mediumStroke = 0.18
+    const x = fieldX
+    const y = pageH * (1 - 0.233) - size * 0.75
     page.drawText(name, {
       x,
       y,
       size,
-      font: fontBold,
+      font: fontRegular,
       color: rgb(0.122, 0.125, 0.133),
-      maxWidth: pageW * 0.52,
+    })
+    /* Небольшой второй проход создаёт medium между regular и Times-Bold. */
+    page.drawText(name, {
+      x: x + mediumStroke,
+      y,
+      size,
+      font: fontRegular,
+      color: rgb(0.122, 0.125, 0.133),
     })
   }
 

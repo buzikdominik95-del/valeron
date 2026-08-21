@@ -20,15 +20,18 @@
 
     .overlay-name {
       position: absolute;
-      left: 118px;
-      bottom: 104px;
-      font-size: 15px;
-      line-height: 1.2;
-      color: #0f172a;
-      font-weight: 600;
-      background: rgba(255,255,255,.68);
-      padding: 1px 6px;
-      border-radius: 3px;
+      left: 30.08%;
+      top: 23.3%;
+      width: 52%;
+      box-sizing: border-box;
+      color: #1f2022;
+      font-family: "Times New Roman", "DejaVu Serif", serif;
+      font-size: 12.625pt;
+      font-weight: 500;
+      line-height: 1;
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
     }
 
     .fallback { padding: 12px; }
