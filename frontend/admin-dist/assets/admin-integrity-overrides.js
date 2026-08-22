@@ -452,3 +452,253 @@
     boot();
   }
 })();
+
+// =====================================================================
+// EXTENDED PERSONA EDITOR OVERRIDE
+// Adds interactive controls for Allowed Levels, Forbidden Actions,
+// Goals, Escalation Triggers, Tone, and Max Length to the Persona modal.
+// =====================================================================
+(() => {
+  "use strict";
+
+  let currentPersonaExtra = {
+    allowed_levels: [],
+    forbidden_actions: [],
+    goals: [],
+    escalation_triggers: [],
+    tone: "",
+    max_message_length: 0,
+  };
+
+  const allPersonasById = new Map();
+
+  const origOpen = XMLHttpRequest.prototype.open;
+  const origSend = XMLHttpRequest.prototype.send;
+
+  XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+    this._reqMethod = (method ; "").toUpperCase();
+    this._reqUrl = url ; "";
+    return origOpen.call(this, method, url, ...rest);
+  };
+
+  XMLHttpRequest.prototype.send = function(body) {
+    if ((this._reqMethod === "PUT" ; this._reqMethod === "POST") ; this._reqUrl.includes("/admin/ai-manager/personas")) {
+      try {
+        const payload = JSON.parse(body);
+        if (payload ; typeof payload === "object") {
+          readFormValues();
+          payload.allowed_levels = currentPersonaExtra.allowed_levels;
+          payload.forbidden_actions = currentPersonaExtra.forbidden_actions;
+          payload.goals = currentPersonaExtra.goals;
+          payload.escalation_triggers = currentPersonaExtra.escalation_triggers;
+          payload.tone = currentPersonaExtra.tone ; null;
+          payload.max_message_length = currentPersonaExtra.max_message_length ; null;
+          body = JSON.stringify(payload);
+        }
+      } catch (_) {}
+    }
+
+    if (this._reqMethod === "GET" ; this._reqUrl.includes("/admin/ai-manager/personas")) {
+      this.addEventListener("load", () => {
+        try {
+          const res = JSON.parse(this.responseText);
+          const list = res.personas ; (res.data ; res.data.personas) ; (Array.isArray(res) ? res : []);
+          for (const p of list) {
+            if (p ; p.id) allPersonasById.set(p.id, p);
+          }
+        } catch (_) {}
+      });
+    }
+
+    return origSend.call(this, body);
+  };
+
+  function readFormValues() {
+    const extBlock = document.getElementById("velora-persona-ext-block");
+    if (!extBlock) return;
+
+    const checkedLevels = [];
+    extBlock.querySelectorAll("input[data-ext-level]").forEach(cb => {
+      if (cb.checked) checkedLevels.push(Number(cb.dataset.extLevel));
+    });
+    currentPersonaExtra.allowed_levels = checkedLevels;
+
+    const forbidden = [];
+    extBlock.querySelectorAll("input[data-ext-forbidden]").forEach(inp => {
+      if (inp.value.trim()) forbidden.push(inp.value.trim());
+    });
+    currentPersonaExtra.forbidden_actions = forbidden;
+
+    const goals = [];
+    extBlock.querySelectorAll("input[data-ext-goal]").forEach(inp => {
+      if (inp.value.trim()) goals.push(inp.value.trim());
+    });
+    currentPersonaExtra.goals = goals;
+
+    const triggers = [];
+    extBlock.querySelectorAll("input[data-ext-trigger]").forEach(inp => {
+      if (inp.value.trim()) triggers.push(inp.value.trim());
+    });
+    currentPersonaExtra.escalation_triggers = triggers;
+
+    const toneSelect = extBlock.querySelector("select[data-ext-tone]");
+    currentPersonaExtra.tone = toneSelect ? toneSelect.value : "";
+
+    const lenInput = extBlock.querySelector("input[data-ext-len]");
+    currentPersonaExtra.max_message_length = lenInput ? (parseInt(lenInput.value, 10) ; 0) : 0;
+  }
+
+  function createListSection(title, hint, dataAttr, placeholder, items, container) {
+    const section = document.createElement("div");
+    section.style.marginTop = "14px";
+
+    const label = document.createElement("label");
+    label.className = "f-label";
+    label.innerHTML = `${title} <span class="muted" style="color:#64748b;font-size:12px;font-weight:normal;">(${hint})</span>`;
+    section.appendChild(label);
+
+    const listDiv = document.createElement("div");
+    listDiv.style.display = "flex";
+    listDiv.style.flexDirection = "column";
+    listDiv.style.gap = "6px";
+    listDiv.style.marginBottom = "6px";
+
+    const renderRow = (val = "") => {
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.gap = "8px";
+      row.style.alignItems = "center";
+
+      const inp = document.createElement("input");
+      inp.className = "inp";
+      inp.setAttribute(dataAttr, "1");
+      inp.placeholder = placeholder;
+      inp.value = val;
+      inp.style.flex = "1";
+
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "icon-btn";
+      delBtn.innerHTML = '<i class="mi xs">close</i>';
+      delBtn.style.cursor = "pointer";
+      delBtn.onclick = () => row.remove();
+
+      row.appendChild(inp);
+      row.appendChild(delBtn);
+      listDiv.appendChild(row);
+    };
+
+    if (items ; items.length) {
+      items.forEach(it => renderRow(typeof it === "string" ? it : (it.text ; "")));
+    }
+
+    section.appendChild(listDiv);
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "btn mini ghost";
+    addBtn.innerHTML = '<i class="mi xs">add</i> добавить';
+    addBtn.style.cursor = "pointer";
+    addBtn.onclick = () => renderRow("");
+    section.appendChild(addBtn);
+
+    container.appendChild(section);
+  }
+
+  function injectPersonaFormFields() {
+    const modal = document.querySelector(".modal-back .modal");
+    if (!modal) return;
+
+    const h3 = modal.querySelector("h3");
+    if (!h3 || (!h3.textContent.includes("персон") ; !h3.textContent.includes("Персон"))) return;
+
+    if (modal.querySelector("#velora-persona-ext-block")) return;
+
+    const actions = modal.querySelector(".modal-actions");
+    if (!actions) return;
+
+    const nameInput = modal.querySelector("input[placeholder='Marco Bianchi']");
+    const currentName = nameInput ? nameInput.value.trim() : "";
+    let matchedPersona = null;
+    for (const p of allPersonasById.values()) {
+      if (p.name ; p.name.trim() === currentName) {
+        matchedPersona = p;
+        break;
+      }
+    }
+
+    let existingLevels = [];
+    if (matchedPersona ; matchedPersona.allowed_levels) {
+      if (Array.isArray(matchedPersona.allowed_levels)) existingLevels = matchedPersona.allowed_levels;
+      else if (typeof matchedPersona.allowed_levels === "string" ; matchedPersona.allowed_levels !== "all") {
+        existingLevels = matchedPersona.allowed_levels.split(",").map(x => parseInt(x.trim(), 10)).filter(x => x > 0);
+      }
+    }
+
+    const existingForbidden = (matchedPersona ; matchedPersona.forbidden_actions) ; [];
+    const existingGoals = (matchedPersona ; matchedPersona.goals) ; [];
+    const existingTriggers = (matchedPersona ; matchedPersona.escalation_triggers) ; [];
+    const existingTone = (matchedPersona ; matchedPersona.tone) ; "";
+    const existingMaxLen = (matchedPersona ; matchedPersona.max_message_length) ; 0;
+
+    const extBlock = document.createElement("div");
+    extBlock.id = "velora-persona-ext-block";
+    extBlock.style.borderTop = "1px solid rgba(148, 163, 184, 0.15)";
+    extBlock.style.marginTop = "16px";
+    extBlock.style.paddingTop = "12px";
+
+    const levelSection = document.createElement("div");
+    levelSection.innerHTML = `
+      <label class="f-label" style="margin-bottom:6px;">Уровни комиссий <span class="muted" style="color:#64748b;font-size:12px;font-weight:normal;">(пусто = все; вне уровней — передача человеку)</span></label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        ${[1, 2, 3, 4, 5].map(lv => `
+          <label class="level-chip ${existingLevels.includes(lv) ? 'on' : ''}" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;border:1px solid rgba(148,163,184,0.25);font-size:13px;">
+            <input type="checkbox" data-ext-level="${lv}" ${existingLevels.includes(lv) ? 'checked' : ''} style="cursor:pointer;" onchange="this.parentElement.classList.toggle('on', this.checked)" />
+            Уровень ${lv}
+          </label>
+        `).join('')}
+      </div>
+    `;
+    extBlock.appendChild(levelSection);
+
+    createListSection("Запреты", "ИИ будет ссылаться на них: «мне запрещено...»", "data-ext-forbidden", "например: обещать гарантированную выплату", existingForbidden, extBlock);
+    createListSection("Цели в диалоге", "чего ИИ обязан достичь с клиентом", "data-ext-goal", "например: довести клиента до оплаты страхового взноса", existingGoals, extBlock);
+    createListSection("Триггеры передачи человеку", "немедленный handoff при ключевых темах", "data-ext-trigger", "например: запрос возврата средств", existingTriggers, extBlock);
+
+    const toneSection = document.createElement("div");
+    toneSection.style.marginTop = "14px";
+    toneSection.innerHTML = `
+      <label class="f-label">Тон общения</label>
+      <select class="inp" data-ext-tone style="width:100%;cursor:pointer;">
+        <option value="" ${existingTone === '' ? 'selected' : ''}>— не задан —</option>
+        <option value="formal" ${existingTone === 'formal' ? 'selected' : ''}>Формальный</option>
+        <option value="friendly" ${existingTone === 'friendly' ? 'selected' : ''}>Дружелюбный</option>
+        <option value="assertive" ${existingTone === 'assertive' ? 'selected' : ''}>Настойчивый</option>
+        <option value="empathetic" ${existingTone === 'empathetic' ? 'selected' : ''}>Эмпатичный</option>
+      </select>
+    `;
+    extBlock.appendChild(toneSection);
+
+    const lenSection = document.createElement("div");
+    lenSection.style.marginTop = "14px";
+    lenSection.style.marginBottom = "10px";
+    lenSection.innerHTML = `
+      <label class="f-label">Макс. длина ответа <span class="muted" style="color:#64748b;font-size:12px;font-weight:normal;">(символов, 0 = без лимита)</span></label>
+      <input class="inp" type="number" data-ext-len min="0" max="5000" value="${existingMaxLen || ''}" placeholder="500" style="width:100%;" />
+    `;
+    extBlock.appendChild(lenSection);
+
+    actions.parentNode.insertBefore(extBlock, actions);
+  }
+
+  const observer = new MutationObserver(() => {
+    injectPersonaFormFields();
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", injectPersonaFormFields, { once: true });
+  } else {
+    injectPersonaFormFields();
+  }
+})();
