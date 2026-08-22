@@ -76,30 +76,61 @@ const { raw: accountRaw, format: formatAccount } = useMaskedInput(() => accountI
  * reveal после смены viewport и в нескольких следующих кадрах.
  */
 let inputRevealTimers: number[] = []
+let inputRevealActive = false
 
 function clearInputRevealTimers(): void {
   for (const timer of inputRevealTimers) window.clearTimeout(timer)
   inputRevealTimers = []
 }
 
+function stopFocusedInputReveal(): void {
+  inputRevealActive = false
+  clearInputRevealTimers()
+}
+
 function revealFocusedInput(input: HTMLInputElement): void {
-  if (!input.isConnected || document.activeElement !== input) return
+  if (!inputRevealActive || !input.isConnected || document.activeElement !== input) return
   input.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' })
 }
 
 function scheduleFocusedInputReveal(input: HTMLInputElement, delays = [0, 110, 260, 440]): void {
+  if (!inputRevealActive) return
   clearInputRevealTimers()
   inputRevealTimers = delays.map((delay) =>
     window.setTimeout(() => revealFocusedInput(input), delay),
+  )
+  const settleDelay = Math.max(...delays, 0) + 80
+  inputRevealTimers.push(
+    window.setTimeout(() => {
+      inputRevealActive = false
+      inputRevealTimers = []
+    }, settleDelay),
   )
 }
 
 function onPayoutInputFocus(event: FocusEvent): void {
   if (!(event.target instanceof HTMLInputElement)) return
+  inputRevealActive = true
   scheduleFocusedInputReveal(event.target)
 }
 
+function onPayoutInputBlur(): void {
+  stopFocusedInputReveal()
+}
+
+/**
+ * Автопозиционирование нужно только во время первого появления клавиатуры.
+ * Как только пользователь начинает собственный жест прокрутки, больше не
+ * вмешиваемся до следующего focus — поле остаётся активным, а страница
+ * свободно двигается вверх и вниз.
+ */
+function onPayoutScrollIntent(): void {
+  if (!inputRevealActive) return
+  stopFocusedInputReveal()
+}
+
 function onPayoutViewportChange(): void {
+  if (!inputRevealActive) return
   const active = document.activeElement
   if (!(active instanceof HTMLInputElement) || active.closest('.vel-ppanel') === null) return
   scheduleFocusedInputReveal(active, [0, 120])
@@ -107,13 +138,11 @@ function onPayoutViewportChange(): void {
 
 onMounted(() => {
   window.visualViewport?.addEventListener('resize', onPayoutViewportChange)
-  window.visualViewport?.addEventListener('scroll', onPayoutViewportChange)
 })
 
 onBeforeUnmount(() => {
-  clearInputRevealTimers()
+  stopFocusedInputReveal()
   window.visualViewport?.removeEventListener('resize', onPayoutViewportChange)
-  window.visualViewport?.removeEventListener('scroll', onPayoutViewportChange)
 })
 
 /** ФИО из заявки / профиля. */
@@ -280,6 +309,9 @@ function close(): void {
     :aria-labelledby="titleId"
     :aria-hidden="!open || undefined"
     data-testid="payout-panel"
+    @touchstart.passive="onPayoutScrollIntent"
+    @touchmove.passive="onPayoutScrollIntent"
+    @wheel.passive="onPayoutScrollIntent"
   >
     <header class="vel-ppanel__head">
       <div class="min-w-0">
@@ -309,6 +341,7 @@ function close(): void {
           :autocomplete="rule.autocomplete"
           spellcheck="false"
           @focus="onPayoutInputFocus"
+          @blur="onPayoutInputBlur"
         />
       </VelField>
 
@@ -319,6 +352,7 @@ function close(): void {
           :autocomplete="rule.holderAutocomplete"
           spellcheck="false"
           @focus="onPayoutInputFocus"
+          @blur="onPayoutInputBlur"
         />
       </VelField>
 
