@@ -130,10 +130,25 @@
   body,
   #app {
     min-height: 100%;
+    max-width: 100%;
+  }
+
+  html {
+    /*
+      iOS Safari can enlarge text after rotation or when it decides that a
+      narrow column is hard to read. That looks exactly like page zoom and
+      also changes the coordinate system used by native dialogs.
+    */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   body {
     margin: 0;
+    overflow-x: hidden;
+    overflow-x: clip;
     background-color: var(--color-ground);
     color: var(--color-fg);
     font-family: var(--font-sans);
@@ -144,6 +159,19 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+  }
+
+  /*
+    Safari automatically zooms the whole page when a focused editable
+    control has a computed font-size below 16px. Keep this as an iOS-only
+    safety net: a few flows use native controls instead of VelInput.
+  */
+  @supports (-webkit-touch-callout: none) {
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
   }
 
   p {
