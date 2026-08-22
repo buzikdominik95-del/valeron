@@ -271,6 +271,10 @@ export const useDossierStore = defineStore('dossier', () => {
     simulator.firstName = String(copy.client.firstName ?? '').trim()
     simulator.surname = String(copy.client.lastName ?? '').trim()
     simulator.email = String(copy.client.email ?? '').trim()
+    const serverGender = String(copy.client.gender ?? '').trim().toLowerCase()
+    if (serverGender === 'male' || serverGender === 'female') {
+      simulator.gender = serverGender
+    }
 
     /*
      * lead_iban с GET /account → local account.store (иначе после F5 IBAN «пропал»).

@@ -68,6 +68,7 @@ class AuthController extends Controller
             'password' => 'required|string|min:6|confirmed',
             'surname' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:50',
+            'gender' => 'nullable|string|in:male,female',
             'requested_amount' => 'nullable|numeric|min:0',
             'document_type' => 'nullable|string|max:50',
             'document_number' => 'nullable|string|max:100',
@@ -696,6 +697,13 @@ class AuthController extends Controller
                 : [];
             $credit['term_months'] = $termMonths;
             $progress['credit'] = $credit;
+        }
+
+        $gender = strtolower(trim((string) $request->input('gender', $progress['gender'] ?? '')));
+        if (in_array($gender, ['male', 'female'], true)) {
+            $progress['gender'] = $gender;
+        } else {
+            unset($progress['gender']);
         }
 
         return $progress;

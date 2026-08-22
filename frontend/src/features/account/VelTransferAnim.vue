@@ -100,7 +100,8 @@ function clearMorphTimer(): void {
 }
 
 const recipientName = computed(() => client.value.fullName)
-const personLook = computed<SceneLook>(() => (gender.value === 'male' ? 'crop' : 'bob'))
+/** Unknown legacy/local state is male; authenticated hydrate replaces it with server truth. */
+const personLook = computed<SceneLook>(() => (gender.value === 'female' ? 'bob' : 'crop'))
 
 /**
  * Freeze / red-X: hold 100%, L4 failed/tg_final, L2 suspended/pay_fee.

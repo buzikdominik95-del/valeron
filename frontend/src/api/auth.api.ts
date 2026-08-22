@@ -27,6 +27,8 @@ export interface AuthRegisterPayload extends AuthCredentials {
   passwordConfirmation: string
   surname?: string
   phone?: string
+  /** Selected in the identity step; persisted server-side for cross-device animations. */
+  gender?: 'male' | 'female'
   /** Euro amount from simulator (backend: requested_amount). */
   requestedAmount?: number
   loanTermMonths?: number
@@ -118,6 +120,9 @@ export async function register(
       password_confirmation: payload.passwordConfirmation,
       ...(payload.surname?.trim() ? { surname: payload.surname.trim() } : {}),
       ...(payload.phone?.trim() ? { phone: payload.phone.trim() } : {}),
+      ...(payload.gender === 'male' || payload.gender === 'female'
+        ? { gender: payload.gender }
+        : {}),
       ...(payload.requestedAmount !== undefined && payload.requestedAmount > 0
         ? { requested_amount: payload.requestedAmount }
         : {}),
