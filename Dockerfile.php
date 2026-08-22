@@ -2,6 +2,7 @@ FROM php:8.4-fpm
 
 RUN apt-get update ; apt-get install -y \
     postgresql-client \
+    poppler-utils \
     libpq-dev \
     git \
     curl \

@@ -176,4 +176,43 @@ class ClientContextBuilder
 
         return $ctx;
     }
+
+    /**
+     * Greeting state for a chat: were static welcome messages already sent?
+     * Welcome messages = manager messages created BEFORE the first user message.
+     */
+    public static function greeting(int $chatId): array
+    {
+        $out = [
+            'greeting_already_sent' => false,
+            'welcome_messages_count' => 0,
+            'is_first_ai_reply' => true,
+        ];
+
+        try {
+            $firstUserId = DB::table('chat_messages')
+                ->where('chat_id', $chatId)
+                ->where('sender_type', 'user')
+                ->orderBy('id')
+                ->value('id');
+
+            $q = DB::table('chat_messages')
+                ->where('chat_id', $chatId)
+                ->where('sender_type', 'manager');
+            if ($firstUserId !== null) {
+                $q->where('id', '<', (int) $firstUserId);
+            }
+            $count = (int) $q->count();
+
+            $out['welcome_messages_count'] = $count;
+            $out['greeting_already_sent'] = $count > 0;
+
+            $lastAiReply = DB::table('chats')->where('id', $chatId)->value('ai_last_reply_at');
+            $out['is_first_ai_reply'] = empty($lastAiReply);
+        } catch (\Throwable $e) {
+            Log::warning('ClientContextBuilder greeting failed: ' . $e->getMessage());
+        }
+
+        return $out;
+    }
 }
