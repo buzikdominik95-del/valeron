@@ -623,7 +623,7 @@
     if (!modal) return;
 
     const h3 = modal.querySelector('h3');
-    if (!h3 || (h3.textContent.indexOf('персон') === -1 || h3.textContent.indexOf('Персон') === -1)) return;
+    if (!h3 || (h3.textContent.toLowerCase().indexOf('персон') === -1)) return;
 
     if (modal.querySelector('#velora-persona-ext-block')) return;
 
