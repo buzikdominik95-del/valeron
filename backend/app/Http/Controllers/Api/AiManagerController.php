@@ -715,4 +715,83 @@ class AiManagerController extends Controller
         }
         return (bool) \App\Models\AiLocalSetting::getValue('autonomy_enabled', true);
     }
+
+    /**
+     * Chats where the AI detected a level-1 payment proof and handed over
+     * to a human for verification.
+     */
+    public function paymentReview(Request $request)
+    {
+        $tagName = (string) \App\Models\AiLocalSetting::getValue('payment_review_tag', 'ОПЛАТА НА ПРОВЕРКЕ');
+        $tag = \App\Models\Tag::whereRaw('LOWER(name) = ?', [mb_strtolower($tagName)])->first();
+
+        if (!$tag) {
+            return response()->json(['tag' => null, 'total' => 0, 'items' => []]);
+        }
+
+        $level = \App\Models\CommissionLevel::where('order', 1)->first();
+
+        $chats = \App\Models\Chat::whereHas('tags', function ($q) use ($tag) {
+                $q->where('tags.id', $tag->id);
+            })
+            ->with(['user:id,name,email,phone'])
+            ->orderByDesc('updated_at')
+            ->limit(200)
+            ->get();
+
+        $items = $chats->map(function ($chat) {
+            $last = \App\Models\ChatMessage::where('chat_id', $chat->id)
+                ->orderByDesc('id')
+                ->first();
+
+            return [
+                'chat_id' => (int) $chat->id,
+                'user_id' => (int) $chat->user_id,
+                'user_name' => $chat->user->name ?? null,
+                'user_email' => $chat->user->email ?? null,
+                'ai_mode' => $chat->ai_mode,
+                'requires_human' => (bool) $chat->ai_requires_human,
+                'updated_at' => optional($chat->updated_at)->toIso8601String(),
+                'last_message' => $last ? mb_substr((string) $last->message, 0, 160) : null,
+            ];
+        })->values();
+
+        return response()->json([
+            'tag' => ['id' => (int) $tag->id, 'name' => $tag->name, 'color' => $tag->color],
+            'expected_amount' => $level ? (float) $level->amount : null,
+            'total' => $items->count(),
+            'items' => $items,
+        ]);
+    }
+
+    /**
+     * Manager verdict on a payment: approve keeps the chat with a human,
+     * reject returns it to the AI queue.
+     */
+    public function resolvePaymentReview(Request $request, $chatId)
+    {
+        $data = $request->validate([
+            'action' => 'required|in:approve,reject',
+        ]);
+
+        $chat = \App\Models\Chat::findOrFail((int) $chatId);
+        $tagName = (string) \App\Models\AiLocalSetting::getValue('payment_review_tag', 'ОПЛАТА НА ПРОВЕРКЕ');
+        $tag = \App\Models\Tag::whereRaw('LOWER(name) = ?', [mb_strtolower($tagName)])->first();
+
+        if ($tag) {
+            $chat->tags()->detach($tag->id);
+        }
+
+        if ($data['action'] === 'reject') {
+            // False positive: let the AI continue working with the client.
+            $chat->ai_requires_human = false;
+            $chat->ai_mode = 'ai';
+        } else {
+            $chat->ai_requires_human = true;
+            $chat->ai_mode = 'human';
+        }
+        $chat->save();
+
+        return response()->json(['ok' => true, 'action' => $data['action'], 'chat_id' => (int) $chat->id]);
+    }
 }

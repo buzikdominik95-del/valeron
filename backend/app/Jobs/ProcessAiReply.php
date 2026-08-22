@@ -93,6 +93,12 @@ class ProcessAiReply implements ShouldQueue
         // AI must not introduce itself or greet again.
         $context = array_merge($context, \App\Services\AiManager\ClientContextBuilder::greeting($this->chatId));
 
+        // Goal reached: client confirmed the level-1 commission payment.
+        // Hand the chat over to a human for verification instead of replying.
+        if ($paymentAnalysis !== null && $this->handlePaymentConfirmation($chat, $paymentAnalysis)) {
+            return;
+        }
+
         try {
             $resp = Http::timeout(90)->withHeaders(['X-API-Key' => $serviceKey])
                 ->post($baseUrl . '/v1/manager/reply-sync', [
@@ -347,5 +353,90 @@ class ProcessAiReply implements ShouldQueue
             \Illuminate\Support\Facades\Log::warning('ProcessAiReply: buildBusinessContext failed: ' . $e->getMessage());
         }
         return $ctx;
+    }
+
+    /**
+     * If the attached image proves the level-1 commission payment, move the chat
+     * to the manual review folder and stop AI autoreplies for it.
+     *
+     * Returns true when the chat was handed over (AI must stay silent).
+     */
+    private function handlePaymentConfirmation(\App\Models\Chat $chat, array $analysis): bool
+    {
+        try {
+            if (empty($analysis['is_payment_proof'])) {
+                return false;
+            }
+
+            $status = strtolower(trim((string) ($analysis['status'] ?? '')));
+            if (in_array($status, ['failed', 'pending'], true)) {
+                return false;
+            }
+
+            $minConfidence = (float) \App\Models\AiLocalSetting::getValue('payment_min_confidence', 0.6);
+            if ((float) ($analysis['confidence'] ?? 0) < $minConfidence) {
+                return false;
+            }
+
+            // Expected amount comes from the level-1 commission, never hardcoded.
+            $level = \App\Models\CommissionLevel::where('order', 1)->first();
+            $expected = $level ? (float) $level->amount : 0.0;
+            if ($expected <= 0) {
+                return false;
+            }
+
+            $amount = $analysis['amount'] ?? null;
+            if ($amount === null) {
+                return false;
+            }
+            $amount = (float) $amount;
+
+            $currency = strtoupper(trim((string) ($analysis['currency'] ?? 'EUR')));
+            $currency = str_replace(['\u{20ac}', 'EURO', 'EUR.'], 'EUR', $currency);
+            if ($currency !== '' && $currency !== 'EUR') {
+                return false;
+            }
+
+            // 2% tolerance for rounding/fees in the receipt.
+            $tolerance = max(1.0, $expected * 0.02);
+            if (abs($amount - $expected) > $tolerance) {
+                return false;
+            }
+
+            $this->moveChatToPaymentReview($chat, $amount, $expected, (float) ($analysis['confidence'] ?? 0));
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning('ProcessAiReply: payment confirmation failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function moveChatToPaymentReview(\App\Models\Chat $chat, float $amount, float $expected, float $confidence): void
+    {
+        $tagName = (string) \App\Models\AiLocalSetting::getValue('payment_review_tag', 'ОПЛАТА НА ПРОВЕРКЕ');
+
+        $tag = \App\Models\Tag::whereRaw('LOWER(name) = ?', [mb_strtolower($tagName)])->first();
+        if ($tag) {
+            $chat->tags()->syncWithoutDetaching([$tag->id]);
+        } else {
+            Log::warning('ProcessAiReply: payment review tag missing', ['tag' => $tagName]);
+        }
+
+        // Goal reached -> a human must verify the payment.
+        $chat->ai_mode = 'human';
+        $chat->ai_forced = false;
+        $chat->ai_requires_human = true;
+        $chat->save();
+
+        Log::info('ai_payment_confirmed_handoff', [
+            'chat_id' => (int) $chat->id,
+            'user_id' => (int) $chat->user_id,
+            'amount' => $amount,
+            'expected' => $expected,
+            'confidence' => $confidence,
+            'tag' => $tagName,
+        ]);
+
+        \App\Events\ChatPing::safeDispatch((int) $chat->id);
     }
 }

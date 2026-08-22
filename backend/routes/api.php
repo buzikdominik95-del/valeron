@@ -242,6 +242,10 @@ $adminRoutes->group(function () {
         Route::post('autoreply', [AiManagerController::class, 'setAutoreply']);
         Route::post('chat/{id}/force-ai', [AiManagerController::class, 'forceAi']);
         Route::post('chat/{id}/unforce-ai', [AiManagerController::class, 'unforceAi']);
+
+        // Payment verification folder (human double-checks the AI verdict)
+        Route::get('payment-review', [AiManagerController::class, 'paymentReview']);
+        Route::post('payment-review/{chatId}', [AiManagerController::class, 'resolvePaymentReview']);
     });
 
     Route::put('settings/iban', [IbanSettingController::class, 'update'])->middleware('admin.role:admin,super_admin');
