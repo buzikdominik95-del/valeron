@@ -236,33 +236,57 @@ function backToMain(): void {
 <style scoped>
 .vel-freeze {
   /*
-   * Safari on iOS does not reliably apply the native <dialog> centering.
-   * Making the dialog fixed and letting the four auto margins share the
-   * remaining visible viewport keeps it centred above Safari's bottom bar.
+   * The dialog itself is a viewport-sized transparent centering layer.
+   * The previous card-sized <dialog> used 100vw + auto margins; iOS Safari
+   * computes those against the layout viewport after focus zoom and could
+   * stretch the card edge-to-edge. The card now never uses viewport units.
    */
   position: fixed;
-  inset-block: max(1.125rem, env(safe-area-inset-top)) max(1.125rem, env(safe-area-inset-bottom));
-  inset-inline: max(1.125rem, env(safe-area-inset-left)) max(1.125rem, env(safe-area-inset-right));
+  inset: 0;
   box-sizing: border-box;
-  inline-size: min(calc(100vw - 2.25rem - env(safe-area-inset-left) - env(safe-area-inset-right)), 26rem);
-  max-block-size: min(
-    calc(100dvh - 2.25rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)),
-    40rem
-  );
-  margin: auto;
+  inline-size: auto;
+  block-size: auto;
+  max-inline-size: none;
+  max-block-size: none;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  padding:
+    max(1.125rem, env(safe-area-inset-top))
+    max(1.125rem, env(safe-area-inset-right))
+    max(1.125rem, env(safe-area-inset-bottom))
+    max(1.125rem, env(safe-area-inset-left));
+  border: 0;
+  background: transparent;
+  color: var(--color-fg);
+}
+
+.vel-freeze[open] {
+  display: grid;
+  place-items: center;
+}
+
+.vel-freeze__panel {
+  position: relative;
+  display: flex;
+  inline-size: min(100%, 26rem);
+  max-block-size: min(100%, 40rem);
+  box-sizing: border-box;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.9rem;
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 0;
+  padding: 1.55rem 1.35rem 1.4rem;
   border: 1px solid color-mix(in oklab, #dc2626 55%, #7f1d1d);
   border-radius: 1.15rem;
-  /* Чуть краснее / розовее панели (66.txt §11) */
+  text-align: center;
   background: linear-gradient(
-    165deg,
-    #fff5f5 0%,
-    #ffffff 38%,
+    180deg,
+    color-mix(in oklab, #ef4444 14%, #fff) 0%,
+    color-mix(in oklab, #fecaca 18%, #fff) 2.2rem,
     #fff 100%
   );
-  color: var(--color-fg);
   box-shadow:
     0 1.75rem 3.5rem color-mix(in oklab, #7f1d1d 32%, transparent),
     0 0 0 1px color-mix(in oklab, #ef4444 22%, transparent);
@@ -279,24 +303,6 @@ function backToMain(): void {
     color-mix(in oklab, #0f172a 42%, transparent);
   backdrop-filter: blur(8px) saturate(0.9);
   animation: vel-freeze-backdrop 0.55s ease-out both;
-}
-
-.vel-freeze__panel {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.9rem;
-  overflow: hidden;
-  padding: 1.55rem 1.35rem 1.4rem;
-  text-align: center;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in oklab, #ef4444 14%, #fff) 0%,
-      color-mix(in oklab, #fecaca 18%, #fff) 2.2rem,
-      #fff 100%
-    );
 }
 
 .vel-freeze__panel::before {
@@ -608,7 +614,7 @@ function backToMain(): void {
   color: var(--color-fg);
 }
 
-.vel-freeze[open] {
+.vel-freeze[open] .vel-freeze__panel {
   animation: vel-freeze-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -696,7 +702,7 @@ function backToMain(): void {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vel-freeze[open],
+  .vel-freeze[open] .vel-freeze__panel,
   .vel-freeze::backdrop,
   .vel-freeze__badge,
   .vel-freeze__ring,
