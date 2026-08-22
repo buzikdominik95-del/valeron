@@ -232,13 +232,13 @@ class AiManagerController extends Controller
 
     public function createPersona(Request $request): JsonResponse
     {
-        $payload = $request->only(['name', 'role', 'contour', 'legend', 'style_guide', 'system_prompt']);
+        $payload = $request->only(['name', 'role', 'contour', 'legend', 'style_guide', 'system_prompt', 'allowed_levels', 'forbidden_actions', 'goals', 'escalation_triggers', 'max_message_length', 'tone', 'language']);
         return $this->proxy('POST', '/v1/personas', [], $payload, true);
     }
 
     public function updatePersona(Request $request, int $id): JsonResponse
     {
-        $payload = $request->only(['name', 'role', 'contour', 'legend', 'style_guide', 'system_prompt']);
+        $payload = $request->only(['name', 'role', 'contour', 'legend', 'style_guide', 'system_prompt', 'allowed_levels', 'forbidden_actions', 'goals', 'escalation_triggers', 'max_message_length', 'tone', 'language']);
         return $this->proxy('PUT', "/v1/personas/{$id}", [], $payload, true);
     }
 
