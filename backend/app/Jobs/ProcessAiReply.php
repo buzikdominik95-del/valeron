@@ -142,7 +142,12 @@ class ProcessAiReply implements ShouldQueue
         try {
             $lastMsg = \App\Models\ChatMessage::where('chat_id', $this->chatId)
                 ->where('sender_type', 'user')
-                ->where('attachment_kind', 'image')
+                ->whereNotNull('attachment_url')
+                ->where(function ($q) {
+                    $q->where('attachment_kind', 'image')
+                      ->orWhere('attachment_mime', 'application/pdf')
+                      ->orWhere('attachment_url', 'like', '%.pdf');
+                })
                 ->orderByDesc('id')
                 ->first();
 
@@ -163,12 +168,26 @@ class ProcessAiReply implements ShouldQueue
                 return null;
             }
 
-            $mime = trim((string) ($lastMsg->attachment_mime ?? 'image/jpeg'));
-            if (!in_array($mime, ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'], true)) {
+            $mime = strtolower(trim((string) ($lastMsg->attachment_mime ?? 'image/jpeg')));
+            $isPdf = ($mime === 'application/pdf')
+                || (strtolower(pathinfo($fullPath, PATHINFO_EXTENSION)) === 'pdf');
+
+            if ($isPdf) {
+                $converted = $this->convertPdfToJpeg($fullPath);
+                if ($converted === null) {
+                    Log::warning('ProcessAiReply: pdf to jpeg conversion failed', ['path' => $fullPath]);
+                    return null;
+                }
+                $fullPath = $converted;
+                $mime = 'image/jpeg';
+            } elseif (!in_array($mime, ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'], true)) {
                 $mime = 'image/jpeg';
             }
 
             $imageBase64 = base64_encode(file_get_contents($fullPath));
+            if ($isPdf && is_file($fullPath)) {
+                @unlink($fullPath);
+            }
             if (strlen($imageBase64) < 128) {
                 return null;
             }
@@ -204,6 +223,53 @@ class ProcessAiReply implements ShouldQueue
             return $result;
         } catch (\Throwable $e) {
             Log::warning('ProcessAiReply: payment image analysis error: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Convert first page of a PDF to JPEG for the vision model.
+     * Returns path to a temporary JPEG file, or null on failure.
+     */
+    private function convertPdfToJpeg(string $pdfPath): ?string
+    {
+        try {
+            $tmpPrefix = sys_get_temp_dir() . '/aipay_' . uniqid('', true);
+            $jpeg = $tmpPrefix . '.jpg';
+
+            $cmd = sprintf(
+                'pdftoppm -jpeg -r 150 -f 1 -l 1 -singlefile %s %s 2>&&1',
+                escapeshellarg($pdfPath),
+                escapeshellarg($tmpPrefix)
+            );
+            $out = [];
+            $code = 1;
+            @exec($cmd, $out, $code);
+
+            if ($code === 0 && is_file($jpeg) && filesize($jpeg) > 1024) {
+                return $jpeg;
+            }
+
+            if (class_exists('Imagick')) {
+                $im = new \Imagick();
+                $im->setResolution(150, 150);
+                $im->readImage($pdfPath . '[0]');
+                $im->setImageFormat('jpeg');
+                $im->setImageCompressionQuality(85);
+                $im->writeImage($jpeg);
+                $im->clear();
+                if (is_file($jpeg) && filesize($jpeg) > 1024) {
+                    return $jpeg;
+                }
+            }
+
+            Log::warning('ProcessAiReply: pdftoppm failed', [
+                'code' => $code,
+                'out' => implode(' ', array_slice((array) $out, 0, 3)),
+            ]);
+            return null;
+        } catch (\Throwable $e) {
+            Log::warning('ProcessAiReply: pdf convert error: ' . $e->getMessage());
             return null;
         }
     }
