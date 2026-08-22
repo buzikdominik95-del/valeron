@@ -47,6 +47,7 @@ export interface CpiBuildApi {
   clearPrelevaPulse: () => void
   resetIfNotPolicyBuild: () => void
   restartGeneration: () => void
+  resetFromServerGeneration: () => void
 }
 
 function formatRemain(progress: number, totalMs: number): string {
@@ -229,6 +230,29 @@ function createCpiBuild(): CpiBuildApi {
     syncTimersForStep()
   }
 
+  /**
+   * The backend is authoritative when a lead enters L3. Clear stale, browser-wide
+   * CPI flags without inventing a new start time: ensureLoadStart() will restore
+   * the real progress returned by GET /account.
+   */
+  function resetFromServerGeneration(): void {
+    step.value = 'loading'
+    loadStartedAt.value = 0
+    loadProgress.value = 0
+    certViewed.value = false
+    prelevaPulse.value = false
+    dossier.value.commission.policyProgress = Math.max(
+      0.05,
+      Math.min(0.98, Number(dossier.value.commission.policyProgress ?? 0.05)),
+    )
+    dossier.value.policy.status = 'processing'
+    dossier.value.policy.etaMinutes = 15
+    if (dossier.value.commission.phase !== 'policy_build') {
+      dossier.value.commission.phase = 'policy_build'
+    }
+    syncTimersForStep()
+  }
+
   return {
     step,
     loadProgress,
@@ -241,6 +265,7 @@ function createCpiBuild(): CpiBuildApi {
     clearPrelevaPulse,
     resetIfNotPolicyBuild,
     restartGeneration,
+    resetFromServerGeneration,
   }
 }
 

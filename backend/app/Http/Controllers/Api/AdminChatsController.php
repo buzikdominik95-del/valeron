@@ -6,6 +6,7 @@ use App\Models\Chat;
 use App\Models\AdminUser;
 use App\Models\User;
 use App\Support\AdminManagerLevelStore;
+use App\Support\FunnelProgress;
 use App\Support\ManagerTrafficAssigner;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -1250,15 +1251,9 @@ class AdminChatsController extends Controller
             return;
         }
         $raw = $user->wizard_progress;
-        $progress = is_array($raw) ? $raw : (is_string($raw) ? (json_decode($raw, true) ?: []) : []);
-        $dirty = false;
-        foreach (['withdraw_fail_notified_at', 'withdraw_anim_started_at', 'policy_build_started_at'] as $key) {
-            if (array_key_exists($key, $progress)) {
-                unset($progress[$key]);
-                $dirty = true;
-            }
-        }
-        if ($dirty) {
+        $before = is_array($raw) ? $raw : (is_string($raw) ? (json_decode($raw, true) ?: []) : []);
+        $progress = FunnelProgress::resetForLevelChange($raw, $prevLevel, $nextLevel);
+        if ($progress !== $before) {
             $user->wizard_progress = json_encode($progress, JSON_UNESCAPED_UNICODE);
         }
     }
