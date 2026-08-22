@@ -22,6 +22,25 @@ class AdminChatsController extends Controller
     private ?array $commissionBonusByLevel = null;
     private ?array $autoDistributionByLevel = null;
 
+    public function version(Request $request)
+    {
+        $actor = $this->resolveCurrentAdminUser($request);
+        if (!$actor) {
+            $actor = $this->resolveReadOnlyFallbackAdmin($request);
+        }
+
+        if (!$actor) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'version' => (int) Cache::get('admin_chats_index_ver', 0),
+            ],
+        ])->header('Cache-Control', 'private, no-store, max-age=0');
+    }
+
     public function index(Request $request)
     {
         $actor = $this->resolveCurrentAdminUser($request);
@@ -53,7 +72,7 @@ class AdminChatsController extends Controller
         $etag = '"ac-' . $scope . '-' .
             (int) $request->integer('page', 1) . '-' . (int) $request->integer('per_page', 0) .
             '-' . $staleVer . '-' . $staleAt . '"';
-        $minRebuildSeconds = 5;
+        $minRebuildSeconds = 1;
         $buildIsFresh = $staleAt > 0 && (
             ($staleVer === $cacheVersion && (time() - $staleAt) < 15) ||
             ((time() - $staleAt) < $minRebuildSeconds)

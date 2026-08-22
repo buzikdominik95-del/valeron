@@ -151,6 +151,7 @@ if ($adminAuthRequire) {
 $adminRoutes->group(function () {
     // Chats
     Route::get('chats', [AdminChatsController::class, 'index']);
+    Route::get('chats-version', [AdminChatsController::class, 'version']);
     Route::get('chats/{id}', [AdminChatsController::class, 'show']);
     Route::get('chats/{id}/messages', [AdminChatsController::class, 'messages']);
     Route::post('chats/{id}/messages', [AdminChatsController::class, 'sendMessage'])->middleware('admin.role:manager,team_lead,none,admin,super_admin');
