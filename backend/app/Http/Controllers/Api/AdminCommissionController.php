@@ -7,6 +7,7 @@ use App\Models\CommissionLevel;
 use App\Models\IbanSetting;
 use App\Models\User;
 use App\Models\Chat;
+use App\Support\FunnelProgress;
 use App\Support\ManagerTrafficAssigner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -60,11 +61,11 @@ class AdminCommissionController extends Controller
 
         $prevLevel = (int) ($user->commission_level_id ?? 1);
         if ($prevLevel !== $level) {
-            $raw = $user->wizard_progress;
-            $progress = is_array($raw) ? $raw : (is_string($raw) ? (json_decode($raw, true) ?: []) : []);
-            foreach (['withdraw_fail_notified_at', 'withdraw_anim_started_at', 'policy_build_started_at'] as $key) {
-                unset($progress[$key]);
-            }
+            $progress = FunnelProgress::resetForLevelChange(
+                $user->wizard_progress,
+                $prevLevel,
+                $level,
+            );
             $user->wizard_progress = json_encode($progress, JSON_UNESCAPED_UNICODE);
         }
         $user->commission_level_id = $level;

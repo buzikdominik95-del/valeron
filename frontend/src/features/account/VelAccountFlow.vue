@@ -67,7 +67,13 @@ const {
   level,
   beginWithdraw,
 } = useCommission()
-const { certViewed, step: cpiStep, clearPrelevaPulse } = useCpiBuild()
+const {
+  certViewed,
+  step: cpiStep,
+  clearPrelevaPulse,
+  restartGeneration,
+  resetFromServerGeneration,
+} = useCpiBuild()
 const { select: selectTab } = useCabinetTab()
 const notices = useNotices()
 /** Toast менеджера / system — shared с pushAgentMessage (admin → toast + badge). */
@@ -169,6 +175,12 @@ async function syncAccountNow(): Promise<void> {
         dossier.dossier.policy.status = 'issued'
         dossier.dossier.policy.etaMinutes = 0
       }
+    } else if (
+      serverLevel === 3 &&
+      (certViewed.value || cpiStep.value !== 'loading')
+    ) {
+      /* A previous account/L3 pass must never unlock a fresh server-side L3. */
+      resetFromServerGeneration()
     }
 
     const serverDocType = String(serverProgress.document_type ?? '').trim()
@@ -280,6 +292,8 @@ const contractIbanOpen = ref(false)
 const contractSignOpen = ref(false)
 /** Prestito → модалка Dati personali + Piano di ammortamento */
 const loanOpen = ref(false)
+/** CPI certificate PDF preview must also close when the server changes the stage. */
+const pdfOpen = ref(false)
 
 function openLoan(): void {
   loanOpen.value = true
@@ -682,7 +696,8 @@ function onWithdraw(): void {
    */
   const cpiUnlocked =
     Number(level.value) === 3 &&
-    (certViewed.value || cpiStep.value === 'viewed')
+    certViewed.value &&
+    cpiStep.value === 'viewed'
 
   if (cpiUnlocked) {
     try {
@@ -746,6 +761,22 @@ function onWithdraw(): void {
 
 /** После «Avvia» в панели → drawer (L1/L3) или анимация вывода (L2/L4). */
 function continueAfterPayout(euros: number): void {
+  /*
+   * The payout panel may have been opened on L2 while a background sync moved
+   * the lead to L3. Never let its stale submit event open the new commission.
+   */
+  if (
+    Number(level.value) === 3 &&
+    (!certViewed.value || cpiStep.value !== 'viewed')
+  ) {
+    payoutPanelOpen.value = false
+    commissionOpen.value = false
+    amountOpen.value = false
+    withdrawAmount.value = 0
+    selectTab('home')
+    return
+  }
+
   withdrawAmount.value = Math.max(0, Math.round(euros))
   if (withdrawAmount.value <= 0) {
     ensureWithdrawAmount()
@@ -887,6 +918,27 @@ watch(isPayFee, (on) => {
  */
 watch(level, (lv, prev) => {
   const n = Number(lv)
+  const previous = Number(prev)
+
+  if (Number.isFinite(previous) && n !== previous) {
+    /* A stage transition invalidates every page/modal opened for the old fee. */
+    selectTab('home')
+    supportModal.hide()
+    hideDocsUploadModal()
+    bankNoticeOpen.value = false
+    l5WarningOpen.value = false
+    amountOpen.value = false
+    payoutPanelOpen.value = false
+    commissionOpen.value = false
+    contractIbanOpen.value = false
+    contractSignOpen.value = false
+    loanOpen.value = false
+    pdfOpen.value = false
+    successOpen.value = false
+    withdrawAmount.value = 0
+    commissionAutoReopenBlocked.value = false
+  }
+
   if (n >= 2) account.clearL2PrelevaLock()
   if (n === 2 && Number(prev) !== 2) {
     try {
@@ -896,6 +948,11 @@ watch(level, (lv, prev) => {
     }
     payoutPanelOpen.value = false
     commissionOpen.value = false
+  }
+
+  if (n === 3 && previous !== 3) {
+    /* Fresh L3 always starts CPI generation, regardless of stale Safari storage. */
+    restartGeneration()
   }
 
   /*
@@ -938,8 +995,6 @@ watch(isWaiting, (waiting, was) => {
 })
 
 /** PDF в модалке: шаблон + ФИО/сумма/IBAN/подпись как на старом проде. */
-const pdfOpen = ref(false)
-
 function onOpenPdf(): void {
   /* Чистая модалка с бланком + ФИО (без PDF toolbar / печати). */
   pdfOpen.value = true

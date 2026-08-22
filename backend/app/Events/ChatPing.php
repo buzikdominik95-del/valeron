@@ -40,6 +40,9 @@ class ChatPing implements ShouldBroadcastNow
     public static function safeDispatch(int $chatId): void
     {
         try {
+            // Database and file cache stores do not create a missing key on increment.
+            // Initialise it first so the lightweight admin real-time version always advances.
+            \Illuminate\Support\Facades\Cache::add('admin_chats_index_ver', 0);
             \Illuminate\Support\Facades\Cache::increment('admin_chats_index_ver');
         } catch (\Throwable $e) {
             // ignore

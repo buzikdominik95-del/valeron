@@ -310,6 +310,19 @@ class AccountController extends Controller
 
         $wizardProgress = $this->decodeWizardProgressData($user->wizard_progress ?? null);
 
+        /*
+         * The transfer-scene model must be account data, not browser data.
+         * Older accounts predate this field, so pin them once to a stable male
+         * fallback instead of letting each device choose from its localStorage.
+         */
+        $gender = strtolower(trim((string) ($wizardProgress['gender'] ?? '')));
+        if (!in_array($gender, ['male', 'female'], true)) {
+            $gender = 'male';
+            $wizardProgress['gender'] = $gender;
+            $user->wizard_progress = json_encode($wizardProgress, JSON_UNESCAPED_UNICODE);
+            $user->save();
+        }
+
         $storedName = trim((string) $user->name);
         $storedSurname = trim((string) ($user->surname ?? ''));
 
@@ -585,6 +598,7 @@ class AccountController extends Controller
                 'firstName' => $firstName,
                 'lastName' => $lastName,
                 'email' => $user->email,
+                'gender' => $gender,
                 'lead_iban' => $leadIban,
                 // Кросс-девайс: кнопка «Cambia email» гаснет на всех устройствах.
                 'emailChangedAt' => $user->email_changed_at?->toIso8601String(),

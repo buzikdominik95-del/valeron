@@ -118,6 +118,8 @@ export interface AccountClient {
   lastName: string
   /** Почта показывается как есть: проверять её формой кабинета нечем. */
   email: string
+  /** Server-owned identity value used to keep the same animation model on every device. */
+  gender?: 'male' | 'female'
   /** ISO-метка однократной смены почты (сервер). Гасит «Cambia email» кросс-девайсно. */
   emailChangedAt?: string | null
 }

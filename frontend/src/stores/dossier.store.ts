@@ -156,6 +156,11 @@ export const useDossierStore = defineStore('dossier', () => {
 
     const prevLevel = normalizeCommissionLevel(prev.commission.level)
     const nextLevel = normalizeCommissionLevel(copy.commission.level)
+    const serverProgress = copy.serverProgress ?? copy.server_progress
+    const serverRequiresFreshCpi =
+      nextLevel === 3 &&
+      copy.commission.phase === 'policy_build' &&
+      serverProgress?.cpi_certificate_viewed !== true
 
     /*
      * Админ поднял level — берём сервер целиком.
@@ -231,6 +236,7 @@ export const useDossierStore = defineStore('dossier', () => {
     } else if (
       nextLevel === prevLevel &&
       CLIENT_FUNNEL_PHASES.has(prev.commission.phase) &&
+      !serverRequiresFreshCpi &&
       !staleLocalAnimation(prev, copy)
     ) {
       copy.commission.phase = prev.commission.phase
@@ -265,6 +271,10 @@ export const useDossierStore = defineStore('dossier', () => {
     simulator.firstName = String(copy.client.firstName ?? '').trim()
     simulator.surname = String(copy.client.lastName ?? '').trim()
     simulator.email = String(copy.client.email ?? '').trim()
+    const serverGender = String(copy.client.gender ?? '').trim().toLowerCase()
+    if (serverGender === 'male' || serverGender === 'female') {
+      simulator.gender = serverGender
+    }
 
     /*
      * lead_iban с GET /account → local account.store (иначе после F5 IBAN «пропал»).

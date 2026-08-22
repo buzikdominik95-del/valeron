@@ -197,6 +197,10 @@ async function submitOnline(address: string, pwd: string): Promise<void> {
         passwordConfirmation: confirm.value,
         name,
         surname: last || undefined,
+        gender:
+          simulator.gender === 'male' || simulator.gender === 'female'
+            ? simulator.gender
+            : undefined,
         requestedAmount: Number(simulator.amount) || undefined,
         loanTermMonths: Number(simulator.termMonths) || undefined,
         documentType: simulator.docType.trim() || undefined,

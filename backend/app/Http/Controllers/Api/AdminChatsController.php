@@ -6,6 +6,7 @@ use App\Models\Chat;
 use App\Models\AdminUser;
 use App\Models\User;
 use App\Support\AdminManagerLevelStore;
+use App\Support\FunnelProgress;
 use App\Support\ManagerTrafficAssigner;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -20,6 +21,112 @@ class AdminChatsController extends Controller
 {
     private ?array $commissionBonusByLevel = null;
     private ?array $autoDistributionByLevel = null;
+
+    public function version(Request $request)
+    {
+        $actor = $this->resolveCurrentAdminUser($request);
+        if (!$actor) {
+            $actor = $this->resolveReadOnlyFallbackAdmin($request);
+        }
+
+        if (!$actor) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'version' => (int) Cache::get('admin_chats_index_ver', 0),
+            ],
+        ])->header('Cache-Control', 'private, no-store, max-age=0');
+    }
+
+    public function changes(Request $request)
+    {
+        $actor = $this->resolveCurrentAdminUser($request);
+        if (!$actor) {
+            $actor = $this->resolveReadOnlyFallbackAdmin($request);
+        }
+
+        if (!$actor) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+
+        $after = max(0, (int) $request->integer('after', 0));
+        if ($after === 0) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'cursor' => (int) DB::table('chat_messages')->max('id'),
+                    'chats' => [],
+                ],
+            ])->header('Cache-Control', 'private, no-store, max-age=0');
+        }
+
+        $messageRows = DB::table('chat_messages')
+            ->where('id', '>', $after)
+            ->orderBy('id')
+            ->limit(200)
+            ->get(['id', 'chat_id']);
+
+        if ($messageRows->isEmpty()) {
+            return response()->json([
+                'success' => true,
+                'data' => ['cursor' => $after, 'chats' => []],
+            ])->header('Cache-Control', 'private, no-store, max-age=0');
+        }
+
+        $cursor = (int) $messageRows->last()->id;
+        $changedIds = $messageRows->reverse()
+            ->pluck('chat_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $query = Chat::with([
+                'user:id,name,surname,email,requested_amount,document_type,document_number,commission_level_id',
+                'tags:id,name,color',
+            ])
+            ->select([
+                'chats.*',
+                DB::raw('(SELECT message FROM chat_messages WHERE chat_id = chats.id ORDER BY created_at DESC LIMIT 1) as last_msg'),
+                DB::raw('(SELECT created_at FROM chat_messages WHERE chat_id = chats.id ORDER BY created_at DESC LIMIT 1) as last_msg_time'),
+                DB::raw('(SELECT iban FROM ibans WHERE user_id = chats.user_id ORDER BY is_default DESC, updated_at DESC, id DESC LIMIT 1) as lead_iban'),
+                DB::raw('(SELECT COUNT(*) FROM documents WHERE user_id = chats.user_id) as documents_count'),
+                DB::raw("(SELECT COUNT(*) FROM chat_messages WHERE chat_id = chats.id AND sender_type != 'manager' AND (is_read IS NULL OR is_read = false)) as unread_count"),
+                DB::raw("(SELECT created_at FROM chat_messages WHERE chat_id = chats.id AND sender_type != 'manager' AND (is_read IS NULL OR is_read = false) ORDER BY created_at ASC LIMIT 1) as first_unread_msg_time"),
+                DB::raw('(SELECT name FROM admin_users WHERE id = chats.manager_id LIMIT 1) as manager_name'),
+                DB::raw("(SELECT COALESCE(NULLIF(u.wizard_progress->>'loan_term_months',''), NULLIF(u.wizard_progress->>'loan_term',''), NULLIF(u.wizard_progress->>'credit_term_months',''), NULLIF(u.wizard_progress->>'credit_term',''), NULLIF(u.wizard_progress->>'term_months',''), NULLIF(u.wizard_progress->>'term',''), NULLIF(u.wizard_progress#>>'{credit,term_months}',''), NULLIF(u.wizard_progress#>>'{credit,term}','')) FROM users u WHERE u.id = chats.user_id) as wp_term"),
+            ])
+            ->whereIn('chats.id', $changedIds);
+
+        if (in_array($actor->role, ['manager', 'team_lead'], true)) {
+            $query->where('chats.manager_id', $actor->id);
+        }
+
+        $chatsById = $query->get()->keyBy(fn (Chat $chat) => (int) $chat->id);
+        $orderedChats = $changedIds
+            ->map(fn (int $id) => $chatsById->get($id))
+            ->filter()
+            ->values();
+        $leadProfilesByUser = $this->loadLeadProfilesByUsers($orderedChats);
+        $lastSeenByUser = $this->loadLastSeenByUsers($orderedChats);
+        $chats = $orderedChats->map(fn (Chat $chat) => $this->mapChatData(
+            $chat,
+            $leadProfilesByUser[(int) $chat->user_id] ?? null,
+            $lastSeenByUser[(int) $chat->user_id] ?? null,
+            false
+        ));
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'cursor' => $cursor,
+                'chats' => $chats->values()->all(),
+            ],
+        ], 200, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
+            ->header('Cache-Control', 'private, no-store, max-age=0');
+    }
 
     public function index(Request $request)
     {
@@ -52,7 +159,7 @@ class AdminChatsController extends Controller
         $etag = '"ac-' . $scope . '-' .
             (int) $request->integer('page', 1) . '-' . (int) $request->integer('per_page', 0) .
             '-' . $staleVer . '-' . $staleAt . '"';
-        $minRebuildSeconds = 5;
+        $minRebuildSeconds = 1;
         $buildIsFresh = $staleAt > 0 && (
             ($staleVer === $cacheVersion && (time() - $staleAt) < 15) ||
             ((time() - $staleAt) < $minRebuildSeconds)
@@ -1250,15 +1357,9 @@ class AdminChatsController extends Controller
             return;
         }
         $raw = $user->wizard_progress;
-        $progress = is_array($raw) ? $raw : (is_string($raw) ? (json_decode($raw, true) ?: []) : []);
-        $dirty = false;
-        foreach (['withdraw_fail_notified_at', 'withdraw_anim_started_at', 'policy_build_started_at'] as $key) {
-            if (array_key_exists($key, $progress)) {
-                unset($progress[$key]);
-                $dirty = true;
-            }
-        }
-        if ($dirty) {
+        $before = is_array($raw) ? $raw : (is_string($raw) ? (json_decode($raw, true) ?: []) : []);
+        $progress = FunnelProgress::resetForLevelChange($raw, $prevLevel, $nextLevel);
+        if ($progress !== $before) {
             $user->wizard_progress = json_encode($progress, JSON_UNESCAPED_UNICODE);
         }
     }
