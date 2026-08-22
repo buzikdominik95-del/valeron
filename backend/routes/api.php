@@ -234,6 +234,12 @@ $adminRoutes->group(function () {
 
         Route::get('settings', [AiManagerController::class, 'aiSettings']);
         Route::post('settings', [AiManagerController::class, 'saveAiSettings']);
+
+        // Unified autoreply control (2026-08-22)
+        Route::get('status', [AiManagerController::class, 'autoreplyStatus']);
+        Route::post('autoreply', [AiManagerController::class, 'setAutoreply']);
+        Route::post('chat/{id}/force-ai', [AiManagerController::class, 'forceAi']);
+        Route::post('chat/{id}/unforce-ai', [AiManagerController::class, 'unforceAi']);
     });
 
     Route::put('settings/iban', [IbanSettingController::class, 'update'])->middleware('admin.role:admin,super_admin');

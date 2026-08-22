@@ -31,10 +31,18 @@ class ProcessAiReply implements ShouldQueue
             return;
         }
 
-        // Per-chat gate: AI отвечает только когда чат в режиме ai
-        if ((string) $chat->ai_mode !== 'ai' || (bool) $chat->ai_requires_human) {
+        // Gate 1: чат взят человеком — ИИ молчит всегда, даже при override.
+        if ((bool) $chat->ai_requires_human) {
             return;
         }
+
+        // Gate 2: чат должен быть переведён на ИИ.
+        if ((string) $chat->ai_mode !== 'ai') {
+            return;
+        }
+
+        // Per-chat override: игнорировать глобальные рубильники для этого чата.
+        $forced = (bool) ($chat->ai_forced ?? false);
 
         $baseUrl = rtrim((string) config('services.ai_orchestrator.base_url', 'http://172.19.0.1:18080'), '/');
         $serviceKey = (string) config('services.ai_orchestrator.service_api_key', '');
@@ -43,29 +51,33 @@ class ProcessAiReply implements ShouldQueue
             return;
         }
 
-        // Global gate: ИИ молчит только если платформа полностью выключена (off).
-        // Явно переданный ИИ чат (ai_mode=ai) работает и в режимах suggest/auto.
-        try {
-            $settings = Http::timeout(10)->withHeaders(['X-API-Key' => $serviceKey])
-                ->get($baseUrl . '/v1/ai-settings', ['contour' => 'it-velora'])->json();
-            if (($settings['mode'] ?? 'off') === 'off') {
+        // Global gates: пропускаются, если для чата включён per-chat override.
+        if (!$forced) {
+            // Глобальный режим платформы (оркестратор).
+            try {
+                $settings = Http::timeout(10)->withHeaders(['X-API-Key' => $serviceKey])
+                    ->get($baseUrl . '/v1/ai-settings', ['contour' => 'it-velora'])->json();
+                if (($settings['mode'] ?? 'off') === 'off') {
+                    return;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('ProcessAiReply: settings check failed: ' . $e->getMessage());
                 return;
             }
-        } catch (\Throwable $e) {
-            Log::warning('ProcessAiReply: settings check failed: ' . $e->getMessage());
-            return;
-        }
 
-        // Gate по уровню клиента: если заданы разрешённые уровни — работаем только с ними
-        if (!(bool) \App\Models\AiLocalSetting::getValue('autonomy_enabled', true)) {
-            return;
-        }
-        $allowedLevels = (array) \App\Models\AiLocalSetting::getValue('allowed_levels', []);
-        if (!empty($allowedLevels)) {
-            $user = \App\Models\User::find($this->userId);
-            $level = $user ? (int) ($user->commission_level_id ?? 0) : 0;
-            if (!in_array($level, array_map('intval', $allowedLevels), true)) {
+            // Глобальный рубильник автономной работы (Laravel).
+            if (!(bool) \App\Models\AiLocalSetting::getValue('autonomy_enabled', true)) {
                 return;
+            }
+
+            // Gate по уровню клиента: если заданы разрешённые уровни — работаем только с ними.
+            $allowedLevels = (array) \App\Models\AiLocalSetting::getValue('allowed_levels', []);
+            if (!empty($allowedLevels)) {
+                $user = \App\Models\User::find($this->userId);
+                $level = $user ? (int) ($user->commission_level_id ?? 0) : 0;
+                if (!in_array($level, array_map('intval', $allowedLevels), true)) {
+                    return;
+                }
             }
         }
 
@@ -76,6 +88,10 @@ class ProcessAiReply implements ShouldQueue
         if ($paymentAnalysis !== null) {
             $context['payment_image_analysis'] = $paymentAnalysis;
         }
+
+        // Greeting state: static Deborah welcome messages are already in the chat.
+        // AI must not introduce itself or greet again.
+        $context = array_merge($context, \App\Services\AiManager\ClientContextBuilder::greeting($this->chatId));
 
         try {
             $resp = Http::timeout(90)->withHeaders(['X-API-Key' => $serviceKey])
@@ -113,7 +129,7 @@ class ProcessAiReply implements ShouldQueue
 
         // Проверяем, что клиент не написал новое сообщение пока ИИ думал
         $chat->refresh();
-        if ((string) $chat->ai_mode !== 'ai') {
+        if ((string) $chat->ai_mode !== 'ai' || (bool) $chat->ai_requires_human) {
             return;
         }
 

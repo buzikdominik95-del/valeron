@@ -261,6 +261,8 @@ class AiManagerController extends Controller
                 'user_id' => (int) $chat->user_id,
                 'ai_mode' => (string) ($chat->ai_mode ?? 'human'),
                 'ai_requires_human' => (bool) $chat->ai_requires_human,
+                'ai_forced' => (bool) ($chat->ai_forced ?? false),
+                'effective_autoreply' => $this->effectiveAutoreply($chat),
                 'ai_last_reply_at' => $chat->ai_last_reply_at,
             ],
         ]);
@@ -529,5 +531,188 @@ class AiManagerController extends Controller
         return $this->localSettings();
     }
 
+    // ===== Unified autoreply control (2026-08-22) =====
 
+    private function orchestratorSettings(): array
+    {
+        try {
+            $resp = \Illuminate\Support\Facades\Http::timeout(8)
+                ->withHeaders(['X-API-Key' => $this->serviceApiKey()])
+                ->get($this->baseUrl() . '/v1/ai-settings', ['contour' => 'it-velora']);
+            if ($resp->successful()) {
+                $json = $resp->json();
+                return is_array($json) ? ($json['data'] ?? $json) : [];
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('orchestratorSettings failed: ' . $e->getMessage());
+        }
+        return [];
+    }
+
+    private function gpuOnline(): bool
+    {
+        try {
+            $resp = \Illuminate\Support\Facades\Http::timeout(5)->get($this->baseUrl() . '/health');
+            return $resp->successful();
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    public function autoreplyStatus(): JsonResponse
+    {
+        $orch = $this->orchestratorSettings();
+        $mode = (string) ($orch['mode'] ?? 'off');
+        $gpuOnline = $this->gpuOnline();
+
+        $autonomy = (bool) \App\Models\AiLocalSetting::getValue('autonomy_enabled', true);
+        $rawLevels = (array) \App\Models\AiLocalSetting::getValue('allowed_levels', []);
+        $levels = array_values(array_unique(array_filter(array_map('intval', $rawLevels), fn ($v) => (($v > 0) and ($v <= 5)))));
+        sort($levels);
+
+        $blockedBy = 'none';
+        if (!$gpuOnline) {
+            $blockedBy = 'gpu_offline';
+        } elseif ($mode === 'off') {
+            $blockedBy = 'mode_off';
+        } elseif (!$autonomy) {
+            $blockedBy = 'autonomy_disabled';
+        }
+
+        $reasons = [
+            'none' => 'ИИ отвечает клиентам',
+            'gpu_offline' => 'GPU-сервер недоступен — оркестратор не отвечает',
+            'mode_off' => 'Режим платформы выключен (mode = off)',
+            'autonomy_disabled' => 'Автономная работа ИИ выключена в настройках',
+            'no_levels_allowed' => 'Не выбран ни один уровень клиентов',
+            'outside_working_hours' => 'Сейчас нерабочие часы ИИ',
+        ];
+
+        $chatsOnAi = (int) \App\Models\Chat::where('ai_mode', 'ai')->count();
+        $chatsOnHuman = (int) \App\Models\Chat::where('ai_mode', 'human')->count();
+        $chatsForced = (int) \App\Models\Chat::where('ai_forced', true)->count();
+
+        $replies24h = 0;
+        try {
+            $replies24h = (int) \Illuminate\Support\Facades\DB::table('chat_messages')
+                ->join('chats', 'chats.id', '=', 'chat_messages.chat_id')
+                ->where('chat_messages.sender_type', 'manager')
+                ->where('chats.ai_mode', 'ai')
+                ->where('chat_messages.created_at', '>=', now()->subDay())
+                ->count();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('replies_24h failed: ' . $e->getMessage());
+        }
+
+        return response()->json(['success' => true, 'data' => [
+            'autoreply_active' => $blockedBy === 'none',
+            'blocked_by' => $blockedBy,
+            'blocked_reason_ru' => $reasons[$blockedBy] ?? $blockedBy,
+            'mode' => $mode,
+            'autonomy_enabled' => $autonomy,
+            'allowed_levels' => $levels,
+            'gpu_online' => $gpuOnline,
+            'replies_24h' => $replies24h,
+            'chats_on_ai' => $chatsOnAi,
+            'chats_on_human' => $chatsOnHuman,
+            'chats_forced' => $chatsForced,
+            'human_delay_min_sec' => $orch['human_delay_min_sec'] ?? null,
+            'human_delay_max_sec' => $orch['human_delay_max_sec'] ?? null,
+            'working_hours' => $orch['working_hours'] ?? null,
+        ]]);
+    }
+
+    /**
+     * Single switch: turns BOTH global gates (orchestrator mode + Laravel autonomy) at once.
+     */
+    public function setAutoreply(Request $request): JsonResponse
+    {
+        $enabled = filter_var($request->input('enabled'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        if ($enabled === null) {
+            return response()->json(['success' => false, 'message' => 'enabled_required'], 422);
+        }
+
+        $desiredMode = (string) $request->input('mode', 'auto');
+        if (!in_array($desiredMode, ['auto', 'suggest'], true)) {
+            $desiredMode = 'auto';
+        }
+
+        \App\Models\AiLocalSetting::setValue('autonomy_enabled', $enabled);
+
+        $syncOk = true;
+        try {
+            $resp = \Illuminate\Support\Facades\Http::timeout(10)
+                ->withHeaders(['X-API-Key' => $this->serviceApiKey()])
+                ->post($this->baseUrl() . '/v1/ai-settings', [
+                    'contour' => 'it-velora',
+                    'mode' => $enabled ? $desiredMode : 'off',
+                ]);
+            $syncOk = $resp->successful();
+        } catch (\Throwable $e) {
+            $syncOk = false;
+            \Illuminate\Support\Facades\Log::warning('setAutoreply sync failed: ' . $e->getMessage());
+        }
+
+        $status = $this->autoreplyStatus()->getData(true);
+        $status['data']['orchestrator_sync_ok'] = $syncOk;
+
+        return response()->json($status);
+    }
+
+    public function forceAi(int $id): JsonResponse
+    {
+        $chat = \App\Models\Chat::find($id);
+        if (!$chat) {
+            return response()->json(['success' => false, 'message' => 'chat_not_found'], 404);
+        }
+        $chat->ai_mode = 'ai';
+        $chat->ai_forced = true;
+        $chat->ai_requires_human = false;
+        $chat->save();
+
+        $dispatched = false;
+        $lastClientMsg = $chat->messages()->where('sender_type', '!=', 'manager')->orderByDesc('id')->first();
+        if ($lastClientMsg && trim((string) $lastClientMsg->message) !== '') {
+            \App\Jobs\ProcessAiReply::dispatch((int) $chat->id, (int) $chat->user_id, (string) $lastClientMsg->message);
+            $dispatched = true;
+        }
+
+        return $this->chatState($id);
+    }
+
+    public function unforceAi(int $id): JsonResponse
+    {
+        $chat = \App\Models\Chat::find($id);
+        if (!$chat) {
+            return response()->json(['success' => false, 'message' => 'chat_not_found'], 404);
+        }
+        $chat->ai_forced = false;
+        $chat->save();
+
+        return $this->chatState($id);
+    }
+
+    /**
+     * Will AI actually answer in this chat right now?
+     */
+    private function effectiveAutoreply(\App\Models\Chat $chat): bool
+    {
+        if ((bool) $chat->ai_requires_human) {
+            return false;
+        }
+        if ((string) $chat->ai_mode !== 'ai') {
+            return false;
+        }
+        if (!$this->gpuOnline()) {
+            return false;
+        }
+        if ((bool) ($chat->ai_forced ?? false)) {
+            return true;
+        }
+        $orch = $this->orchestratorSettings();
+        if ((string) ($orch['mode'] ?? 'off') === 'off') {
+            return false;
+        }
+        return (bool) \App\Models\AiLocalSetting::getValue('autonomy_enabled', true);
+    }
 }
