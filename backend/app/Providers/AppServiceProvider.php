@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Support\ReverbErrorLogger;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Reverb\Contracts\Logger as ReverbLogger;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,7 +21,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        if (!$this->app->environment('testing') && $this->isReverbServerCommand()) {
+            $this->app->instance(ReverbLogger::class, new ReverbErrorLogger);
+        }
     }
 
     /**
@@ -76,5 +80,11 @@ class AppServiceProvider extends ServiceProvider
             'reverb.apps.apps.0.options.scheme' => 'https',
             'reverb.apps.apps.0.options.useTLS' => true,
         ]);
+    }
+
+    private function isReverbServerCommand(): bool
+    {
+        return $this->app->runningInConsole()
+            && in_array('reverb:start', $_SERVER['argv'] ?? [], true);
     }
 }
